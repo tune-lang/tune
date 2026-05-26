@@ -28,6 +28,10 @@ pub fn lower_item_to_plan(item: &Item) -> Option<PlanFunction> {
 fn lower_expr(expr: &Expr, ops: &mut Vec<PlanOp>) {
     match &expr.kind {
         ExprKind::Missing | ExprKind::Literal(_) | ExprKind::Name(_) => {}
+        ExprKind::CallableValue { params: _, body } => {
+            lower_expr(body, ops);
+            ops.push(PlanOp::CallableValue);
+        }
         ExprKind::Sequence(elements) => {
             for element in elements {
                 lower_expr(element, ops);
@@ -52,6 +56,19 @@ fn lower_expr(expr: &Expr, ops: &mut Vec<PlanOp>) {
             lower_expr(index, ops);
             ops.push(PlanOp::SequenceGet { checked: true });
         }
+        ExprKind::Let { name, value, .. } => {
+            if let Some(value) = value {
+                lower_expr(value, ops);
+            }
+            ops.push(PlanOp::LocalLet {
+                name: name.clone().unwrap_or_default(),
+            });
+        }
+        ExprKind::Assign { target, value } => {
+            lower_expr(target, ops);
+            lower_expr(value, ops);
+            ops.push(PlanOp::Assign);
+        }
         ExprKind::Spawn(inner) => {
             lower_expr(inner, ops);
             ops.push(PlanOp::Spawn);
@@ -59,6 +76,12 @@ fn lower_expr(expr: &Expr, ops: &mut Vec<PlanOp>) {
         ExprKind::Propagate(inner) => {
             lower_expr(inner, ops);
             ops.push(PlanOp::ResultPropagate);
+        }
+        ExprKind::Return(inner) => {
+            if let Some(inner) = inner {
+                lower_expr(inner, ops);
+            }
+            ops.push(PlanOp::Return);
         }
         ExprKind::For { iterable, body, .. } => {
             lower_expr(iterable, ops);

@@ -10,6 +10,7 @@ fn lowers_hir_body_to_semantic_plan_ops() -> Result<(), &'static str> {
 let run(items) = spawn items[0].load()!
 let each(items) = for item in items { handle(item) }
 let values = [1, 2]
+let scoped(input) = { let f = _(x) = x; input = f(input); return input }
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
@@ -40,6 +41,14 @@ let values = [1, 2]
             .count(),
         2
     );
+
+    let scoped = tune_plan::lower_item_to_plan(&module.items[3]).ok_or("expected scoped plan")?;
+    assert!(scoped.ops.contains(&tune_plan::PlanOp::CallableValue));
+    assert!(scoped.ops.contains(&tune_plan::PlanOp::LocalLet {
+        name: "f".to_owned()
+    }));
+    assert!(scoped.ops.contains(&tune_plan::PlanOp::Assign));
+    assert!(scoped.ops.contains(&tune_plan::PlanOp::Return));
 
     Ok(())
 }

@@ -14,12 +14,73 @@ impl Parser<'_> {
 
     fn parse_expr(&mut self) {
         match self.current_kind() {
+            Some(TokenKind::KeywordLet) => self.parse_let_expr(),
+            Some(TokenKind::KeywordReturn) => self.parse_return_expr(),
             Some(TokenKind::KeywordSpawn) => self.parse_spawn_expr(),
             Some(TokenKind::KeywordFor) => self.parse_for_expr(),
             Some(TokenKind::LeftBrace) => self.parse_block_expr(),
-            Some(_) => self.parse_postfix_expr(),
+            Some(_) => self.parse_assignment_expr(),
             None => self.error_at_current("expected expression"),
         }
+    }
+
+    fn parse_assignment_expr(&mut self) {
+        let checkpoint = self.builder.checkpoint();
+        self.parse_postfix_expr();
+        self.skip_trivia();
+
+        if self.at(TokenKind::Equal) {
+            self.builder
+                .start_node_at(checkpoint, SyntaxKind::AssignExpr);
+            self.bump();
+            self.skip_trivia();
+            self.parse_expr();
+            self.finish_node();
+        }
+    }
+
+    fn parse_let_expr(&mut self) {
+        self.start_node(SyntaxKind::LetExpr);
+        self.expect(TokenKind::KeywordLet, "expected `let`");
+        self.skip_trivia();
+        self.expect(TokenKind::Ident, "expected binding name");
+        self.skip_trivia();
+
+        if self.at(TokenKind::Colon) {
+            self.bump();
+            self.skip_trivia();
+            self.parse_shape();
+            self.skip_trivia();
+        }
+
+        if self.at(TokenKind::Equal) {
+            self.bump();
+            self.skip_trivia();
+            self.parse_expr();
+        }
+
+        self.finish_node();
+    }
+
+    fn parse_return_expr(&mut self) {
+        self.start_node(SyntaxKind::ReturnExpr);
+        self.expect(TokenKind::KeywordReturn, "expected `return`");
+        if self.at_statement_boundary() || self.at(TokenKind::RightBrace) || self.at(TokenKind::Eof)
+        {
+            self.finish_node();
+            return;
+        }
+
+        self.skip_trivia();
+
+        if !self.at(TokenKind::Eof)
+            && !self.at(TokenKind::Semicolon)
+            && !self.at(TokenKind::RightBrace)
+        {
+            self.parse_expr();
+        }
+
+        self.finish_node();
     }
 
     fn parse_spawn_expr(&mut self) {
@@ -75,7 +136,7 @@ impl Parser<'_> {
                 self.bump();
                 self.skip_trivia();
             } else if !self.at(TokenKind::RightBrace) {
-                break;
+                continue;
             }
         }
 
@@ -162,9 +223,13 @@ impl Parser<'_> {
                 self.finish_node();
             }
             Some(TokenKind::Ident | TokenKind::KeywordSelf) => {
-                self.start_node(SyntaxKind::NameExpr);
-                self.bump();
-                self.finish_node();
+                if self.at_anonymous_callable_start() {
+                    self.parse_callable_value();
+                } else {
+                    self.start_node(SyntaxKind::NameExpr);
+                    self.bump();
+                    self.finish_node();
+                }
             }
             Some(TokenKind::LeftParen) => {
                 self.start_node(SyntaxKind::Expr);
@@ -206,5 +271,31 @@ impl Parser<'_> {
 
         self.expect(TokenKind::RightBracket, "expected `]`");
         self.finish_node();
+    }
+
+    fn parse_callable_value(&mut self) {
+        self.start_node(SyntaxKind::CallableValue);
+        self.expect(TokenKind::Ident, "expected `_`");
+        self.skip_trivia();
+        self.parse_param_list();
+        self.skip_trivia();
+
+        if self.at(TokenKind::Colon) {
+            self.bump();
+            self.skip_trivia();
+            self.parse_shape();
+            self.skip_trivia();
+        }
+
+        self.expect(TokenKind::Equal, "expected `=`");
+        self.skip_trivia();
+        self.parse_expr();
+        self.finish_node();
+    }
+
+    fn at_anonymous_callable_start(&self) -> bool {
+        self.at(TokenKind::Ident)
+            && self.current_text() == Some("_")
+            && self.lookahead_significant(1) == Some(TokenKind::LeftParen)
     }
 }

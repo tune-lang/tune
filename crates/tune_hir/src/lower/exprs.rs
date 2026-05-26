@@ -1,10 +1,12 @@
 use tune_ast::AstNode;
-use tune_ast::nodes::{Expr as AstExpr, LiteralExpr};
+use tune_ast::nodes::{CallableParam, Expr as AstExpr, LiteralExpr, ParamList, Shape as AstShape};
 use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 
 use crate::ExprId;
-use crate::expr::{Expr, ExprKind, LiteralKind};
+use crate::expr::{Expr, ExprKind, ExprParam, LiteralKind};
 use crate::pattern::{Pattern, PatternKind};
+
+use super::shapes::lower_shape;
 
 #[derive(Default)]
 pub(super) struct ExprLowerer {
@@ -30,10 +32,19 @@ impl ExprLowerer {
                 .name(source)
                 .map(|name| ExprKind::Name(name.to_owned()))
                 .unwrap_or(ExprKind::Missing),
+            AstExpr::CallableValue(_) => self.lower_callable_value(source, expr),
             AstExpr::Call(_) => self.lower_call(source, expr),
             AstExpr::Field(node) => self.lower_field(source, expr, node.field_name(source)),
             AstExpr::Index(_) => self.lower_index(source, expr),
+            AstExpr::Let(node) => self.lower_let(source, expr, node.name(source)),
+            AstExpr::Assign(_) => self.lower_assign(source, expr),
             AstExpr::Propagate(_) => self.lower_unary(source, expr, ExprKind::Propagate),
+            AstExpr::Return(_) => ExprKind::Return(
+                expr.child_exprs()
+                    .into_iter()
+                    .next()
+                    .map(|inner| Box::new(self.lower(source, inner))),
+            ),
             AstExpr::Spawn(_) => self.lower_unary(source, expr, ExprKind::Spawn),
             AstExpr::For(_) => self.lower_for(source, expr),
             AstExpr::Block(node) => ExprKind::Block(
@@ -45,6 +56,17 @@ impl ExprLowerer {
         };
 
         Expr { id, span, kind }
+    }
+
+    fn lower_callable_value(&mut self, source: &str, expr: AstExpr<'_>) -> ExprKind {
+        let Some(body) = expr.child_exprs().into_iter().next() else {
+            return ExprKind::Missing;
+        };
+
+        ExprKind::CallableValue {
+            params: callable_params(source, expr.syntax()),
+            body: Box::new(self.lower(source, body)),
+        }
     }
 
     fn lower_call(&mut self, source: &str, expr: AstExpr<'_>) -> ExprKind {
@@ -79,6 +101,30 @@ impl ExprLowerer {
         ExprKind::Index {
             base: Box::new(self.lower(source, base)),
             index: Box::new(self.lower(source, index)),
+        }
+    }
+
+    fn lower_let(&mut self, source: &str, expr: AstExpr<'_>, name: Option<&str>) -> ExprKind {
+        ExprKind::Let {
+            name: name.map(str::to_owned),
+            shape: first_shape(expr.syntax()).map(|shape| lower_shape(source, shape)),
+            value: expr
+                .child_exprs()
+                .into_iter()
+                .next()
+                .map(|value| Box::new(self.lower(source, value))),
+        }
+    }
+
+    fn lower_assign(&mut self, source: &str, expr: AstExpr<'_>) -> ExprKind {
+        let mut children = expr.child_exprs().into_iter();
+        let (Some(target), Some(value)) = (children.next(), children.next()) else {
+            return ExprKind::Missing;
+        };
+
+        ExprKind::Assign {
+            target: Box::new(self.lower(source, target)),
+            value: Box::new(self.lower(source, value)),
         }
     }
 
@@ -134,6 +180,36 @@ fn first_token_kind(node: &CstNode) -> Option<TokenKind> {
     node.children.iter().find_map(|child| match child {
         CstElement::Token(token) => Some(token.kind),
         CstElement::Node(_) => None,
+    })
+}
+
+fn callable_params(source: &str, node: &CstNode) -> Vec<ExprParam> {
+    node.children
+        .iter()
+        .find_map(|child| match child {
+            CstElement::Node(node) => ParamList::cast(node),
+            CstElement::Token(_) => None,
+        })
+        .into_iter()
+        .flat_map(ParamList::params)
+        .map(|param| lower_expr_param(source, param))
+        .collect()
+}
+
+fn lower_expr_param(source: &str, param: CallableParam<'_>) -> ExprParam {
+    ExprParam {
+        name: param.name(source).map(str::to_owned),
+        span: param.syntax().span,
+        shape: param
+            .shape_annotation()
+            .map(|shape| lower_shape(source, shape)),
+    }
+}
+
+fn first_shape<'tree>(node: &'tree CstNode) -> Option<AstShape<'tree>> {
+    node.children.iter().find_map(|child| match child {
+        CstElement::Node(node) => AstShape::cast(node),
+        CstElement::Token(_) => None,
     })
 }
 

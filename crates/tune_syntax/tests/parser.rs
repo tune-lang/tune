@@ -111,7 +111,7 @@ pub let search(query) = query
 #[test]
 fn distinguishes_callable_declaration_from_callable_value_binding() {
     let callable_decl = parse("let f(x) = x");
-    let callable_value = parse("let f = _(x) = x");
+    let callable_value = parse("let f = _(x: Int): Int = x");
 
     assert_eq!(
         root_node_kinds(&callable_decl.cst),
@@ -120,8 +120,18 @@ fn distinguishes_callable_declaration_from_callable_value_binding() {
     assert_eq!(root_node_kinds(&callable_value.cst), [SyntaxKind::LetDecl]);
     assert_eq!(
         nested_node_kinds(&callable_value.cst),
-        [SyntaxKind::LetDecl, SyntaxKind::CallableValue]
+        [
+            SyntaxKind::LetDecl,
+            SyntaxKind::CallableValue,
+            SyntaxKind::ParamList,
+            SyntaxKind::Param,
+            SyntaxKind::Shape,
+            SyntaxKind::Shape,
+            SyntaxKind::NameExpr,
+        ]
     );
+    assert!(callable_decl.diagnostics.is_empty());
+    assert!(callable_value.diagnostics.is_empty());
 }
 
 #[test]
@@ -233,6 +243,7 @@ let value = items[0].name!
 let task = spawn fetch()
 let looped = for item in items { handle(item) }
 let numbers = [1, 2, 3]
+let block = { let x = 1; x = x; return x }
 "#,
     );
     let kinds = nested_node_kinds(&parsed.cst);
@@ -245,6 +256,9 @@ let numbers = [1, 2, 3]
     assert!(kinds.contains(&SyntaxKind::ForExpr));
     assert!(kinds.contains(&SyntaxKind::Block));
     assert!(kinds.contains(&SyntaxKind::SequenceExpr));
+    assert!(kinds.contains(&SyntaxKind::LetExpr));
+    assert!(kinds.contains(&SyntaxKind::AssignExpr));
+    assert!(kinds.contains(&SyntaxKind::ReturnExpr));
     assert!(parsed.diagnostics.is_empty());
 }
 

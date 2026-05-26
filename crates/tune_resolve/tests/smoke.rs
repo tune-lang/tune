@@ -198,6 +198,7 @@ fn resolves_body_names_from_items_params_and_for_patterns() {
 let helper(value) = value
 let run(input) = helper(input)
 let each(items) = for item in items { helper(item) }
+let scoped(input) = { let local = _(x) = helper(x); local(input) }
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);

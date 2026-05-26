@@ -147,10 +147,6 @@ impl Parser<'_> {
             if depth == 0 && self.at(TokenKind::Equal) {
                 self.bump();
                 self.skip_trivia();
-                if self.at_anonymous_callable_start() {
-                    self.parse_callable_value();
-                    break;
-                }
                 self.parse_expr_until_boundary();
                 break;
             }
@@ -162,7 +158,7 @@ impl Parser<'_> {
         self.finish_node();
     }
 
-    fn parse_param_list(&mut self) {
+    pub(super) fn parse_param_list(&mut self) {
         self.start_node(SyntaxKind::ParamList);
         self.expect(TokenKind::LeftParen, "expected `(`");
         self.skip_trivia();
@@ -194,12 +190,6 @@ impl Parser<'_> {
             self.parse_shape();
         }
 
-        self.finish_node();
-    }
-
-    fn parse_callable_value(&mut self) {
-        self.start_node(SyntaxKind::CallableValue);
-        self.consume_until_boundary();
         self.finish_node();
     }
 
@@ -243,12 +233,6 @@ impl Parser<'_> {
                 None => break,
             }
         }
-    }
-
-    fn at_anonymous_callable_start(&self) -> bool {
-        self.at(TokenKind::Ident)
-            && self.current_text() == Some("_")
-            && self.lookahead_significant(1) == Some(TokenKind::LeftParen)
     }
 
     fn update_depth_before_bump(&self, depth: &mut u32) {
