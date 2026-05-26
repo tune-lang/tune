@@ -10,7 +10,7 @@ use super::shapes::lower_shape;
 
 #[derive(Default)]
 pub(super) struct ExprLowerer {
-    next_id: u32,
+    next_id: u64,
 }
 
 impl ExprLowerer {
@@ -197,7 +197,7 @@ impl ExprLowerer {
 
     fn alloc_id(&mut self) -> ExprId {
         let id = ExprId(self.next_id);
-        self.next_id = self.next_id.saturating_add(1);
+        self.next_id += 1;
         id
     }
 }
