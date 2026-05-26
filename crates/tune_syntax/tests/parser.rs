@@ -164,6 +164,16 @@ fn parses_callable_signature_param_nodes() {
 }
 
 #[test]
+fn parses_generic_shape_nodes() {
+    let parsed = parse("let parse(text: String): Result<Config, ParseError> = text");
+    let kinds = nested_node_kinds(&parsed.cst);
+
+    assert!(kinds.contains(&SyntaxKind::GenericShape));
+    assert!(kinds.contains(&SyntaxKind::ShapeList));
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
 fn wraps_unexpected_top_level_token_in_error_node() {
     let parsed = parse("}");
 

@@ -213,6 +213,12 @@ fn lower_shape(source: &str, shape: AstShape<'_>) -> ShapeExpr {
             .map(str::to_owned)
             .map(ShapeExprKind::Named)
             .unwrap_or(ShapeExprKind::Missing),
+        AstShape::Generic(node) => first_shape_name(node.syntax(), source)
+            .map(|name| ShapeExprKind::Generic {
+                name: name.to_owned(),
+                args: generic_shape_args(source, node.syntax()),
+            })
+            .unwrap_or(ShapeExprKind::Missing),
         AstShape::Sequence(node) => child_shapes(node.syntax())
             .into_iter()
             .next()
@@ -266,6 +272,18 @@ fn shape_list_items(source: &str, node: &CstNode) -> Vec<ShapeExpr> {
         })
         .map(|shape| lower_shape(source, shape))
         .collect()
+}
+
+fn generic_shape_args(source: &str, node: &CstNode) -> Vec<ShapeExpr> {
+    node.children
+        .iter()
+        .find_map(|child| match child {
+            CstElement::Node(node) if node.kind == SyntaxKind::ShapeList => {
+                Some(shape_list_items(source, node))
+            }
+            CstElement::Node(_) | CstElement::Token(_) => None,
+        })
+        .unwrap_or_default()
 }
 
 fn child_shapes<'tree>(node: &'tree CstNode) -> Vec<AstShape<'tree>> {

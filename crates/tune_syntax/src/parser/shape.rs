@@ -42,7 +42,7 @@ impl<'src> Parser<'src> {
 
     fn parse_primary_shape(&mut self) {
         match self.current_kind() {
-            Some(TokenKind::Ident | TokenKind::KeywordNever) => self.parse_named_shape(),
+            Some(TokenKind::Ident | TokenKind::KeywordNever) => self.parse_named_or_generic_shape(),
             Some(TokenKind::LeftBracket) => self.parse_sequence_shape(),
             Some(TokenKind::LeftParen) => self.parse_parenthesized_or_callable_shape(),
             Some(_) => {
@@ -55,10 +55,24 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn parse_named_shape(&mut self) {
+    fn parse_named_or_generic_shape(&mut self) {
+        let checkpoint = self.builder.checkpoint();
         self.start_node(SyntaxKind::Shape);
         self.bump();
         self.finish_node();
+        self.skip_trivia();
+
+        if self.at(TokenKind::Less) {
+            self.builder
+                .start_node_at(checkpoint, SyntaxKind::GenericShape);
+            self.bump();
+            self.skip_trivia();
+            if !self.at(TokenKind::Greater) {
+                self.parse_shape_list(TokenKind::Greater);
+            }
+            self.expect(TokenKind::Greater, "expected `>`");
+            self.finish_node();
+        }
     }
 
     fn parse_sequence_shape(&mut self) {

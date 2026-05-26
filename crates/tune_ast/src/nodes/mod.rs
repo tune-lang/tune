@@ -17,7 +17,8 @@ pub use enums::EnumDecl;
 pub use imports::ImportDecl;
 pub use items::{DocumentedItem, Item, PubDecl, Root};
 pub use shapes::{
-    CallableShape, NamedShape, OptionalShape, SequenceShape, Shape, TupleShape, UnionShape,
+    CallableShape, GenericShape, NamedShape, OptionalShape, SequenceShape, Shape, TupleShape,
+    UnionShape,
 };
 pub use structs::StructDecl;
 pub use tags::{TagApplication, TagDecl};

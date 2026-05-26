@@ -10,6 +10,10 @@ pub struct ShapeExpr {
 pub enum ShapeExprKind {
     Missing,
     Named(String),
+    Generic {
+        name: String,
+        args: Vec<ShapeExpr>,
+    },
     Sequence(Box<ShapeExpr>),
     Tuple(Vec<ShapeExpr>),
     Optional(Box<ShapeExpr>),

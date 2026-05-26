@@ -74,6 +74,7 @@ pub enum Shape {
     Callable { params: Vec<Shape>, ret: Box<Shape> },
     Result { ok: Box<Shape>, err: Box<Shape> },
     Task(Box<Shape>),
+    Apply { name: String, args: Vec<Shape> },
     Struct(String),
     Enum(String),
     Structural(Vec<MemberRequirement>),

@@ -160,3 +160,38 @@ fn resolved_hir_shape_uses_declared_structs() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+#[test]
+fn resolved_hir_shape_lowers_result_and_task_generics() -> Result<(), &'static str> {
+    let source = r#"
+struct Config {}
+enum ParseError {}
+let parse(text: String): Result<Config, ParseError> = text
+let background(): Task<Config> = parse("")
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    let result_shape = module.items[2]
+        .shape
+        .as_ref()
+        .ok_or("expected result shape")?;
+    let task_shape = module.items[3]
+        .shape
+        .as_ref()
+        .ok_or("expected task shape")?;
+
+    let lowered_result = tune_shape::lower_resolved_hir_shape(result_shape, &resolved.scope);
+    let lowered_task = tune_shape::lower_resolved_hir_shape(task_shape, &resolved.scope);
+
+    assert!(lowered_result.diagnostics.is_empty());
+    assert!(lowered_task.diagnostics.is_empty());
+    assert!(matches!(
+        lowered_result.shape,
+        tune_shape::Shape::Result { .. }
+    ));
+    assert!(matches!(lowered_task.shape, tune_shape::Shape::Task(_)));
+
+    Ok(())
+}

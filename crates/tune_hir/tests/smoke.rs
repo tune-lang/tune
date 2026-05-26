@@ -85,6 +85,26 @@ fn lowers_callable_signature_params_and_return_shape() {
 }
 
 #[test]
+fn lowers_generic_shape_annotations() -> Result<(), &'static str> {
+    let source = "let parse(text: String): Result<Config, ParseError> = text";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let shape = module.items[0]
+        .shape
+        .as_ref()
+        .ok_or("expected return shape")?;
+
+    let tune_hir::shape::ShapeExprKind::Generic { name, args } = &shape.kind else {
+        return Err("expected generic shape");
+    };
+
+    assert_eq!(name, "Result");
+    assert_eq!(args.len(), 2);
+
+    Ok(())
+}
+
+#[test]
 fn lowers_tag_applications_to_hir_items() {
     let source = r#"
 tag tool {}

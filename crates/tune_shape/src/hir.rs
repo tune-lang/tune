@@ -38,6 +38,9 @@ pub fn lower_hir_shape(expr: &ShapeExpr) -> Shape {
     match &expr.kind {
         ShapeExprKind::Missing => Shape::Hole,
         ShapeExprKind::Named(name) => named_shape(name),
+        ShapeExprKind::Generic { name, args } => {
+            generic_shape(name, args.iter().map(lower_hir_shape).collect())
+        }
         ShapeExprKind::Sequence(element) => Shape::Sequence(Box::new(lower_hir_shape(element))),
         ShapeExprKind::Tuple(items) => Shape::Tuple(items.iter().map(lower_hir_shape).collect()),
         ShapeExprKind::Optional(inner) => Shape::Optional(Box::new(lower_hir_shape(inner))),
@@ -57,6 +60,7 @@ pub fn lower_resolved_hir_shape(expr: &ShapeExpr, scope: &Scope) -> LoweredShape
             diagnostics: Vec::new(),
         },
         ShapeExprKind::Named(name) => lower_named_shape(name, expr.span, scope),
+        ShapeExprKind::Generic { name, args } => lower_generic_shape(name, args, expr.span, scope),
         ShapeExprKind::Sequence(element) => {
             let lowered = lower_resolved_hir_shape(element, scope);
             LoweredShape {
@@ -93,6 +97,56 @@ pub fn lower_resolved_hir_shape(expr: &ShapeExpr, scope: &Scope) -> LoweredShape
             }
         }
     }
+}
+
+fn lower_generic_shape(
+    name: &str,
+    args: &[ShapeExpr],
+    span: Option<Span>,
+    scope: &Scope,
+) -> LoweredShape {
+    let (lowered_args, mut diagnostics) = lower_args(args, scope);
+    if let Some(shape) = generic_shape_if_builtin(name, &lowered_args) {
+        return LoweredShape { shape, diagnostics };
+    }
+
+    match scope.get(name).map(|binding| binding.kind) {
+        Some(BindingKind::Struct | BindingKind::Enum) => LoweredShape {
+            shape: Shape::Apply {
+                name: name.to_owned(),
+                args: lowered_args,
+            },
+            diagnostics,
+        },
+        _ => {
+            let span = span.unwrap_or_else(Span::synthetic);
+            diagnostics.push(
+                Diagnostic::error(
+                    codes::UNRESOLVED_NAME,
+                    format!("unknown shape `{name}`"),
+                    span,
+                    "this generic shape name is not in scope",
+                )
+                .build(),
+            );
+            LoweredShape {
+                shape: Shape::Hole,
+                diagnostics,
+            }
+        }
+    }
+}
+
+fn lower_args(items: &[ShapeExpr], scope: &Scope) -> (Vec<Shape>, Vec<Diagnostic>) {
+    let mut shapes = Vec::new();
+    let mut diagnostics = Vec::new();
+    for item in items {
+        let lowered = lower_resolved_hir_shape(item, scope);
+        shapes.push(lowered.shape);
+        diagnostics.extend(lowered.diagnostics);
+    }
+
+    (shapes, diagnostics)
 }
 
 fn lower_many(
@@ -155,6 +209,24 @@ fn named_shape(name: &str) -> Shape {
     }
 
     Shape::Struct(name.to_owned())
+}
+
+fn generic_shape(name: &str, args: Vec<Shape>) -> Shape {
+    generic_shape_if_builtin(name, &args).unwrap_or_else(|| Shape::Apply {
+        name: name.to_owned(),
+        args,
+    })
+}
+
+fn generic_shape_if_builtin(name: &str, args: &[Shape]) -> Option<Shape> {
+    match (name, args) {
+        ("Result", [ok, err]) => Some(Shape::Result {
+            ok: Box::new(ok.clone()),
+            err: Box::new(err.clone()),
+        }),
+        ("Task", [task]) => Some(Shape::Task(Box::new(task.clone()))),
+        _ => None,
+    }
 }
 
 fn builtin_shape(name: &str) -> Option<Shape> {
