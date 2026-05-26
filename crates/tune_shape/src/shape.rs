@@ -1,5 +1,60 @@
+use tune_diagnostics::Span;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ShapeId(pub u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ShapeOrigin {
+    Builtin,
+    Annotation(Span),
+    Inferred(Span),
+    Synthetic,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ShapeFact {
+    pub id: ShapeId,
+    pub shape: Shape,
+    pub origin: ShapeOrigin,
+}
+
+#[derive(Debug, Default)]
+pub struct ShapeStore {
+    facts: Vec<ShapeFact>,
+}
+
+impl ShapeStore {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn intern(&mut self, shape: Shape, origin: ShapeOrigin) -> Option<ShapeId> {
+        let index = u32::try_from(self.facts.len()).ok()?;
+        let id = ShapeId(index);
+        self.facts.push(ShapeFact { id, shape, origin });
+        Some(id)
+    }
+
+    #[must_use]
+    pub fn get(&self, id: ShapeId) -> Option<&ShapeFact> {
+        self.facts.get(id.0 as usize).filter(|fact| fact.id == id)
+    }
+
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.facts.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.facts.is_empty()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &ShapeFact> {
+        self.facts.iter()
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Shape {

@@ -6,4 +6,4 @@ pub mod state;
 
 pub use literal::LiteralFact;
 pub use materialize::{Commitment, MaterializationPlan, can_materialize};
-pub use shape::{Shape, ShapeId};
+pub use shape::{Shape, ShapeFact, ShapeId, ShapeOrigin, ShapeStore};

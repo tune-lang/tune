@@ -59,3 +59,36 @@ fn unrelated_literals_do_not_materialize() {
         &tune_shape::Shape::Int
     ));
 }
+
+#[test]
+fn shape_store_keeps_stable_ids_and_origins() -> Result<(), &'static str> {
+    let mut store = tune_shape::ShapeStore::new();
+    let span = tune_diagnostics::Span::new(
+        tune_diagnostics::FileId(1),
+        tune_diagnostics::ByteOffset::new(4),
+        tune_diagnostics::ByteOffset::new(7),
+    );
+
+    let int_id = store
+        .intern(tune_shape::Shape::Int, tune_shape::ShapeOrigin::Builtin)
+        .ok_or("builtin shape should allocate")?;
+    let annotation_id = store
+        .intern(
+            tune_shape::Shape::String,
+            tune_shape::ShapeOrigin::Annotation(span),
+        )
+        .ok_or("annotation shape should allocate")?;
+
+    assert_eq!(int_id, tune_shape::ShapeId(0));
+    assert_eq!(annotation_id, tune_shape::ShapeId(1));
+    assert_eq!(
+        store.get(int_id).map(|fact| &fact.shape),
+        Some(&tune_shape::Shape::Int)
+    );
+    assert_eq!(
+        store.get(annotation_id).map(|fact| fact.origin),
+        Some(tune_shape::ShapeOrigin::Annotation(span))
+    );
+
+    Ok(())
+}
