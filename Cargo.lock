@@ -204,6 +204,7 @@ dependencies = [
  "tune_diagnostics",
  "tune_hir",
  "tune_shape",
+ "tune_syntax",
 ]
 
 [[package]]

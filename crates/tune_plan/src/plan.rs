@@ -1,10 +1,10 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanFunction {
     pub name: String,
     pub ops: Vec<PlanOp>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlanOp {
     DirectCall { function: String },
     BoundCall,
@@ -14,6 +14,7 @@ pub enum PlanOp {
     FieldSet { field: String },
     SequenceGet { checked: bool },
     SequencePush,
+    FiniteFor,
     StringBuild,
     ResultPropagate,
     Spawn,
