@@ -9,8 +9,16 @@ pub mod shape;
 pub struct HirId(pub u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MemberKind {
+    Param,
+    Field,
+    Variant,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MemberId {
     pub owner: HirId,
+    pub kind: MemberKind,
     pub index: u32,
 }
 

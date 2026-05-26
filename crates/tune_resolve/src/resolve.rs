@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
 use tune_diagnostics::{Diagnostic, Span, codes};
-use tune_hir::item::{Item, ItemKind, Visibility};
+use tune_hir::item::{Item, ItemKind};
 use tune_hir::module::Module;
 
-use crate::facts::{CompilerFact, CompilerFactKind};
+use crate::facts::{CompilerFact, CompilerFactPayload, FactOwner};
 use crate::scope::{Binding, BindingKind, Scope};
 
 #[derive(Default)]
@@ -133,80 +133,148 @@ fn record_defined_item_facts(resolved: &mut ResolvedModule, item: &Item) {
 
 fn record_item_facts(resolved: &mut ResolvedModule, item: &Item, name: &str) {
     resolved.facts.push(CompilerFact {
-        owner: item.id,
-        kind: CompilerFactKind::Name,
-        value: name.to_owned(),
+        owner: FactOwner::Item(item.id),
+        payload: CompilerFactPayload::Name(name.to_owned()),
         span: item.span,
     });
     resolved.facts.push(CompilerFact {
-        owner: item.id,
-        kind: CompilerFactKind::Visibility,
-        value: visibility_name(item.visibility).to_owned(),
+        owner: FactOwner::Item(item.id),
+        payload: CompilerFactPayload::Visibility(item.visibility),
         span: item.span,
     });
 
     if let Some(doc) = &item.doc {
         resolved.facts.push(CompilerFact {
-            owner: item.id,
-            kind: CompilerFactKind::Doc,
-            value: doc.clone(),
+            owner: FactOwner::Item(item.id),
+            payload: CompilerFactPayload::Doc(doc.clone()),
             span: item.span,
         });
     }
 
     if !item.params.is_empty() {
         resolved.facts.push(CompilerFact {
-            owner: item.id,
-            kind: CompilerFactKind::Params,
-            value: item
-                .params
-                .iter()
-                .filter_map(|param| param.name.as_deref())
-                .collect::<Vec<_>>()
-                .join(","),
+            owner: FactOwner::Item(item.id),
+            payload: CompilerFactPayload::Params(
+                item.params.iter().map(|param| param.id).collect(),
+            ),
             span: item.span,
         });
     }
 
-    if item.kind == ItemKind::CallableDecl && item.shape.is_some() {
+    if item.kind == ItemKind::CallableDecl
+        && let Some(shape) = &item.shape
+    {
         resolved.facts.push(CompilerFact {
-            owner: item.id,
-            kind: CompilerFactKind::Return,
-            value: "shape".to_owned(),
+            owner: FactOwner::Item(item.id),
+            payload: CompilerFactPayload::Return(shape.clone()),
             span: item.span,
         });
     }
 
     if !item.fields.is_empty() {
         resolved.facts.push(CompilerFact {
-            owner: item.id,
-            kind: CompilerFactKind::Fields,
-            value: item
-                .fields
-                .iter()
-                .filter_map(|field| field.name.as_deref())
-                .collect::<Vec<_>>()
-                .join(","),
+            owner: FactOwner::Item(item.id),
+            payload: CompilerFactPayload::Fields(
+                item.fields.iter().map(|field| field.id).collect(),
+            ),
             span: item.span,
         });
     }
 
     if !item.variants.is_empty() {
         resolved.facts.push(CompilerFact {
-            owner: item.id,
-            kind: CompilerFactKind::Variants,
-            value: item
-                .variants
-                .iter()
-                .filter_map(|variant| variant.name.as_deref())
-                .collect::<Vec<_>>()
-                .join(","),
+            owner: FactOwner::Item(item.id),
+            payload: CompilerFactPayload::Variants(
+                item.variants.iter().map(|variant| variant.id).collect(),
+            ),
             span: item.span,
         });
     }
 
+    for param in &item.params {
+        record_param_facts(resolved, param);
+    }
+
+    for field in &item.fields {
+        record_field_facts(resolved, field);
+    }
+
+    for variant in &item.variants {
+        record_variant_facts(resolved, variant);
+    }
+
     for tag in &item.tags {
         record_tag_fact(resolved, item, tag);
+    }
+}
+
+fn record_param_facts(resolved: &mut ResolvedModule, param: &tune_hir::item::Param) {
+    if let Some(name) = &param.name {
+        resolved.facts.push(CompilerFact {
+            owner: FactOwner::Member(param.id),
+            payload: CompilerFactPayload::Name(name.clone()),
+            span: param.span,
+        });
+    }
+
+    if let Some(shape) = &param.shape {
+        resolved.facts.push(CompilerFact {
+            owner: FactOwner::Member(param.id),
+            payload: CompilerFactPayload::Shape(shape.clone()),
+            span: param.span,
+        });
+    }
+}
+
+fn record_field_facts(resolved: &mut ResolvedModule, field: &tune_hir::item::Field) {
+    if let Some(name) = &field.name {
+        resolved.facts.push(CompilerFact {
+            owner: FactOwner::Member(field.id),
+            payload: CompilerFactPayload::Name(name.clone()),
+            span: field.span,
+        });
+    }
+
+    if let Some(doc) = &field.doc {
+        resolved.facts.push(CompilerFact {
+            owner: FactOwner::Member(field.id),
+            payload: CompilerFactPayload::Doc(doc.clone()),
+            span: field.span,
+        });
+    }
+
+    if let Some(shape) = &field.shape {
+        resolved.facts.push(CompilerFact {
+            owner: FactOwner::Member(field.id),
+            payload: CompilerFactPayload::Shape(shape.clone()),
+            span: field.span,
+        });
+    }
+}
+
+fn record_variant_facts(resolved: &mut ResolvedModule, variant: &tune_hir::item::Variant) {
+    if let Some(name) = &variant.name {
+        resolved.facts.push(CompilerFact {
+            owner: FactOwner::Member(variant.id),
+            payload: CompilerFactPayload::Name(name.clone()),
+            span: variant.span,
+        });
+    }
+
+    if let Some(doc) = &variant.doc {
+        resolved.facts.push(CompilerFact {
+            owner: FactOwner::Member(variant.id),
+            payload: CompilerFactPayload::Doc(doc.clone()),
+            span: variant.span,
+        });
+    }
+
+    if !variant.payload.is_empty() {
+        resolved.facts.push(CompilerFact {
+            owner: FactOwner::Member(variant.id),
+            payload: CompilerFactPayload::Payload(variant.payload.clone()),
+            span: variant.span,
+        });
     }
 }
 
@@ -218,9 +286,8 @@ fn record_tag_fact(
     match resolved.scope.get(&tag.name) {
         Some(binding) if binding.kind == BindingKind::Tag => {
             resolved.facts.push(CompilerFact {
-                owner: item.id,
-                kind: CompilerFactKind::Tag,
-                value: tag.name.clone(),
+                owner: FactOwner::Item(item.id),
+                payload: CompilerFactPayload::Tag(tag.name.clone()),
                 span: tag.span,
             });
         }
@@ -251,13 +318,6 @@ fn record_tag_fact(
                 .build(),
             );
         }
-    }
-}
-
-const fn visibility_name(visibility: Visibility) -> &'static str {
-    match visibility {
-        Visibility::Private => "private",
-        Visibility::Public => "public",
     }
 }
 

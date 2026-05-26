@@ -21,17 +21,18 @@ struct Counter {}
         resolved.scope.get("Counter").map(|binding| binding.kind),
         Some(tune_resolve::BindingKind::Struct)
     ));
-    assert!(
-        resolved.facts.iter().any(|fact| {
-            fact.kind == tune_resolve::CompilerFactKind::Name && fact.value == "run"
-        })
-    );
-    assert!(resolved.facts.iter().any(|fact| {
-        fact.kind == tune_resolve::CompilerFactKind::Doc && fact.value == "Run docs."
-    }));
-    assert!(resolved.facts.iter().any(|fact| {
-        fact.kind == tune_resolve::CompilerFactKind::Visibility && fact.value == "private"
-    }));
+    assert!(resolved.facts.iter().any(|fact| matches!(
+        &fact.payload,
+        tune_resolve::CompilerFactPayload::Name(name) if name == "run"
+    )));
+    assert!(resolved.facts.iter().any(|fact| matches!(
+        &fact.payload,
+        tune_resolve::CompilerFactPayload::Doc(doc) if doc == "Run docs."
+    )));
+    assert!(resolved.facts.iter().any(|fact| matches!(
+        &fact.payload,
+        tune_resolve::CompilerFactPayload::Visibility(tune_hir::item::Visibility::Private)
+    )));
 }
 
 #[test]
@@ -56,14 +57,19 @@ fn records_callable_signature_facts() {
     let resolved = tune_resolve::resolve_module(&module);
 
     assert!(resolved.diagnostics.is_empty());
-    assert!(resolved.facts.iter().any(|fact| {
-        fact.kind == tune_resolve::CompilerFactKind::Params && fact.value == "text,strict"
-    }));
+    assert!(resolved.facts.iter().any(|fact| matches!(
+        &fact.payload,
+        tune_resolve::CompilerFactPayload::Params(params) if params.len() == 2
+    )));
+    assert!(resolved.facts.iter().any(|fact| matches!(
+        &fact.payload,
+        tune_resolve::CompilerFactPayload::Name(name) if name == "text"
+    )));
     assert!(
         resolved
             .facts
             .iter()
-            .any(|fact| fact.kind == tune_resolve::CompilerFactKind::Return)
+            .any(|fact| fact.kind() == tune_resolve::CompilerFactKind::Return)
     );
 }
 
@@ -84,12 +90,22 @@ enum LoadResult {
     let resolved = tune_resolve::resolve_module(&module);
 
     assert!(resolved.diagnostics.is_empty());
-    assert!(resolved.facts.iter().any(|fact| {
-        fact.kind == tune_resolve::CompilerFactKind::Fields && fact.value == "name,age"
-    }));
-    assert!(resolved.facts.iter().any(|fact| {
-        fact.kind == tune_resolve::CompilerFactKind::Variants && fact.value == "Ok,Error"
-    }));
+    assert!(resolved.facts.iter().any(|fact| matches!(
+        &fact.payload,
+        tune_resolve::CompilerFactPayload::Fields(fields) if fields.len() == 2
+    )));
+    assert!(resolved.facts.iter().any(|fact| matches!(
+        &fact.payload,
+        tune_resolve::CompilerFactPayload::Variants(variants) if variants.len() == 2
+    )));
+    assert!(resolved.facts.iter().any(|fact| matches!(
+        &fact.payload,
+        tune_resolve::CompilerFactPayload::Name(name) if name == "age"
+    )));
+    assert!(resolved.facts.iter().any(|fact| matches!(
+        &fact.payload,
+        tune_resolve::CompilerFactPayload::Name(name) if name == "Error"
+    )));
 }
 
 #[test]
@@ -149,9 +165,11 @@ let run(input) = input
 
     assert!(resolved.diagnostics.is_empty());
     assert!(resolved.facts.iter().any(|fact| {
-        fact.owner == tune_hir::HirId(1)
-            && fact.kind == tune_resolve::CompilerFactKind::Tag
-            && fact.value == "tool"
+        fact.owner == tune_resolve::FactOwner::Item(tune_hir::HirId(1))
+            && matches!(
+                &fact.payload,
+                tune_resolve::CompilerFactPayload::Tag(tag) if tag == "tool"
+            )
             && fact.span.is_some()
     }));
 }

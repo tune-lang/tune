@@ -8,7 +8,7 @@ use tune_syntax::CstNode;
 
 use crate::item::{Field, Item, ItemKind, Param, TagApplication, Variant, Visibility};
 use crate::module::Module;
-use crate::{HirId, MemberId, ModuleId};
+use crate::{HirId, MemberId, MemberKind, ModuleId};
 
 use shapes::lower_shape;
 
@@ -221,7 +221,7 @@ fn lower_params(source: &str, node: LetDecl<'_>) -> Vec<Param> {
         .enumerate()
         .filter_map(|(index, param)| {
             Some(Param {
-                id: member_id(index)?,
+                id: member_id(index, MemberKind::Param)?,
                 name: param.name(source).map(str::to_owned),
                 span: param.syntax().span,
                 shape: param
@@ -238,7 +238,7 @@ fn lower_fields(source: &str, fields: Vec<tune_ast::nodes::DocumentedField<'_>>)
         .enumerate()
         .filter_map(|(index, documented)| {
             Some(Field {
-                id: member_id(index)?,
+                id: member_id(index, MemberKind::Field)?,
                 name: documented.field.name(source).map(str::to_owned),
                 span: documented.field.syntax().span,
                 doc: documented.doc_text(source),
@@ -260,7 +260,7 @@ fn lower_variants(
         .enumerate()
         .filter_map(|(index, documented)| {
             Some(Variant {
-                id: member_id(index)?,
+                id: member_id(index, MemberKind::Variant)?,
                 name: documented.variant.name(source).map(str::to_owned),
                 span: documented.variant.syntax().span,
                 doc: documented.doc_text(source),
@@ -275,9 +275,10 @@ fn lower_variants(
         .collect()
 }
 
-fn member_id(index: usize) -> Option<MemberId> {
+fn member_id(index: usize, kind: MemberKind) -> Option<MemberId> {
     Some(MemberId {
         owner: HirId(0),
+        kind,
         index: u32::try_from(index).ok()?,
     })
 }
