@@ -39,18 +39,32 @@ fn lexes_is_not_as_reserved_word_pair() {
             TokenKind::Eof,
         ]
     );
-    assert_eq!(lexed.tokens[2].text, "is not");
+    assert_eq!(
+        span_text("name is not none", lexed.tokens[2].span),
+        "is not"
+    );
 }
 
 #[test]
 fn preserves_comments_and_whitespace_as_tokens() {
     let lexed = lex_with_file(tune_diagnostics::FileId(0), "--- docs\n-- comment\nlet");
 
-    assert_eq!(lexed.tokens[0].kind, TokenKind::DocComment);
+    assert_eq!(lexed.tokens[0].kind, TokenKind::LineComment);
     assert_eq!(lexed.tokens[1].kind, TokenKind::Whitespace);
     assert_eq!(lexed.tokens[2].kind, TokenKind::LineComment);
     assert_eq!(lexed.tokens[3].kind, TokenKind::Whitespace);
     assert_eq!(lexed.tokens[4].kind, TokenKind::KeywordLet);
+}
+
+#[test]
+fn lexes_optional_shape_marker() {
+    let lexed = lex_with_file(tune_diagnostics::FileId(0), "String?");
+    let kinds = significant_kinds(&lexed);
+
+    assert_eq!(
+        kinds,
+        [TokenKind::Ident, TokenKind::Question, TokenKind::Eof]
+    );
 }
 
 #[test]
@@ -106,12 +120,11 @@ fn significant_kinds(lexed: &tune_syntax::Lexed) -> Vec<TokenKind> {
     lexed
         .tokens
         .iter()
-        .filter(|token| {
-            !matches!(
-                token.kind,
-                TokenKind::Whitespace | TokenKind::LineComment | TokenKind::DocComment
-            )
-        })
+        .filter(|token| !matches!(token.kind, TokenKind::Whitespace | TokenKind::LineComment))
         .map(|token| token.kind)
         .collect()
+}
+
+fn span_text(source: &str, span: tune_diagnostics::Span) -> &str {
+    &source[span.start.get() as usize..span.end.get() as usize]
 }

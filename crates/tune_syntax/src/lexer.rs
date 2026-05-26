@@ -47,7 +47,7 @@ impl<'src> Lexer<'src> {
         }
 
         let eof = self.span(self.offset, self.offset);
-        self.tokens.push(Token::new(TokenKind::Eof, "", eof));
+        self.tokens.push(Token::new(TokenKind::Eof, eof));
     }
 
     fn lex_one(&mut self) {
@@ -60,7 +60,6 @@ impl<'src> Lexer<'src> {
             ch if ch.is_whitespace() => {
                 self.lex_while(start, TokenKind::Whitespace, char::is_whitespace)
             }
-            '-' if self.starts_with("---") => self.lex_line_comment(start, TokenKind::DocComment),
             '-' if self.starts_with("--") => self.lex_line_comment(start, TokenKind::LineComment),
             '"' if self.starts_with("\"\"\"") => self.lex_multiline_string(start),
             '"' => self.lex_string(start),
@@ -214,6 +213,7 @@ impl<'src> Lexer<'src> {
         let kind = match self.peek() {
             Some('@') => single(TokenKind::At),
             Some('!') => single(TokenKind::Bang),
+            Some('?') => single(TokenKind::Question),
             Some('~') if self.starts_with("~=") => double(TokenKind::TildeEqual),
             Some('~') => single(TokenKind::Tilde),
             Some('&') => single(TokenKind::Amp),
@@ -258,17 +258,12 @@ impl<'src> Lexer<'src> {
     }
 
     fn push(&mut self, kind: TokenKind, start: usize, end: usize) {
-        self.tokens.push(Token::new(
-            kind,
-            &self.source[start..end],
-            self.span(start, end),
-        ));
+        self.tokens.push(Token::new(kind, self.span(start, end)));
     }
 
     fn push_error(&mut self, start: usize, end: usize, message: &'static str) {
         let span = self.span(start, end);
-        self.tokens
-            .push(Token::new(TokenKind::Error, &self.source[start..end], span));
+        self.tokens.push(Token::new(TokenKind::Error, span));
         self.diagnostics.push(
             Diagnostic::error(codes::PARSE_ERROR, message)
                 .with_primary(span, message)

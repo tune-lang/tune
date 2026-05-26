@@ -4,7 +4,6 @@ use tune_diagnostics::Span;
 pub enum TokenKind {
     Whitespace,
     LineComment,
-    DocComment,
     Ident,
     IntLiteral,
     FloatLiteral,
@@ -43,6 +42,7 @@ pub enum TokenKind {
     KeywordIsNot,
     At,
     Bang,
+    Question,
     Tilde,
     Amp,
     Pipe,
@@ -82,17 +82,12 @@ pub enum TokenKind {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Token {
     pub kind: TokenKind,
-    pub text: String,
     pub span: Span,
 }
 
 impl Token {
     #[must_use]
-    pub fn new(kind: TokenKind, text: impl Into<String>, span: Span) -> Self {
-        Self {
-            kind,
-            text: text.into(),
-            span,
-        }
+    pub const fn new(kind: TokenKind, span: Span) -> Self {
+        Self { kind, span }
     }
 }
