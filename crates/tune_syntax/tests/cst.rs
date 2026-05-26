@@ -40,7 +40,7 @@ fn parse_keeps_lexer_diagnostics() {
     let messages = parsed
         .diagnostics
         .iter()
-        .map(|diagnostic| diagnostic.message.as_str())
+        .map(|diagnostic| diagnostic.title.as_str())
         .collect::<Vec<_>>();
 
     assert!(messages.contains(&"unterminated string literal"));

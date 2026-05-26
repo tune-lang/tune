@@ -21,10 +21,21 @@ impl fmt::Display for DiagnosticCode {
     }
 }
 
-pub const PARSE_ERROR: DiagnosticCode = DiagnosticCode::new("T0001");
-pub const UNRESOLVED_NAME: DiagnosticCode = DiagnosticCode::new("T0101");
-pub const SHAPE_MISMATCH: DiagnosticCode = DiagnosticCode::new("T0201");
-pub const UNSOLVED_HOLE: DiagnosticCode = DiagnosticCode::new("T0202");
-pub const MATERIALIZATION_FAILED: DiagnosticCode = DiagnosticCode::new("T0301");
-pub const ITERATION_CONTRACT: DiagnosticCode = DiagnosticCode::new("T0401");
-pub const TAG_FACT_MISSING: DiagnosticCode = DiagnosticCode::new("T0501");
+pub const PARSE_ERROR: DiagnosticCode = DiagnosticCode::new("T0101");
+pub const UNRESOLVED_NAME: DiagnosticCode = DiagnosticCode::new("T0201");
+pub const ASSIGNMENT_SHAPE_MISMATCH: DiagnosticCode = DiagnosticCode::new("T0204");
+pub const SHAPE_MISMATCH: DiagnosticCode = DiagnosticCode::new("T0301");
+pub const MATERIALIZATION_FAILED: DiagnosticCode = DiagnosticCode::new("T0302");
+pub const NUMERIC_OVERFLOW: DiagnosticCode = DiagnosticCode::new("T0401");
+pub const CALLABLE_MISMATCH: DiagnosticCode = DiagnosticCode::new("T0501");
+pub const SELF_STATE_ERROR: DiagnosticCode = DiagnosticCode::new("T0601");
+pub const ITERATION_LEN_MISSING: DiagnosticCode = DiagnosticCode::new("T0701");
+pub const ITERATION_INDEX_MISSING: DiagnosticCode = DiagnosticCode::new("T0702");
+pub const ITERATION_SOURCE_MUTATED: DiagnosticCode = DiagnosticCode::new("T0705");
+pub const MATCH_NOT_EXHAUSTIVE: DiagnosticCode = DiagnosticCode::new("T0803");
+pub const MATCH_HOLE_FALLBACK: DiagnosticCode = DiagnosticCode::new("T0804");
+pub const RESULT_PROPAGATION_ERROR: DiagnosticCode = DiagnosticCode::new("T0901");
+pub const SPAWN_TASK_ERROR: DiagnosticCode = DiagnosticCode::new("T1001");
+pub const PUBLIC_API_INFERENCE: DiagnosticCode = DiagnosticCode::new("T1101");
+pub const TAG_FACT_MISSING: DiagnosticCode = DiagnosticCode::new("T1203");
+pub const HOST_AUTHORITY_DENIED: DiagnosticCode = DiagnosticCode::new("T1301");

@@ -74,7 +74,7 @@ fn wraps_unexpected_top_level_token_in_error_node() {
     assert_eq!(root_node_kinds(&parsed.cst), [SyntaxKind::Error]);
     assert_eq!(parsed.diagnostics.len(), 1);
     assert_eq!(
-        parsed.diagnostics[0].message,
+        parsed.diagnostics[0].title,
         "expected top-level declaration"
     );
 }

@@ -39,6 +39,11 @@ impl Span {
     }
 
     #[must_use]
+    pub const fn synthetic() -> Self {
+        Self::empty(FileId(u32::MAX), ByteOffset::new(0))
+    }
+
+    #[must_use]
     pub const fn len(self) -> u32 {
         self.end.0.saturating_sub(self.start.0)
     }

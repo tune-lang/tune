@@ -110,7 +110,7 @@ fn reports_unterminated_string() {
 
     assert_eq!(lexed.tokens[0].kind, TokenKind::Error);
     assert_eq!(lexed.diagnostics.len(), 1);
-    assert_eq!(lexed.diagnostics[0].message, "unterminated string literal");
+    assert_eq!(lexed.diagnostics[0].title, "unterminated string literal");
 }
 
 fn significant_kinds(lexed: &tune_syntax::Lexed) -> Vec<TokenKind> {
