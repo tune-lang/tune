@@ -118,6 +118,34 @@ fn record_item_facts(resolved: &mut ResolvedModule, item: &Item, name: &str) {
         });
     }
 
+    if !item.fields.is_empty() {
+        resolved.facts.push(CompilerFact {
+            owner: item.id,
+            kind: CompilerFactKind::Fields,
+            value: item
+                .fields
+                .iter()
+                .filter_map(|field| field.name.as_deref())
+                .collect::<Vec<_>>()
+                .join(","),
+            span: item.span,
+        });
+    }
+
+    if !item.variants.is_empty() {
+        resolved.facts.push(CompilerFact {
+            owner: item.id,
+            kind: CompilerFactKind::Variants,
+            value: item
+                .variants
+                .iter()
+                .filter_map(|variant| variant.name.as_deref())
+                .collect::<Vec<_>>()
+                .join(","),
+            span: item.span,
+        });
+    }
+
     for tag in &item.tags {
         record_tag_fact(resolved, item, tag);
     }

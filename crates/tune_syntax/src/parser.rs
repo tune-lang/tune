@@ -1,4 +1,5 @@
 mod items;
+mod members;
 mod shape;
 
 use crate::{CstBuilder, CstNode, SyntaxKind, Token, TokenKind, lex_with_file};

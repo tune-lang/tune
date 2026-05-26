@@ -111,7 +111,7 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn parse_shape_list(&mut self, end: TokenKind) {
+    pub(super) fn parse_shape_list(&mut self, end: TokenKind) {
         self.start_node(SyntaxKind::ShapeList);
         while !self.at(TokenKind::Eof) && !self.at(end) {
             self.parse_shape();

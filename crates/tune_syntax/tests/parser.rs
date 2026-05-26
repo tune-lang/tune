@@ -174,6 +174,43 @@ fn parses_generic_shape_nodes() {
 }
 
 #[test]
+fn parses_struct_enum_and_tag_body_members() {
+    let parsed = parse(
+        r#"
+struct User {
+  -- Name docs.
+  name: String
+  age: Int
+}
+enum LoadResult {
+  Ok(User)
+  Error(String)
+}
+tag tool {
+  title: String
+}
+"#,
+    );
+    let kinds = nested_node_kinds(&parsed.cst);
+
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| **kind == SyntaxKind::FieldDecl)
+            .count(),
+        3
+    );
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| **kind == SyntaxKind::VariantDecl)
+            .count(),
+        2
+    );
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
 fn wraps_unexpected_top_level_token_in_error_node() {
     let parsed = parse("}");
 

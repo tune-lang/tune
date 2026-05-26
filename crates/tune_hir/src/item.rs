@@ -32,6 +32,22 @@ pub struct Param {
 }
 
 #[derive(Debug, Clone)]
+pub struct Field {
+    pub name: Option<String>,
+    pub span: Option<Span>,
+    pub doc: Option<String>,
+    pub shape: Option<ShapeExpr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Variant {
+    pub name: Option<String>,
+    pub span: Option<Span>,
+    pub doc: Option<String>,
+    pub payload: Vec<ShapeExpr>,
+}
+
+#[derive(Debug, Clone)]
 pub struct Item {
     pub id: HirId,
     pub name: Option<String>,
@@ -41,5 +57,7 @@ pub struct Item {
     pub doc: Option<String>,
     pub tags: Vec<TagApplication>,
     pub params: Vec<Param>,
+    pub fields: Vec<Field>,
+    pub variants: Vec<Variant>,
     pub shape: Option<ShapeExpr>,
 }

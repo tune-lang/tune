@@ -68,6 +68,31 @@ fn records_callable_signature_facts() {
 }
 
 #[test]
+fn records_member_surface_facts() {
+    let source = r#"
+struct User {
+  name: String
+  age: Int
+}
+enum LoadResult {
+  Ok(User)
+  Error(String)
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert!(resolved.diagnostics.is_empty());
+    assert!(resolved.facts.iter().any(|fact| {
+        fact.kind == tune_resolve::CompilerFactKind::Fields && fact.value == "name,age"
+    }));
+    assert!(resolved.facts.iter().any(|fact| {
+        fact.kind == tune_resolve::CompilerFactKind::Variants && fact.value == "Ok,Error"
+    }));
+}
+
+#[test]
 fn records_tag_application_facts() {
     let source = r#"
 tag tool {}

@@ -105,6 +105,36 @@ fn lowers_generic_shape_annotations() -> Result<(), &'static str> {
 }
 
 #[test]
+fn lowers_declaration_body_members() {
+    let source = r#"
+struct User {
+  -- Name docs.
+  name: String
+  age: Int
+}
+enum LoadResult {
+  Ok(User)
+  Error(String)
+}
+tag tool {
+  title: String
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+
+    assert_eq!(module.items[0].fields.len(), 2);
+    assert_eq!(module.items[0].fields[0].name.as_deref(), Some("name"));
+    assert_eq!(module.items[0].fields[0].doc.as_deref(), Some("Name docs."));
+    assert!(module.items[0].fields[0].shape.is_some());
+    assert_eq!(module.items[1].variants.len(), 2);
+    assert_eq!(module.items[1].variants[0].name.as_deref(), Some("Ok"));
+    assert_eq!(module.items[1].variants[0].payload.len(), 1);
+    assert_eq!(module.items[2].fields.len(), 1);
+    assert_eq!(module.items[2].fields[0].name.as_deref(), Some("title"));
+}
+
+#[test]
 fn lowers_tag_applications_to_hir_items() {
     let source = r#"
 tag tool {}

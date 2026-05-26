@@ -140,6 +140,52 @@ fn callable_decl_exposes_params_and_return_shape() -> Result<(), &'static str> {
 }
 
 #[test]
+fn declaration_views_expose_body_members() -> Result<(), &'static str> {
+    let source = r#"
+struct User {
+  -- Name docs.
+  name: String
+  age: Int
+}
+enum LoadResult {
+  Ok(User)
+  Error(String)
+}
+tag tool {
+  title: String
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let root = <tune_ast::nodes::Root<'_> as tune_ast::AstNode<'_>>::cast(&parsed.cst)
+        .ok_or("root should cast")?;
+    let items = root.items().collect::<Vec<_>>();
+
+    let tune_ast::nodes::Item::Struct(struct_decl) = items[0] else {
+        return Err("expected struct");
+    };
+    let fields = struct_decl.fields();
+    assert_eq!(fields.len(), 2);
+    assert_eq!(fields[0].field.name(source), Some("name"));
+    assert_eq!(fields[0].doc_text(source).as_deref(), Some("Name docs."));
+    assert!(fields[0].field.shape_annotation().is_some());
+
+    let tune_ast::nodes::Item::Enum(enum_decl) = items[1] else {
+        return Err("expected enum");
+    };
+    let variants = enum_decl.variants();
+    assert_eq!(variants.len(), 2);
+    assert_eq!(variants[0].variant.name(source), Some("Ok"));
+    assert_eq!(variants[0].variant.payload_shapes().len(), 1);
+
+    let tune_ast::nodes::Item::Tag(tag_decl) = items[2] else {
+        return Err("expected tag");
+    };
+    assert_eq!(tag_decl.fields().len(), 1);
+
+    Ok(())
+}
+
+#[test]
 fn let_decl_exposes_shape_annotation_view() -> Result<(), &'static str> {
     let source = "let value: [Int | String]? = none";
     let parsed = tune_syntax::parse(source);

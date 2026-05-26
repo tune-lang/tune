@@ -2,6 +2,7 @@ use tune_syntax::{CstNode, SyntaxKind};
 
 use crate::AstNode;
 
+use super::structs::{DocumentedField, documented_fields};
 use super::text::first_ident_text;
 
 #[derive(Debug, Clone, Copy)]
@@ -42,6 +43,11 @@ impl<'tree> TagDecl<'tree> {
     #[must_use]
     pub fn name(self, source: &str) -> Option<&str> {
         first_ident_text(self.node, source)
+    }
+
+    #[must_use]
+    pub fn fields(self) -> Vec<DocumentedField<'tree>> {
+        documented_fields(self.node)
     }
 }
 

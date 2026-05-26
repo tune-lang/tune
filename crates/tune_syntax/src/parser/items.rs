@@ -48,13 +48,6 @@ impl Parser<'_> {
         self.finish_node();
     }
 
-    fn parse_braced_decl(&mut self, kind: SyntaxKind) {
-        self.start_node(kind);
-        self.bump();
-        self.consume_until_block_end();
-        self.finish_node();
-    }
-
     fn consume_balanced_group(&mut self) {
         let mut depth = 0u32;
 
@@ -248,34 +241,6 @@ impl Parser<'_> {
                 Some(_) => self.bump(),
                 None => break,
             }
-        }
-    }
-
-    fn consume_until_block_end(&mut self) {
-        let mut depth = 0u32;
-        let mut saw_block = false;
-
-        while !self.at(TokenKind::Eof) {
-            match self.current_kind() {
-                Some(TokenKind::LeftBrace) => {
-                    saw_block = true;
-                    depth = depth.saturating_add(1);
-                    self.bump();
-                }
-                Some(TokenKind::RightBrace) => {
-                    self.bump();
-                    if depth <= 1 && saw_block {
-                        break;
-                    }
-                    depth = depth.saturating_sub(1);
-                }
-                Some(_) => self.bump(),
-                None => break,
-            }
-        }
-
-        if !saw_block {
-            self.error_at_current("expected declaration body");
         }
     }
 

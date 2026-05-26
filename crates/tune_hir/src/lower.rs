@@ -5,7 +5,7 @@ use tune_ast::nodes::{
 };
 use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 
-use crate::item::{Item, ItemKind, Param, TagApplication, Visibility};
+use crate::item::{Field, Item, ItemKind, Param, TagApplication, Variant, Visibility};
 use crate::module::Module;
 use crate::shape::{ShapeExpr, ShapeExprKind};
 use crate::{HirId, ModuleId};
@@ -43,18 +43,11 @@ fn lower_item(
             push_item(items, lower_import(source, node, visibility, doc, tags))
         }
         AstItem::Let(node) => push_item(items, lower_let(source, node, visibility, doc, tags)),
-        AstItem::Struct(node) => push_item(
-            items,
-            lower_named(source, node, ItemKind::Struct, visibility, doc, tags),
-        ),
-        AstItem::Enum(node) => push_item(
-            items,
-            lower_named(source, node, ItemKind::Enum, visibility, doc, tags),
-        ),
-        AstItem::Tag(node) => push_item(
-            items,
-            lower_named(source, node, ItemKind::Tag, visibility, doc, tags),
-        ),
+        AstItem::Struct(node) => {
+            push_item(items, lower_struct(source, node, visibility, doc, tags))
+        }
+        AstItem::Enum(node) => push_item(items, lower_enum(source, node, visibility, doc, tags)),
+        AstItem::Tag(node) => push_item(items, lower_tag(source, node, visibility, doc, tags)),
         AstItem::Pub(node) => {
             if let Some(item) = node.item() {
                 lower_item(
@@ -95,6 +88,8 @@ fn lower_import(
         doc,
         tags,
         params: Vec::new(),
+        fields: Vec::new(),
+        variants: Vec::new(),
         shape: None,
     }
 }
@@ -119,51 +114,17 @@ fn lower_let(
         doc,
         tags,
         params: lower_params(source, node),
+        fields: Vec::new(),
+        variants: Vec::new(),
         shape: node
             .shape_annotation()
             .map(|shape| lower_shape(source, shape)),
     }
 }
 
-trait NamedDecl {
-    fn name(self, source: &str) -> Option<&str>;
-    fn span(self) -> Option<tune_diagnostics::Span>;
-}
-
-impl NamedDecl for StructDecl<'_> {
-    fn name(self, source: &str) -> Option<&str> {
-        self.name(source)
-    }
-
-    fn span(self) -> Option<tune_diagnostics::Span> {
-        self.syntax().span
-    }
-}
-
-impl NamedDecl for EnumDecl<'_> {
-    fn name(self, source: &str) -> Option<&str> {
-        self.name(source)
-    }
-
-    fn span(self) -> Option<tune_diagnostics::Span> {
-        self.syntax().span
-    }
-}
-
-impl NamedDecl for TagDecl<'_> {
-    fn name(self, source: &str) -> Option<&str> {
-        self.name(source)
-    }
-
-    fn span(self) -> Option<tune_diagnostics::Span> {
-        self.syntax().span
-    }
-}
-
-fn lower_named(
+fn lower_struct(
     source: &str,
-    node: impl NamedDecl + Copy,
-    kind: ItemKind,
+    node: StructDecl<'_>,
     visibility: Visibility,
     doc: Option<String>,
     tags: Vec<TagApplication>,
@@ -171,12 +132,58 @@ fn lower_named(
     Item {
         id: HirId(0),
         name: node.name(source).map(str::to_owned),
-        kind,
+        kind: ItemKind::Struct,
         visibility,
-        span: node.span(),
+        span: node.syntax().span,
         doc,
         tags,
         params: Vec::new(),
+        fields: lower_fields(source, node.fields()),
+        variants: Vec::new(),
+        shape: None,
+    }
+}
+
+fn lower_enum(
+    source: &str,
+    node: EnumDecl<'_>,
+    visibility: Visibility,
+    doc: Option<String>,
+    tags: Vec<TagApplication>,
+) -> Item {
+    Item {
+        id: HirId(0),
+        name: node.name(source).map(str::to_owned),
+        kind: ItemKind::Enum,
+        visibility,
+        span: node.syntax().span,
+        doc,
+        tags,
+        params: Vec::new(),
+        fields: Vec::new(),
+        variants: lower_variants(source, node.variants()),
+        shape: None,
+    }
+}
+
+fn lower_tag(
+    source: &str,
+    node: TagDecl<'_>,
+    visibility: Visibility,
+    doc: Option<String>,
+    tags: Vec<TagApplication>,
+) -> Item {
+    Item {
+        id: HirId(0),
+        name: node.name(source).map(str::to_owned),
+        kind: ItemKind::Tag,
+        visibility,
+        span: node.syntax().span,
+        doc,
+        tags,
+        params: Vec::new(),
+        fields: lower_fields(source, node.fields()),
+        variants: Vec::new(),
         shape: None,
     }
 }
@@ -202,6 +209,41 @@ fn lower_params(source: &str, node: LetDecl<'_>) -> Vec<Param> {
             shape: param
                 .shape_annotation()
                 .map(|shape| lower_shape(source, shape)),
+        })
+        .collect()
+}
+
+fn lower_fields(source: &str, fields: Vec<tune_ast::nodes::DocumentedField<'_>>) -> Vec<Field> {
+    fields
+        .into_iter()
+        .map(|documented| Field {
+            name: documented.field.name(source).map(str::to_owned),
+            span: documented.field.syntax().span,
+            doc: documented.doc_text(source),
+            shape: documented
+                .field
+                .shape_annotation()
+                .map(|shape| lower_shape(source, shape)),
+        })
+        .collect()
+}
+
+fn lower_variants(
+    source: &str,
+    variants: Vec<tune_ast::nodes::DocumentedVariant<'_>>,
+) -> Vec<Variant> {
+    variants
+        .into_iter()
+        .map(|documented| Variant {
+            name: documented.variant.name(source).map(str::to_owned),
+            span: documented.variant.syntax().span,
+            doc: documented.doc_text(source),
+            payload: documented
+                .variant
+                .payload_shapes()
+                .into_iter()
+                .map(|shape| lower_shape(source, shape))
+                .collect(),
         })
         .collect()
 }
