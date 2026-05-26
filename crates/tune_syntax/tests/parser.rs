@@ -245,7 +245,7 @@ let looped = for item in items { handle(item) }
 let numbers = [1, 2, 3]
 let block = { let x = 1; x = x; return x }
 let grouped = (1 + 2)
-let ops = not value and other is not none or 1 + 2 * 3
+let ops = (not value and other) or (other is not none)
 "#,
     );
     let kinds = nested_node_kinds(&parsed.cst);

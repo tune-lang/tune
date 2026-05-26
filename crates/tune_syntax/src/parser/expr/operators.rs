@@ -40,8 +40,6 @@ impl Parser<'_> {
 
     fn current_binary_precedence(&self) -> Option<u8> {
         let precedence = match self.current_kind()? {
-            TokenKind::KeywordOr => 1,
-            TokenKind::KeywordAnd => 2,
             TokenKind::KeywordIs
             | TokenKind::EqualEqual
             | TokenKind::TildeEqual
@@ -49,9 +47,9 @@ impl Parser<'_> {
             | TokenKind::LessEqual
             | TokenKind::Greater
             | TokenKind::GreaterEqual => 3,
-            TokenKind::Pipe => 4,
+            TokenKind::KeywordOr | TokenKind::Pipe => 4,
             TokenKind::Caret => 5,
-            TokenKind::Amp => 6,
+            TokenKind::KeywordAnd | TokenKind::Amp => 6,
             TokenKind::ShiftLeft | TokenKind::ShiftRight => 7,
             TokenKind::Plus | TokenKind::Minus => 8,
             TokenKind::Star | TokenKind::Slash | TokenKind::Percent => 9,
