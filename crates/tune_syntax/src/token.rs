@@ -1,5 +1,10 @@
+use tune_diagnostics::Span;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TokenKind {
+    Whitespace,
+    LineComment,
+    DocComment,
     Ident,
     IntLiteral,
     FloatLiteral,
@@ -23,6 +28,10 @@ pub enum TokenKind {
     KeywordSpawn,
     KeywordImport,
     KeywordPub,
+    KeywordPanic,
+    KeywordNever,
+    KeywordOk,
+    KeywordError,
     KeywordTrue,
     KeywordFalse,
     KeywordNone,
@@ -31,7 +40,41 @@ pub enum TokenKind {
     KeywordAnd,
     KeywordOr,
     KeywordIs,
-    Symbol,
+    KeywordIsNot,
+    At,
+    Bang,
+    Tilde,
+    Amp,
+    Pipe,
+    Caret,
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+    Equal,
+    EqualEqual,
+    TildeEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+    ShiftLeft,
+    ShiftRight,
+    Arrow,
+    FatArrow,
+    Colon,
+    ColonColon,
+    Dot,
+    DotDot,
+    Comma,
+    Semicolon,
+    LeftParen,
+    RightParen,
+    LeftBrace,
+    RightBrace,
+    LeftBracket,
+    RightBracket,
     Eof,
     Error,
 }
@@ -40,6 +83,16 @@ pub enum TokenKind {
 pub struct Token {
     pub kind: TokenKind,
     pub text: String,
-    pub start: u32,
-    pub end: u32,
+    pub span: Span,
+}
+
+impl Token {
+    #[must_use]
+    pub fn new(kind: TokenKind, text: impl Into<String>, span: Span) -> Self {
+        Self {
+            kind,
+            text: text.into(),
+            span,
+        }
+    }
 }

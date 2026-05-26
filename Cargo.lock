@@ -155,6 +155,9 @@ dependencies = [
 [[package]]
 name = "tune_syntax"
 version = "0.1.0"
+dependencies = [
+ "tune_diagnostics",
+]
 
 [[package]]
 name = "tune_vm"
