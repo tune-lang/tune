@@ -25,6 +25,21 @@ let value = 1
 }
 
 #[test]
+fn import_view_exposes_path() -> Result<(), &'static str> {
+    let source = r#"import "std/json""#;
+    let parsed = tune_syntax::parse(source);
+    let root = <tune_ast::nodes::Root<'_> as tune_ast::AstNode<'_>>::cast(&parsed.cst)
+        .ok_or("root should cast")?;
+    let Some(tune_ast::nodes::Item::Import(import)) = root.items().next() else {
+        return Err("expected import item");
+    };
+
+    assert_eq!(import.path(source), Some("std/json"));
+
+    Ok(())
+}
+
+#[test]
 fn declaration_views_expose_names_and_callable_form() -> Result<(), &'static str> {
     let callable_source = "let run(input) = input";
     let callable = tune_syntax::parse(callable_source);

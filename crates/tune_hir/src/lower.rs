@@ -1,5 +1,5 @@
 use tune_ast::AstNode;
-use tune_ast::nodes::{EnumDecl, Item as AstItem, LetDecl, Root, StructDecl, TagDecl};
+use tune_ast::nodes::{EnumDecl, ImportDecl, Item as AstItem, LetDecl, Root, StructDecl, TagDecl};
 use tune_syntax::CstNode;
 
 use crate::item::{Item, ItemKind, Visibility};
@@ -28,6 +28,7 @@ fn lower_items(source: &str, root: Root<'_>) -> Vec<Item> {
 
 fn lower_item(source: &str, item: AstItem<'_>, visibility: Visibility, items: &mut Vec<Item>) {
     match item {
+        AstItem::Import(node) => push_item(items, lower_import(source, node, visibility)),
         AstItem::Let(node) => push_item(items, lower_let(source, node, visibility)),
         AstItem::Struct(node) => push_item(
             items,
@@ -51,6 +52,16 @@ fn push_item(items: &mut Vec<Item>, mut item: Item) {
     if let Ok(index) = u32::try_from(items.len()) {
         item.id = HirId(index);
         items.push(item);
+    }
+}
+
+fn lower_import(source: &str, node: ImportDecl<'_>, visibility: Visibility) -> Item {
+    Item {
+        id: HirId(0),
+        name: node.path(source).map(str::to_owned),
+        kind: ItemKind::Import,
+        visibility,
+        span: node.syntax().span,
     }
 }
 

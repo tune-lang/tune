@@ -2,7 +2,7 @@ use tune_syntax::{CstElement, CstNode, SyntaxKind};
 
 use crate::AstNode;
 
-use super::{EnumDecl, LetDecl, StructDecl, TagDecl};
+use super::{EnumDecl, ImportDecl, LetDecl, StructDecl, TagDecl};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Root<'tree> {
@@ -59,6 +59,7 @@ impl<'tree> PubDecl<'tree> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum Item<'tree> {
+    Import(ImportDecl<'tree>),
     Let(LetDecl<'tree>),
     Struct(StructDecl<'tree>),
     Enum(EnumDecl<'tree>),
@@ -70,6 +71,7 @@ impl<'tree> Item<'tree> {
     #[must_use]
     pub fn cast(node: &'tree CstNode) -> Option<Self> {
         match node.kind {
+            SyntaxKind::ImportDecl => ImportDecl::cast(node).map(Self::Import),
             SyntaxKind::LetDecl | SyntaxKind::CallableDecl => LetDecl::cast(node).map(Self::Let),
             SyntaxKind::StructDecl => StructDecl::cast(node).map(Self::Struct),
             SyntaxKind::EnumDecl => EnumDecl::cast(node).map(Self::Enum),
@@ -82,6 +84,7 @@ impl<'tree> Item<'tree> {
     #[must_use]
     pub fn syntax(self) -> &'tree CstNode {
         match self {
+            Self::Import(node) => node.syntax(),
             Self::Let(node) => node.syntax(),
             Self::Struct(node) => node.syntax(),
             Self::Enum(node) => node.syntax(),
