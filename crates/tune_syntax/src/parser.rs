@@ -1,3 +1,5 @@
+mod shape;
+
 use crate::{CstBuilder, CstNode, SyntaxKind, Token, TokenKind, lex_with_file};
 use tune_diagnostics::{Diagnostic, FileId, Span, codes};
 
@@ -23,12 +25,12 @@ pub fn parse_with_file(file: FileId, source: &str) -> Parsed {
     }
 }
 
-struct Parser<'src> {
-    source: &'src str,
-    tokens: Vec<Token>,
-    cursor: usize,
-    builder: CstBuilder,
-    diagnostics: Vec<Diagnostic>,
+pub(super) struct Parser<'src> {
+    pub(super) source: &'src str,
+    pub(super) tokens: Vec<Token>,
+    pub(super) cursor: usize,
+    pub(super) builder: CstBuilder,
+    pub(super) diagnostics: Vec<Diagnostic>,
 }
 
 impl<'src> Parser<'src> {
@@ -106,6 +108,13 @@ impl<'src> Parser<'src> {
         while !self.at(TokenKind::Eof) {
             if self.at_top_level_boundary() {
                 break;
+            }
+
+            if self.at(TokenKind::Colon) {
+                self.bump();
+                self.skip_trivia();
+                self.parse_shape();
+                continue;
             }
 
             if self.at(TokenKind::Equal) {
@@ -193,29 +202,29 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn finish_tree(&mut self) -> CstNode {
+    pub(super) fn finish_tree(&mut self) -> CstNode {
         let replacement = CstBuilder::new(SyntaxKind::Root);
         let builder = core::mem::replace(&mut self.builder, replacement);
         builder.finish()
     }
 
-    fn at(&self, kind: TokenKind) -> bool {
+    pub(super) fn at(&self, kind: TokenKind) -> bool {
         self.current().is_some_and(|token| token.kind == kind)
     }
 
-    fn current(&self) -> Option<&Token> {
+    pub(super) fn current(&self) -> Option<&Token> {
         self.tokens.get(self.cursor)
     }
 
-    fn current_kind(&self) -> Option<TokenKind> {
+    pub(super) fn current_kind(&self) -> Option<TokenKind> {
         self.current().map(|token| token.kind)
     }
 
-    fn current_text(&self) -> Option<&str> {
+    pub(super) fn current_text(&self) -> Option<&str> {
         self.current().map(|token| self.token_text(token))
     }
 
-    fn token_text(&self, token: &Token) -> &'src str {
+    pub(super) fn token_text(&self, token: &Token) -> &'src str {
         let start = token.span.start.get() as usize;
         let end = token.span.end.get() as usize;
         &self.source[start..end]
@@ -235,7 +244,7 @@ impl<'src> Parser<'src> {
         )
     }
 
-    fn lookahead_significant(&self, n: usize) -> Option<TokenKind> {
+    pub(super) fn lookahead_significant(&self, n: usize) -> Option<TokenKind> {
         self.tokens
             .iter()
             .skip(self.cursor)
@@ -244,22 +253,22 @@ impl<'src> Parser<'src> {
             .map(|token| token.kind)
     }
 
-    fn bump(&mut self) {
+    pub(super) fn bump(&mut self) {
         if let Some(token) = self.current().copied() {
             self.builder.token(token);
             self.cursor += 1;
         }
     }
 
-    fn start_node(&mut self, kind: SyntaxKind) {
+    pub(super) fn start_node(&mut self, kind: SyntaxKind) {
         self.builder.start_node(kind);
     }
 
-    fn finish_node(&mut self) {
+    pub(super) fn finish_node(&mut self) {
         self.builder.finish_node();
     }
 
-    fn skip_trivia(&mut self) {
+    pub(super) fn skip_trivia(&mut self) {
         while self
             .current()
             .is_some_and(|token| crate::cst::is_trivia(token.kind))
@@ -268,7 +277,7 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn expect(&mut self, kind: TokenKind, message: &'static str) -> bool {
+    pub(super) fn expect(&mut self, kind: TokenKind, message: &'static str) -> bool {
         if self.at(kind) {
             self.bump();
             true
@@ -278,7 +287,7 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn error_at_current(&mut self, message: &'static str) {
+    pub(super) fn error_at_current(&mut self, message: &'static str) {
         let span = self
             .current()
             .map(|token| token.span)
@@ -289,7 +298,7 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn error(&mut self, span: Span, message: &'static str) {
+    pub(super) fn error(&mut self, span: Span, message: &'static str) {
         self.diagnostics.push(
             Diagnostic::error(codes::PARSE_ERROR, message)
                 .with_primary(span, message)

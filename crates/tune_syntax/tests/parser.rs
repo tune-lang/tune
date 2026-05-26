@@ -68,6 +68,28 @@ fn distinguishes_callable_declaration_from_callable_value_binding() {
 }
 
 #[test]
+fn parses_shape_nodes_in_annotations() {
+    let parsed = parse("let value: [Int | String]? = none");
+    let kinds = nested_node_kinds(&parsed.cst);
+
+    assert!(kinds.contains(&SyntaxKind::SequenceShape));
+    assert!(kinds.contains(&SyntaxKind::UnionShape));
+    assert!(kinds.contains(&SyntaxKind::OptionalShape));
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
+fn parses_callable_shape_nodes() {
+    let parsed = parse("let f: (Int, String): Bool = handler");
+    let kinds = nested_node_kinds(&parsed.cst);
+
+    assert!(kinds.contains(&SyntaxKind::CallableShape));
+    assert!(kinds.contains(&SyntaxKind::TupleShape));
+    assert!(kinds.contains(&SyntaxKind::ShapeList));
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
 fn wraps_unexpected_top_level_token_in_error_node() {
     let parsed = parse("}");
 
