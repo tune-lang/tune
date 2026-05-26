@@ -1,6 +1,6 @@
 use crate::shape::Shape;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LiteralFact {
     Numeric { text: String },
     String { segments: Vec<String> },
