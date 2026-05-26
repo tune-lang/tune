@@ -39,7 +39,6 @@ pub enum TokenKind {
     KeywordAnd,
     KeywordOr,
     KeywordIs,
-    KeywordIsNot,
     At,
     Bang,
     Question,

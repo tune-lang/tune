@@ -167,46 +167,8 @@ impl<'src> Lexer<'src> {
         }
 
         let text = &self.source[start..self.offset];
-        if text == "is" && self.try_finish_is_not() {
-            self.push(TokenKind::KeywordIsNot, start, self.offset);
-            return;
-        }
-
         let kind = keyword_kind(text).unwrap_or(TokenKind::Ident);
         self.push(kind, start, self.offset);
-    }
-
-    fn try_finish_is_not(&mut self) -> bool {
-        let after_is = self.offset;
-        let mut cursor = after_is;
-
-        while let Some(ch) = self.source[cursor..].chars().next() {
-            if ch == '\n' || !ch.is_whitespace() {
-                break;
-            }
-            cursor += ch.len_utf8();
-        }
-
-        if cursor == after_is {
-            return false;
-        }
-
-        let tail = &self.source[cursor..];
-        if !tail.starts_with("not") {
-            return false;
-        }
-
-        let end = cursor + "not".len();
-        if self.source[end..]
-            .chars()
-            .next()
-            .is_some_and(is_ident_continue)
-        {
-            return false;
-        }
-
-        self.offset = end;
-        true
     }
 
     fn lex_punctuation_or_error(&mut self, start: usize) {
@@ -330,7 +292,6 @@ fn keyword_kind(text: &str) -> Option<TokenKind> {
         "and" => TokenKind::KeywordAnd,
         "or" => TokenKind::KeywordOr,
         "is" => TokenKind::KeywordIs,
-        "is not" => TokenKind::KeywordIsNot,
         _ => return None,
     })
 }

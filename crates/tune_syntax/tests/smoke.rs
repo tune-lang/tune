@@ -26,7 +26,7 @@ fn lexes_core_keywords_and_punctuation() {
 }
 
 #[test]
-fn lexes_is_not_as_reserved_word_pair() {
+fn lexes_is_not_as_parser_level_operator_phrase() {
     let lexed = lex_with_file(tune_diagnostics::FileId(0), "name is not none");
     let kinds = significant_kinds(&lexed);
 
@@ -34,14 +34,11 @@ fn lexes_is_not_as_reserved_word_pair() {
         kinds,
         [
             TokenKind::Ident,
-            TokenKind::KeywordIsNot,
+            TokenKind::KeywordIs,
+            TokenKind::KeywordNot,
             TokenKind::KeywordNone,
             TokenKind::Eof,
         ]
-    );
-    assert_eq!(
-        span_text("name is not none", lexed.tokens[2].span),
-        "is not"
     );
 }
 
@@ -123,8 +120,4 @@ fn significant_kinds(lexed: &tune_syntax::Lexed) -> Vec<TokenKind> {
         .filter(|token| !matches!(token.kind, TokenKind::Whitespace | TokenKind::LineComment))
         .map(|token| token.kind)
         .collect()
-}
-
-fn span_text(source: &str, span: tune_diagnostics::Span) -> &str {
-    &source[span.start.get() as usize..span.end.get() as usize]
 }
