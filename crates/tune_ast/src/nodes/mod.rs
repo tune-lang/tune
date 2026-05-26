@@ -19,4 +19,4 @@ pub use shapes::{
     CallableShape, NamedShape, OptionalShape, SequenceShape, Shape, TupleShape, UnionShape,
 };
 pub use structs::StructDecl;
-pub use tags::TagDecl;
+pub use tags::{TagApplication, TagDecl};

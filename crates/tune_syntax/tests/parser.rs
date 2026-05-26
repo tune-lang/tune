@@ -88,6 +88,27 @@ fn parses_pub_as_visibility_wrapper() {
 }
 
 #[test]
+fn parses_tag_applications_as_top_level_attachments() {
+    let parsed = parse(
+        r#"
+@tool
+@route(path: "/search")
+pub let search(query) = query
+"#,
+    );
+
+    assert_eq!(
+        root_node_kinds(&parsed.cst),
+        [
+            SyntaxKind::TagApplication,
+            SyntaxKind::TagApplication,
+            SyntaxKind::PubDecl,
+        ]
+    );
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
 fn distinguishes_callable_declaration_from_callable_value_binding() {
     let callable_decl = parse("let f(x) = x");
     let callable_value = parse("let f = _(x) = x");

@@ -12,6 +12,7 @@ pub enum CompilerFactKind {
     JsonInvoker,
     Fields,
     Variants,
+    Tag,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

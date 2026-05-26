@@ -47,3 +47,41 @@ fn reports_duplicate_top_level_bindings() {
         tune_diagnostics::codes::DUPLICATE_NAME
     );
 }
+
+#[test]
+fn records_tag_application_facts() {
+    let source = r#"
+tag tool {}
+@tool
+let run(input) = input
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert!(resolved.diagnostics.is_empty());
+    assert!(resolved.facts.iter().any(|fact| {
+        fact.owner == tune_hir::HirId(1)
+            && fact.kind == tune_resolve::CompilerFactKind::Tag
+            && fact.value == "tool"
+            && fact.span.is_some()
+    }));
+}
+
+#[test]
+fn reports_unresolved_tag_applications() {
+    let source = r#"
+@missing
+let run(input) = input
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert_eq!(resolved.diagnostics.len(), 1);
+    assert_eq!(
+        resolved.diagnostics[0].code,
+        tune_diagnostics::codes::UNRESOLVED_NAME
+    );
+    assert_eq!(resolved.diagnostics[0].title, "unresolved tag `missing`");
+}

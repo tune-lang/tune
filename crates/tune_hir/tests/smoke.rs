@@ -67,3 +67,19 @@ fn lowers_shape_annotations_to_hir_shape_exprs() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+#[test]
+fn lowers_tag_applications_to_hir_items() {
+    let source = r#"
+tag tool {}
+@tool
+pub let search(query) = query
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+
+    assert_eq!(module.items[1].name.as_deref(), Some("search"));
+    assert_eq!(module.items[1].tags.len(), 1);
+    assert_eq!(module.items[1].tags[0].name, "tool");
+    assert!(module.items[1].tags[0].span.is_some());
+}

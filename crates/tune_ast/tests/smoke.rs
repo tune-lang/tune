@@ -52,6 +52,31 @@ pub let run(input) = input
 }
 
 #[test]
+fn root_view_attaches_tag_applications_to_items() -> Result<(), &'static str> {
+    let source = r#"
+tag tool {}
+
+-- Search docs.
+@tool
+@route(path: "/search")
+pub let search(query) = query
+"#;
+    let parsed = tune_syntax::parse(source);
+    let root = <tune_ast::nodes::Root<'_> as tune_ast::AstNode<'_>>::cast(&parsed.cst)
+        .ok_or("root should cast")?;
+    let items = root.documented_items();
+
+    assert_eq!(items.len(), 2);
+    assert!(items[0].tags.is_empty());
+    assert_eq!(items[1].doc_text(source).as_deref(), Some("Search docs."));
+    assert_eq!(items[1].tags.len(), 2);
+    assert_eq!(items[1].tags[0].name(source), Some("tool"));
+    assert_eq!(items[1].tags[1].name(source), Some("route"));
+
+    Ok(())
+}
+
+#[test]
 fn import_view_exposes_path() -> Result<(), &'static str> {
     let source = r#"import "std/json""#;
     let parsed = tune_syntax::parse(source);

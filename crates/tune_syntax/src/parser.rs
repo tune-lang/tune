@@ -62,6 +62,7 @@ impl<'src> Parser<'src> {
 
     fn parse_top_level_item(&mut self) {
         match self.current_kind() {
+            Some(TokenKind::At) => self.parse_tag_application(),
             Some(TokenKind::KeywordPub) => self.parse_pub_decl(),
             Some(TokenKind::KeywordImport) => self.parse_simple_decl(SyntaxKind::ImportDecl),
             Some(TokenKind::KeywordTag) => self.parse_braced_decl(SyntaxKind::TagDecl),
@@ -81,6 +82,22 @@ impl<'src> Parser<'src> {
         self.finish_node();
     }
 
+    fn parse_tag_application(&mut self) {
+        self.start_node(SyntaxKind::TagApplication);
+        self.expect(TokenKind::At, "expected `@`");
+        self.skip_trivia();
+        self.expect(TokenKind::Ident, "expected tag name");
+        self.skip_trivia();
+
+        if let Some(TokenKind::LeftParen | TokenKind::LeftBrace | TokenKind::LeftBracket) =
+            self.current_kind()
+        {
+            self.consume_balanced_group();
+        }
+
+        self.finish_node();
+    }
+
     fn parse_simple_decl(&mut self, kind: SyntaxKind) {
         self.start_node(kind);
         self.bump();
@@ -93,6 +110,28 @@ impl<'src> Parser<'src> {
         self.bump();
         self.consume_until_block_end();
         self.finish_node();
+    }
+
+    fn consume_balanced_group(&mut self) {
+        let mut depth = 0u32;
+
+        while !self.at(TokenKind::Eof) {
+            match self.current_kind() {
+                Some(TokenKind::LeftBrace | TokenKind::LeftParen | TokenKind::LeftBracket) => {
+                    depth = depth.saturating_add(1);
+                    self.bump();
+                }
+                Some(TokenKind::RightBrace | TokenKind::RightParen | TokenKind::RightBracket) => {
+                    self.bump();
+                    if depth <= 1 {
+                        break;
+                    }
+                    depth = depth.saturating_sub(1);
+                }
+                Some(_) => self.bump(),
+                None => break,
+            }
+        }
     }
 
     fn parse_let_decl(&mut self) {

@@ -2,7 +2,7 @@ use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 
 use crate::AstNode;
 
-use super::{Comment, EnumDecl, ImportDecl, LetDecl, StructDecl, TagDecl};
+use super::{Comment, EnumDecl, ImportDecl, LetDecl, StructDecl, TagApplication, TagDecl};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Root<'tree> {
@@ -33,6 +33,7 @@ impl<'tree> Root<'tree> {
     pub fn documented_items(self) -> Vec<DocumentedItem<'tree>> {
         let mut documented = Vec::new();
         let mut pending_docs = Vec::new();
+        let mut pending_tags = Vec::new();
 
         for child in &self.node.children {
             match child {
@@ -48,9 +49,13 @@ impl<'tree> Root<'tree> {
                         documented.push(DocumentedItem {
                             item,
                             docs: core::mem::take(&mut pending_docs),
+                            tags: core::mem::take(&mut pending_tags),
                         });
+                    } else if let Some(tag) = TagApplication::cast(node) {
+                        pending_tags.push(tag);
                     } else {
                         pending_docs.clear();
+                        pending_tags.clear();
                     }
                 }
             }
@@ -64,6 +69,7 @@ impl<'tree> Root<'tree> {
 pub struct DocumentedItem<'tree> {
     pub item: Item<'tree>,
     pub docs: Vec<Comment>,
+    pub tags: Vec<TagApplication<'tree>>,
 }
 
 impl<'tree> DocumentedItem<'tree> {

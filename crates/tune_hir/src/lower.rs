@@ -5,7 +5,7 @@ use tune_ast::nodes::{
 };
 use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 
-use crate::item::{Item, ItemKind, Visibility};
+use crate::item::{Item, ItemKind, TagApplication, Visibility};
 use crate::module::Module;
 use crate::shape::{ShapeExpr, ShapeExprKind};
 use crate::{HirId, ModuleId};
@@ -37,20 +37,23 @@ fn lower_item(
     items: &mut Vec<Item>,
 ) {
     let doc = documented.doc_text(source);
+    let tags = lower_tags(source, &documented.tags);
     match documented.item {
-        AstItem::Import(node) => push_item(items, lower_import(source, node, visibility, doc)),
-        AstItem::Let(node) => push_item(items, lower_let(source, node, visibility, doc)),
+        AstItem::Import(node) => {
+            push_item(items, lower_import(source, node, visibility, doc, tags))
+        }
+        AstItem::Let(node) => push_item(items, lower_let(source, node, visibility, doc, tags)),
         AstItem::Struct(node) => push_item(
             items,
-            lower_named(source, node, ItemKind::Struct, visibility, doc),
+            lower_named(source, node, ItemKind::Struct, visibility, doc, tags),
         ),
         AstItem::Enum(node) => push_item(
             items,
-            lower_named(source, node, ItemKind::Enum, visibility, doc),
+            lower_named(source, node, ItemKind::Enum, visibility, doc, tags),
         ),
         AstItem::Tag(node) => push_item(
             items,
-            lower_named(source, node, ItemKind::Tag, visibility, doc),
+            lower_named(source, node, ItemKind::Tag, visibility, doc, tags),
         ),
         AstItem::Pub(node) => {
             if let Some(item) = node.item() {
@@ -59,6 +62,7 @@ fn lower_item(
                     DocumentedItem {
                         item,
                         docs: documented.docs,
+                        tags: documented.tags,
                     },
                     Visibility::Public,
                     items,
@@ -80,6 +84,7 @@ fn lower_import(
     node: ImportDecl<'_>,
     visibility: Visibility,
     doc: Option<String>,
+    tags: Vec<TagApplication>,
 ) -> Item {
     Item {
         id: HirId(0),
@@ -88,11 +93,18 @@ fn lower_import(
         visibility,
         span: node.syntax().span,
         doc,
+        tags,
         shape: None,
     }
 }
 
-fn lower_let(source: &str, node: LetDecl<'_>, visibility: Visibility, doc: Option<String>) -> Item {
+fn lower_let(
+    source: &str,
+    node: LetDecl<'_>,
+    visibility: Visibility,
+    doc: Option<String>,
+    tags: Vec<TagApplication>,
+) -> Item {
     Item {
         id: HirId(0),
         name: node.name(source).map(str::to_owned),
@@ -104,6 +116,7 @@ fn lower_let(source: &str, node: LetDecl<'_>, visibility: Visibility, doc: Optio
         visibility,
         span: node.syntax().span,
         doc,
+        tags,
         shape: node
             .shape_annotation()
             .map(|shape| lower_shape(source, shape)),
@@ -151,6 +164,7 @@ fn lower_named(
     kind: ItemKind,
     visibility: Visibility,
     doc: Option<String>,
+    tags: Vec<TagApplication>,
 ) -> Item {
     Item {
         id: HirId(0),
@@ -159,8 +173,20 @@ fn lower_named(
         visibility,
         span: node.span(),
         doc,
+        tags,
         shape: None,
     }
+}
+
+fn lower_tags(source: &str, tags: &[tune_ast::nodes::TagApplication<'_>]) -> Vec<TagApplication> {
+    tags.iter()
+        .filter_map(|tag| {
+            Some(TagApplication {
+                name: tag.name(source)?.to_owned(),
+                span: tag.syntax().span,
+            })
+        })
+        .collect()
 }
 
 fn lower_shape(source: &str, shape: AstShape<'_>) -> ShapeExpr {
