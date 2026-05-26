@@ -203,6 +203,7 @@ version = "0.1.0"
 dependencies = [
  "tune_diagnostics",
  "tune_hir",
+ "tune_resolve",
  "tune_shape",
  "tune_syntax",
 ]
