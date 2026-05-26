@@ -78,6 +78,8 @@ impl<'tree> DocumentedItem<'tree> {
         let lines = self
             .docs
             .iter()
+            .copied()
+            .chain(self.item.signature_docs())
             .filter_map(|comment| comment.doc_text(source))
             .filter(|text| !text.is_empty())
             .collect::<Vec<_>>();
@@ -146,6 +148,15 @@ impl<'tree> Item<'tree> {
             Self::Enum(node) => node.syntax(),
             Self::Tag(node) => node.syntax(),
             Self::Pub(node) => node.syntax(),
+        }
+    }
+
+    #[must_use]
+    pub fn signature_docs(self) -> Vec<Comment> {
+        match self {
+            Self::Let(node) => node.signature_docs(),
+            Self::Pub(node) => node.item().map_or_else(Vec::new, Self::signature_docs),
+            Self::Import(_) | Self::Struct(_) | Self::Enum(_) | Self::Tag(_) => Vec::new(),
         }
     }
 }

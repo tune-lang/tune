@@ -52,6 +52,27 @@ pub let run(input) = input
 }
 
 #[test]
+fn root_view_attaches_signature_placement_docs_to_callables() -> Result<(), &'static str> {
+    let source = r#"
+pub let run(input: String): String -/
+Run docs below signature.
+/- = input
+"#;
+    let parsed = tune_syntax::parse(source);
+    let root = <tune_ast::nodes::Root<'_> as tune_ast::AstNode<'_>>::cast(&parsed.cst)
+        .ok_or("root should cast")?;
+    let items = root.documented_items();
+
+    assert_eq!(items.len(), 1);
+    assert_eq!(
+        items[0].doc_text(source).as_deref(),
+        Some("Run docs below signature.")
+    );
+
+    Ok(())
+}
+
+#[test]
 fn root_view_attaches_tag_applications_to_items() -> Result<(), &'static str> {
     let source = r#"
 tag tool {}

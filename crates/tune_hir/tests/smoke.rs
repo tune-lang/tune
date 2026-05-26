@@ -70,12 +70,15 @@ fn lowers_shape_annotations_to_hir_shape_exprs() -> Result<(), &'static str> {
 
 #[test]
 fn lowers_callable_signature_params_and_return_shape() {
-    let source = "let parse(text: String, strict: Bool): Result = text";
+    let source = r#"let parse(text: String, strict: Bool): Result -/
+Parse docs.
+/- = text"#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
     let item = &module.items[0];
 
     assert_eq!(item.name.as_deref(), Some("parse"));
+    assert_eq!(item.doc.as_deref(), Some("Parse docs."));
     assert_eq!(item.params.len(), 2);
     assert_eq!(item.params[0].id.owner, item.id);
     assert_eq!(item.params[0].id.index, 0);

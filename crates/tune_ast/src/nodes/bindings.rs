@@ -1,9 +1,9 @@
-use tune_syntax::{CstElement, CstNode, SyntaxKind};
+use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 
 use crate::AstNode;
 
 use super::text::direct_ident_text;
-use super::{ParamList, Shape};
+use super::{Comment, ParamList, Shape};
 
 #[derive(Debug, Clone, Copy)]
 pub struct LetDecl<'tree> {
@@ -47,5 +47,34 @@ impl<'tree> LetDecl<'tree> {
             CstElement::Node(node) => ParamList::cast(node),
             CstElement::Token(_) => None,
         })
+    }
+
+    #[must_use]
+    pub fn signature_docs(self) -> Vec<Comment> {
+        if !self.is_callable_decl() {
+            return Vec::new();
+        }
+
+        let mut docs = Vec::new();
+        let mut past_signature_start = false;
+
+        for child in &self.node.children {
+            match child {
+                CstElement::Node(node) => {
+                    if ParamList::cast(node).is_some() || Shape::cast(node).is_some() {
+                        past_signature_start = true;
+                    }
+                }
+                CstElement::Token(token) if token.kind == TokenKind::Equal => break,
+                CstElement::Token(token) if past_signature_start => {
+                    if let Some(comment) = Comment::cast(*token) {
+                        docs.push(comment);
+                    }
+                }
+                CstElement::Token(_) => {}
+            }
+        }
+
+        docs
     }
 }
