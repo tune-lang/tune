@@ -7,12 +7,15 @@ use tune_hir::item::{Item, ItemKind};
 use tune_hir::module::Module;
 
 use crate::facts::{CompilerFact, CompilerFactPayload, FactOwner};
+use crate::locals::{LocalBinding, NameRef};
 use crate::scope::{Binding, BindingKind, Scope};
 
 #[derive(Default)]
 pub struct ResolvedModule {
     pub scope: Scope,
     pub facts: Vec<CompilerFact>,
+    pub locals: Vec<LocalBinding>,
+    pub name_refs: Vec<NameRef>,
     pub diagnostics: Vec<Diagnostic>,
 }
 

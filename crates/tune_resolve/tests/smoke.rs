@@ -206,6 +206,26 @@ let check(input, other) = not input and other is not none
     let resolved = tune_resolve::resolve_module(&module);
 
     assert!(resolved.diagnostics.is_empty());
+    assert!(
+        resolved
+            .locals
+            .iter()
+            .any(|local| { local.name == "local" && local.kind == tune_resolve::LocalKind::Let })
+    );
+    assert!(
+        resolved.locals.iter().any(|local| {
+            local.name == "item" && local.kind == tune_resolve::LocalKind::Pattern
+        })
+    );
+    assert!(resolved.locals.iter().any(|local| {
+        local.name == "x" && local.kind == tune_resolve::LocalKind::CallableParam
+    }));
+    assert!(resolved.name_refs.iter().any(|name_ref| matches!(
+        name_ref.target,
+        tune_resolve::NameTarget::Param(_)
+            | tune_resolve::NameTarget::Local(_)
+            | tune_resolve::NameTarget::TopLevel(_)
+    )));
 }
 
 #[test]
@@ -224,4 +244,18 @@ let run(input) = helper(input, missing)
         tune_diagnostics::codes::UNRESOLVED_NAME
     );
     assert_eq!(resolved.diagnostics[0].title, "unresolved name `missing`");
+}
+
+#[test]
+fn reports_invalid_assignment_targets() {
+    let source = "let run(a, b) = { a + b = 1 }";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert_eq!(resolved.diagnostics.len(), 1);
+    assert_eq!(
+        resolved.diagnostics[0].code,
+        tune_diagnostics::codes::INVALID_ASSIGNMENT_TARGET
+    );
 }
