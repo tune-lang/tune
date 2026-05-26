@@ -50,3 +50,21 @@ fn declaration_views_expose_names_and_callable_form() -> Result<(), &'static str
 
     Ok(())
 }
+
+#[test]
+fn let_decl_exposes_shape_annotation_view() -> Result<(), &'static str> {
+    let source = "let value: [Int | String]? = none";
+    let parsed = tune_syntax::parse(source);
+    let root = <tune_ast::nodes::Root<'_> as tune_ast::AstNode<'_>>::cast(&parsed.cst)
+        .ok_or("root should cast")?;
+    let Some(tune_ast::nodes::Item::Let(let_decl)) = root.items().next() else {
+        return Err("expected let item");
+    };
+    let shape = let_decl
+        .shape_annotation()
+        .ok_or("expected shape annotation")?;
+
+    assert!(matches!(shape, tune_ast::nodes::Shape::Optional(_)));
+
+    Ok(())
+}

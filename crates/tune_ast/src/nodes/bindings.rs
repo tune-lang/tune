@@ -1,7 +1,8 @@
-use tune_syntax::{CstNode, SyntaxKind};
+use tune_syntax::{CstElement, CstNode, SyntaxKind};
 
 use crate::AstNode;
 
+use super::Shape;
 use super::text::first_ident_text;
 
 #[derive(Debug, Clone, Copy)]
@@ -30,5 +31,13 @@ impl<'tree> LetDecl<'tree> {
     #[must_use]
     pub fn name(self, source: &str) -> Option<&str> {
         first_ident_text(self.node, source)
+    }
+
+    #[must_use]
+    pub fn shape_annotation(self) -> Option<Shape<'tree>> {
+        self.node.children.iter().find_map(|child| match child {
+            CstElement::Node(node) => Shape::cast(node),
+            CstElement::Token(_) => None,
+        })
     }
 }
