@@ -5,6 +5,7 @@ pub mod flow;
 pub mod items;
 pub mod structs;
 pub mod tags;
+mod text;
 
 pub use bindings::LetDecl;
 pub use enums::EnumDecl;
