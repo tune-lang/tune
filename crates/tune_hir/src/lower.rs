@@ -8,7 +8,7 @@ use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 use crate::item::{Field, Item, ItemKind, Param, TagApplication, Variant, Visibility};
 use crate::module::Module;
 use crate::shape::{ShapeExpr, ShapeExprKind};
-use crate::{HirId, ModuleId};
+use crate::{HirId, MemberId, ModuleId};
 
 #[must_use]
 pub fn lower_module(source: &str, cst: &CstNode) -> Module {
@@ -68,7 +68,20 @@ fn lower_item(
 fn push_item(items: &mut Vec<Item>, mut item: Item) {
     if let Ok(index) = u32::try_from(items.len()) {
         item.id = HirId(index);
+        assign_member_owners(&mut item);
         items.push(item);
+    }
+}
+
+fn assign_member_owners(item: &mut Item) {
+    for param in &mut item.params {
+        param.id.owner = item.id;
+    }
+    for field in &mut item.fields {
+        field.id.owner = item.id;
+    }
+    for variant in &mut item.variants {
+        variant.id.owner = item.id;
     }
 }
 
@@ -203,7 +216,9 @@ fn lower_params(source: &str, node: LetDecl<'_>) -> Vec<Param> {
     node.params()
         .into_iter()
         .flat_map(|params| params.params())
-        .map(|param| Param {
+        .enumerate()
+        .map(|(index, param)| Param {
+            id: member_id(index),
             name: param.name(source).map(str::to_owned),
             span: param.syntax().span,
             shape: param
@@ -216,7 +231,9 @@ fn lower_params(source: &str, node: LetDecl<'_>) -> Vec<Param> {
 fn lower_fields(source: &str, fields: Vec<tune_ast::nodes::DocumentedField<'_>>) -> Vec<Field> {
     fields
         .into_iter()
-        .map(|documented| Field {
+        .enumerate()
+        .map(|(index, documented)| Field {
+            id: member_id(index),
             name: documented.field.name(source).map(str::to_owned),
             span: documented.field.syntax().span,
             doc: documented.doc_text(source),
@@ -234,7 +251,9 @@ fn lower_variants(
 ) -> Vec<Variant> {
     variants
         .into_iter()
-        .map(|documented| Variant {
+        .enumerate()
+        .map(|(index, documented)| Variant {
+            id: member_id(index),
             name: documented.variant.name(source).map(str::to_owned),
             span: documented.variant.syntax().span,
             doc: documented.doc_text(source),
@@ -246,6 +265,13 @@ fn lower_variants(
                 .collect(),
         })
         .collect()
+}
+
+fn member_id(index: usize) -> MemberId {
+    MemberId {
+        owner: HirId(0),
+        index: u32::try_from(index).unwrap_or(u32::MAX),
+    }
 }
 
 fn lower_shape(source: &str, shape: AstShape<'_>) -> ShapeExpr {

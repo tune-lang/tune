@@ -77,6 +77,8 @@ fn lowers_callable_signature_params_and_return_shape() {
 
     assert_eq!(item.name.as_deref(), Some("parse"));
     assert_eq!(item.params.len(), 2);
+    assert_eq!(item.params[0].id.owner, item.id);
+    assert_eq!(item.params[0].id.index, 0);
     assert_eq!(item.params[0].name.as_deref(), Some("text"));
     assert!(item.params[0].shape.is_some());
     assert_eq!(item.params[1].name.as_deref(), Some("strict"));
@@ -124,10 +126,14 @@ tag tool {
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
 
     assert_eq!(module.items[0].fields.len(), 2);
+    assert_eq!(module.items[0].fields[0].id.owner, module.items[0].id);
+    assert_eq!(module.items[0].fields[0].id.index, 0);
     assert_eq!(module.items[0].fields[0].name.as_deref(), Some("name"));
     assert_eq!(module.items[0].fields[0].doc.as_deref(), Some("Name docs."));
     assert!(module.items[0].fields[0].shape.is_some());
     assert_eq!(module.items[1].variants.len(), 2);
+    assert_eq!(module.items[1].variants[0].id.owner, module.items[1].id);
+    assert_eq!(module.items[1].variants[0].id.index, 0);
     assert_eq!(module.items[1].variants[0].name.as_deref(), Some("Ok"));
     assert_eq!(module.items[1].variants[0].payload.len(), 1);
     assert_eq!(module.items[2].fields.len(), 1);

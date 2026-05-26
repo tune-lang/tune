@@ -1,5 +1,5 @@
-use crate::HirId;
 use crate::shape::ShapeExpr;
+use crate::{HirId, MemberId};
 use tune_diagnostics::Span;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,6 +26,7 @@ pub struct TagApplication {
 
 #[derive(Debug, Clone)]
 pub struct Param {
+    pub id: MemberId,
     pub name: Option<String>,
     pub span: Option<Span>,
     pub shape: Option<ShapeExpr>,
@@ -33,6 +34,7 @@ pub struct Param {
 
 #[derive(Debug, Clone)]
 pub struct Field {
+    pub id: MemberId,
     pub name: Option<String>,
     pub span: Option<Span>,
     pub doc: Option<String>,
@@ -41,6 +43,7 @@ pub struct Field {
 
 #[derive(Debug, Clone)]
 pub struct Variant {
+    pub id: MemberId,
     pub name: Option<String>,
     pub span: Option<Span>,
     pub doc: Option<String>,
