@@ -161,6 +161,19 @@ fn interns_hir_shape_annotations_with_provenance() -> Result<(), &'static str> {
 }
 
 #[test]
+fn unresolved_hir_shape_lowering_stays_holey_without_resolution() {
+    let source = "let value: Missing = none";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let hir_shape = module.items[0].shape.as_ref().expect("shape annotation");
+
+    assert_eq!(
+        tune_shape::lower_hir_shape(hir_shape),
+        tune_shape::Shape::Hole
+    );
+}
+
+#[test]
 fn resolved_hir_shape_reports_unknown_names() -> Result<(), &'static str> {
     let source = "let value: Missing = none";
     let parsed = tune_syntax::parse(source);

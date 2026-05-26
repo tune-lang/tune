@@ -208,14 +208,11 @@ fn named_shape(name: &str) -> Shape {
         return shape;
     }
 
-    Shape::Struct(name.to_owned())
+    Shape::Hole
 }
 
 fn generic_shape(name: &str, args: Vec<Shape>) -> Shape {
-    generic_shape_if_builtin(name, &args).unwrap_or_else(|| Shape::Apply {
-        name: name.to_owned(),
-        args,
-    })
+    generic_shape_if_builtin(name, &args).unwrap_or(Shape::Hole)
 }
 
 fn generic_shape_if_builtin(name: &str, args: &[Shape]) -> Option<Shape> {
