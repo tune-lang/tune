@@ -116,3 +116,47 @@ fn interns_hir_shape_annotations_with_provenance() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+#[test]
+fn resolved_hir_shape_reports_unknown_names() -> Result<(), &'static str> {
+    let source = "let value: Missing = none";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let hir_shape = module.items[0]
+        .shape
+        .as_ref()
+        .ok_or("expected HIR shape annotation")?;
+    let mut store = tune_shape::ShapeStore::new();
+
+    let (id, diagnostics) =
+        tune_shape::intern_resolved_hir_shape(&mut store, hir_shape, &resolved.scope);
+
+    assert!(id.is_some());
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(
+        diagnostics[0].code,
+        tune_diagnostics::codes::UNRESOLVED_NAME
+    );
+
+    Ok(())
+}
+
+#[test]
+fn resolved_hir_shape_uses_declared_structs() -> Result<(), &'static str> {
+    let source = "struct User {}\nlet value: User = none";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let hir_shape = module.items[1]
+        .shape
+        .as_ref()
+        .ok_or("expected HIR shape annotation")?;
+
+    let lowered = tune_shape::lower_resolved_hir_shape(hir_shape, &resolved.scope);
+
+    assert!(lowered.diagnostics.is_empty());
+    assert_eq!(lowered.shape, tune_shape::Shape::Struct("User".to_owned()));
+
+    Ok(())
+}

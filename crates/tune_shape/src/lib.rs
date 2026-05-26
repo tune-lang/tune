@@ -5,7 +5,10 @@ pub mod materialize;
 pub mod shape;
 pub mod state;
 
-pub use hir::{intern_hir_shape, lower_hir_shape};
+pub use hir::{
+    LoweredShape, intern_hir_shape, intern_resolved_hir_shape, lower_hir_shape,
+    lower_resolved_hir_shape,
+};
 pub use literal::LiteralFact;
 pub use materialize::{Commitment, MaterializationPlan, can_materialize};
 pub use shape::{Shape, ShapeFact, ShapeId, ShapeOrigin, ShapeStore};
