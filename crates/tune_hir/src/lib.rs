@@ -3,6 +3,7 @@ pub mod item;
 pub mod lower;
 pub mod module;
 pub mod pattern;
+pub mod shape;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HirId(pub u32);

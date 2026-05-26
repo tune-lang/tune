@@ -1,4 +1,5 @@
 use crate::HirId;
+use crate::shape::ShapeExpr;
 use tune_diagnostics::Span;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,4 +26,5 @@ pub struct Item {
     pub visibility: Visibility,
     pub span: Option<Span>,
     pub doc: Option<String>,
+    pub shape: Option<ShapeExpr>,
 }

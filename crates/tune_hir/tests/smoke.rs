@@ -39,3 +39,31 @@ let value = 1
     assert_eq!(module.items[5].name.as_deref(), Some("value"));
     assert_eq!(module.items[5].id, tune_hir::HirId(5));
 }
+
+#[test]
+fn lowers_shape_annotations_to_hir_shape_exprs() -> Result<(), &'static str> {
+    let source = "let value: [Int | String]? = none";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let shape = module.items[0]
+        .shape
+        .as_ref()
+        .ok_or("expected shape annotation")?;
+
+    assert!(matches!(
+        shape.kind,
+        tune_hir::shape::ShapeExprKind::Optional(_)
+    ));
+    let tune_hir::shape::ShapeExprKind::Optional(inner) = &shape.kind else {
+        return Err("expected optional shape");
+    };
+    let tune_hir::shape::ShapeExprKind::Sequence(element) = &inner.kind else {
+        return Err("optional should wrap sequence");
+    };
+    assert!(matches!(
+        element.kind,
+        tune_hir::shape::ShapeExprKind::Union(_)
+    ));
+
+    Ok(())
+}
