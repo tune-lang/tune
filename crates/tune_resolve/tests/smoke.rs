@@ -3,6 +3,7 @@ fn resolves_top_level_bindings() {
     let source = r#"
 import "std/json"
 tag tool {}
+-- Run docs.
 let run(input) = input
 struct Counter {}
 "#;
@@ -20,6 +21,17 @@ struct Counter {}
         resolved.scope.get("Counter").map(|binding| binding.kind),
         Some(tune_resolve::BindingKind::Struct)
     ));
+    assert!(
+        resolved.facts.iter().any(|fact| {
+            fact.kind == tune_resolve::CompilerFactKind::Name && fact.value == "run"
+        })
+    );
+    assert!(resolved.facts.iter().any(|fact| {
+        fact.kind == tune_resolve::CompilerFactKind::Doc && fact.value == "Run docs."
+    }));
+    assert!(resolved.facts.iter().any(|fact| {
+        fact.kind == tune_resolve::CompilerFactKind::Visibility && fact.value == "private"
+    }));
 }
 
 #[test]
