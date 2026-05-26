@@ -1,7 +1,13 @@
 pub mod nodes;
 
-pub trait AstNode {
-    fn kind_name(&self) -> &'static str;
+use tune_syntax::{CstNode, SyntaxKind};
+
+pub trait AstNode<'tree>: Sized {
+    const KIND: SyntaxKind;
+
+    fn cast(node: &'tree CstNode) -> Option<Self>;
+
+    fn syntax(&self) -> &'tree CstNode;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
