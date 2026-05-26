@@ -2,8 +2,8 @@ use tune_syntax::{CstElement, CstNode, SyntaxKind};
 
 use crate::AstNode;
 
-use super::Shape;
 use super::text::first_ident_text;
+use super::{ParamList, Shape};
 
 #[derive(Debug, Clone, Copy)]
 pub struct LetDecl<'tree> {
@@ -37,6 +37,14 @@ impl<'tree> LetDecl<'tree> {
     pub fn shape_annotation(self) -> Option<Shape<'tree>> {
         self.node.children.iter().find_map(|child| match child {
             CstElement::Node(node) => Shape::cast(node),
+            CstElement::Token(_) => None,
+        })
+    }
+
+    #[must_use]
+    pub fn params(self) -> Option<ParamList<'tree>> {
+        self.node.children.iter().find_map(|child| match child {
+            CstElement::Node(node) => ParamList::cast(node),
             CstElement::Token(_) => None,
         })
     }

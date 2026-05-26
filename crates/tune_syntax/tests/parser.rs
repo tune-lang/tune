@@ -147,6 +147,23 @@ fn parses_callable_shape_nodes() {
 }
 
 #[test]
+fn parses_callable_signature_param_nodes() {
+    let parsed = parse("let parse(text: String, strict: Bool): Result = text");
+    let kinds = nested_node_kinds(&parsed.cst);
+
+    assert!(kinds.contains(&SyntaxKind::CallableDecl));
+    assert!(kinds.contains(&SyntaxKind::ParamList));
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| **kind == SyntaxKind::Param)
+            .count(),
+        2
+    );
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
 fn wraps_unexpected_top_level_token_in_error_node() {
     let parsed = parse("}");
 

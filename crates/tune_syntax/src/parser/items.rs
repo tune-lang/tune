@@ -78,13 +78,57 @@ impl Parser<'_> {
     }
 
     fn parse_let_decl(&mut self) {
-        let kind = if self.lookahead_significant(2) == Some(TokenKind::LeftParen) {
-            SyntaxKind::CallableDecl
+        if self.lookahead_significant(2) == Some(TokenKind::LeftParen) {
+            self.parse_callable_decl();
         } else {
-            SyntaxKind::LetDecl
-        };
+            self.parse_binding_decl();
+        }
+    }
 
-        self.start_node(kind);
+    fn parse_callable_decl(&mut self) {
+        self.start_node(SyntaxKind::CallableDecl);
+        self.expect(TokenKind::KeywordLet, "expected `let`");
+        self.skip_trivia();
+        self.expect(TokenKind::Ident, "expected callable name");
+        self.skip_trivia();
+        self.parse_param_list();
+
+        let mut depth = 0u32;
+        while !self.at(TokenKind::Eof) {
+            if depth == 0 && self.at_statement_boundary() {
+                if self.at(TokenKind::Semicolon) {
+                    self.bump();
+                }
+                break;
+            }
+
+            if depth == 0 && self.at_top_level_boundary() {
+                break;
+            }
+
+            if depth == 0 && self.at(TokenKind::Colon) {
+                self.bump();
+                self.skip_trivia();
+                self.parse_shape();
+                continue;
+            }
+
+            if depth == 0 && self.at(TokenKind::Equal) {
+                self.bump();
+                self.skip_trivia();
+                self.consume_until_boundary();
+                break;
+            }
+
+            self.update_depth_before_bump(&mut depth);
+            self.bump();
+        }
+
+        self.finish_node();
+    }
+
+    fn parse_binding_decl(&mut self) {
+        self.start_node(SyntaxKind::LetDecl);
         self.expect(TokenKind::KeywordLet, "expected `let`");
         let mut depth = 0u32;
 
@@ -119,6 +163,41 @@ impl Parser<'_> {
 
             self.update_depth_before_bump(&mut depth);
             self.bump();
+        }
+
+        self.finish_node();
+    }
+
+    fn parse_param_list(&mut self) {
+        self.start_node(SyntaxKind::ParamList);
+        self.expect(TokenKind::LeftParen, "expected `(`");
+        self.skip_trivia();
+
+        while !self.at(TokenKind::Eof) && !self.at(TokenKind::RightParen) {
+            self.parse_param();
+            self.skip_trivia();
+            if self.at(TokenKind::Comma) {
+                self.bump();
+                self.skip_trivia();
+            } else if !self.at(TokenKind::RightParen) {
+                self.error_at_current("expected `,` between parameters");
+                break;
+            }
+        }
+
+        self.expect(TokenKind::RightParen, "expected `)`");
+        self.finish_node();
+    }
+
+    fn parse_param(&mut self) {
+        self.start_node(SyntaxKind::Param);
+        self.expect(TokenKind::Ident, "expected parameter name");
+        self.skip_trivia();
+
+        if self.at(TokenKind::Colon) {
+            self.bump();
+            self.skip_trivia();
+            self.parse_shape();
         }
 
         self.finish_node();

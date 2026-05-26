@@ -95,6 +95,29 @@ fn record_item_facts(resolved: &mut ResolvedModule, item: &Item, name: &str) {
         });
     }
 
+    if !item.params.is_empty() {
+        resolved.facts.push(CompilerFact {
+            owner: item.id,
+            kind: CompilerFactKind::Params,
+            value: item
+                .params
+                .iter()
+                .filter_map(|param| param.name.as_deref())
+                .collect::<Vec<_>>()
+                .join(","),
+            span: item.span,
+        });
+    }
+
+    if item.kind == ItemKind::CallableDecl && item.shape.is_some() {
+        resolved.facts.push(CompilerFact {
+            owner: item.id,
+            kind: CompilerFactKind::Return,
+            value: "shape".to_owned(),
+            span: item.span,
+        });
+    }
+
     for tag in &item.tags {
         record_tag_fact(resolved, item, tag);
     }

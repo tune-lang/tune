@@ -25,6 +25,13 @@ pub struct TagApplication {
 }
 
 #[derive(Debug, Clone)]
+pub struct Param {
+    pub name: Option<String>,
+    pub span: Option<Span>,
+    pub shape: Option<ShapeExpr>,
+}
+
+#[derive(Debug, Clone)]
 pub struct Item {
     pub id: HirId,
     pub name: Option<String>,
@@ -33,5 +40,6 @@ pub struct Item {
     pub span: Option<Span>,
     pub doc: Option<String>,
     pub tags: Vec<TagApplication>,
+    pub params: Vec<Param>,
     pub shape: Option<ShapeExpr>,
 }

@@ -5,7 +5,7 @@ use tune_ast::nodes::{
 };
 use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 
-use crate::item::{Item, ItemKind, TagApplication, Visibility};
+use crate::item::{Item, ItemKind, Param, TagApplication, Visibility};
 use crate::module::Module;
 use crate::shape::{ShapeExpr, ShapeExprKind};
 use crate::{HirId, ModuleId};
@@ -94,6 +94,7 @@ fn lower_import(
         span: node.syntax().span,
         doc,
         tags,
+        params: Vec::new(),
         shape: None,
     }
 }
@@ -117,6 +118,7 @@ fn lower_let(
         span: node.syntax().span,
         doc,
         tags,
+        params: lower_params(source, node),
         shape: node
             .shape_annotation()
             .map(|shape| lower_shape(source, shape)),
@@ -174,6 +176,7 @@ fn lower_named(
         span: node.span(),
         doc,
         tags,
+        params: Vec::new(),
         shape: None,
     }
 }
@@ -185,6 +188,20 @@ fn lower_tags(source: &str, tags: &[tune_ast::nodes::TagApplication<'_>]) -> Vec
                 name: tag.name(source)?.to_owned(),
                 span: tag.syntax().span,
             })
+        })
+        .collect()
+}
+
+fn lower_params(source: &str, node: LetDecl<'_>) -> Vec<Param> {
+    node.params()
+        .into_iter()
+        .flat_map(|params| params.params())
+        .map(|param| Param {
+            name: param.name(source).map(str::to_owned),
+            span: param.syntax().span,
+            shape: param
+                .shape_annotation()
+                .map(|shape| lower_shape(source, shape)),
         })
         .collect()
 }

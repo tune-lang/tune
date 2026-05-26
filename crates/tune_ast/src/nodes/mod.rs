@@ -11,6 +11,7 @@ pub mod tags;
 mod text;
 
 pub use bindings::LetDecl;
+pub use callables::{CallableHead, CallableParam, ParamList};
 pub use comments::Comment;
 pub use enums::EnumDecl;
 pub use imports::ImportDecl;

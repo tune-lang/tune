@@ -69,6 +69,22 @@ fn lowers_shape_annotations_to_hir_shape_exprs() -> Result<(), &'static str> {
 }
 
 #[test]
+fn lowers_callable_signature_params_and_return_shape() {
+    let source = "let parse(text: String, strict: Bool): Result = text";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let item = &module.items[0];
+
+    assert_eq!(item.name.as_deref(), Some("parse"));
+    assert_eq!(item.params.len(), 2);
+    assert_eq!(item.params[0].name.as_deref(), Some("text"));
+    assert!(item.params[0].shape.is_some());
+    assert_eq!(item.params[1].name.as_deref(), Some("strict"));
+    assert!(item.params[1].shape.is_some());
+    assert!(item.shape.is_some());
+}
+
+#[test]
 fn lowers_tag_applications_to_hir_items() {
     let source = r#"
 tag tool {}

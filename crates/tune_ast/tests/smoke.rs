@@ -119,6 +119,27 @@ fn declaration_views_expose_names_and_callable_form() -> Result<(), &'static str
 }
 
 #[test]
+fn callable_decl_exposes_params_and_return_shape() -> Result<(), &'static str> {
+    let source = "let parse(text: String, strict: Bool): Result = text";
+    let parsed = tune_syntax::parse(source);
+    let root = <tune_ast::nodes::Root<'_> as tune_ast::AstNode<'_>>::cast(&parsed.cst)
+        .ok_or("root should cast")?;
+    let Some(tune_ast::nodes::Item::Let(let_decl)) = root.items().next() else {
+        return Err("expected callable declaration");
+    };
+    let params = let_decl.params().ok_or("expected params")?;
+    let params = params.params().collect::<Vec<_>>();
+
+    assert_eq!(params.len(), 2);
+    assert_eq!(params[0].name(source), Some("text"));
+    assert!(params[0].shape_annotation().is_some());
+    assert_eq!(params[1].name(source), Some("strict"));
+    assert!(let_decl.shape_annotation().is_some());
+
+    Ok(())
+}
+
+#[test]
 fn let_decl_exposes_shape_annotation_view() -> Result<(), &'static str> {
     let source = "let value: [Int | String]? = none";
     let parsed = tune_syntax::parse(source);
