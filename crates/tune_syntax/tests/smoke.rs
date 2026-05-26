@@ -46,11 +46,34 @@ fn lexes_is_not_as_parser_level_operator_phrase() {
 fn preserves_comments_and_whitespace_as_tokens() {
     let lexed = lex_with_file(tune_diagnostics::FileId(0), "--- docs\n-- comment\nlet");
 
-    assert_eq!(lexed.tokens[0].kind, TokenKind::LineComment);
+    assert_eq!(lexed.tokens[0].kind, TokenKind::DocComment);
     assert_eq!(lexed.tokens[1].kind, TokenKind::Whitespace);
     assert_eq!(lexed.tokens[2].kind, TokenKind::LineComment);
     assert_eq!(lexed.tokens[3].kind, TokenKind::Whitespace);
     assert_eq!(lexed.tokens[4].kind, TokenKind::KeywordLet);
+}
+
+#[test]
+fn treats_doc_comments_as_trivia_without_losing_them() {
+    let lexed = lex_with_file(tune_diagnostics::FileId(0), "--- docs\nlet value = 1");
+    let kinds = significant_kinds(&lexed);
+
+    assert_eq!(
+        kinds,
+        [
+            TokenKind::KeywordLet,
+            TokenKind::Ident,
+            TokenKind::Equal,
+            TokenKind::IntLiteral,
+            TokenKind::Eof,
+        ]
+    );
+    assert!(
+        lexed
+            .tokens
+            .iter()
+            .any(|token| token.kind == TokenKind::DocComment)
+    );
 }
 
 #[test]
@@ -117,7 +140,12 @@ fn significant_kinds(lexed: &tune_syntax::Lexed) -> Vec<TokenKind> {
     lexed
         .tokens
         .iter()
-        .filter(|token| !matches!(token.kind, TokenKind::Whitespace | TokenKind::LineComment))
+        .filter(|token| {
+            !matches!(
+                token.kind,
+                TokenKind::Whitespace | TokenKind::LineComment | TokenKind::DocComment
+            )
+        })
         .map(|token| token.kind)
         .collect()
 }

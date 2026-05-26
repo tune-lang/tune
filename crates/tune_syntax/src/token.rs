@@ -4,6 +4,7 @@ use tune_diagnostics::Span;
 pub enum TokenKind {
     Whitespace,
     LineComment,
+    DocComment,
     Ident,
     IntLiteral,
     FloatLiteral,

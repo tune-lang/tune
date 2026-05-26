@@ -60,6 +60,7 @@ impl<'src> Lexer<'src> {
             ch if ch.is_whitespace() => {
                 self.lex_while(start, TokenKind::Whitespace, char::is_whitespace)
             }
+            '-' if self.starts_with("---") => self.lex_line_comment(start, TokenKind::DocComment),
             '-' if self.starts_with("--") => self.lex_line_comment(start, TokenKind::LineComment),
             '"' if self.starts_with("\"\"\"") => self.lex_multiline_string(start),
             '"' => self.lex_string(start),
