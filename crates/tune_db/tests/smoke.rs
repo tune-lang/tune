@@ -22,3 +22,20 @@ fn source_map_uses_diagnostic_file_ids() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+#[test]
+fn interner_uses_stable_symbol_ids() -> Result<(), &'static str> {
+    let mut db = tune_db::TuneDb::new();
+
+    let first = db.intern("value").ok_or("first symbol should allocate")?;
+    let second = db.intern("value").ok_or("second symbol should resolve")?;
+    let other = db.intern("other").ok_or("other symbol should allocate")?;
+
+    assert_eq!(first, second);
+    assert_ne!(first, other);
+    assert_eq!(db.symbol(first), Some("value"));
+    assert_eq!(db.symbol(other), Some("other"));
+    assert_eq!(db.symbols().len(), 2);
+
+    Ok(())
+}

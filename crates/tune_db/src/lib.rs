@@ -3,11 +3,13 @@ pub mod interner;
 pub mod source;
 
 pub use ids::*;
+pub use interner::Interner;
 pub use source::{SourceFile, SourceMap};
 
 #[derive(Default)]
 pub struct TuneDb {
     sources: SourceMap,
+    symbols: Interner,
 }
 
 impl TuneDb {
@@ -28,5 +30,19 @@ impl TuneDb {
     #[must_use]
     pub fn source(&self, id: FileId) -> Option<&SourceFile> {
         self.sources.get(id)
+    }
+
+    pub fn intern(&mut self, text: &str) -> Option<SymbolId> {
+        self.symbols.intern(text)
+    }
+
+    #[must_use]
+    pub fn symbol(&self, id: SymbolId) -> Option<&str> {
+        self.symbols.resolve(id)
+    }
+
+    #[must_use]
+    pub const fn symbols(&self) -> &Interner {
+        &self.symbols
     }
 }
