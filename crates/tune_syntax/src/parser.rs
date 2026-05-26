@@ -104,20 +104,28 @@ impl<'src> Parser<'src> {
 
         self.start_node(kind);
         self.expect(TokenKind::KeywordLet, "expected `let`");
+        let mut depth = 0u32;
 
         while !self.at(TokenKind::Eof) {
-            if self.at_top_level_boundary() {
+            if depth == 0 && self.at_statement_boundary() {
+                if self.at(TokenKind::Semicolon) {
+                    self.bump();
+                }
                 break;
             }
 
-            if self.at(TokenKind::Colon) {
+            if depth == 0 && self.at_top_level_boundary() {
+                break;
+            }
+
+            if depth == 0 && self.at(TokenKind::Colon) {
                 self.bump();
                 self.skip_trivia();
                 self.parse_shape();
                 continue;
             }
 
-            if self.at(TokenKind::Equal) {
+            if depth == 0 && self.at(TokenKind::Equal) {
                 self.bump();
                 self.skip_trivia();
                 if self.at_anonymous_callable_start() {
@@ -127,6 +135,7 @@ impl<'src> Parser<'src> {
                 continue;
             }
 
+            self.update_depth_before_bump(&mut depth);
             self.bump();
         }
 
@@ -161,6 +170,13 @@ impl<'src> Parser<'src> {
                     }
                     depth -= 1;
                     self.bump();
+                }
+                Some(TokenKind::Semicolon) if depth == 0 => {
+                    self.bump();
+                    break;
+                }
+                Some(TokenKind::Whitespace) if depth == 0 && self.current_text_has_newline() => {
+                    break;
                 }
                 Some(TokenKind::KeywordLet | TokenKind::KeywordPub | TokenKind::KeywordImport)
                 | Some(TokenKind::KeywordTag | TokenKind::KeywordStruct | TokenKind::KeywordEnum)
@@ -242,6 +258,28 @@ impl<'src> Parser<'src> {
             Some(TokenKind::KeywordLet | TokenKind::KeywordPub | TokenKind::KeywordImport)
                 | Some(TokenKind::KeywordTag | TokenKind::KeywordStruct | TokenKind::KeywordEnum)
         )
+    }
+
+    fn at_statement_boundary(&self) -> bool {
+        self.at(TokenKind::Semicolon)
+            || (self.at(TokenKind::Whitespace) && self.current_text_has_newline())
+    }
+
+    fn current_text_has_newline(&self) -> bool {
+        self.current_text()
+            .is_some_and(|text| text.bytes().any(|byte| byte == b'\n'))
+    }
+
+    fn update_depth_before_bump(&self, depth: &mut u32) {
+        match self.current_kind() {
+            Some(TokenKind::LeftBrace | TokenKind::LeftParen | TokenKind::LeftBracket) => {
+                *depth = depth.saturating_add(1);
+            }
+            Some(TokenKind::RightBrace | TokenKind::RightParen | TokenKind::RightBracket) => {
+                *depth = depth.saturating_sub(1);
+            }
+            Some(_) | None => {}
+        }
     }
 
     pub(super) fn lookahead_significant(&self, n: usize) -> Option<TokenKind> {

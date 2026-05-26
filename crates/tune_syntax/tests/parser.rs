@@ -28,6 +28,42 @@ let value = 1
 }
 
 #[test]
+fn newline_ends_simple_declarations() {
+    let parsed = parse(
+        r#"
+import "std"
+let value = 1
+let other = 2
+"#,
+    );
+
+    assert_eq!(
+        root_node_kinds(&parsed.cst),
+        [
+            SyntaxKind::ImportDecl,
+            SyntaxKind::LetDecl,
+            SyntaxKind::LetDecl,
+        ]
+    );
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
+fn semicolon_ends_simple_declarations() {
+    let parsed = parse(r#"import "std"; let value = 1; let other = 2"#);
+
+    assert_eq!(
+        root_node_kinds(&parsed.cst),
+        [
+            SyntaxKind::ImportDecl,
+            SyntaxKind::LetDecl,
+            SyntaxKind::LetDecl,
+        ]
+    );
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
 fn parses_pub_as_visibility_wrapper() {
     let parsed = parse("pub let main() = {}");
     let pub_children = root_node_kinds(&parsed.cst);
