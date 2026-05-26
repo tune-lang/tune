@@ -1,3 +1,5 @@
+mod body;
+
 use std::collections::HashMap;
 
 use tune_diagnostics::{Diagnostic, Span, codes};
@@ -24,6 +26,10 @@ pub fn resolve_module(module: &Module) -> ResolvedModule {
 
     for item in &module.items {
         validate_member_names(&mut resolved, item);
+    }
+
+    for item in &module.items {
+        body::resolve_item_body(&mut resolved, item);
     }
 
     for item in &module.items {

@@ -191,3 +191,35 @@ let run(input) = input
     );
     assert_eq!(resolved.diagnostics[0].title, "unresolved tag `missing`");
 }
+
+#[test]
+fn resolves_body_names_from_items_params_and_for_patterns() {
+    let source = r#"
+let helper(value) = value
+let run(input) = helper(input)
+let each(items) = for item in items { helper(item) }
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert!(resolved.diagnostics.is_empty());
+}
+
+#[test]
+fn reports_unresolved_body_names() {
+    let source = r#"
+let helper(value) = value
+let run(input) = helper(input, missing)
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert_eq!(resolved.diagnostics.len(), 1);
+    assert_eq!(
+        resolved.diagnostics[0].code,
+        tune_diagnostics::codes::UNRESOLVED_NAME
+    );
+    assert_eq!(resolved.diagnostics[0].title, "unresolved name `missing`");
+}
