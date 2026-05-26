@@ -225,8 +225,5 @@ fn merge_spans(left: Span, right: Span) -> Span {
 
 #[must_use]
 pub const fn is_trivia(kind: TokenKind) -> bool {
-    matches!(
-        kind,
-        TokenKind::Whitespace | TokenKind::LineComment | TokenKind::DocComment
-    )
+    matches!(kind, TokenKind::Whitespace | TokenKind::LineComment)
 }

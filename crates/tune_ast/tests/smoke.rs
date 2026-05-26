@@ -1,7 +1,7 @@
 #[test]
 fn root_view_lists_top_level_items() -> Result<(), &'static str> {
     let source = r#"
---- docs
+-- docs
 tag tool {}
 pub let run(input) = input
 struct Counter {}
