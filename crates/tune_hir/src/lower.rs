@@ -1,3 +1,4 @@
+mod exprs;
 mod shapes;
 
 use tune_ast::AstNode;
@@ -10,6 +11,7 @@ use crate::item::{Field, Item, ItemKind, Param, TagApplication, Variant, Visibil
 use crate::module::Module;
 use crate::{HirId, MemberId, MemberKind, ModuleId};
 
+use exprs::ExprLowerer;
 use shapes::lower_shape;
 
 #[must_use]
@@ -26,8 +28,9 @@ pub fn lower_module(source: &str, cst: &CstNode) -> Module {
 
 fn lower_items(source: &str, root: Root<'_>) -> Vec<Item> {
     let mut items = Vec::new();
+    let mut exprs = ExprLowerer::default();
     for item in root.documented_items() {
-        lower_item(source, item, Visibility::Private, &mut items);
+        lower_item(source, item, Visibility::Private, &mut items, &mut exprs);
     }
     items
 }
@@ -37,6 +40,7 @@ fn lower_item(
     documented: DocumentedItem<'_>,
     visibility: Visibility,
     items: &mut Vec<Item>,
+    exprs: &mut ExprLowerer,
 ) {
     let doc = documented.doc_text(source);
     let tags = lower_tags(source, &documented.tags);
@@ -44,7 +48,9 @@ fn lower_item(
         AstItem::Import(node) => {
             push_item(items, lower_import(source, node, visibility, doc, tags))
         }
-        AstItem::Let(node) => push_item(items, lower_let(source, node, visibility, doc, tags)),
+        AstItem::Let(node) => {
+            push_item(items, lower_let(source, node, visibility, doc, tags, exprs))
+        }
         AstItem::Struct(node) => {
             push_item(items, lower_struct(source, node, visibility, doc, tags))
         }
@@ -61,6 +67,7 @@ fn lower_item(
                     },
                     Visibility::Public,
                     items,
+                    exprs,
                 );
             }
         }
@@ -106,6 +113,7 @@ fn lower_import(
         fields: Vec::new(),
         variants: Vec::new(),
         shape: None,
+        body: None,
     }
 }
 
@@ -115,7 +123,9 @@ fn lower_let(
     visibility: Visibility,
     doc: Option<String>,
     tags: Vec<TagApplication>,
+    exprs: &mut ExprLowerer,
 ) -> Item {
+    let body = node.body_expr().map(|expr| exprs.lower(source, expr));
     Item {
         id: HirId(0),
         name: node.name(source).map(str::to_owned),
@@ -134,6 +144,7 @@ fn lower_let(
         shape: node
             .shape_annotation()
             .map(|shape| lower_shape(source, shape)),
+        body,
     }
 }
 
@@ -156,6 +167,7 @@ fn lower_struct(
         fields: lower_fields(source, node.fields()),
         variants: Vec::new(),
         shape: None,
+        body: None,
     }
 }
 
@@ -178,6 +190,7 @@ fn lower_enum(
         fields: Vec::new(),
         variants: lower_variants(source, node.variants()),
         shape: None,
+        body: None,
     }
 }
 
@@ -200,6 +213,7 @@ fn lower_tag(
         fields: lower_fields(source, node.fields()),
         variants: Vec::new(),
         shape: None,
+        body: None,
     }
 }
 

@@ -1,3 +1,4 @@
+mod expr;
 mod items;
 mod members;
 mod shape;
@@ -97,6 +98,24 @@ impl<'src> Parser<'src> {
             .filter(|token| !crate::cst::is_trivia(token.kind))
             .nth(n)
             .map(|token| token.kind)
+    }
+
+    pub(super) fn at_top_level_boundary(&self) -> bool {
+        matches!(
+            self.current_kind(),
+            Some(TokenKind::KeywordLet | TokenKind::KeywordPub | TokenKind::KeywordImport)
+                | Some(TokenKind::KeywordTag | TokenKind::KeywordStruct | TokenKind::KeywordEnum)
+        )
+    }
+
+    pub(super) fn at_statement_boundary(&self) -> bool {
+        self.at(TokenKind::Semicolon)
+            || (self.at(TokenKind::Whitespace) && self.current_text_has_newline())
+    }
+
+    pub(super) fn current_text_has_newline(&self) -> bool {
+        self.current_text()
+            .is_some_and(|text| text.bytes().any(|byte| byte == b'\n'))
     }
 
     pub(super) fn bump(&mut self) {

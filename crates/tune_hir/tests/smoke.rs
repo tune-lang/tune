@@ -110,6 +110,34 @@ fn lowers_generic_shape_annotations() -> Result<(), &'static str> {
 }
 
 #[test]
+fn lowers_declaration_body_expressions() -> Result<(), &'static str> {
+    let source = r#"
+let value = items[0].name!
+let task = spawn fetch()
+let looped = for item in items { handle(item) }
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+
+    let value = module.items[0].body.as_ref().ok_or("expected value body")?;
+    assert!(matches!(value.kind, tune_hir::expr::ExprKind::Propagate(_)));
+
+    let task = module.items[1].body.as_ref().ok_or("expected task body")?;
+    assert!(matches!(task.kind, tune_hir::expr::ExprKind::Spawn(_)));
+
+    let looped = module.items[2].body.as_ref().ok_or("expected loop body")?;
+    let tune_hir::expr::ExprKind::For { pattern, .. } = &looped.kind else {
+        return Err("expected for expression");
+    };
+    assert!(matches!(
+        pattern.kind,
+        tune_hir::pattern::PatternKind::Binding(ref name) if name == "item"
+    ));
+
+    Ok(())
+}
+
+#[test]
 fn lowers_declaration_body_members() {
     let source = r#"
 struct User {

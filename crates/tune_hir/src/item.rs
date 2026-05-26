@@ -1,3 +1,4 @@
+use crate::expr::Expr;
 use crate::shape::ShapeExpr;
 use crate::{HirId, MemberId};
 use tune_diagnostics::Span;
@@ -63,4 +64,5 @@ pub struct Item {
     pub fields: Vec<Field>,
     pub variants: Vec<Variant>,
     pub shape: Option<ShapeExpr>,
+    pub body: Option<Expr>,
 }

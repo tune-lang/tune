@@ -241,3 +241,24 @@ fn let_decl_exposes_shape_annotation_view() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+#[test]
+fn let_decl_exposes_body_expression_view() -> Result<(), &'static str> {
+    let source = "let value = spawn items[0].load()!";
+    let parsed = tune_syntax::parse(source);
+    let root = <tune_ast::nodes::Root<'_> as tune_ast::AstNode<'_>>::cast(&parsed.cst)
+        .ok_or("root should cast")?;
+    let Some(tune_ast::nodes::Item::Let(let_decl)) = root.items().next() else {
+        return Err("expected let item");
+    };
+    let body = let_decl.body_expr().ok_or("expected body expression")?;
+
+    assert!(matches!(body, tune_ast::nodes::Expr::Spawn(_)));
+    assert!(
+        body.child_exprs()
+            .iter()
+            .any(|expr| matches!(expr, tune_ast::nodes::Expr::Propagate(_)))
+    );
+
+    Ok(())
+}

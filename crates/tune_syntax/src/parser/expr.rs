@@ -1,0 +1,188 @@
+use crate::{SyntaxKind, TokenKind};
+
+use super::Parser;
+
+impl Parser<'_> {
+    pub(super) fn parse_expr_until_boundary(&mut self) {
+        self.parse_expr();
+        self.skip_trivia();
+
+        if self.at(TokenKind::Semicolon) {
+            self.bump();
+        }
+    }
+
+    fn parse_expr(&mut self) {
+        match self.current_kind() {
+            Some(TokenKind::KeywordSpawn) => self.parse_spawn_expr(),
+            Some(TokenKind::KeywordFor) => self.parse_for_expr(),
+            Some(TokenKind::LeftBrace) => self.parse_block_expr(),
+            Some(_) => self.parse_postfix_expr(),
+            None => self.error_at_current("expected expression"),
+        }
+    }
+
+    fn parse_spawn_expr(&mut self) {
+        self.start_node(SyntaxKind::SpawnExpr);
+        self.expect(TokenKind::KeywordSpawn, "expected `spawn`");
+        self.skip_trivia();
+        self.parse_expr();
+        self.finish_node();
+    }
+
+    fn parse_for_expr(&mut self) {
+        self.start_node(SyntaxKind::ForExpr);
+        self.expect(TokenKind::KeywordFor, "expected `for`");
+        self.skip_trivia();
+        self.parse_pattern();
+        self.skip_trivia();
+        self.expect(TokenKind::KeywordIn, "expected `in`");
+        self.skip_trivia();
+        self.parse_expr();
+        self.skip_trivia();
+
+        if self.at(TokenKind::LeftBrace) {
+            self.parse_block_expr();
+        } else {
+            self.error_at_current("expected `for` body");
+        }
+
+        self.finish_node();
+    }
+
+    fn parse_pattern(&mut self) {
+        self.start_node(SyntaxKind::Pattern);
+        if matches!(
+            self.current_kind(),
+            Some(TokenKind::Ident | TokenKind::KeywordSelf)
+        ) {
+            self.bump();
+        } else {
+            self.error_at_current("expected pattern");
+        }
+        self.finish_node();
+    }
+
+    fn parse_block_expr(&mut self) {
+        self.start_node(SyntaxKind::Block);
+        self.expect(TokenKind::LeftBrace, "expected `{`");
+        self.skip_trivia();
+
+        while !self.at(TokenKind::Eof) && !self.at(TokenKind::RightBrace) {
+            self.parse_expr();
+            self.skip_trivia();
+            if self.at(TokenKind::Semicolon) {
+                self.bump();
+                self.skip_trivia();
+            } else if !self.at(TokenKind::RightBrace) {
+                break;
+            }
+        }
+
+        self.expect(TokenKind::RightBrace, "expected `}`");
+        self.finish_node();
+    }
+
+    fn parse_postfix_expr(&mut self) {
+        let checkpoint = self.builder.checkpoint();
+        self.parse_primary_expr();
+        self.skip_trivia();
+
+        loop {
+            match self.current_kind() {
+                Some(TokenKind::LeftParen) => {
+                    self.builder.start_node_at(checkpoint, SyntaxKind::CallExpr);
+                    self.parse_expr_list(TokenKind::RightParen);
+                    self.finish_node();
+                }
+                Some(TokenKind::Dot) => {
+                    self.builder
+                        .start_node_at(checkpoint, SyntaxKind::FieldExpr);
+                    self.bump();
+                    self.skip_trivia();
+                    self.expect(TokenKind::Ident, "expected field name");
+                    self.finish_node();
+                }
+                Some(TokenKind::LeftBracket) => {
+                    self.builder
+                        .start_node_at(checkpoint, SyntaxKind::IndexExpr);
+                    self.bump();
+                    self.skip_trivia();
+                    if !self.at(TokenKind::RightBracket) {
+                        self.parse_expr();
+                    }
+                    self.expect(TokenKind::RightBracket, "expected `]`");
+                    self.finish_node();
+                }
+                Some(TokenKind::Bang) => {
+                    self.builder
+                        .start_node_at(checkpoint, SyntaxKind::PropagateExpr);
+                    self.bump();
+                    self.finish_node();
+                }
+                _ => break,
+            }
+
+            self.skip_trivia();
+        }
+    }
+
+    fn parse_expr_list(&mut self, end: TokenKind) {
+        self.expect(TokenKind::LeftParen, "expected `(`");
+        self.skip_trivia();
+
+        while !self.at(TokenKind::Eof) && !self.at(end) {
+            self.parse_expr();
+            self.skip_trivia();
+            if self.at(TokenKind::Comma) {
+                self.bump();
+                self.skip_trivia();
+            } else if !self.at(end) {
+                self.error_at_current("expected `,` between expressions");
+                break;
+            }
+        }
+
+        self.expect(end, "expected expression list closer");
+    }
+
+    fn parse_primary_expr(&mut self) {
+        match self.current_kind() {
+            Some(
+                TokenKind::IntLiteral
+                | TokenKind::FloatLiteral
+                | TokenKind::StringLiteral
+                | TokenKind::MultilineStringLiteral
+                | TokenKind::KeywordTrue
+                | TokenKind::KeywordFalse
+                | TokenKind::KeywordNone,
+            ) => {
+                self.start_node(SyntaxKind::LiteralExpr);
+                self.bump();
+                self.finish_node();
+            }
+            Some(TokenKind::Ident | TokenKind::KeywordSelf) => {
+                self.start_node(SyntaxKind::NameExpr);
+                self.bump();
+                self.finish_node();
+            }
+            Some(TokenKind::LeftParen) => {
+                self.start_node(SyntaxKind::Expr);
+                self.bump();
+                self.skip_trivia();
+                if !self.at(TokenKind::RightParen) {
+                    self.parse_expr();
+                }
+                self.expect(TokenKind::RightParen, "expected `)`");
+                self.finish_node();
+            }
+            Some(_) => {
+                self.start_node(SyntaxKind::Error);
+                self.error_at_current("expected expression");
+                self.bump();
+                self.finish_node();
+            }
+            None => self.error_at_current("expected expression"),
+        }
+    }
+}

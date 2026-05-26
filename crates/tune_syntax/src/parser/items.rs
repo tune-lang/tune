@@ -109,7 +109,7 @@ impl Parser<'_> {
             if depth == 0 && self.at(TokenKind::Equal) {
                 self.bump();
                 self.skip_trivia();
-                self.consume_until_boundary();
+                self.parse_expr_until_boundary();
                 break;
             }
 
@@ -151,7 +151,8 @@ impl Parser<'_> {
                     self.parse_callable_value();
                     break;
                 }
-                continue;
+                self.parse_expr_until_boundary();
+                break;
             }
 
             self.update_depth_before_bump(&mut depth);
@@ -248,24 +249,6 @@ impl Parser<'_> {
         self.at(TokenKind::Ident)
             && self.current_text() == Some("_")
             && self.lookahead_significant(1) == Some(TokenKind::LeftParen)
-    }
-
-    fn at_top_level_boundary(&self) -> bool {
-        matches!(
-            self.current_kind(),
-            Some(TokenKind::KeywordLet | TokenKind::KeywordPub | TokenKind::KeywordImport)
-                | Some(TokenKind::KeywordTag | TokenKind::KeywordStruct | TokenKind::KeywordEnum)
-        )
-    }
-
-    fn at_statement_boundary(&self) -> bool {
-        self.at(TokenKind::Semicolon)
-            || (self.at(TokenKind::Whitespace) && self.current_text_has_newline())
-    }
-
-    fn current_text_has_newline(&self) -> bool {
-        self.current_text()
-            .is_some_and(|text| text.bytes().any(|byte| byte == b'\n'))
     }
 
     fn update_depth_before_bump(&self, depth: &mut u32) {

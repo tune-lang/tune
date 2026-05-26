@@ -226,6 +226,27 @@ tag tool {
 }
 
 #[test]
+fn parses_expression_nodes_in_declaration_bodies() {
+    let parsed = parse(
+        r#"
+let value = items[0].name!
+let task = spawn fetch()
+let looped = for item in items { handle(item) }
+"#,
+    );
+    let kinds = nested_node_kinds(&parsed.cst);
+
+    assert!(kinds.contains(&SyntaxKind::IndexExpr));
+    assert!(kinds.contains(&SyntaxKind::FieldExpr));
+    assert!(kinds.contains(&SyntaxKind::PropagateExpr));
+    assert!(kinds.contains(&SyntaxKind::SpawnExpr));
+    assert!(kinds.contains(&SyntaxKind::CallExpr));
+    assert!(kinds.contains(&SyntaxKind::ForExpr));
+    assert!(kinds.contains(&SyntaxKind::Block));
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
 fn wraps_unexpected_top_level_token_in_error_node() {
     let parsed = parse("}");
 

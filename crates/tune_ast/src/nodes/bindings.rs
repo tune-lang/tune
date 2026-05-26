@@ -3,7 +3,7 @@ use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 use crate::AstNode;
 
 use super::text::direct_ident_text;
-use super::{Comment, ParamList, Shape};
+use super::{Comment, Expr, ParamList, Shape};
 
 #[derive(Debug, Clone, Copy)]
 pub struct LetDecl<'tree> {
@@ -46,6 +46,19 @@ impl<'tree> LetDecl<'tree> {
         self.node.children.iter().find_map(|child| match child {
             CstElement::Node(node) => ParamList::cast(node),
             CstElement::Token(_) => None,
+        })
+    }
+
+    #[must_use]
+    pub fn body_expr(self) -> Option<Expr<'tree>> {
+        let mut past_equals = false;
+        self.node.children.iter().find_map(|child| match child {
+            CstElement::Token(token) if token.kind == TokenKind::Equal => {
+                past_equals = true;
+                None
+            }
+            CstElement::Node(node) if past_equals => Expr::cast(node),
+            CstElement::Node(_) | CstElement::Token(_) => None,
         })
     }
 

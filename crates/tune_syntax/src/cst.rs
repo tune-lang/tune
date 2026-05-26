@@ -33,6 +33,7 @@ pub enum SyntaxKind {
     CallExpr,
     FieldExpr,
     IndexExpr,
+    PropagateExpr,
     UnaryExpr,
     BinaryExpr,
     IfExpr,
