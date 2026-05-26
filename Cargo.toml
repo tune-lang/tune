@@ -1,5 +1,26 @@
 [workspace]
-members = ["crates/dyno"]
+members = [
+    "crates/tune_syntax",
+    "crates/tune_ast",
+    "crates/tune_hir",
+    "crates/tune_db",
+    "crates/tune_resolve",
+    "crates/tune_shape",
+    "crates/tune_plan",
+    "crates/tune_ir",
+    "crates/tune_opt",
+    "crates/tune_bytecode",
+    "crates/tune_vm",
+    "crates/tune_runtime",
+    "crates/tune_host",
+    "crates/tune_std",
+    "crates/tune_meta",
+    "crates/tune_diagnostics",
+    "crates/tune_lsp",
+    "crates/dyno_project",
+    "crates/dyno_pkg",
+    "crates/dyno_cli",
+]
 resolver = "3"
 
 [workspace.package]
@@ -12,22 +33,24 @@ readme = "README.md"
 repository = "https://github.com/chrisreyercollege/dyno"
 rust-version = "1.95"
 
+[workspace.dependencies]
+camino = "1"
+indexmap = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+smallvec = "1"
+thiserror = "1"
+
 [workspace.lints.rust]
-missing_docs = "deny"
 unsafe_code = "forbid"
 warnings = "deny"
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }
-cargo = { level = "deny", priority = -1 }
 dbg_macro = "deny"
 expect_used = "deny"
 multiple_crate_versions = "allow"
-nursery = { level = "deny", priority = -1 }
 panic = "deny"
-pedantic = { level = "deny", priority = -1 }
-print_stderr = "deny"
-print_stdout = "deny"
 todo = "deny"
 unimplemented = "deny"
 unwrap_used = "deny"

@@ -3,5 +3,164 @@
 version = 4
 
 [[package]]
-name = "dyno"
+name = "dyno_cli"
 version = "0.1.0"
+dependencies = [
+ "dyno_pkg",
+ "dyno_project",
+ "tune_db",
+ "tune_diagnostics",
+ "tune_host",
+ "tune_lsp",
+ "tune_std",
+ "tune_vm",
+]
+
+[[package]]
+name = "dyno_pkg"
+version = "0.1.0"
+dependencies = [
+ "dyno_project",
+ "tune_diagnostics",
+]
+
+[[package]]
+name = "dyno_project"
+version = "0.1.0"
+dependencies = [
+ "tune_diagnostics",
+]
+
+[[package]]
+name = "tune_ast"
+version = "0.1.0"
+dependencies = [
+ "tune_syntax",
+]
+
+[[package]]
+name = "tune_bytecode"
+version = "0.1.0"
+dependencies = [
+ "tune_ir",
+]
+
+[[package]]
+name = "tune_db"
+version = "0.1.0"
+dependencies = [
+ "tune_ast",
+ "tune_diagnostics",
+ "tune_hir",
+ "tune_syntax",
+]
+
+[[package]]
+name = "tune_diagnostics"
+version = "0.1.0"
+
+[[package]]
+name = "tune_hir"
+version = "0.1.0"
+dependencies = [
+ "tune_ast",
+ "tune_diagnostics",
+]
+
+[[package]]
+name = "tune_host"
+version = "0.1.0"
+dependencies = [
+ "tune_diagnostics",
+ "tune_runtime",
+]
+
+[[package]]
+name = "tune_ir"
+version = "0.1.0"
+dependencies = [
+ "tune_plan",
+ "tune_shape",
+]
+
+[[package]]
+name = "tune_lsp"
+version = "0.1.0"
+dependencies = [
+ "tune_db",
+ "tune_diagnostics",
+]
+
+[[package]]
+name = "tune_meta"
+version = "0.1.0"
+dependencies = [
+ "tune_diagnostics",
+ "tune_hir",
+ "tune_shape",
+]
+
+[[package]]
+name = "tune_opt"
+version = "0.1.0"
+dependencies = [
+ "tune_diagnostics",
+ "tune_ir",
+ "tune_shape",
+]
+
+[[package]]
+name = "tune_plan"
+version = "0.1.0"
+dependencies = [
+ "tune_diagnostics",
+ "tune_hir",
+ "tune_shape",
+]
+
+[[package]]
+name = "tune_resolve"
+version = "0.1.0"
+dependencies = [
+ "tune_db",
+ "tune_diagnostics",
+ "tune_hir",
+]
+
+[[package]]
+name = "tune_runtime"
+version = "0.1.0"
+dependencies = [
+ "tune_diagnostics",
+]
+
+[[package]]
+name = "tune_shape"
+version = "0.1.0"
+dependencies = [
+ "tune_diagnostics",
+ "tune_hir",
+ "tune_resolve",
+]
+
+[[package]]
+name = "tune_std"
+version = "0.1.0"
+dependencies = [
+ "tune_host",
+ "tune_meta",
+ "tune_runtime",
+]
+
+[[package]]
+name = "tune_syntax"
+version = "0.1.0"
+
+[[package]]
+name = "tune_vm"
+version = "0.1.0"
+dependencies = [
+ "tune_bytecode",
+ "tune_diagnostics",
+ "tune_runtime",
+]

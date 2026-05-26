@@ -1,0 +1,20 @@
+[package]
+name = "dyno_cli"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+
+[lints]
+workspace = true
+
+[dependencies]
+dyno_project = { path = "../dyno_project" }
+dyno_pkg = { path = "../dyno_pkg" }
+tune_db = { path = "../tune_db" }
+tune_vm = { path = "../tune_vm" }
+tune_host = { path = "../tune_host" }
+tune_std = { path = "../tune_std" }
+tune_lsp = { path = "../tune_lsp" }
+tune_diagnostics = { path = "../tune_diagnostics" }

@@ -1,0 +1,15 @@
+[package]
+name = "tune_vm"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+
+[lints]
+workspace = true
+
+[dependencies]
+tune_bytecode = { path = "../tune_bytecode" }
+tune_runtime = { path = "../tune_runtime" }
+tune_diagnostics = { path = "../tune_diagnostics" }

@@ -1,0 +1,13 @@
+[package]
+name = "dyno_project"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+
+[lints]
+workspace = true
+
+[dependencies]
+tune_diagnostics = { path = "../tune_diagnostics" }
