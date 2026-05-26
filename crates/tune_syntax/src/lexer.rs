@@ -61,6 +61,7 @@ impl<'src> Lexer<'src> {
                 self.lex_while(start, TokenKind::Whitespace, char::is_whitespace)
             }
             '-' if self.starts_with("--") => self.lex_line_comment(start, TokenKind::LineComment),
+            '-' if self.starts_with("-/") => self.lex_block_comment(start),
             '"' if self.starts_with("\"\"\"") => self.lex_multiline_string(start),
             '"' => self.lex_string(start),
             '0'..='9' => self.lex_number(start),
@@ -83,6 +84,22 @@ impl<'src> Lexer<'src> {
         }
 
         self.push(kind, start, self.offset);
+    }
+
+    fn lex_block_comment(&mut self, start: usize) {
+        self.offset += 2;
+
+        while !self.is_at_end() {
+            if self.starts_with("/-") {
+                self.offset += 2;
+                self.push(TokenKind::BlockComment, start, self.offset);
+                return;
+            }
+
+            self.bump();
+        }
+
+        self.push_error(start, self.offset, "unterminated block comment");
     }
 
     fn lex_string(&mut self, start: usize) {
