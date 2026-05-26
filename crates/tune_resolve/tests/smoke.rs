@@ -93,6 +93,50 @@ enum LoadResult {
 }
 
 #[test]
+fn reports_duplicate_member_names() {
+    let source = r#"
+let parse(text: String, text: String): String = text
+struct User {
+  name: String
+  name: String
+}
+enum LoadResult {
+  Ok(User)
+  Ok(String)
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert_eq!(resolved.diagnostics.len(), 3);
+    assert!(
+        resolved
+            .diagnostics
+            .iter()
+            .all(|diagnostic| { diagnostic.code == tune_diagnostics::codes::DUPLICATE_NAME })
+    );
+    assert!(
+        resolved
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.title == "duplicate parameter `text`")
+    );
+    assert!(
+        resolved
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.title == "duplicate field `name`")
+    );
+    assert!(
+        resolved
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.title == "duplicate variant `Ok`")
+    );
+}
+
+#[test]
 fn records_tag_application_facts() {
     let source = r#"
 tag tool {}
