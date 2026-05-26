@@ -6,5 +6,5 @@ pub mod trivia;
 
 pub use cst::{CstBuilder, CstElement, CstNode, SyntaxKind};
 pub use lexer::{Lexed, lex, lex_with_file};
-pub use parser::parse;
+pub use parser::{Parsed, parse, parse_with_file};
 pub use token::{Token, TokenKind};

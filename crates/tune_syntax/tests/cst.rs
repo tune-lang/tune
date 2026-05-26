@@ -2,7 +2,8 @@ use tune_syntax::{CstBuilder, CstElement, SyntaxKind, Token, TokenKind, parse};
 
 #[test]
 fn parse_preserves_tokens_and_trivia_in_root() {
-    let root = parse("let x = 1 -- trailing");
+    let parsed = parse("let x = 1 -- trailing");
+    let root = parsed.cst;
 
     assert_eq!(root.kind, SyntaxKind::Root);
     assert_eq!(root.children.len(), 10);
@@ -17,12 +18,20 @@ fn parse_preserves_tokens_and_trivia_in_root() {
 
 #[test]
 fn parse_root_span_covers_non_empty_source() {
-    let root = parse("let x = 1");
+    let root = parse("let x = 1").cst;
     let spans = root.span.into_iter().collect::<Vec<_>>();
 
     assert_eq!(spans.len(), 1);
     assert_eq!(spans[0].start.get(), 0);
     assert_eq!(spans[0].end.get(), 9);
+}
+
+#[test]
+fn parse_keeps_lexer_diagnostics() {
+    let parsed = parse("\"unterminated");
+
+    assert_eq!(parsed.diagnostics.len(), 1);
+    assert_eq!(parsed.diagnostics[0].message, "unterminated string literal");
 }
 
 #[test]
