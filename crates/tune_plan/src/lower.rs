@@ -1,5 +1,7 @@
-use tune_hir::expr::{BinaryOp, Expr, ExprKind, UnaryOp};
+use tune_hir::ExprId;
+use tune_hir::expr::{Expr, ExprKind};
 use tune_hir::item::Item;
+use tune_resolve::{LocalId, NameTarget, ResolvedModule};
 
 use crate::plan::{PlanFunction, PlanOp};
 
@@ -13,6 +15,15 @@ pub fn lower_to_plan(name: &str) -> PlanFunction {
 
 #[must_use]
 pub fn lower_item_to_plan(item: &Item) -> Option<PlanFunction> {
+    lower_item_with_context(item, None)
+}
+
+#[must_use]
+pub fn lower_resolved_item_to_plan(item: &Item, resolved: &ResolvedModule) -> Option<PlanFunction> {
+    lower_item_with_context(item, Some(resolved))
+}
+
+fn lower_item_with_context(item: &Item, resolved: Option<&ResolvedModule>) -> Option<PlanFunction> {
     let body = item.body.as_ref()?;
     let mut plan = PlanFunction {
         name: item
@@ -21,132 +32,116 @@ pub fn lower_item_to_plan(item: &Item) -> Option<PlanFunction> {
             .unwrap_or_else(|| "<anonymous>".to_owned()),
         ops: Vec::new(),
     };
-    lower_expr(body, &mut plan.ops);
+    let context = LowerContext { resolved };
+    context.lower_expr(body, &mut plan.ops);
     Some(plan)
 }
 
-fn lower_expr(expr: &Expr, ops: &mut Vec<PlanOp>) {
-    match &expr.kind {
-        ExprKind::Missing | ExprKind::Literal(_) | ExprKind::Name(_) => {}
-        ExprKind::CallableValue { params: _, body } => {
-            lower_expr(body, ops);
-            ops.push(PlanOp::CallableValue);
-        }
-        ExprKind::Sequence(elements) => {
-            for element in elements {
-                lower_expr(element, ops);
-                ops.push(PlanOp::SequencePush);
+struct LowerContext<'a> {
+    resolved: Option<&'a ResolvedModule>,
+}
+
+impl LowerContext<'_> {
+    fn lower_expr(&self, expr: &Expr, ops: &mut Vec<PlanOp>) {
+        match &expr.kind {
+            ExprKind::Missing | ExprKind::Literal(_) | ExprKind::Name(_) => {}
+            ExprKind::CallableValue { params: _, body } => {
+                self.lower_expr(body, ops);
+                ops.push(PlanOp::CallableValue);
             }
-        }
-        ExprKind::Call { callee, args } => {
-            lower_expr(callee, ops);
-            for arg in args {
-                lower_expr(arg, ops);
+            ExprKind::Sequence(elements) => {
+                for element in elements {
+                    self.lower_expr(element, ops);
+                    ops.push(PlanOp::SequencePush);
+                }
             }
-            ops.push(call_op(callee));
-        }
-        ExprKind::Field { base, name } => {
-            lower_expr(base, ops);
-            ops.push(PlanOp::FieldGet {
-                field: name.clone().unwrap_or_default(),
-            });
-        }
-        ExprKind::Index { base, index } => {
-            lower_expr(base, ops);
-            lower_expr(index, ops);
-            ops.push(PlanOp::SequenceGet { checked: true });
-        }
-        ExprKind::Let { name, value, .. } => {
-            if let Some(value) = value {
-                lower_expr(value, ops);
+            ExprKind::Call { callee, args } => {
+                self.lower_expr(callee, ops);
+                for arg in args {
+                    self.lower_expr(arg, ops);
+                }
+                ops.push(self.call_op(callee));
             }
-            ops.push(PlanOp::LocalLet {
-                name: name.clone().unwrap_or_default(),
-            });
-        }
-        ExprKind::Assign { target, value } => {
-            lower_expr(target, ops);
-            lower_expr(value, ops);
-            ops.push(PlanOp::Assign);
-        }
-        ExprKind::Unary { op, expr } => {
-            lower_expr(expr, ops);
-            ops.push(PlanOp::UnaryOp {
-                op: unary_op_name(*op).to_owned(),
-            });
-        }
-        ExprKind::Binary { op, lhs, rhs } => {
-            lower_expr(lhs, ops);
-            lower_expr(rhs, ops);
-            ops.push(PlanOp::BinaryOp {
-                op: binary_op_name(*op).to_owned(),
-            });
-        }
-        ExprKind::Spawn(inner) => {
-            lower_expr(inner, ops);
-            ops.push(PlanOp::Spawn);
-        }
-        ExprKind::Propagate(inner) => {
-            lower_expr(inner, ops);
-            ops.push(PlanOp::ResultPropagate);
-        }
-        ExprKind::Return(inner) => {
-            if let Some(inner) = inner {
-                lower_expr(inner, ops);
+            ExprKind::Field { base, name } => {
+                self.lower_expr(base, ops);
+                ops.push(PlanOp::FieldGet {
+                    field: name.clone().unwrap_or_default(),
+                });
             }
-            ops.push(PlanOp::Return);
-        }
-        ExprKind::For { iterable, body, .. } => {
-            lower_expr(iterable, ops);
-            lower_expr(body, ops);
-            ops.push(PlanOp::FiniteFor);
-        }
-        ExprKind::Block(exprs) => {
-            for expr in exprs {
-                lower_expr(expr, ops);
+            ExprKind::Index { base, index } => {
+                self.lower_expr(base, ops);
+                self.lower_expr(index, ops);
+                ops.push(PlanOp::SequenceGet { checked: true });
+            }
+            ExprKind::Let { value, .. } => {
+                if let Some(value) = value {
+                    self.lower_expr(value, ops);
+                }
+                ops.push(PlanOp::LocalLet {
+                    local: self.local_for_expr(expr.id),
+                });
+            }
+            ExprKind::Assign { target, value } => {
+                self.lower_expr(target, ops);
+                self.lower_expr(value, ops);
+                ops.push(PlanOp::Assign);
+            }
+            ExprKind::Unary { op, expr } => {
+                self.lower_expr(expr, ops);
+                ops.push(PlanOp::UnaryOp { op: *op });
+            }
+            ExprKind::Binary { op, lhs, rhs } => {
+                self.lower_expr(lhs, ops);
+                self.lower_expr(rhs, ops);
+                ops.push(PlanOp::BinaryOp { op: *op });
+            }
+            ExprKind::Spawn(inner) => {
+                self.lower_expr(inner, ops);
+                ops.push(PlanOp::Spawn);
+            }
+            ExprKind::Propagate(inner) => {
+                self.lower_expr(inner, ops);
+                ops.push(PlanOp::ResultPropagate);
+            }
+            ExprKind::Return(inner) => {
+                if let Some(inner) = inner {
+                    self.lower_expr(inner, ops);
+                }
+                ops.push(PlanOp::Return);
+            }
+            ExprKind::For { iterable, body, .. } => {
+                self.lower_expr(iterable, ops);
+                self.lower_expr(body, ops);
+                ops.push(PlanOp::FiniteFor);
+            }
+            ExprKind::Block(exprs) => {
+                for expr in exprs {
+                    self.lower_expr(expr, ops);
+                }
             }
         }
     }
-}
 
-fn unary_op_name(op: UnaryOp) -> &'static str {
-    match op {
-        UnaryOp::Not => "not",
-        UnaryOp::Neg => "-",
-        UnaryOp::BitNot => "~",
+    fn call_op(&self, callee: &Expr) -> PlanOp {
+        match self.name_target(callee.id) {
+            Some(NameTarget::TopLevel(target)) => PlanOp::DirectCall { target },
+            _ => PlanOp::BoundCall,
+        }
     }
-}
 
-fn binary_op_name(op: BinaryOp) -> &'static str {
-    match op {
-        BinaryOp::Or => "or",
-        BinaryOp::And => "and",
-        BinaryOp::Is => "is",
-        BinaryOp::IsNot => "is not",
-        BinaryOp::Equal => "==",
-        BinaryOp::NotEqual => "~=",
-        BinaryOp::Less => "<",
-        BinaryOp::LessEqual => "<=",
-        BinaryOp::Greater => ">",
-        BinaryOp::GreaterEqual => ">=",
-        BinaryOp::BitOr => "|",
-        BinaryOp::BitXor => "^",
-        BinaryOp::BitAnd => "&",
-        BinaryOp::ShiftLeft => "<<",
-        BinaryOp::ShiftRight => ">>",
-        BinaryOp::Add => "+",
-        BinaryOp::Sub => "-",
-        BinaryOp::Mul => "*",
-        BinaryOp::Div => "/",
-        BinaryOp::Rem => "%",
+    fn name_target(&self, expr: ExprId) -> Option<NameTarget> {
+        self.resolved?
+            .name_refs
+            .iter()
+            .find(|name_ref| name_ref.expr == expr)
+            .map(|name_ref| name_ref.target)
     }
-}
 
-fn call_op(callee: &Expr) -> PlanOp {
-    match &callee.kind {
-        ExprKind::Name(name) => PlanOp::DirectCall {
-            function: name.clone(),
-        },
-        _ => PlanOp::BoundCall,
+    fn local_for_expr(&self, expr: ExprId) -> Option<LocalId> {
+        self.resolved?
+            .locals
+            .iter()
+            .find(|local| local.expr == Some(expr))
+            .map(|local| local.id)
     }
 }

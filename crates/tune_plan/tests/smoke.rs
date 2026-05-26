@@ -7,6 +7,7 @@ fn smoke() {
 #[test]
 fn lowers_hir_body_to_semantic_plan_ops() -> Result<(), &'static str> {
     let source = r#"
+let handle(item) = item
 let run(items) = spawn items[0].load()!
 let each(items) = for item in items { handle(item) }
 let values = [1, 2]
@@ -15,8 +16,10 @@ let ops(value, other) = not value and other is not none
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
 
-    let run = tune_plan::lower_item_to_plan(&module.items[0]).ok_or("expected run plan")?;
+    let run = tune_plan::lower_resolved_item_to_plan(&module.items[1], &resolved)
+        .ok_or("expected run plan")?;
     assert_eq!(run.name, "run");
     assert!(
         run.ops
@@ -30,10 +33,15 @@ let ops(value, other) = not value and other is not none
     assert!(run.ops.contains(&tune_plan::PlanOp::ResultPropagate));
     assert!(run.ops.contains(&tune_plan::PlanOp::Spawn));
 
-    let each = tune_plan::lower_item_to_plan(&module.items[1]).ok_or("expected each plan")?;
+    let each = tune_plan::lower_resolved_item_to_plan(&module.items[2], &resolved)
+        .ok_or("expected each plan")?;
     assert!(each.ops.contains(&tune_plan::PlanOp::FiniteFor));
+    assert!(each.ops.contains(&tune_plan::PlanOp::DirectCall {
+        target: tune_hir::HirId(0)
+    }));
 
-    let values = tune_plan::lower_item_to_plan(&module.items[2]).ok_or("expected values plan")?;
+    let values = tune_plan::lower_resolved_item_to_plan(&module.items[3], &resolved)
+        .ok_or("expected values plan")?;
     assert_eq!(
         values
             .ops
@@ -43,20 +51,25 @@ let ops(value, other) = not value and other is not none
         2
     );
 
-    let scoped = tune_plan::lower_item_to_plan(&module.items[3]).ok_or("expected scoped plan")?;
+    let scoped = tune_plan::lower_resolved_item_to_plan(&module.items[4], &resolved)
+        .ok_or("expected scoped plan")?;
     assert!(scoped.ops.contains(&tune_plan::PlanOp::CallableValue));
-    assert!(scoped.ops.contains(&tune_plan::PlanOp::LocalLet {
-        name: "f".to_owned()
-    }));
+    assert!(
+        scoped
+            .ops
+            .iter()
+            .any(|op| matches!(op, tune_plan::PlanOp::LocalLet { local: Some(_) }))
+    );
     assert!(scoped.ops.contains(&tune_plan::PlanOp::Assign));
     assert!(scoped.ops.contains(&tune_plan::PlanOp::Return));
 
-    let ops = tune_plan::lower_item_to_plan(&module.items[4]).ok_or("expected ops plan")?;
+    let ops = tune_plan::lower_resolved_item_to_plan(&module.items[5], &resolved)
+        .ok_or("expected ops plan")?;
     assert!(ops.ops.contains(&tune_plan::PlanOp::UnaryOp {
-        op: "not".to_owned()
+        op: tune_hir::expr::UnaryOp::Not
     }));
     assert!(ops.ops.contains(&tune_plan::PlanOp::BinaryOp {
-        op: "is not".to_owned()
+        op: tune_hir::expr::BinaryOp::IsNot
     }));
 
     Ok(())

@@ -17,6 +17,7 @@ pub struct LocalBinding {
     pub owner: HirId,
     pub kind: LocalKind,
     pub name: String,
+    pub expr: Option<ExprId>,
     pub span: Option<Span>,
 }
 

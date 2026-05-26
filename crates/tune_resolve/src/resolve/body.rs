@@ -50,7 +50,7 @@ impl BodyResolver<'_> {
                 self.with_scope(|this| {
                     for param in params {
                         if let Some(name) = &param.name {
-                            this.bind_local(name, LocalKind::CallableParam, param.span);
+                            this.bind_local(name, LocalKind::CallableParam, None, param.span);
                         }
                     }
                     this.resolve_expr_names(body);
@@ -72,7 +72,7 @@ impl BodyResolver<'_> {
                     self.resolve_expr_names(value);
                 }
                 if let Some(name) = name {
-                    self.bind_local(name, LocalKind::Let, expr.span);
+                    self.bind_local(name, LocalKind::Let, Some(expr.id), expr.span);
                 }
             }
             ExprKind::Assign { target, value } => {
@@ -174,13 +174,20 @@ impl BodyResolver<'_> {
         }
     }
 
-    fn bind_local(&mut self, name: &str, kind: LocalKind, span: Option<Span>) -> Option<LocalId> {
+    fn bind_local(
+        &mut self,
+        name: &str,
+        kind: LocalKind,
+        expr: Option<tune_hir::ExprId>,
+        span: Option<Span>,
+    ) -> Option<LocalId> {
         let id = LocalId(u32::try_from(self.resolved.locals.len()).ok()?);
         self.resolved.locals.push(LocalBinding {
             id,
             owner: self.owner,
             kind,
             name: name.to_owned(),
+            expr,
             span,
         });
 
@@ -194,7 +201,7 @@ impl BodyResolver<'_> {
     fn bind_pattern_names(&mut self, pattern: &Pattern) {
         match &pattern.kind {
             PatternKind::Binding(name) => {
-                self.bind_local(name, LocalKind::Pattern, pattern.span);
+                self.bind_local(name, LocalKind::Pattern, None, pattern.span);
             }
             PatternKind::Tuple(patterns) => {
                 for pattern in patterns {

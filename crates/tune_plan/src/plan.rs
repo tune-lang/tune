@@ -1,3 +1,7 @@
+use tune_hir::HirId;
+use tune_hir::expr::{BinaryOp, UnaryOp};
+use tune_resolve::LocalId;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanFunction {
     pub name: String,
@@ -6,15 +10,15 @@ pub struct PlanFunction {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlanOp {
-    DirectCall { function: String },
+    DirectCall { target: HirId },
     BoundCall,
     CallableValue,
     WitnessCall,
     HostCall { symbol: String },
-    LocalLet { name: String },
+    LocalLet { local: Option<LocalId> },
     Assign,
-    UnaryOp { op: String },
-    BinaryOp { op: String },
+    UnaryOp { op: UnaryOp },
+    BinaryOp { op: BinaryOp },
     FieldGet { field: String },
     FieldSet { field: String },
     SequenceGet { checked: bool },
