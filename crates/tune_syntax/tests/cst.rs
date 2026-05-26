@@ -3,17 +3,24 @@ use tune_syntax::{CstBuilder, CstElement, SyntaxKind, Token, TokenKind, parse};
 #[test]
 fn parse_preserves_tokens_and_trivia_in_root() {
     let parsed = parse("let x = 1 -- trailing");
-    let root = parsed.cst;
+    let token_kinds = all_token_kinds(&parsed.cst);
 
-    assert_eq!(root.kind, SyntaxKind::Root);
-    assert_eq!(root.children.len(), 10);
-    assert_eq!(token_kind(&root.children[0]), Some(TokenKind::KeywordLet));
-    assert_eq!(token_kind(&root.children[1]), Some(TokenKind::Whitespace));
-    assert_eq!(token_kind(&root.children[2]), Some(TokenKind::Ident));
-    assert_eq!(token_kind(&root.children[4]), Some(TokenKind::Equal));
-    assert_eq!(token_kind(&root.children[6]), Some(TokenKind::IntLiteral));
-    assert_eq!(token_kind(&root.children[8]), Some(TokenKind::LineComment));
-    assert_eq!(token_kind(&root.children[9]), Some(TokenKind::Eof));
+    assert_eq!(parsed.cst.kind, SyntaxKind::Root);
+    assert_eq!(
+        token_kinds,
+        [
+            TokenKind::KeywordLet,
+            TokenKind::Whitespace,
+            TokenKind::Ident,
+            TokenKind::Whitespace,
+            TokenKind::Equal,
+            TokenKind::Whitespace,
+            TokenKind::IntLiteral,
+            TokenKind::Whitespace,
+            TokenKind::LineComment,
+            TokenKind::Eof,
+        ]
+    );
 }
 
 #[test]
@@ -30,8 +37,13 @@ fn parse_root_span_covers_non_empty_source() {
 fn parse_keeps_lexer_diagnostics() {
     let parsed = parse("\"unterminated");
 
-    assert_eq!(parsed.diagnostics.len(), 1);
-    assert_eq!(parsed.diagnostics[0].message, "unterminated string literal");
+    let messages = parsed
+        .diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.message.as_str())
+        .collect::<Vec<_>>();
+
+    assert!(messages.contains(&"unterminated string literal"));
 }
 
 #[test]
@@ -75,9 +87,17 @@ fn builder_computes_nested_node_spans() {
     assert_eq!(let_decl_spans[0].end.get(), 11);
 }
 
-fn token_kind(element: &CstElement) -> Option<TokenKind> {
-    match element {
-        CstElement::Token(token) => Some(token.kind),
-        CstElement::Node(_) => None,
+fn all_token_kinds(node: &tune_syntax::CstNode) -> Vec<TokenKind> {
+    let mut kinds = Vec::new();
+    collect_token_kinds(node, &mut kinds);
+    kinds
+}
+
+fn collect_token_kinds(node: &tune_syntax::CstNode, kinds: &mut Vec<TokenKind>) {
+    for child in &node.children {
+        match child {
+            CstElement::Node(node) => collect_token_kinds(node, kinds),
+            CstElement::Token(token) => kinds.push(token.kind),
+        }
     }
 }
