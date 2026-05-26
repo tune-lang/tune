@@ -1,0 +1,33 @@
+[workspace]
+members = ["crates/dyno"]
+resolver = "3"
+
+[workspace.package]
+authors = ["Chris <chrisreyercollege@gmail>"]
+categories = ["development-tools"]
+edition = "2024"
+keywords = ["dyno"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/chrisreyercollege/dyno"
+rust-version = "1.95"
+
+[workspace.lints.rust]
+missing_docs = "deny"
+unsafe_code = "forbid"
+warnings = "deny"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+cargo = { level = "deny", priority = -1 }
+dbg_macro = "deny"
+expect_used = "deny"
+multiple_crate_versions = "allow"
+nursery = { level = "deny", priority = -1 }
+panic = "deny"
+pedantic = { level = "deny", priority = -1 }
+print_stderr = "deny"
+print_stdout = "deny"
+todo = "deny"
+unimplemented = "deny"
+unwrap_used = "deny"
