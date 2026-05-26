@@ -16,8 +16,9 @@ pub use callables::{CallableHead, CallableParam, ParamList};
 pub use comments::Comment;
 pub use enums::{DocumentedVariant, EnumDecl, VariantDecl};
 pub use exprs::{
-    AssignExpr, BlockExpr, CallExpr, CallableValue, Expr, FieldExpr, ForExpr, IndexExpr, LetExpr,
-    LiteralExpr, NameExpr, PropagateExpr, ReturnExpr, SequenceExpr, SpawnExpr,
+    AssignExpr, BinaryExpr, BlockExpr, CallExpr, CallableValue, Expr, FieldExpr, ForExpr,
+    IndexExpr, LetExpr, LiteralExpr, NameExpr, PropagateExpr, ReturnExpr, SequenceExpr, SpawnExpr,
+    UnaryExpr,
 };
 pub use imports::ImportDecl;
 pub use items::{DocumentedItem, Item, PubDecl, Root};

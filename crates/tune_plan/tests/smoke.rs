@@ -11,6 +11,7 @@ let run(items) = spawn items[0].load()!
 let each(items) = for item in items { handle(item) }
 let values = [1, 2]
 let scoped(input) = { let f = _(x) = x; input = f(input); return input }
+let ops(value, other) = not value and other is not none
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
@@ -49,6 +50,14 @@ let scoped(input) = { let f = _(x) = x; input = f(input); return input }
     }));
     assert!(scoped.ops.contains(&tune_plan::PlanOp::Assign));
     assert!(scoped.ops.contains(&tune_plan::PlanOp::Return));
+
+    let ops = tune_plan::lower_item_to_plan(&module.items[4]).ok_or("expected ops plan")?;
+    assert!(ops.ops.contains(&tune_plan::PlanOp::UnaryOp {
+        op: "not".to_owned()
+    }));
+    assert!(ops.ops.contains(&tune_plan::PlanOp::BinaryOp {
+        op: "is not".to_owned()
+    }));
 
     Ok(())
 }

@@ -3,7 +3,7 @@ use tune_ast::nodes::{CallableParam, Expr as AstExpr, LiteralExpr, ParamList, Sh
 use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 
 use crate::ExprId;
-use crate::expr::{Expr, ExprKind, ExprParam, LiteralKind};
+use crate::expr::{BinaryOp, Expr, ExprKind, ExprParam, LiteralKind, UnaryOp};
 use crate::pattern::{Pattern, PatternKind};
 
 use super::shapes::lower_shape;
@@ -38,6 +38,8 @@ impl ExprLowerer {
             AstExpr::Index(_) => self.lower_index(source, expr),
             AstExpr::Let(node) => self.lower_let(source, expr, node.name(source)),
             AstExpr::Assign(_) => self.lower_assign(source, expr),
+            AstExpr::Unary(_) => self.lower_unary_op(source, expr),
+            AstExpr::Binary(_) => self.lower_binary_op(source, expr),
             AstExpr::Propagate(_) => self.lower_unary(source, expr, ExprKind::Propagate),
             AstExpr::Return(_) => ExprKind::Return(
                 expr.child_exprs()
@@ -128,6 +130,36 @@ impl ExprLowerer {
         }
     }
 
+    fn lower_unary_op(&mut self, source: &str, expr: AstExpr<'_>) -> ExprKind {
+        let Some(inner) = expr.child_exprs().into_iter().next() else {
+            return ExprKind::Missing;
+        };
+        let Some(op) = unary_op(expr.syntax()) else {
+            return ExprKind::Missing;
+        };
+
+        ExprKind::Unary {
+            op,
+            expr: Box::new(self.lower(source, inner)),
+        }
+    }
+
+    fn lower_binary_op(&mut self, source: &str, expr: AstExpr<'_>) -> ExprKind {
+        let mut children = expr.child_exprs().into_iter();
+        let (Some(lhs), Some(rhs)) = (children.next(), children.next()) else {
+            return ExprKind::Missing;
+        };
+        let Some(op) = binary_op(expr.syntax()) else {
+            return ExprKind::Missing;
+        };
+
+        ExprKind::Binary {
+            op,
+            lhs: Box::new(self.lower(source, lhs)),
+            rhs: Box::new(self.lower(source, rhs)),
+        }
+    }
+
     fn lower_unary(
         &mut self,
         source: &str,
@@ -211,6 +243,62 @@ fn first_shape<'tree>(node: &'tree CstNode) -> Option<AstShape<'tree>> {
         CstElement::Node(node) => AstShape::cast(node),
         CstElement::Token(_) => None,
     })
+}
+
+fn unary_op(node: &CstNode) -> Option<UnaryOp> {
+    node.children.iter().find_map(|child| match child {
+        CstElement::Token(token) => match token.kind {
+            TokenKind::KeywordNot => Some(UnaryOp::Not),
+            TokenKind::Minus => Some(UnaryOp::Neg),
+            TokenKind::Tilde => Some(UnaryOp::BitNot),
+            _ => None,
+        },
+        CstElement::Node(_) => None,
+    })
+}
+
+fn binary_op(node: &CstNode) -> Option<BinaryOp> {
+    let mut saw_is = false;
+    let mut saw_not = false;
+    let mut simple_op = None;
+
+    for child in &node.children {
+        let CstElement::Token(token) = child else {
+            continue;
+        };
+
+        match token.kind {
+            TokenKind::KeywordIs => saw_is = true,
+            TokenKind::KeywordNot => saw_not = true,
+            TokenKind::KeywordOr => simple_op = Some(BinaryOp::Or),
+            TokenKind::KeywordAnd => simple_op = Some(BinaryOp::And),
+            TokenKind::EqualEqual => simple_op = Some(BinaryOp::Equal),
+            TokenKind::TildeEqual => simple_op = Some(BinaryOp::NotEqual),
+            TokenKind::Less => simple_op = Some(BinaryOp::Less),
+            TokenKind::LessEqual => simple_op = Some(BinaryOp::LessEqual),
+            TokenKind::Greater => simple_op = Some(BinaryOp::Greater),
+            TokenKind::GreaterEqual => simple_op = Some(BinaryOp::GreaterEqual),
+            TokenKind::Pipe => simple_op = Some(BinaryOp::BitOr),
+            TokenKind::Caret => simple_op = Some(BinaryOp::BitXor),
+            TokenKind::Amp => simple_op = Some(BinaryOp::BitAnd),
+            TokenKind::ShiftLeft => simple_op = Some(BinaryOp::ShiftLeft),
+            TokenKind::ShiftRight => simple_op = Some(BinaryOp::ShiftRight),
+            TokenKind::Plus => simple_op = Some(BinaryOp::Add),
+            TokenKind::Minus => simple_op = Some(BinaryOp::Sub),
+            TokenKind::Star => simple_op = Some(BinaryOp::Mul),
+            TokenKind::Slash => simple_op = Some(BinaryOp::Div),
+            TokenKind::Percent => simple_op = Some(BinaryOp::Rem),
+            _ => {}
+        }
+    }
+
+    if saw_is && saw_not {
+        Some(BinaryOp::IsNot)
+    } else if saw_is {
+        Some(BinaryOp::Is)
+    } else {
+        simple_op
+    }
 }
 
 fn lower_pattern(source: &str, node: &CstNode) -> Pattern {

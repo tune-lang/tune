@@ -16,6 +16,8 @@ pub enum Expr<'tree> {
     Index(IndexExpr<'tree>),
     Let(LetExpr<'tree>),
     Assign(AssignExpr<'tree>),
+    Unary(UnaryExpr<'tree>),
+    Binary(BinaryExpr<'tree>),
     Propagate(PropagateExpr<'tree>),
     Return(ReturnExpr<'tree>),
     For(ForExpr<'tree>),
@@ -36,6 +38,8 @@ impl<'tree> Expr<'tree> {
             SyntaxKind::IndexExpr => IndexExpr::cast(node).map(Self::Index),
             SyntaxKind::LetExpr => LetExpr::cast(node).map(Self::Let),
             SyntaxKind::AssignExpr => AssignExpr::cast(node).map(Self::Assign),
+            SyntaxKind::UnaryExpr => UnaryExpr::cast(node).map(Self::Unary),
+            SyntaxKind::BinaryExpr => BinaryExpr::cast(node).map(Self::Binary),
             SyntaxKind::PropagateExpr => PropagateExpr::cast(node).map(Self::Propagate),
             SyntaxKind::ReturnExpr => ReturnExpr::cast(node).map(Self::Return),
             SyntaxKind::ForExpr => ForExpr::cast(node).map(Self::For),
@@ -59,6 +63,8 @@ impl<'tree> Expr<'tree> {
             Self::Index(node) => node.syntax(),
             Self::Let(node) => node.syntax(),
             Self::Assign(node) => node.syntax(),
+            Self::Unary(node) => node.syntax(),
+            Self::Binary(node) => node.syntax(),
             Self::Propagate(node) => node.syntax(),
             Self::Return(node) => node.syntax(),
             Self::For(node) => node.syntax(),
@@ -103,6 +109,8 @@ expr_node!(FieldExpr, SyntaxKind::FieldExpr);
 expr_node!(IndexExpr, SyntaxKind::IndexExpr);
 expr_node!(LetExpr, SyntaxKind::LetExpr);
 expr_node!(AssignExpr, SyntaxKind::AssignExpr);
+expr_node!(UnaryExpr, SyntaxKind::UnaryExpr);
+expr_node!(BinaryExpr, SyntaxKind::BinaryExpr);
 expr_node!(PropagateExpr, SyntaxKind::PropagateExpr);
 expr_node!(ReturnExpr, SyntaxKind::ReturnExpr);
 expr_node!(ForExpr, SyntaxKind::ForExpr);

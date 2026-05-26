@@ -118,6 +118,7 @@ let looped = for item in items { handle(item) }
 let numbers = [1, 2, 3]
 let callable = _(x: Int): Int = x
 let block = { let x = 1; x = x; return x }
+let ops = not value and other is not none or 1 + 2 * 3
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
@@ -171,6 +172,12 @@ let block = { let x = 1; x = x; return x }
         tune_hir::expr::ExprKind::Assign { .. }
     ));
     assert!(matches!(exprs[2].kind, tune_hir::expr::ExprKind::Return(_)));
+
+    let ops = module.items[6].body.as_ref().ok_or("expected ops body")?;
+    let tune_hir::expr::ExprKind::Binary { op, .. } = &ops.kind else {
+        return Err("expected binary expression");
+    };
+    assert_eq!(*op, tune_hir::expr::BinaryOp::Or);
 
     Ok(())
 }

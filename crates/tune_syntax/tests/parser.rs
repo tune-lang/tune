@@ -244,6 +244,7 @@ let task = spawn fetch()
 let looped = for item in items { handle(item) }
 let numbers = [1, 2, 3]
 let block = { let x = 1; x = x; return x }
+let ops = not value and other is not none or 1 + 2 * 3
 "#,
     );
     let kinds = nested_node_kinds(&parsed.cst);
@@ -259,6 +260,8 @@ let block = { let x = 1; x = x; return x }
     assert!(kinds.contains(&SyntaxKind::LetExpr));
     assert!(kinds.contains(&SyntaxKind::AssignExpr));
     assert!(kinds.contains(&SyntaxKind::ReturnExpr));
+    assert!(kinds.contains(&SyntaxKind::UnaryExpr));
+    assert!(kinds.contains(&SyntaxKind::BinaryExpr));
     assert!(parsed.diagnostics.is_empty());
 }
 

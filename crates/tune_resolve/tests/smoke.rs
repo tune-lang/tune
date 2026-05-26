@@ -199,6 +199,7 @@ let helper(value) = value
 let run(input) = helper(input)
 let each(items) = for item in items { helper(item) }
 let scoped(input) = { let local = _(x) = helper(x); local(input) }
+let check(input, other) = not input and other is not none
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);

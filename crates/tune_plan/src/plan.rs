@@ -13,6 +13,8 @@ pub enum PlanOp {
     HostCall { symbol: String },
     LocalLet { name: String },
     Assign,
+    UnaryOp { op: String },
+    BinaryOp { op: String },
     FieldGet { field: String },
     FieldSet { field: String },
     SequenceGet { checked: bool },

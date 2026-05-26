@@ -43,6 +43,15 @@ pub enum ExprKind {
         target: Box<Expr>,
         value: Box<Expr>,
     },
+    Unary {
+        op: UnaryOp,
+        expr: Box<Expr>,
+    },
+    Binary {
+        op: BinaryOp,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
     Spawn(Box<Expr>),
     Propagate(Box<Expr>),
     Return(Option<Box<Expr>>),
@@ -66,4 +75,35 @@ pub struct ExprParam {
     pub name: Option<String>,
     pub span: Option<Span>,
     pub shape: Option<ShapeExpr>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnaryOp {
+    Not,
+    Neg,
+    BitNot,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BinaryOp {
+    Or,
+    And,
+    Is,
+    IsNot,
+    Equal,
+    NotEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+    BitOr,
+    BitXor,
+    BitAnd,
+    ShiftLeft,
+    ShiftRight,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
 }

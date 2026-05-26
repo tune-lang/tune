@@ -1,4 +1,4 @@
-use tune_hir::expr::{Expr, ExprKind};
+use tune_hir::expr::{BinaryOp, Expr, ExprKind, UnaryOp};
 use tune_hir::item::Item;
 
 use crate::plan::{PlanFunction, PlanOp};
@@ -69,6 +69,19 @@ fn lower_expr(expr: &Expr, ops: &mut Vec<PlanOp>) {
             lower_expr(value, ops);
             ops.push(PlanOp::Assign);
         }
+        ExprKind::Unary { op, expr } => {
+            lower_expr(expr, ops);
+            ops.push(PlanOp::UnaryOp {
+                op: unary_op_name(*op).to_owned(),
+            });
+        }
+        ExprKind::Binary { op, lhs, rhs } => {
+            lower_expr(lhs, ops);
+            lower_expr(rhs, ops);
+            ops.push(PlanOp::BinaryOp {
+                op: binary_op_name(*op).to_owned(),
+            });
+        }
         ExprKind::Spawn(inner) => {
             lower_expr(inner, ops);
             ops.push(PlanOp::Spawn);
@@ -93,6 +106,39 @@ fn lower_expr(expr: &Expr, ops: &mut Vec<PlanOp>) {
                 lower_expr(expr, ops);
             }
         }
+    }
+}
+
+fn unary_op_name(op: UnaryOp) -> &'static str {
+    match op {
+        UnaryOp::Not => "not",
+        UnaryOp::Neg => "-",
+        UnaryOp::BitNot => "~",
+    }
+}
+
+fn binary_op_name(op: BinaryOp) -> &'static str {
+    match op {
+        BinaryOp::Or => "or",
+        BinaryOp::And => "and",
+        BinaryOp::Is => "is",
+        BinaryOp::IsNot => "is not",
+        BinaryOp::Equal => "==",
+        BinaryOp::NotEqual => "~=",
+        BinaryOp::Less => "<",
+        BinaryOp::LessEqual => "<=",
+        BinaryOp::Greater => ">",
+        BinaryOp::GreaterEqual => ">=",
+        BinaryOp::BitOr => "|",
+        BinaryOp::BitXor => "^",
+        BinaryOp::BitAnd => "&",
+        BinaryOp::ShiftLeft => "<<",
+        BinaryOp::ShiftRight => ">>",
+        BinaryOp::Add => "+",
+        BinaryOp::Sub => "-",
+        BinaryOp::Mul => "*",
+        BinaryOp::Div => "/",
+        BinaryOp::Rem => "%",
     }
 }
 

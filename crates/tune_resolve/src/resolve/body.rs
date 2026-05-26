@@ -62,6 +62,11 @@ fn resolve_expr_names(resolved: &mut ResolvedModule, expr: &Expr, locals: &mut H
             resolve_expr_names(resolved, target, locals);
             resolve_expr_names(resolved, value, locals);
         }
+        ExprKind::Unary { expr, .. } => resolve_expr_names(resolved, expr, locals),
+        ExprKind::Binary { lhs, rhs, .. } => {
+            resolve_expr_names(resolved, lhs, locals);
+            resolve_expr_names(resolved, rhs, locals);
+        }
         ExprKind::Spawn(inner) | ExprKind::Propagate(inner) => {
             resolve_expr_names(resolved, inner, locals);
         }
