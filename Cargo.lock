@@ -135,6 +135,7 @@ dependencies = [
  "tune_ast",
  "tune_diagnostics",
  "tune_hir",
+ "tune_resolve",
  "tune_syntax",
 ]
 
@@ -209,7 +210,6 @@ dependencies = [
 name = "tune_resolve"
 version = "0.1.0"
 dependencies = [
- "tune_db",
  "tune_diagnostics",
  "tune_hir",
  "tune_syntax",

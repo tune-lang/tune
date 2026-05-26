@@ -39,3 +39,32 @@ fn interner_uses_stable_symbol_ids() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+#[test]
+fn analyzes_source_file_through_shared_frontend() -> Result<(), &'static str> {
+    let mut db = tune_db::TuneDb::new();
+    let file = db
+        .add_file(
+            "main.tn",
+            r#"
+tag tool {}
+@tool
+let run(input: String): String = input
+"#,
+        )
+        .ok_or("source file should allocate")?;
+
+    let analysis = db
+        .analyze_file(file)
+        .ok_or("analysis should find source file")?;
+
+    assert!(analysis.diagnostics().is_empty());
+    assert_eq!(analysis.module.items.len(), 2);
+    assert!(analysis.resolved.scope.get("run").is_some());
+    assert!(analysis.resolved.facts.iter().any(|fact| matches!(
+        &fact.payload,
+        tune_resolve::CompilerFactPayload::Tag(tag) if tag == "tool"
+    )));
+
+    Ok(())
+}

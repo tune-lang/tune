@@ -13,4 +13,5 @@ workspace = true
 tune_syntax = { path = "../tune_syntax" }
 tune_ast = { path = "../tune_ast" }
 tune_hir = { path = "../tune_hir" }
+tune_resolve = { path = "../tune_resolve" }
 tune_diagnostics = { path = "../tune_diagnostics" }
