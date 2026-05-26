@@ -29,6 +29,7 @@ pub enum SyntaxKind {
     CallableShape,
     Expr,
     LiteralExpr,
+    SequenceExpr,
     NameExpr,
     CallExpr,
     FieldExpr,

@@ -61,6 +61,49 @@ fn unrelated_literals_do_not_materialize() {
 }
 
 #[test]
+fn extracts_literal_facts_from_hir_bodies() -> Result<(), &'static str> {
+    let source = r#"
+let number = 20
+let text = "hello"
+let values = [1, 2, 3]
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+
+    let number = module.items[0]
+        .body
+        .as_ref()
+        .ok_or("expected number body")?;
+    assert_eq!(
+        tune_shape::expr_literal_fact(number),
+        Some(tune_shape::LiteralFact::Numeric { text: "20".into() })
+    );
+
+    let text = module.items[1].body.as_ref().ok_or("expected text body")?;
+    assert!(matches!(
+        tune_shape::expr_literal_fact(text),
+        Some(tune_shape::LiteralFact::String { .. })
+    ));
+
+    let values = module.items[2]
+        .body
+        .as_ref()
+        .ok_or("expected values body")?;
+    let Some(tune_shape::LiteralFact::Sequence { elements }) =
+        tune_shape::expr_literal_fact(values)
+    else {
+        return Err("expected sequence literal fact");
+    };
+    assert_eq!(elements.len(), 3);
+    assert!(tune_shape::can_materialize(
+        &tune_shape::LiteralFact::Sequence { elements },
+        &tune_shape::Shape::Sequence(Box::new(tune_shape::Shape::Int))
+    ));
+
+    Ok(())
+}
+
+#[test]
 fn shape_store_keeps_stable_ids_and_origins() -> Result<(), &'static str> {
     let mut store = tune_shape::ShapeStore::new();
     let span = tune_diagnostics::Span::new(

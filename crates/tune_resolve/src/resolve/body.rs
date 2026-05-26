@@ -23,6 +23,11 @@ pub(super) fn resolve_item_body(resolved: &mut ResolvedModule, item: &Item) {
 fn resolve_expr_names(resolved: &mut ResolvedModule, expr: &Expr, locals: &mut HashSet<String>) {
     match &expr.kind {
         ExprKind::Missing | ExprKind::Literal(_) => {}
+        ExprKind::Sequence(elements) => {
+            for element in elements {
+                resolve_expr_names(resolved, element, locals);
+            }
+        }
         ExprKind::Name(name) => resolve_name_ref(resolved, name, expr.span, locals),
         ExprKind::Call { callee, args } => {
             resolve_expr_names(resolved, callee, locals);

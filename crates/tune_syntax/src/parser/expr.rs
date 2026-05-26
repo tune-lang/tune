@@ -176,6 +176,7 @@ impl Parser<'_> {
                 self.expect(TokenKind::RightParen, "expected `)`");
                 self.finish_node();
             }
+            Some(TokenKind::LeftBracket) => self.parse_sequence_expr(),
             Some(_) => {
                 self.start_node(SyntaxKind::Error);
                 self.error_at_current("expected expression");
@@ -184,5 +185,26 @@ impl Parser<'_> {
             }
             None => self.error_at_current("expected expression"),
         }
+    }
+
+    fn parse_sequence_expr(&mut self) {
+        self.start_node(SyntaxKind::SequenceExpr);
+        self.expect(TokenKind::LeftBracket, "expected `[`");
+        self.skip_trivia();
+
+        while !self.at(TokenKind::Eof) && !self.at(TokenKind::RightBracket) {
+            self.parse_expr();
+            self.skip_trivia();
+            if self.at(TokenKind::Comma) {
+                self.bump();
+                self.skip_trivia();
+            } else if !self.at(TokenKind::RightBracket) {
+                self.error_at_current("expected `,` between expressions");
+                break;
+            }
+        }
+
+        self.expect(TokenKind::RightBracket, "expected `]`");
+        self.finish_node();
     }
 }

@@ -8,6 +8,7 @@ use super::text::direct_ident_text;
 pub enum Expr<'tree> {
     Missing(&'tree CstNode),
     Literal(LiteralExpr<'tree>),
+    Sequence(SequenceExpr<'tree>),
     Name(NameExpr<'tree>),
     Call(CallExpr<'tree>),
     Field(FieldExpr<'tree>),
@@ -23,6 +24,7 @@ impl<'tree> Expr<'tree> {
     pub fn cast(node: &'tree CstNode) -> Option<Self> {
         match node.kind {
             SyntaxKind::LiteralExpr => LiteralExpr::cast(node).map(Self::Literal),
+            SyntaxKind::SequenceExpr => SequenceExpr::cast(node).map(Self::Sequence),
             SyntaxKind::NameExpr => NameExpr::cast(node).map(Self::Name),
             SyntaxKind::CallExpr => CallExpr::cast(node).map(Self::Call),
             SyntaxKind::FieldExpr => FieldExpr::cast(node).map(Self::Field),
@@ -41,6 +43,7 @@ impl<'tree> Expr<'tree> {
         match self {
             Self::Missing(node) => node,
             Self::Literal(node) => node.syntax(),
+            Self::Sequence(node) => node.syntax(),
             Self::Name(node) => node.syntax(),
             Self::Call(node) => node.syntax(),
             Self::Field(node) => node.syntax(),
@@ -80,6 +83,7 @@ macro_rules! expr_node {
 }
 
 expr_node!(LiteralExpr, SyntaxKind::LiteralExpr);
+expr_node!(SequenceExpr, SyntaxKind::SequenceExpr);
 expr_node!(NameExpr, SyntaxKind::NameExpr);
 expr_node!(CallExpr, SyntaxKind::CallExpr);
 expr_node!(FieldExpr, SyntaxKind::FieldExpr);

@@ -17,7 +17,7 @@ pub use comments::Comment;
 pub use enums::{DocumentedVariant, EnumDecl, VariantDecl};
 pub use exprs::{
     BlockExpr, CallExpr, Expr, FieldExpr, ForExpr, IndexExpr, LiteralExpr, NameExpr, PropagateExpr,
-    SpawnExpr,
+    SequenceExpr, SpawnExpr,
 };
 pub use imports::ImportDecl;
 pub use items::{DocumentedItem, Item, PubDecl, Root};

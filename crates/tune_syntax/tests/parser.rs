@@ -232,6 +232,7 @@ fn parses_expression_nodes_in_declaration_bodies() {
 let value = items[0].name!
 let task = spawn fetch()
 let looped = for item in items { handle(item) }
+let numbers = [1, 2, 3]
 "#,
     );
     let kinds = nested_node_kinds(&parsed.cst);
@@ -243,6 +244,7 @@ let looped = for item in items { handle(item) }
     assert!(kinds.contains(&SyntaxKind::CallExpr));
     assert!(kinds.contains(&SyntaxKind::ForExpr));
     assert!(kinds.contains(&SyntaxKind::Block));
+    assert!(kinds.contains(&SyntaxKind::SequenceExpr));
     assert!(parsed.diagnostics.is_empty());
 }
 

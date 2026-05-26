@@ -244,7 +244,7 @@ fn let_decl_exposes_shape_annotation_view() -> Result<(), &'static str> {
 
 #[test]
 fn let_decl_exposes_body_expression_view() -> Result<(), &'static str> {
-    let source = "let value = spawn items[0].load()!";
+    let source = "let value = spawn items[0].load()!\nlet numbers = [1, 2, 3]";
     let parsed = tune_syntax::parse(source);
     let root = <tune_ast::nodes::Root<'_> as tune_ast::AstNode<'_>>::cast(&parsed.cst)
         .ok_or("root should cast")?;
@@ -259,6 +259,14 @@ fn let_decl_exposes_body_expression_view() -> Result<(), &'static str> {
             .iter()
             .any(|expr| matches!(expr, tune_ast::nodes::Expr::Propagate(_)))
     );
+
+    let Some(tune_ast::nodes::Item::Let(numbers)) = root.items().nth(1) else {
+        return Err("expected sequence literal item");
+    };
+    assert!(matches!(
+        numbers.body_expr(),
+        Some(tune_ast::nodes::Expr::Sequence(_))
+    ));
 
     Ok(())
 }

@@ -115,6 +115,7 @@ fn lowers_declaration_body_expressions() -> Result<(), &'static str> {
 let value = items[0].name!
 let task = spawn fetch()
 let looped = for item in items { handle(item) }
+let numbers = [1, 2, 3]
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
@@ -133,6 +134,15 @@ let looped = for item in items { handle(item) }
         pattern.kind,
         tune_hir::pattern::PatternKind::Binding(ref name) if name == "item"
     ));
+
+    let numbers = module.items[3]
+        .body
+        .as_ref()
+        .ok_or("expected numbers body")?;
+    let tune_hir::expr::ExprKind::Sequence(elements) = &numbers.kind else {
+        return Err("expected sequence literal");
+    };
+    assert_eq!(elements.len(), 3);
 
     Ok(())
 }

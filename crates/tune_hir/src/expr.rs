@@ -15,6 +15,7 @@ pub enum LiteralKind {
 pub enum ExprKind {
     Missing,
     Literal(LiteralKind),
+    Sequence(Vec<Expr>),
     Name(String),
     Call {
         callee: Box<Expr>,

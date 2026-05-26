@@ -20,6 +20,12 @@ impl ExprLowerer {
             AstExpr::Literal(node) => {
                 literal_kind(source, node).map_or(ExprKind::Missing, ExprKind::Literal)
             }
+            AstExpr::Sequence(_) => ExprKind::Sequence(
+                expr.child_exprs()
+                    .into_iter()
+                    .map(|child| self.lower(source, child))
+                    .collect(),
+            ),
             AstExpr::Name(node) => node
                 .name(source)
                 .map(|name| ExprKind::Name(name.to_owned()))
