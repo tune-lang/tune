@@ -1,8 +1,8 @@
-use tune_syntax::{CstElement, CstNode, SyntaxKind};
+use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 
 use crate::AstNode;
 
-use super::{EnumDecl, ImportDecl, LetDecl, StructDecl, TagDecl};
+use super::{Comment, EnumDecl, ImportDecl, LetDecl, StructDecl, TagDecl};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Root<'tree> {
@@ -27,6 +27,56 @@ impl<'tree> Root<'tree> {
             CstElement::Node(node) => Item::cast(node),
             CstElement::Token(_) => None,
         })
+    }
+
+    #[must_use]
+    pub fn documented_items(self) -> Vec<DocumentedItem<'tree>> {
+        let mut documented = Vec::new();
+        let mut pending_docs = Vec::new();
+
+        for child in &self.node.children {
+            match child {
+                CstElement::Token(token) => {
+                    if let Some(comment) = Comment::cast(*token) {
+                        pending_docs.push(comment);
+                    } else if token.kind != TokenKind::Whitespace {
+                        pending_docs.clear();
+                    }
+                }
+                CstElement::Node(node) => {
+                    if let Some(item) = Item::cast(node) {
+                        documented.push(DocumentedItem {
+                            item,
+                            docs: core::mem::take(&mut pending_docs),
+                        });
+                    } else {
+                        pending_docs.clear();
+                    }
+                }
+            }
+        }
+
+        documented
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DocumentedItem<'tree> {
+    pub item: Item<'tree>,
+    pub docs: Vec<Comment>,
+}
+
+impl<'tree> DocumentedItem<'tree> {
+    #[must_use]
+    pub fn doc_text(&self, source: &str) -> Option<String> {
+        let lines = self
+            .docs
+            .iter()
+            .filter_map(|comment| comment.doc_text(source))
+            .filter(|text| !text.is_empty())
+            .collect::<Vec<_>>();
+
+        (!lines.is_empty()).then(|| lines.join("\n"))
     }
 }
 

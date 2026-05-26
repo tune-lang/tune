@@ -25,6 +25,33 @@ let value = 1
 }
 
 #[test]
+fn root_view_attaches_placement_docs_to_items() -> Result<(), &'static str> {
+    let source = r#"
+-- Tool tag docs.
+tag tool {}
+
+-/
+Run docs line one.
+Run docs line two.
+/-
+pub let run(input) = input
+"#;
+    let parsed = tune_syntax::parse(source);
+    let root = <tune_ast::nodes::Root<'_> as tune_ast::AstNode<'_>>::cast(&parsed.cst)
+        .ok_or("root should cast")?;
+    let items = root.documented_items();
+
+    assert_eq!(items.len(), 2);
+    assert_eq!(items[0].doc_text(source).as_deref(), Some("Tool tag docs."));
+    assert_eq!(
+        items[1].doc_text(source).as_deref(),
+        Some("Run docs line one.\nRun docs line two.")
+    );
+
+    Ok(())
+}
+
+#[test]
 fn import_view_exposes_path() -> Result<(), &'static str> {
     let source = r#"import "std/json""#;
     let parsed = tune_syntax::parse(source);

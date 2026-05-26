@@ -24,4 +24,5 @@ pub struct Item {
     pub kind: ItemKind,
     pub visibility: Visibility,
     pub span: Option<Span>,
+    pub doc: Option<String>,
 }
