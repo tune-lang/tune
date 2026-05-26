@@ -1,8 +1,8 @@
 use tune_syntax::{CstElement, CstNode, TokenKind};
 
 #[must_use]
-pub fn first_ident_text<'src>(node: &CstNode, source: &'src str) -> Option<&'src str> {
-    first_token_text(node, source, TokenKind::Ident)
+pub fn direct_ident_text<'src>(node: &CstNode, source: &'src str) -> Option<&'src str> {
+    first_matching_direct_token_text(node, source, |kind| kind == TokenKind::Ident)
 }
 
 #[must_use]

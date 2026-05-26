@@ -2,7 +2,7 @@ use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 
 use crate::AstNode;
 
-use super::text::first_ident_text;
+use super::text::direct_ident_text;
 use super::{Comment, Shape};
 
 #[derive(Debug, Clone, Copy)]
@@ -25,7 +25,7 @@ impl<'tree> AstNode<'tree> for StructDecl<'tree> {
 impl<'tree> StructDecl<'tree> {
     #[must_use]
     pub fn name(self, source: &str) -> Option<&str> {
-        first_ident_text(self.node, source)
+        direct_ident_text(self.node, source)
     }
 
     #[must_use]
@@ -54,7 +54,7 @@ impl<'tree> AstNode<'tree> for FieldDecl<'tree> {
 impl<'tree> FieldDecl<'tree> {
     #[must_use]
     pub fn name(self, source: &str) -> Option<&str> {
-        first_ident_text(self.node, source)
+        direct_ident_text(self.node, source)
     }
 
     #[must_use]

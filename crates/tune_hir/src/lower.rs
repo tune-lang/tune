@@ -219,13 +219,15 @@ fn lower_params(source: &str, node: LetDecl<'_>) -> Vec<Param> {
         .into_iter()
         .flat_map(|params| params.params())
         .enumerate()
-        .map(|(index, param)| Param {
-            id: member_id(index),
-            name: param.name(source).map(str::to_owned),
-            span: param.syntax().span,
-            shape: param
-                .shape_annotation()
-                .map(|shape| lower_shape(source, shape)),
+        .filter_map(|(index, param)| {
+            Some(Param {
+                id: member_id(index)?,
+                name: param.name(source).map(str::to_owned),
+                span: param.syntax().span,
+                shape: param
+                    .shape_annotation()
+                    .map(|shape| lower_shape(source, shape)),
+            })
         })
         .collect()
 }
@@ -234,15 +236,17 @@ fn lower_fields(source: &str, fields: Vec<tune_ast::nodes::DocumentedField<'_>>)
     fields
         .into_iter()
         .enumerate()
-        .map(|(index, documented)| Field {
-            id: member_id(index),
-            name: documented.field.name(source).map(str::to_owned),
-            span: documented.field.syntax().span,
-            doc: documented.doc_text(source),
-            shape: documented
-                .field
-                .shape_annotation()
-                .map(|shape| lower_shape(source, shape)),
+        .filter_map(|(index, documented)| {
+            Some(Field {
+                id: member_id(index)?,
+                name: documented.field.name(source).map(str::to_owned),
+                span: documented.field.syntax().span,
+                doc: documented.doc_text(source),
+                shape: documented
+                    .field
+                    .shape_annotation()
+                    .map(|shape| lower_shape(source, shape)),
+            })
         })
         .collect()
 }
@@ -254,24 +258,26 @@ fn lower_variants(
     variants
         .into_iter()
         .enumerate()
-        .map(|(index, documented)| Variant {
-            id: member_id(index),
-            name: documented.variant.name(source).map(str::to_owned),
-            span: documented.variant.syntax().span,
-            doc: documented.doc_text(source),
-            payload: documented
-                .variant
-                .payload_shapes()
-                .into_iter()
-                .map(|shape| lower_shape(source, shape))
-                .collect(),
+        .filter_map(|(index, documented)| {
+            Some(Variant {
+                id: member_id(index)?,
+                name: documented.variant.name(source).map(str::to_owned),
+                span: documented.variant.syntax().span,
+                doc: documented.doc_text(source),
+                payload: documented
+                    .variant
+                    .payload_shapes()
+                    .into_iter()
+                    .map(|shape| lower_shape(source, shape))
+                    .collect(),
+            })
         })
         .collect()
 }
 
-fn member_id(index: usize) -> MemberId {
-    MemberId {
+fn member_id(index: usize) -> Option<MemberId> {
+    Some(MemberId {
         owner: HirId(0),
-        index: u32::try_from(index).unwrap_or(u32::MAX),
-    }
+        index: u32::try_from(index).ok()?,
+    })
 }

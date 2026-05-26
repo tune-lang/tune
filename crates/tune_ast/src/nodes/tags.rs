@@ -3,7 +3,7 @@ use tune_syntax::{CstNode, SyntaxKind};
 use crate::AstNode;
 
 use super::structs::{DocumentedField, documented_fields};
-use super::text::first_ident_text;
+use super::text::direct_ident_text;
 
 #[derive(Debug, Clone, Copy)]
 pub struct TagDecl<'tree> {
@@ -42,7 +42,7 @@ impl<'tree> AstNode<'tree> for TagApplication<'tree> {
 impl<'tree> TagDecl<'tree> {
     #[must_use]
     pub fn name(self, source: &str) -> Option<&str> {
-        first_ident_text(self.node, source)
+        direct_ident_text(self.node, source)
     }
 
     #[must_use]
@@ -54,6 +54,6 @@ impl<'tree> TagDecl<'tree> {
 impl<'tree> TagApplication<'tree> {
     #[must_use]
     pub fn name(self, source: &str) -> Option<&str> {
-        first_ident_text(self.node, source)
+        direct_ident_text(self.node, source)
     }
 }

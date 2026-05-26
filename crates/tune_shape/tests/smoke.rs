@@ -167,7 +167,7 @@ fn resolved_hir_shape_lowers_result_and_task_generics() -> Result<(), &'static s
 struct Config {}
 enum ParseError {}
 let parse(text: String): Result<Config, ParseError> = text
-let background(): Task<Config> = parse("")
+let background(): Task<Result<Config, ParseError>> = parse("")
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);

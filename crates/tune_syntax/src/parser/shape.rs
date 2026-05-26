@@ -9,7 +9,7 @@ impl<'src> Parser<'src> {
     fn parse_union_shape(&mut self) {
         let checkpoint = self.builder.checkpoint();
         self.parse_postfix_shape();
-        self.skip_trivia();
+        self.skip_whitespace();
 
         if !self.at(TokenKind::Pipe) {
             return;
@@ -19,9 +19,9 @@ impl<'src> Parser<'src> {
             .start_node_at(checkpoint, SyntaxKind::UnionShape);
         while self.at(TokenKind::Pipe) {
             self.bump();
-            self.skip_trivia();
+            self.skip_whitespace();
             self.parse_postfix_shape();
-            self.skip_trivia();
+            self.skip_whitespace();
         }
         self.finish_node();
     }
@@ -29,14 +29,14 @@ impl<'src> Parser<'src> {
     fn parse_postfix_shape(&mut self) {
         let checkpoint = self.builder.checkpoint();
         self.parse_primary_shape();
-        self.skip_trivia();
+        self.skip_whitespace();
 
         while self.at(TokenKind::Question) {
             self.builder
                 .start_node_at(checkpoint, SyntaxKind::OptionalShape);
             self.bump();
             self.finish_node();
-            self.skip_trivia();
+            self.skip_whitespace();
         }
     }
 
@@ -60,17 +60,17 @@ impl<'src> Parser<'src> {
         self.start_node(SyntaxKind::Shape);
         self.bump();
         self.finish_node();
-        self.skip_trivia();
+        self.skip_whitespace();
 
         if self.at(TokenKind::Less) {
             self.builder
                 .start_node_at(checkpoint, SyntaxKind::GenericShape);
             self.bump();
-            self.skip_trivia();
+            self.skip_whitespace();
             if !self.at(TokenKind::Greater) {
                 self.parse_shape_list(TokenKind::Greater);
             }
-            self.expect(TokenKind::Greater, "expected `>`");
+            self.expect_shape_end(TokenKind::Greater, "expected `>`");
             self.finish_node();
         }
     }
@@ -78,11 +78,11 @@ impl<'src> Parser<'src> {
     fn parse_sequence_shape(&mut self) {
         self.start_node(SyntaxKind::SequenceShape);
         self.expect(TokenKind::LeftBracket, "expected `[`");
-        self.skip_trivia();
+        self.skip_whitespace();
         if !self.at(TokenKind::RightBracket) {
             self.parse_shape();
         }
-        self.skip_trivia();
+        self.skip_whitespace();
         self.expect(TokenKind::RightBracket, "expected `]`");
         self.finish_node();
     }
@@ -91,7 +91,7 @@ impl<'src> Parser<'src> {
         let checkpoint = self.builder.checkpoint();
         self.start_node(SyntaxKind::TupleShape);
         self.expect(TokenKind::LeftParen, "expected `(`");
-        self.skip_trivia();
+        self.skip_whitespace();
 
         if !self.at(TokenKind::RightParen) {
             self.parse_shape_list(TokenKind::RightParen);
@@ -99,13 +99,13 @@ impl<'src> Parser<'src> {
 
         self.expect(TokenKind::RightParen, "expected `)`");
         self.finish_node();
-        self.skip_trivia();
+        self.skip_whitespace();
 
         if self.at(TokenKind::Colon) {
             self.builder
                 .start_node_at(checkpoint, SyntaxKind::CallableShape);
             self.bump();
-            self.skip_trivia();
+            self.skip_whitespace();
             self.parse_shape();
             self.finish_node();
         }
@@ -113,13 +113,13 @@ impl<'src> Parser<'src> {
 
     pub(super) fn parse_shape_list(&mut self, end: TokenKind) {
         self.start_node(SyntaxKind::ShapeList);
-        while !self.at(TokenKind::Eof) && !self.at(end) {
+        while !self.at(TokenKind::Eof) && !self.at_shape_end(end) {
             self.parse_shape();
-            self.skip_trivia();
+            self.skip_whitespace();
             if self.at(TokenKind::Comma) {
                 self.bump();
-                self.skip_trivia();
-            } else if !self.at(end) {
+                self.skip_whitespace();
+            } else if !self.at_shape_end(end) {
                 self.error_at_current("expected `,` between shapes");
                 break;
             }

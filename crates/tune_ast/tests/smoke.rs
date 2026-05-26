@@ -145,6 +145,7 @@ fn declaration_views_expose_body_members() -> Result<(), &'static str> {
 struct User {
   -- Name docs.
   name: String
+  -- Age docs.
   age: Int
 }
 enum LoadResult {
@@ -168,6 +169,7 @@ tag tool {
     assert_eq!(fields[0].field.name(source), Some("name"));
     assert_eq!(fields[0].doc_text(source).as_deref(), Some("Name docs."));
     assert!(fields[0].field.shape_annotation().is_some());
+    assert_eq!(fields[1].doc_text(source).as_deref(), Some("Age docs."));
 
     let tune_ast::nodes::Item::Enum(enum_decl) = items[1] else {
         return Err("expected enum");
@@ -181,6 +183,22 @@ tag tool {
         return Err("expected tag");
     };
     assert_eq!(tag_decl.fields().len(), 1);
+
+    Ok(())
+}
+
+#[test]
+fn declaration_names_only_use_direct_tokens() -> Result<(), &'static str> {
+    let source = "struct { field: Int }";
+    let parsed = tune_syntax::parse(source);
+    let root = <tune_ast::nodes::Root<'_> as tune_ast::AstNode<'_>>::cast(&parsed.cst)
+        .ok_or("root should cast")?;
+    let Some(tune_ast::nodes::Item::Struct(struct_decl)) = root.items().next() else {
+        return Err("expected recovered struct");
+    };
+
+    assert_eq!(struct_decl.name(source), None);
+    assert_eq!(struct_decl.fields()[0].field.name(source), Some("field"));
 
     Ok(())
 }

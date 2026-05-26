@@ -174,6 +174,21 @@ fn parses_generic_shape_nodes() {
 }
 
 #[test]
+fn parses_adjacent_nested_generic_closers() {
+    let parsed = parse("let background(): Task<Result<Config, ParseError>> = task");
+    let kinds = nested_node_kinds(&parsed.cst);
+
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| **kind == SyntaxKind::GenericShape)
+            .count(),
+        2
+    );
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
 fn parses_struct_enum_and_tag_body_members() {
     let parsed = parse(
         r#"

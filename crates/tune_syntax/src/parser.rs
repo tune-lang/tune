@@ -3,7 +3,7 @@ mod members;
 mod shape;
 
 use crate::{CstBuilder, CstNode, SyntaxKind, Token, TokenKind, lex_with_file};
-use tune_diagnostics::{Diagnostic, FileId, Span, codes};
+use tune_diagnostics::{ByteOffset, Diagnostic, FileId, Span, codes};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Parsed {
@@ -120,6 +120,52 @@ impl<'src> Parser<'src> {
             .is_some_and(|token| crate::cst::is_trivia(token.kind))
         {
             self.bump();
+        }
+    }
+
+    pub(super) fn skip_whitespace(&mut self) {
+        while self.at(TokenKind::Whitespace) {
+            self.bump();
+        }
+    }
+
+    pub(super) fn at_shape_end(&self, end: TokenKind) -> bool {
+        self.at(end) || (end == TokenKind::Greater && self.at(TokenKind::ShiftRight))
+    }
+
+    pub(super) fn expect_shape_end(&mut self, end: TokenKind, message: &'static str) -> bool {
+        if self.at(end) {
+            self.bump();
+            true
+        } else if end == TokenKind::Greater && self.at(TokenKind::ShiftRight) {
+            self.bump_split_shift_right_as_greater();
+            true
+        } else {
+            self.error_at_current(message);
+            false
+        }
+    }
+
+    fn bump_split_shift_right_as_greater(&mut self) {
+        let Some(token) = self.current().copied() else {
+            return;
+        };
+        debug_assert_eq!(token.kind, TokenKind::ShiftRight);
+
+        let start = token.span.start.get();
+        let middle = ByteOffset::new(start.saturating_add(1));
+        let first = Token::new(
+            TokenKind::Greater,
+            Span::new(token.span.file, token.span.start, middle),
+        );
+        let second = Token::new(
+            TokenKind::Greater,
+            Span::new(token.span.file, middle, token.span.end),
+        );
+
+        self.builder.token(first);
+        if let Some(current) = self.tokens.get_mut(self.cursor) {
+            *current = second;
         }
     }
 

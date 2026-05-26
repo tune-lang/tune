@@ -2,7 +2,7 @@ use tune_syntax::{CstElement, CstNode, SyntaxKind};
 
 use crate::AstNode;
 
-use super::text::first_ident_text;
+use super::text::direct_ident_text;
 use super::{ParamList, Shape};
 
 #[derive(Debug, Clone, Copy)]
@@ -30,7 +30,7 @@ impl<'tree> LetDecl<'tree> {
 
     #[must_use]
     pub fn name(self, source: &str) -> Option<&str> {
-        first_ident_text(self.node, source)
+        direct_ident_text(self.node, source)
     }
 
     #[must_use]
