@@ -1,4 +1,5 @@
 use crate::{Diagnostic, LabelKind};
+use serde_json::json;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiagnosticRenderMode {
@@ -49,7 +50,12 @@ fn render_cli_full(diag: &Diagnostic) -> String {
         out.push_str(&fact.title);
         for entry in &fact.entries {
             out.push_str("\n  - ");
-            out.push_str(entry);
+            out.push_str(&entry.message);
+            if let Some(span) = entry.span {
+                out.push_str(" (");
+                push_span(&mut out, span);
+                out.push(')');
+            }
         }
     }
 
@@ -69,6 +75,13 @@ fn render_cli_full(diag: &Diagnostic) -> String {
         }
     }
 
+    for fix in &diag.fixes {
+        out.push_str("\nfix: replace ");
+        push_span(&mut out, fix.span);
+        out.push_str(" with ");
+        out.push_str(&fix.replacement);
+    }
+
     out
 }
 
@@ -85,7 +98,7 @@ fn render_lsp_hover_compact(diag: &Diagnostic) -> String {
         out.push_str(&fact.title);
         for entry in &fact.entries {
             out.push_str("\n  ");
-            out.push_str(entry);
+            out.push_str(&entry.message);
         }
     }
 
@@ -101,12 +114,33 @@ fn render_lsp_hover_compact(diag: &Diagnostic) -> String {
 }
 
 fn render_json_machine(diag: &Diagnostic) -> String {
-    format!(
-        "{{\"severity\":\"{}\",\"code\":\"{}\",\"title\":\"{}\"}}",
-        diag.severity.as_str(),
-        diag.code,
-        escape_json(&diag.title)
-    )
+    json!({
+        "severity": diag.severity.as_str(),
+        "code": diag.code.to_string(),
+        "title": diag.title,
+        "primary": label_json(&diag.primary),
+        "labels": diag.labels.iter().map(label_json).collect::<Vec<_>>(),
+        "facts": diag.facts.iter().map(|fact| {
+            json!({
+                "title": fact.title,
+                "entries": fact.entries.iter().map(|entry| {
+                    json!({
+                        "message": entry.message,
+                        "span": entry.span.map(span_json),
+                    })
+                }).collect::<Vec<_>>(),
+            })
+        }).collect::<Vec<_>>(),
+        "notes": diag.notes.iter().map(|note| note.message.as_str()).collect::<Vec<_>>(),
+        "helps": diag.helps.iter().map(|help| {
+            json!({
+                "message": help.message,
+                "fix": help.fix.as_ref().map(fix_json),
+            })
+        }).collect::<Vec<_>>(),
+        "fixes": diag.fixes.iter().map(fix_json).collect::<Vec<_>>(),
+    })
+    .to_string()
 }
 
 fn push_span(out: &mut String, span: crate::Span) {
@@ -118,17 +152,33 @@ fn push_span(out: &mut String, span: crate::Span) {
     out.push_str(&span.end.get().to_string());
 }
 
-fn escape_json(input: &str) -> String {
-    let mut escaped = String::new();
-    for ch in input.chars() {
-        match ch {
-            '"' => escaped.push_str("\\\""),
-            '\\' => escaped.push_str("\\\\"),
-            '\n' => escaped.push_str("\\n"),
-            '\r' => escaped.push_str("\\r"),
-            '\t' => escaped.push_str("\\t"),
-            _ => escaped.push(ch),
-        }
-    }
-    escaped
+fn label_json(label: &crate::Label) -> serde_json::Value {
+    json!({
+        "kind": match label.kind {
+            LabelKind::Primary => "primary",
+            LabelKind::Secondary => "secondary",
+        },
+        "span": span_json(label.span),
+        "message": label.message,
+    })
+}
+
+fn fix_json(fix: &crate::Fix) -> serde_json::Value {
+    json!({
+        "span": span_json(fix.span),
+        "replacement": fix.replacement,
+        "applicability": match fix.applicability {
+            crate::FixApplicability::MachineApplicable => "machine-applicable",
+            crate::FixApplicability::MaybeIncorrect => "maybe-incorrect",
+            crate::FixApplicability::Manual => "manual",
+        },
+    })
+}
+
+fn span_json(span: crate::Span) -> serde_json::Value {
+    json!({
+        "file": span.file.0,
+        "start": span.start.get(),
+        "end": span.end.get(),
+    })
 }

@@ -90,9 +90,33 @@ impl Help {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FactEntry {
+    pub message: String,
+    pub span: Option<Span>,
+}
+
+impl FactEntry {
+    #[must_use]
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            span: None,
+        }
+    }
+
+    #[must_use]
+    pub fn spanned(span: Span, message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            span: Some(span),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Fact {
     pub title: String,
-    pub entries: Vec<String>,
+    pub entries: Vec<FactEntry>,
 }
 
 impl Fact {
@@ -103,7 +127,18 @@ impl Fact {
     ) -> Self {
         Self {
             title: title.into(),
-            entries: entries.into_iter().map(Into::into).collect(),
+            entries: entries.into_iter().map(FactEntry::new).collect(),
+        }
+    }
+
+    #[must_use]
+    pub fn with_entries(
+        title: impl Into<String>,
+        entries: impl IntoIterator<Item = FactEntry>,
+    ) -> Self {
+        Self {
+            title: title.into(),
+            entries: entries.into_iter().collect(),
         }
     }
 }
@@ -152,18 +187,38 @@ pub struct Diagnostic {
 
 impl Diagnostic {
     #[must_use]
-    pub fn error(code: DiagnosticCode, title: impl Into<String>) -> DiagnosticBuilder {
-        DiagnosticBuilder::new(Severity::Error, code, title)
+    pub fn error(
+        code: DiagnosticCode,
+        title: impl Into<String>,
+        span: Span,
+        message: impl Into<String>,
+    ) -> DiagnosticBuilder {
+        DiagnosticBuilder::new(Severity::Error, code, title, Label::primary(span, message))
     }
 
     #[must_use]
-    pub fn warning(code: DiagnosticCode, title: impl Into<String>) -> DiagnosticBuilder {
-        DiagnosticBuilder::new(Severity::Warning, code, title)
+    pub fn warning(
+        code: DiagnosticCode,
+        title: impl Into<String>,
+        span: Span,
+        message: impl Into<String>,
+    ) -> DiagnosticBuilder {
+        DiagnosticBuilder::new(
+            Severity::Warning,
+            code,
+            title,
+            Label::primary(span, message),
+        )
     }
 
     #[must_use]
-    pub fn info(code: DiagnosticCode, title: impl Into<String>) -> DiagnosticBuilder {
-        DiagnosticBuilder::new(Severity::Info, code, title)
+    pub fn info(
+        code: DiagnosticCode,
+        title: impl Into<String>,
+        span: Span,
+        message: impl Into<String>,
+    ) -> DiagnosticBuilder {
+        DiagnosticBuilder::new(Severity::Info, code, title, Label::primary(span, message))
     }
 
     #[must_use]
@@ -177,7 +232,7 @@ pub struct DiagnosticBuilder {
     severity: Severity,
     code: DiagnosticCode,
     title: String,
-    primary: Option<Label>,
+    primary: Label,
     labels: Vec<Label>,
     notes: Vec<Note>,
     helps: Vec<Help>,
@@ -187,12 +242,17 @@ pub struct DiagnosticBuilder {
 
 impl DiagnosticBuilder {
     #[must_use]
-    pub fn new(severity: Severity, code: DiagnosticCode, title: impl Into<String>) -> Self {
+    pub fn new(
+        severity: Severity,
+        code: DiagnosticCode,
+        title: impl Into<String>,
+        primary: Label,
+    ) -> Self {
         Self {
             severity,
             code,
             title: title.into(),
-            primary: None,
+            primary,
             labels: Vec::new(),
             notes: Vec::new(),
             helps: Vec::new(),
@@ -203,8 +263,9 @@ impl DiagnosticBuilder {
 
     #[must_use]
     pub fn with_label(mut self, label: Label) -> Self {
-        if label.kind == LabelKind::Primary && self.primary.is_none() {
-            self.primary = Some(label);
+        if label.kind == LabelKind::Primary {
+            let previous = core::mem::replace(&mut self.primary, label);
+            self.labels.push(previous);
         } else {
             self.labels.push(label);
         }
@@ -214,9 +275,8 @@ impl DiagnosticBuilder {
     #[must_use]
     pub fn with_primary(mut self, span: Span, message: impl Into<String>) -> Self {
         let label = Label::primary(span, message);
-        if let Some(previous) = self.primary.replace(label) {
-            self.labels.push(previous);
-        }
+        let previous = core::mem::replace(&mut self.primary, label);
+        self.labels.push(previous);
         self
     }
 
@@ -255,6 +315,31 @@ impl DiagnosticBuilder {
     }
 
     #[must_use]
+    pub fn with_fact_entries(
+        mut self,
+        title: impl Into<String>,
+        entries: impl IntoIterator<Item = FactEntry>,
+    ) -> Self {
+        self.facts.push(Fact::with_entries(title, entries));
+        self
+    }
+
+    #[must_use]
+    pub fn with_spanned_fact(
+        mut self,
+        title: impl Into<String>,
+        entries: impl IntoIterator<Item = (Span, impl Into<String>)>,
+    ) -> Self {
+        self.facts.push(Fact::with_entries(
+            title,
+            entries
+                .into_iter()
+                .map(|(span, message)| FactEntry::spanned(span, message)),
+        ));
+        self
+    }
+
+    #[must_use]
     pub fn with_fix(mut self, fix: Fix) -> Self {
         self.fixes.push(fix);
         self
@@ -262,15 +347,11 @@ impl DiagnosticBuilder {
 
     #[must_use]
     pub fn build(self) -> Diagnostic {
-        let primary = self.primary.unwrap_or_else(|| {
-            Label::primary(Span::synthetic(), "diagnostic location unavailable")
-        });
-
         Diagnostic {
             severity: self.severity,
             code: self.code,
             title: self.title,
-            primary,
+            primary: self.primary,
             labels: self.labels,
             notes: self.notes,
             helps: self.helps,

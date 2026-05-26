@@ -25,7 +25,25 @@ pub struct Span {
 
 impl Span {
     #[must_use]
-    pub const fn new(file: FileId, start: ByteOffset, end: ByteOffset) -> Self {
+    pub fn new(file: FileId, start: ByteOffset, end: ByteOffset) -> Self {
+        debug_assert!(
+            start.0 <= end.0,
+            "span start must not be greater than span end"
+        );
+        Self { file, start, end }
+    }
+
+    #[must_use]
+    pub const fn checked(file: FileId, start: ByteOffset, end: ByteOffset) -> Option<Self> {
+        if start.0 <= end.0 {
+            Some(Self { file, start, end })
+        } else {
+            None
+        }
+    }
+
+    #[must_use]
+    pub const fn new_unchecked(file: FileId, start: ByteOffset, end: ByteOffset) -> Self {
         Self { file, start, end }
     }
 
@@ -56,5 +74,10 @@ impl Span {
     #[must_use]
     pub const fn contains(self, offset: ByteOffset) -> bool {
         self.start.0 <= offset.0 && offset.0 < self.end.0
+    }
+
+    #[must_use]
+    pub const fn is_valid(self) -> bool {
+        self.start.0 <= self.end.0
     }
 }

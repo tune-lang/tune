@@ -226,11 +226,8 @@ impl<'src> Lexer<'src> {
     fn push_error(&mut self, start: usize, end: usize, message: &'static str) {
         let span = self.span(start, end);
         self.tokens.push(Token::new(TokenKind::Error, span));
-        self.diagnostics.push(
-            Diagnostic::error(codes::PARSE_ERROR, message)
-                .with_primary(span, message)
-                .build(),
-        );
+        self.diagnostics
+            .push(Diagnostic::error(codes::PARSE_ERROR, message, span, message).build());
     }
 
     fn span(&self, start: usize, end: usize) -> Span {

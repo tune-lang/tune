@@ -299,10 +299,7 @@ impl<'src> Parser<'src> {
     }
 
     pub(super) fn error(&mut self, span: Span, message: &'static str) {
-        self.diagnostics.push(
-            Diagnostic::error(codes::PARSE_ERROR, message)
-                .with_primary(span, message)
-                .build(),
-        );
+        self.diagnostics
+            .push(Diagnostic::error(codes::PARSE_ERROR, message, span, message).build());
     }
 }
