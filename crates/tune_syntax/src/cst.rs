@@ -107,6 +107,12 @@ pub struct CstBuilder {
     stack: Vec<OpenNode>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Checkpoint {
+    depth: usize,
+    child_index: usize,
+}
+
 impl CstBuilder {
     #[must_use]
     pub fn new(root: SyntaxKind) -> Self {
@@ -117,6 +123,30 @@ impl CstBuilder {
 
     pub fn start_node(&mut self, kind: SyntaxKind) {
         self.stack.push(OpenNode::new(kind));
+    }
+
+    #[must_use]
+    pub fn checkpoint(&self) -> Checkpoint {
+        Checkpoint {
+            depth: self.stack.len(),
+            child_index: self.stack.last().map_or(0, |node| node.children.len()),
+        }
+    }
+
+    pub fn start_node_at(&mut self, checkpoint: Checkpoint, kind: SyntaxKind) {
+        if checkpoint.depth != self.stack.len() {
+            self.start_node(kind);
+            return;
+        }
+
+        let current = self.current_mut();
+        if checkpoint.child_index > current.children.len() {
+            self.start_node(kind);
+            return;
+        }
+
+        let children = current.children.split_off(checkpoint.child_index);
+        self.stack.push(OpenNode { kind, children });
     }
 
     pub fn token(&mut self, token: Token) {
