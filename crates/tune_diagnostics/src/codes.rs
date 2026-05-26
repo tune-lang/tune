@@ -23,6 +23,7 @@ impl fmt::Display for DiagnosticCode {
 
 pub const PARSE_ERROR: DiagnosticCode = DiagnosticCode::new("T0101");
 pub const UNRESOLVED_NAME: DiagnosticCode = DiagnosticCode::new("T0201");
+pub const DUPLICATE_NAME: DiagnosticCode = DiagnosticCode::new("T0202");
 pub const ASSIGNMENT_SHAPE_MISMATCH: DiagnosticCode = DiagnosticCode::new("T0204");
 pub const SHAPE_MISMATCH: DiagnosticCode = DiagnosticCode::new("T0301");
 pub const MATERIALIZATION_FAILED: DiagnosticCode = DiagnosticCode::new("T0302");

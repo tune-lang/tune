@@ -1,7 +1,7 @@
 use crate::HirId;
 use tune_diagnostics::Span;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ItemKind {
     Let,
     CallableDecl,
