@@ -7,6 +7,7 @@ use super::text::direct_ident_text;
 #[derive(Debug, Clone, Copy)]
 pub enum Expr<'tree> {
     Missing(&'tree CstNode),
+    Group(GroupExpr<'tree>),
     Literal(LiteralExpr<'tree>),
     Sequence(SequenceExpr<'tree>),
     Name(NameExpr<'tree>),
@@ -45,7 +46,8 @@ impl<'tree> Expr<'tree> {
             SyntaxKind::ForExpr => ForExpr::cast(node).map(Self::For),
             SyntaxKind::SpawnExpr => SpawnExpr::cast(node).map(Self::Spawn),
             SyntaxKind::Block => BlockExpr::cast(node).map(Self::Block),
-            SyntaxKind::Expr => Some(Self::Missing(node)),
+            SyntaxKind::Expr => GroupExpr::cast(node).map(Self::Group),
+            SyntaxKind::Error => Some(Self::Missing(node)),
             _ => None,
         }
     }
@@ -54,6 +56,7 @@ impl<'tree> Expr<'tree> {
     pub fn syntax(self) -> &'tree CstNode {
         match self {
             Self::Missing(node) => node,
+            Self::Group(node) => node.syntax(),
             Self::Literal(node) => node.syntax(),
             Self::Sequence(node) => node.syntax(),
             Self::Name(node) => node.syntax(),
@@ -101,6 +104,7 @@ macro_rules! expr_node {
 }
 
 expr_node!(LiteralExpr, SyntaxKind::LiteralExpr);
+expr_node!(GroupExpr, SyntaxKind::Expr);
 expr_node!(SequenceExpr, SyntaxKind::SequenceExpr);
 expr_node!(NameExpr, SyntaxKind::NameExpr);
 expr_node!(CallableValue, SyntaxKind::CallableValue);

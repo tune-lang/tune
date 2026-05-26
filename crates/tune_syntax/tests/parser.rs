@@ -244,6 +244,7 @@ let task = spawn fetch()
 let looped = for item in items { handle(item) }
 let numbers = [1, 2, 3]
 let block = { let x = 1; x = x; return x }
+let grouped = (1 + 2)
 let ops = not value and other is not none or 1 + 2 * 3
 "#,
     );
@@ -257,12 +258,24 @@ let ops = not value and other is not none or 1 + 2 * 3
     assert!(kinds.contains(&SyntaxKind::ForExpr));
     assert!(kinds.contains(&SyntaxKind::Block));
     assert!(kinds.contains(&SyntaxKind::SequenceExpr));
+    assert!(kinds.contains(&SyntaxKind::Expr));
     assert!(kinds.contains(&SyntaxKind::LetExpr));
     assert!(kinds.contains(&SyntaxKind::AssignExpr));
     assert!(kinds.contains(&SyntaxKind::ReturnExpr));
     assert!(kinds.contains(&SyntaxKind::UnaryExpr));
     assert!(kinds.contains(&SyntaxKind::BinaryExpr));
     assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
+fn reports_missing_block_expression_separator() {
+    let parsed = parse("let block = { a b }");
+
+    assert_eq!(parsed.diagnostics.len(), 1);
+    assert_eq!(
+        parsed.diagnostics[0].title,
+        "expected `;` or newline between expressions"
+    );
 }
 
 #[test]

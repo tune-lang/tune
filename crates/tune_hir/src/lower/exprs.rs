@@ -19,6 +19,7 @@ impl ExprLowerer {
         let span = expr.syntax().span;
         let kind = match expr {
             AstExpr::Missing(_) => ExprKind::Missing,
+            AstExpr::Group(_) => self.lower_group(source, expr),
             AstExpr::Literal(node) => {
                 literal_kind(source, node).map_or(ExprKind::Missing, ExprKind::Literal)
             }
@@ -58,6 +59,14 @@ impl ExprLowerer {
         };
 
         Expr { id, span, kind }
+    }
+
+    fn lower_group(&mut self, source: &str, expr: AstExpr<'_>) -> ExprKind {
+        let Some(inner) = expr.child_exprs().into_iter().next() else {
+            return ExprKind::Missing;
+        };
+
+        self.lower(source, inner).kind
     }
 
     fn lower_callable_value(&mut self, source: &str, expr: AstExpr<'_>) -> ExprKind {

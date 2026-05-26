@@ -133,12 +133,13 @@ impl Parser<'_> {
 
         while !self.at(TokenKind::Eof) && !self.at(TokenKind::RightBrace) {
             self.parse_expr();
-            self.skip_trivia();
-            if self.at(TokenKind::Semicolon) {
-                self.bump();
-                self.skip_trivia();
-            } else if !self.at(TokenKind::RightBrace) {
+            if self.consume_expr_separator() {
                 continue;
+            }
+
+            self.skip_trivia();
+            if !self.at(TokenKind::RightBrace) {
+                self.error_at_current("expected `;` or newline between expressions");
             }
         }
 
@@ -207,6 +208,21 @@ impl Parser<'_> {
         }
 
         self.expect(end, "expected expression list closer");
+    }
+
+    fn consume_expr_separator(&mut self) -> bool {
+        if self.at(TokenKind::Semicolon) {
+            self.bump();
+            self.skip_trivia();
+            return true;
+        }
+
+        if self.at(TokenKind::Whitespace) && self.current_text_has_newline() {
+            self.skip_trivia();
+            return true;
+        }
+
+        false
     }
 
     fn parse_primary_expr(&mut self) {
