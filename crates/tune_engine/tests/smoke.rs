@@ -74,11 +74,7 @@ fn registers_host_modules_and_project_manifests() -> Result<(), &'static str> {
     assert!(tune.host_modules().is_empty());
 
     let handle = tune
-        .load_project(dyno_project::manifest::Manifest {
-            name: "demo".to_owned(),
-            edition: "2026".to_owned(),
-            entry: "main.tn".to_owned(),
-        })
+        .load_project(dyno_project::manifest::Manifest::new("demo", "main.tn"))
         .map_err(|_| "project should load")?;
 
     assert_eq!(handle, tune_engine::ProjectHandle(0));
