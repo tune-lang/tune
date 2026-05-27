@@ -5,25 +5,34 @@ fn smoke() {
 }
 
 #[test]
-fn task_join_preserves_pending_ready_and_panic_states() {
+fn task_join_preserves_pending_and_ready_states() {
     let ready = tune_runtime::Task::ready(tune_runtime::TaskId(1), tune_runtime::Value::Int(20));
-    assert_eq!(ready.join(), Ok(tune_runtime::Value::Int(20)));
+    assert_eq!(
+        ready.join(),
+        tune_runtime::TaskJoinOutcome::Ready(tune_runtime::Value::Int(20))
+    );
 
     let pending = tune_runtime::Task::pending(tune_runtime::TaskId(2));
     assert_eq!(
         pending.join(),
-        Err(tune_runtime::TaskJoinError::Pending(tune_runtime::TaskId(
-            2
-        )))
+        tune_runtime::TaskJoinOutcome::Pending(tune_runtime::TaskId(2))
+    );
+}
+
+#[test]
+fn task_join_does_not_convert_panics_to_recoverable_errors() {
+    let panicked = tune_runtime::Task::panicked(
+        tune_runtime::TaskId(3),
+        tune_runtime::TunePanic {
+            message: "bad".into(),
+        },
     );
 
-    let panic = tune_runtime::TunePanic {
-        message: "bad".into(),
-    };
-    let panicked = tune_runtime::Task::panicked(tune_runtime::TaskId(3), panic.clone());
     assert_eq!(
         panicked.join(),
-        Err(tune_runtime::TaskJoinError::Panicked(panic))
+        tune_runtime::TaskJoinOutcome::UnrecoverablePanic(tune_runtime::TunePanic {
+            message: "bad".into(),
+        })
     );
 }
 

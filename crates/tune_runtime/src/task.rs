@@ -17,10 +17,11 @@ pub enum TaskState {
     Panicked(TunePanic),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TaskJoinError {
+#[derive(Debug, Clone, PartialEq)]
+pub enum TaskJoinOutcome {
+    Ready(Value),
     Pending(TaskId),
-    Panicked(TunePanic),
+    UnrecoverablePanic(TunePanic),
 }
 
 impl Task {
@@ -48,11 +49,12 @@ impl Task {
         }
     }
 
-    pub fn join(self) -> Result<Value, TaskJoinError> {
+    #[must_use]
+    pub fn join(self) -> TaskJoinOutcome {
         match self.state {
-            TaskState::Pending => Err(TaskJoinError::Pending(self.id)),
-            TaskState::Ready(value) => Ok(value),
-            TaskState::Panicked(panic) => Err(TaskJoinError::Panicked(panic)),
+            TaskState::Pending => TaskJoinOutcome::Pending(self.id),
+            TaskState::Ready(value) => TaskJoinOutcome::Ready(value),
+            TaskState::Panicked(panic) => TaskJoinOutcome::UnrecoverablePanic(panic),
         }
     }
 }
