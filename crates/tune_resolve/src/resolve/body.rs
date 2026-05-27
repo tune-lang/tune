@@ -2,8 +2,9 @@ use std::collections::HashMap;
 
 use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::expr::{Expr, ExprKind};
-use tune_hir::item::{Item, StructMember};
+use tune_hir::item::{Item, ItemKind, StructMember};
 use tune_hir::pattern::{Pattern, PatternKind};
+use tune_hir::shape::{ShapeExpr, ShapeExprKind};
 use tune_hir::{HirId, MemberId};
 
 use crate::locals::{LocalBinding, LocalId, LocalKind, NameRef, NameTarget};
@@ -11,10 +12,11 @@ use crate::prelude::VariantId;
 
 use super::ResolvedModule;
 
-pub(super) fn resolve_item_body(resolved: &mut ResolvedModule, item: &Item) {
+pub(super) fn resolve_item_body(resolved: &mut ResolvedModule, item: &Item, items: &[Item]) {
     if item.tags.iter().any(|tag| !tag.args.is_empty()) {
         let mut resolver = BodyResolver {
             resolved,
+            items,
             owner: item.id,
             scopes: vec![HashMap::new()],
         };
@@ -28,6 +30,7 @@ pub(super) fn resolve_item_body(resolved: &mut ResolvedModule, item: &Item) {
     if let Some(body) = &item.body {
         let mut resolver = BodyResolver {
             resolved,
+            items,
             owner: item.id,
             scopes: vec![HashMap::new()],
         };
@@ -38,15 +41,20 @@ pub(super) fn resolve_item_body(resolved: &mut ResolvedModule, item: &Item) {
             }
         }
 
-        resolver.resolve_expr_names(body);
+        resolver.resolve_expr_names_with_expected(body, item.shape.as_ref());
     }
 
     for member in &item.struct_members {
-        resolve_struct_member_body(resolved, item, member);
+        resolve_struct_member_body(resolved, item, member, items);
     }
 }
 
-fn resolve_struct_member_body(resolved: &mut ResolvedModule, item: &Item, member: &StructMember) {
+fn resolve_struct_member_body(
+    resolved: &mut ResolvedModule,
+    item: &Item,
+    member: &StructMember,
+    items: &[Item],
+) {
     match member {
         StructMember::Callable(callable) => {
             let Some(body) = &callable.body else {
@@ -54,6 +62,7 @@ fn resolve_struct_member_body(resolved: &mut ResolvedModule, item: &Item, member
             };
             let mut resolver = BodyResolver {
                 resolved,
+                items,
                 owner: item.id,
                 scopes: vec![HashMap::new()],
             };
@@ -62,7 +71,7 @@ fn resolve_struct_member_body(resolved: &mut ResolvedModule, item: &Item, member
                     resolver.bind_param(name, param.id);
                 }
             }
-            resolver.resolve_expr_names(body);
+            resolver.resolve_expr_names_with_expected(body, callable.shape.as_ref());
         }
         StructMember::SequenceMaterializer(materializer) => {
             let Some(body) = &materializer.body else {
@@ -70,6 +79,7 @@ fn resolve_struct_member_body(resolved: &mut ResolvedModule, item: &Item, member
             };
             let mut resolver = BodyResolver {
                 resolved,
+                items,
                 owner: item.id,
                 scopes: vec![HashMap::new()],
             };
@@ -84,6 +94,7 @@ fn resolve_struct_member_body(resolved: &mut ResolvedModule, item: &Item, member
             };
             let mut resolver = BodyResolver {
                 resolved,
+                items,
                 owner: item.id,
                 scopes: vec![HashMap::new()],
             };
@@ -98,12 +109,17 @@ fn resolve_struct_member_body(resolved: &mut ResolvedModule, item: &Item, member
 
 struct BodyResolver<'resolved> {
     resolved: &'resolved mut ResolvedModule,
+    items: &'resolved [Item],
     owner: HirId,
     scopes: Vec<HashMap<String, NameTarget>>,
 }
 
 impl BodyResolver<'_> {
     fn resolve_expr_names(&mut self, expr: &Expr) {
+        self.resolve_expr_names_with_expected(expr, None);
+    }
+
+    fn resolve_expr_names_with_expected(&mut self, expr: &Expr, expected: Option<&ShapeExpr>) {
         match &expr.kind {
             ExprKind::Missing | ExprKind::Literal(_) => {}
             ExprKind::Sequence(elements) => {
@@ -111,7 +127,11 @@ impl BodyResolver<'_> {
                     self.resolve_expr_names(element);
                 }
             }
-            ExprKind::Name(name) => self.resolve_name_ref(name, expr),
+            ExprKind::Name(name) => {
+                if !self.resolve_expected_variant_name(name, expr, expected) {
+                    self.resolve_name_ref(name, expr);
+                }
+            }
             ExprKind::CallableValue { params, body } => {
                 self.with_scope(|this| {
                     for param in params {
@@ -123,7 +143,9 @@ impl BodyResolver<'_> {
                 });
             }
             ExprKind::Call { callee, args } => {
-                self.resolve_expr_names(callee);
+                if !self.resolve_expected_variant_callee(callee, expected) {
+                    self.resolve_expr_names(callee);
+                }
                 for arg in args {
                     self.resolve_expr_names(arg);
                 }
@@ -133,9 +155,11 @@ impl BodyResolver<'_> {
                 self.resolve_expr_names(base);
                 self.resolve_expr_names(index);
             }
-            ExprKind::Let { name, value, .. } => {
+            ExprKind::Let {
+                name, shape, value, ..
+            } => {
                 if let Some(value) = value {
-                    self.resolve_expr_names(value);
+                    self.resolve_expr_names_with_expected(value, shape.as_ref());
                 }
                 if let Some(name) = name {
                     self.bind_local(name, LocalKind::Let, Some(expr.id), expr.span);
@@ -361,6 +385,53 @@ impl BodyResolver<'_> {
             .or_else(|| self.resolved.prelude.variant(name).map(VariantId::Prelude))
     }
 
+    fn resolve_expected_variant_callee(
+        &mut self,
+        callee: &Expr,
+        expected: Option<&ShapeExpr>,
+    ) -> bool {
+        let ExprKind::Name(name) = &callee.kind else {
+            return false;
+        };
+
+        self.resolve_expected_variant_name(name, callee, expected)
+    }
+
+    fn resolve_expected_variant_name(
+        &mut self,
+        name: &str,
+        expr: &Expr,
+        expected: Option<&ShapeExpr>,
+    ) -> bool {
+        let Some(variant) = self.variant_for_expected_enum(name, expected) else {
+            return false;
+        };
+
+        self.resolved.name_refs.push(NameRef {
+            expr: expr.id,
+            target: NameTarget::Variant(VariantId::Member(variant)),
+            span: expr.span,
+        });
+        true
+    }
+
+    fn variant_for_expected_enum(
+        &self,
+        variant_name: &str,
+        expected: Option<&ShapeExpr>,
+    ) -> Option<MemberId> {
+        let enum_name = expected_enum_name(expected?)?;
+        self.items
+            .iter()
+            .find(|item| item.kind == ItemKind::Enum && item.name.as_deref() == Some(enum_name))
+            .and_then(|item| {
+                item.variants
+                    .iter()
+                    .find(|variant| variant.name.as_deref() == Some(variant_name))
+            })
+            .map(|variant| variant.id)
+    }
+
     fn lookup_local(&self, name: &str) -> Option<NameTarget> {
         self.scopes
             .iter()
@@ -372,5 +443,12 @@ impl BodyResolver<'_> {
         self.scopes.push(HashMap::new());
         f(self);
         self.scopes.pop();
+    }
+}
+
+fn expected_enum_name(expected: &ShapeExpr) -> Option<&str> {
+    match &expected.kind {
+        ShapeExprKind::Named(name) => Some(name.as_str()),
+        _ => None,
     }
 }

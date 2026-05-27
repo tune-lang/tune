@@ -277,6 +277,30 @@ let unwrap(result) = match result { Ok(value) => value; Error(error) => error }
 }
 
 #[test]
+fn resolves_enum_variants_only_from_expected_shape_context() {
+    let source = r#"
+enum Color {
+  Red
+  Rgb(Int, Int, Int)
+}
+let inferred = Red
+let annotated: Color = Rgb(1, 2, 3)
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert!(resolved.name_refs.iter().any(|name_ref| matches!(
+        name_ref.target,
+        tune_resolve::NameTarget::Variant(tune_resolve::VariantId::Member(_))
+    )));
+    assert!(resolved.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::UNRESOLVED_NAME
+            && diagnostic.title == "unresolved name `Red`"
+    }));
+}
+
+#[test]
 fn reports_unresolved_body_names() {
     let source = r#"
 let helper(value) = value

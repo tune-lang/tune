@@ -61,16 +61,13 @@ pub fn resolve_module(module: &Module) -> ResolvedModule {
     }
 
     define_prelude_variants(&mut resolved);
-    for item in &module.items {
-        define_item_variants(&mut resolved, item);
-    }
 
     for item in &module.items {
         validate_member_names(&mut resolved, item);
     }
 
     for item in &module.items {
-        body::resolve_item_body(&mut resolved, item);
+        body::resolve_item_body(&mut resolved, item, &module.items);
     }
 
     for item in &module.items {
@@ -87,21 +84,6 @@ fn define_prelude_variants(resolved: &mut ResolvedModule) {
     resolved
         .variants
         .define("Error", VariantId::Prelude(resolved.prelude.error), None);
-}
-
-fn define_item_variants(resolved: &mut ResolvedModule, item: &Item) {
-    if item.kind != ItemKind::Enum {
-        return;
-    }
-
-    for variant in &item.variants {
-        let Some(name) = variant.name.as_deref() else {
-            continue;
-        };
-        resolved
-            .variants
-            .define(name, VariantId::Member(variant.id), variant.span);
-    }
 }
 
 fn define_item(resolved: &mut ResolvedModule, item: &Item) {

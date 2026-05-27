@@ -117,12 +117,12 @@ let error(err) = Error(err)
     let error_body = module.items[1].body.as_ref().ok_or("expected error body")?;
 
     assert!(matches!(
-        tune_shape::expr_shape_fact(ok_body, &resolved),
+        tune_shape::expr_shape_fact(ok_body, &module, &resolved),
         Some(tune_shape::Shape::Result { ok, err })
             if *ok == tune_shape::Shape::Hole && *err == tune_shape::Shape::Hole
     ));
     assert!(matches!(
-        tune_shape::expr_shape_fact(error_body, &resolved),
+        tune_shape::expr_shape_fact(error_body, &module, &resolved),
         Some(tune_shape::Shape::Result { ok, err })
             if *ok == tune_shape::Shape::Hole && *err == tune_shape::Shape::Hole
     ));
@@ -139,8 +139,37 @@ fn propagation_shape_uses_result_ok_shape() -> Result<(), &'static str> {
     let body = module.items[0].body.as_ref().ok_or("expected body")?;
 
     assert_eq!(
-        tune_shape::expr_shape_fact(body, &resolved),
+        tune_shape::expr_shape_fact(body, &module, &resolved),
         Some(tune_shape::Shape::Hole)
+    );
+
+    Ok(())
+}
+
+#[test]
+fn extracts_enum_shapes_from_variant_constructors() -> Result<(), &'static str> {
+    let source = r#"
+enum Color {
+  Red
+  Rgb(Int, Int, Int)
+}
+let red = Red
+let rgb: Color = Rgb(1, 2, 3)
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    let red_body = module.items[1].body.as_ref().ok_or("expected red body")?;
+    let rgb_body = module.items[2].body.as_ref().ok_or("expected rgb body")?;
+
+    assert_eq!(
+        tune_shape::expr_shape_fact(red_body, &module, &resolved),
+        None
+    );
+    assert_eq!(
+        tune_shape::expr_shape_fact(rgb_body, &module, &resolved),
+        Some(tune_shape::Shape::Enum("Color".to_owned()))
     );
 
     Ok(())
