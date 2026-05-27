@@ -68,6 +68,7 @@ pub enum Shape {
     Bool,
     String,
     Literal(crate::literal::LiteralFact),
+    Param(String),
     Sequence(Box<Shape>),
     Tuple(Vec<Shape>),
     Union(Vec<Shape>),

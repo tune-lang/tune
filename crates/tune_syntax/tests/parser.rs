@@ -28,6 +28,38 @@ let value = 1
 }
 
 #[test]
+fn parses_generic_struct_and_enum_declarations() {
+    let parsed = parse(
+        r#"
+struct Box<T> { value: T }
+enum Response<T, E> { Ok(T) Error(E) }
+"#,
+    );
+
+    let kinds = nested_node_kinds(&parsed.cst);
+
+    assert_eq!(
+        root_node_kinds(&parsed.cst),
+        [SyntaxKind::StructDecl, SyntaxKind::EnumDecl]
+    );
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| **kind == SyntaxKind::TypeParamList)
+            .count(),
+        2
+    );
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| **kind == SyntaxKind::TypeParam)
+            .count(),
+        3
+    );
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
 fn newline_ends_simple_declarations() {
     let parsed = parse(
         r#"

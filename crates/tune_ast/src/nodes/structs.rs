@@ -2,7 +2,7 @@ use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 
 use crate::AstNode;
 
-use super::text::direct_ident_text;
+use super::text::{direct_ident_text, direct_ident_texts};
 use super::{Comment, Expr, ParamList, Shape};
 
 #[derive(Debug, Clone, Copy)]
@@ -26,6 +26,11 @@ impl<'tree> StructDecl<'tree> {
     #[must_use]
     pub fn name(self, source: &str) -> Option<&str> {
         direct_ident_text(self.node, source)
+    }
+
+    #[must_use]
+    pub fn type_params(self, source: &str) -> Vec<&str> {
+        type_params(self.node, source)
     }
 
     #[must_use]
@@ -322,4 +327,14 @@ fn direct_ident_text_at<'src>(
             CstElement::Node(_) | CstElement::Token(_) => None,
         })
         .nth(index)
+}
+
+pub(super) fn type_params<'src>(node: &CstNode, source: &'src str) -> Vec<&'src str> {
+    node.children
+        .iter()
+        .find_map(|child| match child {
+            CstElement::Node(node) if node.kind == SyntaxKind::TypeParamList => Some(node),
+            CstElement::Node(_) | CstElement::Token(_) => None,
+        })
+        .map_or_else(Vec::new, |node| direct_ident_texts(node, source))
 }

@@ -17,6 +17,8 @@ pub enum SyntaxKind {
     ImportDecl,
     PubDecl,
     Block,
+    TypeParamList,
+    TypeParam,
     ParamList,
     Param,
     FieldDecl,

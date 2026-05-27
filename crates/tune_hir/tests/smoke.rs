@@ -110,6 +110,26 @@ fn lowers_generic_shape_annotations() -> Result<(), &'static str> {
 }
 
 #[test]
+fn lowers_declaration_type_params() {
+    let source = r#"
+struct Box<T> { value: T }
+enum Response<T, E> { Ok(T) Error(E) }
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+
+    assert_eq!(module.items[0].type_params[0].name, "T");
+    assert_eq!(
+        module.items[1]
+            .type_params
+            .iter()
+            .map(|param| param.name.as_str())
+            .collect::<Vec<_>>(),
+        ["T", "E"]
+    );
+}
+
+#[test]
 fn lowers_declaration_body_expressions() -> Result<(), &'static str> {
     let source = r#"
 let value = items[0].name!

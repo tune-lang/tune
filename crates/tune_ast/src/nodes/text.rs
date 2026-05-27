@@ -6,6 +6,22 @@ pub fn direct_ident_text<'src>(node: &CstNode, source: &'src str) -> Option<&'sr
 }
 
 #[must_use]
+pub fn direct_ident_texts<'src>(node: &CstNode, source: &'src str) -> Vec<&'src str> {
+    node.children
+        .iter()
+        .filter_map(|child| match child {
+            CstElement::Node(node) => direct_ident_text(node, source),
+            CstElement::Token(token) if token.kind == TokenKind::Ident => {
+                let start = token.span.start.get() as usize;
+                let end = token.span.end.get() as usize;
+                source.get(start..end)
+            }
+            CstElement::Token(_) => None,
+        })
+        .collect()
+}
+
+#[must_use]
 pub fn first_variant_name_text<'src>(node: &CstNode, source: &'src str) -> Option<&'src str> {
     first_matching_direct_token_text(node, source, |kind| {
         matches!(

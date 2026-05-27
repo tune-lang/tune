@@ -10,12 +10,41 @@ impl Parser<'_> {
         self.expect(TokenKind::Ident, "expected declaration name");
         self.skip_trivia();
 
+        if self.at(TokenKind::Less) {
+            self.parse_type_param_list();
+            self.skip_trivia();
+        }
+
         if self.at(TokenKind::LeftBrace) {
             self.parse_decl_body(kind);
         } else {
             self.error_at_current("expected declaration body");
         }
 
+        self.finish_node();
+    }
+
+    fn parse_type_param_list(&mut self) {
+        self.start_node(SyntaxKind::TypeParamList);
+        self.expect(TokenKind::Less, "expected `<`");
+        self.skip_trivia();
+
+        while !self.at(TokenKind::Eof) && !self.at(TokenKind::Greater) {
+            self.start_node(SyntaxKind::TypeParam);
+            self.expect(TokenKind::Ident, "expected type parameter name");
+            self.finish_node();
+            self.skip_trivia();
+
+            if self.at(TokenKind::Comma) {
+                self.bump();
+                self.skip_trivia();
+            } else if !self.at(TokenKind::Greater) {
+                self.error_at_current("expected `,` between type parameters");
+                break;
+            }
+        }
+
+        self.expect(TokenKind::Greater, "expected `>`");
         self.finish_node();
     }
 

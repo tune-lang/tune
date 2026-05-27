@@ -40,6 +40,11 @@ pub struct Param {
     pub shape: Option<ShapeExpr>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeParam {
+    pub name: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct Field {
     pub id: MemberId,
@@ -107,6 +112,7 @@ pub struct Item {
     pub span: Option<Span>,
     pub doc: Option<String>,
     pub tags: Vec<TagApplication>,
+    pub type_params: Vec<TypeParam>,
     pub params: Vec<Param>,
     pub struct_members: Vec<StructMember>,
     pub fields: Vec<Field>,

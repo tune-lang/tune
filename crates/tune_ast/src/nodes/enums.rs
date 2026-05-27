@@ -2,6 +2,7 @@ use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 
 use crate::AstNode;
 
+use super::structs::type_params;
 use super::text::{direct_ident_text, first_variant_name_text};
 use super::{Comment, Shape};
 
@@ -26,6 +27,11 @@ impl<'tree> EnumDecl<'tree> {
     #[must_use]
     pub fn name(self, source: &str) -> Option<&str> {
         direct_ident_text(self.node, source)
+    }
+
+    #[must_use]
+    pub fn type_params(self, source: &str) -> Vec<&str> {
+        type_params(self.node, source)
     }
 
     #[must_use]

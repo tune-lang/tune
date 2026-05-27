@@ -448,7 +448,7 @@ impl BodyResolver<'_> {
 
 fn expected_enum_name(expected: &ShapeExpr) -> Option<&str> {
     match &expected.kind {
-        ShapeExprKind::Named(name) => Some(name.as_str()),
+        ShapeExprKind::Named(name) | ShapeExprKind::Generic { name, .. } => Some(name.as_str()),
         _ => None,
     }
 }

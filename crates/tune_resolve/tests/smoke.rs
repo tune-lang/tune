@@ -301,6 +301,25 @@ let annotated: Color = Rgb(1, 2, 3)
 }
 
 #[test]
+fn resolves_generic_enum_variants_from_expected_shape_context() {
+    let source = r#"
+enum Boxed<T> {
+  Value(T)
+}
+let boxed: Boxed<String> = Value("hello")
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert!(resolved.diagnostics.is_empty());
+    assert!(resolved.name_refs.iter().any(|name_ref| matches!(
+        name_ref.target,
+        tune_resolve::NameTarget::Variant(tune_resolve::VariantId::Member(_))
+    )));
+}
+
+#[test]
 fn reports_unresolved_body_names() {
     let source = r#"
 let helper(value) = value

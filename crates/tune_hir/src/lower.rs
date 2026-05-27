@@ -8,7 +8,7 @@ use tune_ast::nodes::{
 };
 use tune_syntax::CstNode;
 
-use crate::item::{Item, ItemKind, StructMember, TagApplication, TagArg, Visibility};
+use crate::item::{Item, ItemKind, StructMember, TagApplication, TagArg, TypeParam, Visibility};
 use crate::module::Module;
 use crate::{HirId, ModuleId};
 
@@ -129,6 +129,7 @@ fn lower_import(
         span: node.syntax().span,
         doc,
         tags,
+        type_params: Vec::new(),
         params: Vec::new(),
         struct_members: Vec::new(),
         fields: Vec::new(),
@@ -159,6 +160,7 @@ fn lower_let(
         span: node.syntax().span,
         doc,
         tags,
+        type_params: Vec::new(),
         params: lower_params(source, node),
         struct_members: Vec::new(),
         fields: Vec::new(),
@@ -187,6 +189,7 @@ fn lower_struct(
         span: node.syntax().span,
         doc,
         tags,
+        type_params: lower_type_params(node.type_params(source)),
         params: Vec::new(),
         fields: struct_members
             .iter()
@@ -219,6 +222,7 @@ fn lower_enum(
         span: node.syntax().span,
         doc,
         tags,
+        type_params: lower_type_params(node.type_params(source)),
         params: Vec::new(),
         struct_members: Vec::new(),
         fields: Vec::new(),
@@ -243,6 +247,7 @@ fn lower_tag(
         span: node.syntax().span,
         doc,
         tags,
+        type_params: Vec::new(),
         params: Vec::new(),
         struct_members: Vec::new(),
         fields: lower_fields(source, node.fields()),
@@ -250,6 +255,15 @@ fn lower_tag(
         shape: None,
         body: None,
     }
+}
+
+fn lower_type_params(params: Vec<&str>) -> Vec<TypeParam> {
+    params
+        .into_iter()
+        .map(|name| TypeParam {
+            name: name.to_owned(),
+        })
+        .collect()
 }
 
 fn lower_tags(
