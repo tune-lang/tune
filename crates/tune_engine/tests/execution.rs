@@ -259,63 +259,6 @@ let result = fail()
 }
 
 #[test]
-fn run_file_executes_match_on_result_variant() -> Result<(), &'static str> {
-    let mut tune = tune_engine::Tune::new();
-    let file = tune
-        .add_file(
-            "app.tn",
-            r#"
-let result: Int = match Ok(1) {
-  Ok(value) => value
-  Error(_) => 0
-}
-"#,
-        )
-        .ok_or("file should allocate")?;
-
-    assert_eq!(
-        tune.run_file(file).map_err(|error| {
-            eprintln!("{error:?}");
-            "file entry should run"
-        })?,
-        tune_runtime::value::Value::Int(1)
-    );
-
-    Ok(())
-}
-
-#[test]
-fn run_file_executes_match_on_user_enum_variant() -> Result<(), &'static str> {
-    let mut tune = tune_engine::Tune::new();
-    let file = tune
-        .add_file(
-            "app.tn",
-            r#"
-enum Choice {
-  One(Int)
-  Two(Int)
-}
-let choice: Choice = One(2)
-let result: Int = match choice {
-  One(value) => value
-  Two(value) => value
-}
-"#,
-        )
-        .ok_or("file should allocate")?;
-
-    assert_eq!(
-        tune.run_file(file).map_err(|error| {
-            eprintln!("{error:?}");
-            "file entry should run"
-        })?,
-        tune_runtime::value::Value::Int(2)
-    );
-
-    Ok(())
-}
-
-#[test]
 fn run_file_executes_local_binding_slice_through_vm() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

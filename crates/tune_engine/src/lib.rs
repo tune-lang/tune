@@ -227,8 +227,34 @@ fn reachable_functions(
 fn direct_call_targets(
     function: &tune_plan::PlanFunction,
 ) -> impl Iterator<Item = tune_hir::HirId> + '_ {
-    function.ops.iter().filter_map(|op| match op {
+    function.ops.iter().flat_map(direct_call_targets_in_op)
+}
+
+fn direct_call_targets_in_op(op: &tune_plan::PlanOp) -> Vec<tune_hir::HirId> {
+    match op {
         tune_plan::PlanOp::DirectCall { target, .. } => Some(*target),
         _ => None,
+    }
+    .into_iter()
+    .chain(match op {
+        tune_plan::PlanOp::If {
+            branches, else_ops, ..
+        } => branches
+            .iter()
+            .flat_map(|branch| {
+                branch
+                    .condition_ops
+                    .iter()
+                    .chain(branch.body_ops.iter())
+                    .flat_map(direct_call_targets_in_op)
+            })
+            .chain(else_ops.iter().flat_map(direct_call_targets_in_op))
+            .collect(),
+        tune_plan::PlanOp::Match { arms, .. } => arms
+            .iter()
+            .flat_map(|arm| arm.body_ops.iter().flat_map(direct_call_targets_in_op))
+            .collect(),
+        _ => Vec::new(),
     })
+    .collect()
 }

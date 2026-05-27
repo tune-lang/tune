@@ -71,8 +71,12 @@ impl<'resolved> BodyResolver<'resolved> {
                 if !self.resolve_expected_variant_callee(callee, expected) {
                     self.resolve_expr_names(callee);
                 }
-                for arg in args {
-                    self.resolve_expr_names(arg);
+                let arg_shapes = self.expected_arg_shapes_for_call(callee);
+                for (index, arg) in args.iter().enumerate() {
+                    self.resolve_expr_names_with_expected(
+                        arg,
+                        arg_shapes.get(index).and_then(Option::as_ref),
+                    );
                 }
             }
             ExprKind::Field { base, .. } => self.resolve_expr_names(base),

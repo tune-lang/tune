@@ -80,16 +80,16 @@ impl Lowerer {
         let base_stack_len = self.stack.len();
         let result = produces_value.then(|| self.alloc_reg()).transpose()?;
         let join = self.alloc_block();
-        let else_block = self.alloc_block();
+        let fallback_block = arms
+            .iter()
+            .any(|arm| matches!(arm.pattern.kind, tune_hir::pattern::PatternKind::Else))
+            .then(|| self.alloc_block());
         let mut variant_arms = Vec::new();
         let mut arm_blocks = Vec::new();
 
         for arm in arms {
-            let block = if matches!(
-                arm.pattern.kind,
-                tune_hir::pattern::PatternKind::Else | tune_hir::pattern::PatternKind::Hole
-            ) {
-                else_block
+            let block = if matches!(arm.pattern.kind, tune_hir::pattern::PatternKind::Else) {
+                fallback_block.ok_or(IrLowerError::UnsupportedOp("match fallback"))?
             } else {
                 self.alloc_block()
             };
@@ -102,7 +102,7 @@ impl Lowerer {
         self.push_op(IrOp::MatchVariant {
             scrutinee,
             arms: variant_arms,
-            else_block: Some(else_block),
+            else_block: fallback_block,
         });
 
         for (block, arm) in arm_blocks {
@@ -138,9 +138,11 @@ impl Lowerer {
             self.stack.truncate(base_stack_len);
         }
 
-        self.switch_to_block(else_block);
-        if self.current_block_empty() {
-            self.push_op(IrOp::Jump { target: join });
+        if let Some(fallback_block) = fallback_block {
+            self.switch_to_block(fallback_block);
+            if self.current_block_empty() {
+                self.push_op(IrOp::Jump { target: join });
+            }
         }
         self.switch_to_block(join);
         if let Some(result) = result {
