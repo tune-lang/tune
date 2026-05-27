@@ -9,6 +9,7 @@ fn optimizer_runs_ordered_semantic_passes_over_ir() {
     let mut function = tune_ir::IrFunction {
         name: "run".into(),
         regs: 0,
+        constants: Vec::new(),
         blocks: Vec::new(),
     };
 

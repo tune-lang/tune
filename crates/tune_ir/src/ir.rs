@@ -22,7 +22,13 @@ pub struct HostSymbolId(pub u32);
 pub struct IrFunction {
     pub name: String,
     pub regs: u32,
+    pub constants: Vec<IrConst>,
     pub blocks: Vec<IrBlock>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IrConst {
+    Int(i64),
 }
 
 #[derive(Debug, Clone)]

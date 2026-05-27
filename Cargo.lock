@@ -126,6 +126,7 @@ name = "tune_bytecode"
 version = "0.1.0"
 dependencies = [
  "tune_ir",
+ "tune_shape",
 ]
 
 [[package]]
@@ -152,14 +153,17 @@ name = "tune_engine"
 version = "0.1.0"
 dependencies = [
  "dyno_project",
+ "tune_bytecode",
  "tune_db",
  "tune_diagnostics",
  "tune_hir",
  "tune_host",
+ "tune_ir",
  "tune_plan",
  "tune_resolve",
  "tune_runtime",
  "tune_shape",
+ "tune_vm",
 ]
 
 [[package]]

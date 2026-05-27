@@ -5,14 +5,62 @@ pub struct Vm {
     pub artifact: BytecodeArtifact,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VmError {
+    MissingMain,
+    RegisterOutOfBounds,
+    ConstantOutOfBounds,
+    InvalidConstant,
+    UnsupportedOpcode(Opcode),
+}
+
 impl Vm {
     pub fn new(artifact: BytecodeArtifact) -> Self {
         Self { artifact }
     }
 
-    pub fn run_main(&mut self) -> Value {
+    pub fn run_main(&mut self) -> Result<Value, VmError> {
         // v0: dense Rust match dispatch. Optimized VM can add superinstructions later.
-        Value::Unit
+        let function = self
+            .artifact
+            .functions
+            .iter()
+            .find(|function| function.name == "main")
+            .ok_or(VmError::MissingMain)?;
+        let mut registers = vec![Value::Unit; function.register_count as usize];
+        let mut ip = 0;
+        while let Some(instruction) = function.instructions.get(ip) {
+            match instruction.opcode {
+                Opcode::LoadConst => {
+                    let value = self
+                        .artifact
+                        .constants
+                        .get(instruction.b as usize)
+                        .ok_or(VmError::ConstantOutOfBounds)?
+                        .parse::<i64>()
+                        .map_err(|_| VmError::InvalidConstant)?;
+                    write_reg(&mut registers, instruction.a, Value::Int(value))?;
+                }
+                Opcode::AddInt => {
+                    let left = read_reg(&registers, instruction.b)?;
+                    let right = read_reg(&registers, instruction.c)?;
+                    let (Value::Int(left), Value::Int(right)) = (left, right) else {
+                        return Err(VmError::UnsupportedOpcode(Opcode::AddInt));
+                    };
+                    write_reg(&mut registers, instruction.a, Value::Int(left + right))?;
+                }
+                Opcode::Return => {
+                    if instruction.b == 0 {
+                        return Ok(Value::Unit);
+                    }
+                    return read_reg(&registers, instruction.a);
+                }
+                Opcode::Nop => {}
+                other => return Err(VmError::UnsupportedOpcode(other)),
+            }
+            ip += 1;
+        }
+        Ok(Value::Unit)
     }
 
     #[allow(dead_code)]
@@ -53,4 +101,19 @@ impl Vm {
             Opcode::Return => {}
         }
     }
+}
+
+fn read_reg(registers: &[Value], reg: u32) -> Result<Value, VmError> {
+    registers
+        .get(reg as usize)
+        .cloned()
+        .ok_or(VmError::RegisterOutOfBounds)
+}
+
+fn write_reg(registers: &mut [Value], reg: u32, value: Value) -> Result<(), VmError> {
+    let slot = registers
+        .get_mut(reg as usize)
+        .ok_or(VmError::RegisterOutOfBounds)?;
+    *slot = value;
+    Ok(())
 }
