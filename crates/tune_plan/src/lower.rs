@@ -99,7 +99,10 @@ impl LowerContext<'_> {
             }
             ExprKind::Propagate(inner) => {
                 self.lower_expr(inner, ops);
-                ops.push(PlanOp::ResultPropagate);
+                ops.push(PlanOp::ResultPropagate {
+                    expr: expr.id,
+                    span: expr.span,
+                });
             }
             ExprKind::If {
                 branches,

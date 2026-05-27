@@ -36,7 +36,11 @@ let ok(value) = Ok(value)
         tune_plan::PlanOp::FieldGet { field } if field == "load"
     )));
     assert!(run.ops.contains(&tune_plan::PlanOp::BoundCall));
-    assert!(run.ops.contains(&tune_plan::PlanOp::ResultPropagate));
+    assert!(
+        run.ops
+            .iter()
+            .any(|op| matches!(op, tune_plan::PlanOp::ResultPropagate { span: Some(_), .. }))
+    );
     assert!(run.ops.contains(&tune_plan::PlanOp::Spawn));
 
     let each = tune_plan::lower_resolved_item_to_plan(&module.items[2], &resolved)

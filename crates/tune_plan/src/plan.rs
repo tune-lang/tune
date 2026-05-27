@@ -1,3 +1,5 @@
+use tune_diagnostics::Span;
+use tune_hir::ExprId;
 use tune_hir::HirId;
 use tune_hir::expr::{BinaryOp, UnaryOp};
 use tune_resolve::{LocalId, NameTarget, VariantId};
@@ -34,7 +36,7 @@ pub enum PlanOp {
     Loop,
     Break,
     Continue,
-    ResultPropagate,
+    ResultPropagate { expr: ExprId, span: Option<Span> },
     Return,
     Spawn,
     TaskJoin,
