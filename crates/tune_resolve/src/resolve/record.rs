@@ -1,5 +1,5 @@
 use tune_diagnostics::{Diagnostic, Span, codes};
-use tune_hir::item::{Item, ItemKind};
+use tune_hir::item::{Item, ItemKind, StructMember};
 
 use crate::facts::{CompilerFact, CompilerFactPayload, FactOwner, TagFact, TagFactArg};
 use crate::scope::BindingKind;
@@ -102,12 +102,59 @@ fn record_item_facts(resolved: &mut ResolvedModule, item: &Item, name: &str) {
         record_field_facts(resolved, field);
     }
 
+    for member in &item.struct_members {
+        record_struct_member_facts(resolved, member);
+    }
+
     for variant in &item.variants {
         record_variant_facts(resolved, variant);
     }
 
     for tag in &item.tags {
         record_tag_fact(resolved, item, tag);
+    }
+}
+
+fn record_struct_member_facts(resolved: &mut ResolvedModule, member: &StructMember) {
+    match member {
+        StructMember::Callable(callable) => {
+            if let Some(name) = &callable.name {
+                resolved.facts.push(CompilerFact {
+                    owner: FactOwner::Member(callable.id),
+                    payload: CompilerFactPayload::Name(name.clone()),
+                    span: callable.span,
+                });
+            }
+            if let Some(doc) = &callable.doc {
+                resolved.facts.push(CompilerFact {
+                    owner: FactOwner::Member(callable.id),
+                    payload: CompilerFactPayload::Doc(doc.clone()),
+                    span: callable.span,
+                });
+            }
+            if !callable.params.is_empty() {
+                resolved.facts.push(CompilerFact {
+                    owner: FactOwner::Member(callable.id),
+                    payload: CompilerFactPayload::Params(
+                        callable.params.iter().map(|param| param.id).collect(),
+                    ),
+                    span: callable.span,
+                });
+            }
+            if let Some(shape) = &callable.shape {
+                resolved.facts.push(CompilerFact {
+                    owner: FactOwner::Member(callable.id),
+                    payload: CompilerFactPayload::Return(shape.clone()),
+                    span: callable.span,
+                });
+            }
+            for param in &callable.params {
+                record_param_facts(resolved, param);
+            }
+        }
+        StructMember::Field(_)
+        | StructMember::SequenceMaterializer(_)
+        | StructMember::IndexAccess(_) => {}
     }
 }
 

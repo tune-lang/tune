@@ -89,27 +89,32 @@ fn assign_member_owners(item: &mut Item) {
     for param in &mut item.type_params {
         param.id.owner = item.id;
     }
+    let mut next_param_index = 0;
     for param in &mut item.params {
         param.id.owner = item.id;
+        param.id.index = next_param_index;
+        next_param_index = next_param_index.saturating_add(1);
     }
     for field in &mut item.fields {
         field.id.owner = item.id;
     }
     for member in &mut item.struct_members {
-        assign_struct_member_owner(member, item.id);
+        assign_struct_member_owner(member, item.id, &mut next_param_index);
     }
     for variant in &mut item.variants {
         variant.id.owner = item.id;
     }
 }
 
-fn assign_struct_member_owner(member: &mut StructMember, owner: HirId) {
+fn assign_struct_member_owner(member: &mut StructMember, owner: HirId, next_param_index: &mut u32) {
     match member {
         StructMember::Field(field) => field.id.owner = owner,
         StructMember::Callable(callable) => {
             callable.id.owner = owner;
             for param in &mut callable.params {
                 param.id.owner = owner;
+                param.id.index = *next_param_index;
+                *next_param_index = next_param_index.saturating_add(1);
             }
         }
         StructMember::SequenceMaterializer(materializer) => materializer.id.owner = owner,
