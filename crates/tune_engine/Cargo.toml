@@ -1,0 +1,15 @@
+[package]
+name = "tune_engine"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tune_db = { path = "../tune_db" }
+tune_diagnostics = { path = "../tune_diagnostics" }
+tune_hir = { path = "../tune_hir" }
+tune_resolve = { path = "../tune_resolve" }

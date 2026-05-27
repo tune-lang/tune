@@ -4,6 +4,7 @@ members = [
     "crates/tune_ast",
     "crates/tune_hir",
     "crates/tune_db",
+    "crates/tune_engine",
     "crates/tune_resolve",
     "crates/tune_shape",
     "crates/tune_plan",
