@@ -3,7 +3,7 @@ use tune_hir::expr::{Expr, ExprKind};
 use tune_hir::item::Item;
 use tune_resolve::{LocalId, NameTarget, ResolvedModule};
 
-use crate::plan::{PlanFunction, PlanIfBranch, PlanMatchArm, PlanOp};
+use crate::plan::{FiniteForContract, PlanFunction, PlanIfBranch, PlanMatchArm, PlanOp};
 
 #[must_use]
 pub fn lower_to_plan(name: &str) -> PlanFunction {
@@ -56,6 +56,12 @@ impl LowerContext<'_> {
                 }
             }
             ExprKind::Call { callee, args } => {
+                if let Some(base) = task_join_base(callee, args) {
+                    self.lower_expr(base, ops);
+                    ops.push(PlanOp::TaskJoin);
+                    return;
+                }
+
                 self.lower_expr(callee, ops);
                 for arg in args {
                     self.lower_expr(arg, ops);
@@ -188,6 +194,13 @@ impl LowerContext<'_> {
                     pattern: pattern.clone(),
                     iterable: iterable.id,
                     body: body.id,
+                    contract: FiniteForContract {
+                        source: iterable.id,
+                        len_member: None,
+                        index_member: None,
+                        source_evaluated_once: true,
+                        length_evaluated_once: true,
+                    },
                     span: expr.span,
                 });
             }
@@ -251,4 +264,16 @@ impl LowerContext<'_> {
             .find(|local| local.expr == Some(expr))
             .map(|local| local.id)
     }
+}
+
+fn task_join_base<'expr>(callee: &'expr Expr, args: &[Expr]) -> Option<&'expr Expr> {
+    if !args.is_empty() {
+        return None;
+    }
+
+    let ExprKind::Field { base, name } = &callee.kind else {
+        return None;
+    };
+
+    matches!(name.as_deref(), Some("join")).then_some(base)
 }

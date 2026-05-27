@@ -1,6 +1,7 @@
 use tune_diagnostics::Span;
 use tune_hir::ExprId;
 use tune_hir::HirId;
+use tune_hir::MemberId;
 use tune_hir::expr::{BinaryOp, UnaryOp};
 use tune_hir::pattern::Pattern;
 use tune_resolve::{LocalId, NameTarget, VariantId};
@@ -24,6 +25,15 @@ pub struct PlanIfBranch {
 pub struct PlanMatchArm {
     pub pattern: Pattern,
     pub body: ExprId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FiniteForContract {
+    pub source: ExprId,
+    pub len_member: Option<MemberId>,
+    pub index_member: Option<MemberId>,
+    pub source_evaluated_once: bool,
+    pub length_evaluated_once: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -73,6 +83,7 @@ pub enum PlanOp {
         pattern: Pattern,
         iterable: ExprId,
         body: ExprId,
+        contract: FiniteForContract,
         span: Option<Span>,
     },
     StringBuild,

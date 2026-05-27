@@ -49,11 +49,18 @@ let ok(value) = Ok(value)
 
     let each = tune_plan::lower_resolved_item_to_plan(&module.items[2], &resolved)
         .ok_or("expected each plan")?;
-    assert!(
-        each.ops
-            .iter()
-            .any(|op| matches!(op, tune_plan::PlanOp::FiniteFor { span: Some(_), .. }))
-    );
+    assert!(each.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::FiniteFor {
+            contract: tune_plan::FiniteForContract {
+                source_evaluated_once: true,
+                length_evaluated_once: true,
+                ..
+            },
+            span: Some(_),
+            ..
+        }
+    )));
     assert!(each.ops.contains(&tune_plan::PlanOp::DirectCall {
         target: tune_hir::HirId(0)
     }));
@@ -193,4 +200,30 @@ fn semantic_plan_has_typed_materialization_and_meta_slots() {
             }
         }
     ));
+}
+
+#[test]
+fn task_join_lowers_to_dedicated_plan_op() -> Result<(), &'static str> {
+    let source = "let wait(task) = task.join()";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    assert!(resolved.diagnostics.is_empty());
+
+    let plan = tune_plan::lower_resolved_item_to_plan(&module.items[0], &resolved)
+        .ok_or("function body should lower")?;
+
+    assert!(
+        plan.ops
+            .iter()
+            .any(|op| matches!(op, tune_plan::PlanOp::TaskJoin))
+    );
+    assert!(!plan.ops.iter().any(|op| {
+        matches!(
+            op,
+            tune_plan::PlanOp::FieldGet { field } if field == "join"
+        )
+    }));
+
+    Ok(())
 }
