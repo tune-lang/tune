@@ -1,6 +1,6 @@
 use tune_hir::HirId;
 use tune_hir::expr::{BinaryOp, UnaryOp};
-use tune_resolve::LocalId;
+use tune_resolve::{LocalId, VariantId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanFunction {
@@ -11,6 +11,7 @@ pub struct PlanFunction {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlanOp {
     DirectCall { target: HirId },
+    VariantConstruct { variant: VariantId },
     BoundCall,
     CallableValue,
     WitnessCall,

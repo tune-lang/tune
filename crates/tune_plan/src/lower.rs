@@ -162,6 +162,7 @@ impl LowerContext<'_> {
     fn call_op(&self, callee: &Expr) -> PlanOp {
         match self.name_target(callee.id) {
             Some(NameTarget::TopLevel(target)) => PlanOp::DirectCall { target },
+            Some(NameTarget::Variant(variant)) => PlanOp::VariantConstruct { variant },
             _ => PlanOp::BoundCall,
         }
     }

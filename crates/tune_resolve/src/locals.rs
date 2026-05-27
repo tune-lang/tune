@@ -1,6 +1,8 @@
 use tune_diagnostics::Span;
 use tune_hir::{ExprId, HirId, MemberId};
 
+use crate::prelude::VariantId;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LocalId(pub u32);
 
@@ -24,6 +26,7 @@ pub struct LocalBinding {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NameTarget {
     TopLevel(HirId),
+    Variant(VariantId),
     Param(MemberId),
     Local(LocalId),
     SelfValue,
@@ -33,5 +36,11 @@ pub enum NameTarget {
 pub struct NameRef {
     pub expr: ExprId,
     pub target: NameTarget,
+    pub span: Option<Span>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VariantPatternRef {
+    pub variant: VariantId,
     pub span: Option<Span>,
 }

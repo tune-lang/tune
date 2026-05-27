@@ -244,6 +244,36 @@ struct Box {
             | tune_resolve::NameTarget::Local(_)
             | tune_resolve::NameTarget::TopLevel(_)
     )));
+    assert!(resolved.variant_pattern_refs.iter().any(|variant_ref| {
+        variant_ref.variant == tune_resolve::VariantId::Prelude(tune_resolve::PreludeVariant::Ok)
+    }));
+}
+
+#[test]
+fn resolves_prelude_result_variants_as_constructors_and_patterns() {
+    let source = r#"
+let ok(value) = Ok(value)
+let fail(error) = Error(error)
+let unwrap(result) = match result { Ok(value) => value; Error(error) => error }
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert!(resolved.diagnostics.is_empty());
+    assert!(resolved.name_refs.iter().any(|name_ref| {
+        name_ref.target
+            == tune_resolve::NameTarget::Variant(tune_resolve::VariantId::Prelude(
+                tune_resolve::PreludeVariant::Ok,
+            ))
+    }));
+    assert!(resolved.name_refs.iter().any(|name_ref| {
+        name_ref.target
+            == tune_resolve::NameTarget::Variant(tune_resolve::VariantId::Prelude(
+                tune_resolve::PreludeVariant::Error,
+            ))
+    }));
+    assert_eq!(resolved.variant_pattern_refs.len(), 2);
 }
 
 #[test]

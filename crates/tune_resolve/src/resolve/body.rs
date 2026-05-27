@@ -7,6 +7,7 @@ use tune_hir::pattern::{Pattern, PatternKind};
 use tune_hir::{HirId, MemberId};
 
 use crate::locals::{LocalBinding, LocalId, LocalKind, NameRef, NameTarget};
+use crate::prelude::VariantId;
 
 use super::ResolvedModule;
 
@@ -244,6 +245,7 @@ impl BodyResolver<'_> {
                     .scope
                     .get(name)
                     .map(|binding| NameTarget::TopLevel(binding.id))
+                    .or_else(|| self.variant_by_name(name).map(NameTarget::Variant))
             })
         };
 
@@ -307,7 +309,8 @@ impl BodyResolver<'_> {
                     self.bind_pattern_names(pattern);
                 }
             }
-            PatternKind::Variant { args, .. } => {
+            PatternKind::Variant { name, args } => {
+                self.resolve_variant_pattern(name, pattern.span);
                 for pattern in args {
                     self.bind_pattern_names(pattern);
                 }
@@ -317,6 +320,45 @@ impl BodyResolver<'_> {
             | PatternKind::StructuralShape
             | PatternKind::Else => {}
         }
+    }
+
+    fn resolve_variant_pattern(&mut self, name: &str, span: Option<Span>) {
+        if let Some(variant) = self.variant_by_name(name) {
+            self.resolved
+                .variant_pattern_refs
+                .push(crate::VariantPatternRef { variant, span });
+            return;
+        }
+
+        if self.resolved.variants.is_ambiguous(name) {
+            self.resolved.diagnostics.push(
+                Diagnostic::error(
+                    codes::UNRESOLVED_NAME,
+                    format!("ambiguous variant pattern `{name}`"),
+                    span.unwrap_or_else(Span::synthetic),
+                    "this variant name is provided by more than one enum",
+                )
+                .build(),
+            );
+            return;
+        }
+
+        self.resolved.diagnostics.push(
+            Diagnostic::error(
+                codes::UNRESOLVED_NAME,
+                format!("unresolved variant pattern `{name}`"),
+                span.unwrap_or_else(Span::synthetic),
+                "this variant pattern has no matching enum variant",
+            )
+            .build(),
+        );
+    }
+
+    fn variant_by_name(&self, name: &str) -> Option<VariantId> {
+        self.resolved
+            .variants
+            .get(name)
+            .or_else(|| self.resolved.prelude.variant(name).map(VariantId::Prelude))
     }
 
     fn lookup_local(&self, name: &str) -> Option<NameTarget> {

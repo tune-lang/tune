@@ -17,6 +17,7 @@ let branch(value, ready, waiting) = if ready { value } elif waiting { panic("wai
 let select(result, value) = match result { value => value; else => panic("bad") }
 let repeated(ready) = while ready { continue }
 let forever() = loop { break }
+let ok(value) = Ok(value)
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
@@ -94,6 +95,12 @@ let forever() = loop { break }
         .ok_or("expected forever plan")?;
     assert!(forever.ops.contains(&tune_plan::PlanOp::Loop));
     assert!(forever.ops.contains(&tune_plan::PlanOp::Break));
+
+    let ok = tune_plan::lower_resolved_item_to_plan(&module.items[10], &resolved)
+        .ok_or("expected ok plan")?;
+    assert!(ok.ops.contains(&tune_plan::PlanOp::VariantConstruct {
+        variant: tune_resolve::VariantId::Prelude(tune_resolve::PreludeVariant::Ok)
+    }));
 
     Ok(())
 }
