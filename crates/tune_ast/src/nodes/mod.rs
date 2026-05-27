@@ -29,6 +29,6 @@ pub use shapes::{
 };
 pub use structs::{
     DocumentedField, DocumentedStructMember, FieldDecl, IndexAccessDecl, MemberCallableDecl,
-    SequenceMaterializerDecl, StructDecl, StructMember,
+    SequenceMaterializerDecl, StructDecl, StructMember, TypeParamDecl,
 };
 pub use tags::{TagApplication, TagArg, TagDecl};

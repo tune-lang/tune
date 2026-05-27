@@ -7,6 +7,7 @@ use tune_hir::{ExprId, HirId, MemberId};
 pub enum CompilerFactKind {
     Name,
     Doc,
+    TypeParams,
     Params,
     Return,
     Module,
@@ -29,6 +30,7 @@ pub enum FactOwner {
 pub enum CompilerFactPayload {
     Name(String),
     Doc(String),
+    TypeParams(Vec<MemberId>),
     Params(Vec<MemberId>),
     Return(ShapeExpr),
     Module(String),
@@ -67,6 +69,7 @@ impl CompilerFact {
         match &self.payload {
             CompilerFactPayload::Name(_) => CompilerFactKind::Name,
             CompilerFactPayload::Doc(_) => CompilerFactKind::Doc,
+            CompilerFactPayload::TypeParams(_) => CompilerFactKind::TypeParams,
             CompilerFactPayload::Params(_) => CompilerFactKind::Params,
             CompilerFactPayload::Return(_) => CompilerFactKind::Return,
             CompilerFactPayload::Module(_) => CompilerFactKind::Module,

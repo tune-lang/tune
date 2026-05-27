@@ -2,7 +2,7 @@ use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 
 use crate::AstNode;
 
-use super::text::{direct_ident_text, direct_ident_texts};
+use super::text::direct_ident_text;
 use super::{Comment, Expr, ParamList, Shape};
 
 #[derive(Debug, Clone, Copy)]
@@ -29,8 +29,8 @@ impl<'tree> StructDecl<'tree> {
     }
 
     #[must_use]
-    pub fn type_params(self, source: &str) -> Vec<&str> {
-        type_params(self.node, source)
+    pub fn type_params(self) -> Vec<TypeParamDecl<'tree>> {
+        type_params(self.node)
     }
 
     #[must_use]
@@ -52,6 +52,30 @@ impl<'tree> StructDecl<'tree> {
     #[must_use]
     pub fn members(self) -> Vec<DocumentedStructMember<'tree>> {
         documented_members(self.node)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TypeParamDecl<'tree> {
+    node: &'tree CstNode,
+}
+
+impl<'tree> AstNode<'tree> for TypeParamDecl<'tree> {
+    const KIND: SyntaxKind = SyntaxKind::TypeParam;
+
+    fn cast(node: &'tree CstNode) -> Option<Self> {
+        (node.kind == Self::KIND).then_some(Self { node })
+    }
+
+    fn syntax(&self) -> &'tree CstNode {
+        self.node
+    }
+}
+
+impl<'tree> TypeParamDecl<'tree> {
+    #[must_use]
+    pub fn name(self, source: &str) -> Option<&str> {
+        direct_ident_text(self.node, source)
     }
 }
 
@@ -329,12 +353,20 @@ fn direct_ident_text_at<'src>(
         .nth(index)
 }
 
-pub(super) fn type_params<'src>(node: &CstNode, source: &'src str) -> Vec<&'src str> {
+pub(super) fn type_params(node: &CstNode) -> Vec<TypeParamDecl<'_>> {
     node.children
         .iter()
         .find_map(|child| match child {
             CstElement::Node(node) if node.kind == SyntaxKind::TypeParamList => Some(node),
             CstElement::Node(_) | CstElement::Token(_) => None,
         })
-        .map_or_else(Vec::new, |node| direct_ident_texts(node, source))
+        .map_or_else(Vec::new, |node| {
+            node.children
+                .iter()
+                .filter_map(|child| match child {
+                    CstElement::Node(node) => TypeParamDecl::cast(node),
+                    CstElement::Token(_) => None,
+                })
+                .collect()
+        })
 }

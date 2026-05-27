@@ -13,6 +13,7 @@ pub struct ExprId(pub u64);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MemberKind {
+    TypeParam,
     Param,
     Field,
     Callable,

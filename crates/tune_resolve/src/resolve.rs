@@ -121,6 +121,14 @@ fn validate_member_names(resolved: &mut ResolvedModule, item: &Item) {
     validate_named_members(
         resolved,
         item,
+        item.type_params
+            .iter()
+            .filter_map(|param| Some((param.name.as_deref()?, param.span))),
+        "type parameter",
+    );
+    validate_named_members(
+        resolved,
+        item,
         item.params
             .iter()
             .filter_map(|param| Some((param.name.as_deref()?, param.span))),
@@ -226,6 +234,16 @@ fn record_item_facts(resolved: &mut ResolvedModule, item: &Item, name: &str) {
         });
     }
 
+    if !item.type_params.is_empty() {
+        resolved.facts.push(CompilerFact {
+            owner: FactOwner::Item(item.id),
+            payload: CompilerFactPayload::TypeParams(
+                item.type_params.iter().map(|param| param.id).collect(),
+            ),
+            span: item.span,
+        });
+    }
+
     if item.kind == ItemKind::CallableDecl
         && let Some(shape) = &item.shape
     {
@@ -260,6 +278,10 @@ fn record_item_facts(resolved: &mut ResolvedModule, item: &Item, name: &str) {
         record_param_facts(resolved, param);
     }
 
+    for param in &item.type_params {
+        record_type_param_facts(resolved, param);
+    }
+
     for field in &item.fields {
         record_field_facts(resolved, field);
     }
@@ -270,6 +292,16 @@ fn record_item_facts(resolved: &mut ResolvedModule, item: &Item, name: &str) {
 
     for tag in &item.tags {
         record_tag_fact(resolved, item, tag);
+    }
+}
+
+fn record_type_param_facts(resolved: &mut ResolvedModule, param: &tune_hir::item::TypeParam) {
+    if let Some(name) = &param.name {
+        resolved.facts.push(CompilerFact {
+            owner: FactOwner::Member(param.id),
+            payload: CompilerFactPayload::Name(name.clone()),
+            span: param.span,
+        });
     }
 }
 

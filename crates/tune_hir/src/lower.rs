@@ -10,7 +10,7 @@ use tune_syntax::CstNode;
 
 use crate::item::{Item, ItemKind, StructMember, TagApplication, TagArg, TypeParam, Visibility};
 use crate::module::Module;
-use crate::{HirId, ModuleId};
+use crate::{HirId, MemberId, MemberKind, ModuleId};
 
 use exprs::ExprLowerer;
 use members::{lower_fields, lower_params, lower_struct_members, lower_variants};
@@ -86,6 +86,9 @@ fn push_item(items: &mut Vec<Item>, mut item: Item) {
 }
 
 fn assign_member_owners(item: &mut Item) {
+    for param in &mut item.type_params {
+        param.id.owner = item.id;
+    }
     for param in &mut item.params {
         param.id.owner = item.id;
     }
@@ -189,7 +192,7 @@ fn lower_struct(
         span: node.syntax().span,
         doc,
         tags,
-        type_params: lower_type_params(node.type_params(source)),
+        type_params: lower_type_params(source, node.type_params()),
         params: Vec::new(),
         fields: struct_members
             .iter()
@@ -222,7 +225,7 @@ fn lower_enum(
         span: node.syntax().span,
         doc,
         tags,
-        type_params: lower_type_params(node.type_params(source)),
+        type_params: lower_type_params(source, node.type_params()),
         params: Vec::new(),
         struct_members: Vec::new(),
         fields: Vec::new(),
@@ -257,11 +260,23 @@ fn lower_tag(
     }
 }
 
-fn lower_type_params(params: Vec<&str>) -> Vec<TypeParam> {
+fn lower_type_params(
+    source: &str,
+    params: Vec<tune_ast::nodes::TypeParamDecl<'_>>,
+) -> Vec<TypeParam> {
     params
         .into_iter()
-        .map(|name| TypeParam {
-            name: name.to_owned(),
+        .enumerate()
+        .filter_map(|(index, param)| {
+            Some(TypeParam {
+                id: MemberId {
+                    owner: HirId(0),
+                    kind: MemberKind::TypeParam,
+                    index: u32::try_from(index).ok()?,
+                },
+                name: param.name(source).map(str::to_owned),
+                span: param.syntax().span,
+            })
         })
         .collect()
 }

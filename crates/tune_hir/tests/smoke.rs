@@ -118,12 +118,17 @@ enum Response<T, E> { Ok(T) Error(E) }
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
 
-    assert_eq!(module.items[0].type_params[0].name, "T");
+    assert_eq!(module.items[0].type_params[0].name.as_deref(), Some("T"));
+    assert_eq!(module.items[0].type_params[0].id.owner, module.items[0].id);
+    assert_eq!(
+        module.items[0].type_params[0].id.kind,
+        tune_hir::MemberKind::TypeParam
+    );
     assert_eq!(
         module.items[1]
             .type_params
             .iter()
-            .map(|param| param.name.as_str())
+            .filter_map(|param| param.name.as_deref())
             .collect::<Vec<_>>(),
         ["T", "E"]
     );

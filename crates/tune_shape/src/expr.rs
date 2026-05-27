@@ -136,7 +136,7 @@ fn member_variant_shape(
     let mut solved = item
         .type_params
         .iter()
-        .map(|param| (param.name.clone(), Shape::Hole))
+        .filter_map(|param| Some((param.name.clone()?, Shape::Hole)))
         .collect::<Vec<_>>();
 
     for (payload, arg) in variant.payload.iter().zip(arg_shapes) {
@@ -196,7 +196,12 @@ fn collect_shape_params(payload: &Shape, arg: &Shape, solved: &mut [(String, Sha
 
 fn lower_declared_shape(expr: &ShapeExpr, item: &Item) -> Shape {
     match &expr.kind {
-        ShapeExprKind::Named(name) if item.type_params.iter().any(|param| param.name == *name) => {
+        ShapeExprKind::Named(name)
+            if item
+                .type_params
+                .iter()
+                .any(|param| param.name.as_deref() == Some(name.as_str())) =>
+        {
             Shape::Param(name.clone())
         }
         ShapeExprKind::Named(name) => named_shape_hint(name),

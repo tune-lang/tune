@@ -30,8 +30,8 @@ impl<'tree> EnumDecl<'tree> {
     }
 
     #[must_use]
-    pub fn type_params(self, source: &str) -> Vec<&str> {
-        type_params(self.node, source)
+    pub fn type_params(self) -> Vec<super::structs::TypeParamDecl<'tree>> {
+        type_params(self.node)
     }
 
     #[must_use]

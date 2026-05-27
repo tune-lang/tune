@@ -42,7 +42,9 @@ pub struct Param {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeParam {
-    pub name: String,
+    pub id: MemberId,
+    pub name: Option<String>,
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone)]

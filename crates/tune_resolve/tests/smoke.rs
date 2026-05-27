@@ -109,6 +109,23 @@ enum LoadResult {
 }
 
 #[test]
+fn records_type_param_facts() {
+    let source = "enum Boxed<T> { Value(T) }";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert!(resolved.facts.iter().any(|fact| matches!(
+        &fact.payload,
+        tune_resolve::CompilerFactPayload::TypeParams(params) if params.len() == 1
+    )));
+    assert!(resolved.facts.iter().any(|fact| matches!(
+        &fact.payload,
+        tune_resolve::CompilerFactPayload::Name(name) if name == "T"
+    )));
+}
+
+#[test]
 fn reports_duplicate_member_names() {
     let source = r#"
 let parse(text: String, text: String): String = text
