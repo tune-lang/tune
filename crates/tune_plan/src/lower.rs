@@ -298,6 +298,14 @@ impl LowerContext<'_> {
     }
 
     fn call_op(&self, callee: &Expr) -> PlanOp {
+        if let ExprKind::Field { base, name } = &callee.kind {
+            let name = name.clone().unwrap_or_default();
+            return PlanOp::MemberCall {
+                member: self.callable_member(base, &name),
+                name,
+            };
+        }
+
         match self.name_target(callee.id) {
             Some(NameTarget::TopLevel(target)) => PlanOp::DirectCall { target },
             Some(NameTarget::Variant(variant)) => PlanOp::VariantConstruct { variant },

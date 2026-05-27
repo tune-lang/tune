@@ -45,6 +45,10 @@ pub enum PlanOp {
         variant: VariantId,
     },
     BoundCall,
+    MemberCall {
+        member: Option<MemberId>,
+        name: String,
+    },
     CallableValue,
     WitnessCall,
     HostCall {

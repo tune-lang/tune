@@ -50,6 +50,20 @@ impl LowerContext<'_> {
             })
     }
 
+    pub(super) fn callable_member(&self, base: &Expr, member_name: &str) -> Option<MemberId> {
+        let shape = self.expr_shape(base)?;
+        let name = self.struct_shape_name(&shape)?;
+        self.struct_item(name)?
+            .struct_members
+            .iter()
+            .find_map(|member| match member {
+                StructMember::Callable(member) if member.name.as_deref() == Some(member_name) => {
+                    Some(member.id)
+                }
+                _ => None,
+            })
+    }
+
     pub(super) fn lower_shape(&self, shape: Option<&tune_hir::shape::ShapeExpr>) -> Option<Shape> {
         let resolved = self.resolved?;
         Some(lower_resolved_hir_shape(shape?, &resolved.scope).shape)
