@@ -62,15 +62,19 @@ pub enum PlanOp {
     },
     FieldGet {
         field: String,
+        member: Option<MemberId>,
     },
     FieldSet {
         field: String,
+        member: Option<MemberId>,
     },
     SequenceGet {
         checked: bool,
+        index_member: Option<MemberId>,
     },
     SequenceSet {
         checked: bool,
+        index_member: Option<MemberId>,
     },
     SequencePush,
     Materialize {

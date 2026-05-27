@@ -1,7 +1,11 @@
-use tune_hir::ExprId;
 use tune_hir::expr::{Expr, ExprKind};
+mod members;
+
+use tune_hir::ExprId;
 use tune_hir::item::Item;
+use tune_hir::module::Module;
 use tune_resolve::{LocalId, NameTarget, ResolvedModule};
+use tune_shape::MaterializationPlan;
 
 use crate::plan::{FiniteForContract, PlanFunction, PlanIfBranch, PlanMatchArm, PlanOp};
 
@@ -15,15 +19,28 @@ pub fn lower_to_plan(name: &str) -> PlanFunction {
 
 #[must_use]
 pub fn lower_item_to_plan(item: &Item) -> Option<PlanFunction> {
-    lower_item_with_context(item, None)
+    lower_item_with_context(item, None, None)
 }
 
 #[must_use]
 pub fn lower_resolved_item_to_plan(item: &Item, resolved: &ResolvedModule) -> Option<PlanFunction> {
-    lower_item_with_context(item, Some(resolved))
+    lower_item_with_context(item, Some(resolved), None)
 }
 
-fn lower_item_with_context(item: &Item, resolved: Option<&ResolvedModule>) -> Option<PlanFunction> {
+#[must_use]
+pub fn lower_resolved_module_item_to_plan(
+    module: &Module,
+    item: &Item,
+    resolved: &ResolvedModule,
+) -> Option<PlanFunction> {
+    lower_item_with_context(item, Some(resolved), Some(module))
+}
+
+fn lower_item_with_context(
+    item: &Item,
+    resolved: Option<&ResolvedModule>,
+    module: Option<&Module>,
+) -> Option<PlanFunction> {
     let body = item.body.as_ref()?;
     let mut plan = PlanFunction {
         name: item
@@ -32,13 +49,24 @@ fn lower_item_with_context(item: &Item, resolved: Option<&ResolvedModule>) -> Op
             .unwrap_or_else(|| "<anonymous>".to_owned()),
         ops: Vec::new(),
     };
-    let context = LowerContext { resolved };
+    let context = LowerContext { resolved, module };
     context.lower_expr(body, &mut plan.ops);
+    if matches!(body.kind, ExprKind::Sequence(_))
+        && let Some(target) = context.lower_shape(item.shape.as_ref())
+    {
+        plan.ops.push(PlanOp::Materialize {
+            plan: MaterializationPlan {
+                target,
+                commitment: tune_shape::Commitment::CommitBinding,
+            },
+        });
+    }
     Some(plan)
 }
 
 struct LowerContext<'a> {
     resolved: Option<&'a ResolvedModule>,
+    module: Option<&'a Module>,
 }
 
 impl LowerContext<'_> {
@@ -70,18 +98,33 @@ impl LowerContext<'_> {
             }
             ExprKind::Field { base, name } => {
                 self.lower_expr(base, ops);
+                let field = name.clone().unwrap_or_default();
                 ops.push(PlanOp::FieldGet {
-                    field: name.clone().unwrap_or_default(),
+                    member: self.field_member(base, &field),
+                    field,
                 });
             }
             ExprKind::Index { base, index } => {
                 self.lower_expr(base, ops);
                 self.lower_expr(index, ops);
-                ops.push(PlanOp::SequenceGet { checked: true });
+                ops.push(PlanOp::SequenceGet {
+                    checked: true,
+                    index_member: self.index_member(base),
+                });
             }
-            ExprKind::Let { value, .. } => {
+            ExprKind::Let { shape, value, .. } => {
                 if let Some(value) = value {
                     self.lower_expr(value, ops);
+                    if matches!(value.kind, ExprKind::Sequence(_))
+                        && let Some(target) = self.lower_shape(shape.as_ref())
+                    {
+                        ops.push(PlanOp::Materialize {
+                            plan: MaterializationPlan {
+                                target,
+                                commitment: tune_shape::Commitment::CommitBinding,
+                            },
+                        });
+                    }
                 }
                 ops.push(PlanOp::LocalLet {
                     local: self.local_for_expr(expr.id),
@@ -196,8 +239,8 @@ impl LowerContext<'_> {
                     body: body.id,
                     contract: FiniteForContract {
                         source: iterable.id,
-                        len_member: None,
-                        index_member: None,
+                        len_member: self.len_member(iterable),
+                        index_member: self.index_member(iterable),
                         source_evaluated_once: true,
                         length_evaluated_once: true,
                     },
@@ -223,15 +266,20 @@ impl LowerContext<'_> {
             ExprKind::Field { base, name } => {
                 self.lower_expr(base, ops);
                 self.lower_expr(value, ops);
+                let field = name.clone().unwrap_or_default();
                 ops.push(PlanOp::FieldSet {
-                    field: name.clone().unwrap_or_default(),
+                    member: self.field_member(base, &field),
+                    field,
                 });
             }
             ExprKind::Index { base, index } => {
                 self.lower_expr(base, ops);
                 self.lower_expr(index, ops);
                 self.lower_expr(value, ops);
-                ops.push(PlanOp::SequenceSet { checked: true });
+                ops.push(PlanOp::SequenceSet {
+                    checked: true,
+                    index_member: self.index_member(base),
+                });
             }
             _ => {
                 self.lower_expr(target, ops);

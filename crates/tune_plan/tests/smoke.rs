@@ -27,13 +27,13 @@ let ok(value) = Ok(value)
     let run = tune_plan::lower_resolved_item_to_plan(&module.items[1], &resolved)
         .ok_or("expected run plan")?;
     assert_eq!(run.name, "run");
-    assert!(
-        run.ops
-            .contains(&tune_plan::PlanOp::SequenceGet { checked: true })
-    );
+    assert!(run.ops.contains(&tune_plan::PlanOp::SequenceGet {
+        checked: true,
+        index_member: None
+    }));
     assert!(run.ops.iter().any(|op| matches!(
         op,
-        tune_plan::PlanOp::FieldGet { field } if field == "load"
+        tune_plan::PlanOp::FieldGet { field, .. } if field == "load"
     )));
     assert!(run.ops.contains(&tune_plan::PlanOp::BoundCall));
     assert!(
@@ -97,13 +97,12 @@ let ok(value) = Ok(value)
         .ok_or("expected mutate plan")?;
     assert!(mutate.ops.iter().any(|op| matches!(
         op,
-        tune_plan::PlanOp::FieldSet { field } if field == "name"
+        tune_plan::PlanOp::FieldSet { field, .. } if field == "name"
     )));
-    assert!(
-        mutate
-            .ops
-            .contains(&tune_plan::PlanOp::SequenceSet { checked: true })
-    );
+    assert!(mutate.ops.contains(&tune_plan::PlanOp::SequenceSet {
+        checked: true,
+        index_member: None
+    }));
     assert!(!mutate.ops.contains(&tune_plan::PlanOp::Assign));
 
     let ops = tune_plan::lower_resolved_item_to_plan(&module.items[6], &resolved)
@@ -221,9 +220,66 @@ fn task_join_lowers_to_dedicated_plan_op() -> Result<(), &'static str> {
     assert!(!plan.ops.iter().any(|op| {
         matches!(
             op,
-            tune_plan::PlanOp::FieldGet { field } if field == "join"
+            tune_plan::PlanOp::FieldGet { field, .. } if field == "join"
         )
     }));
+
+    Ok(())
+}
+
+#[test]
+fn module_context_resolves_member_ids_and_materialization_slots() -> Result<(), &'static str> {
+    let source = r#"
+struct Stack {
+  value: Int
+  len(): Size = 0
+  Stack[index: Size]: Int = index
+  [items] = items
+}
+let stack: Stack = [1, 2]
+let first(items: Stack) = items[0]
+let named(items: Stack, value: Int) = { items.value = value; items.value }
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    assert!(resolved.diagnostics.is_empty());
+
+    let stack = tune_plan::lower_resolved_module_item_to_plan(&module, &module.items[1], &resolved)
+        .ok_or("stack plan should lower")?;
+    assert!(
+        stack
+            .ops
+            .iter()
+            .any(|op| matches!(op, tune_plan::PlanOp::Materialize { .. }))
+    );
+
+    let first = tune_plan::lower_resolved_module_item_to_plan(&module, &module.items[2], &resolved)
+        .ok_or("first plan should lower")?;
+    assert!(first.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::SequenceGet {
+            index_member: Some(_),
+            ..
+        }
+    )));
+
+    let named = tune_plan::lower_resolved_module_item_to_plan(&module, &module.items[3], &resolved)
+        .ok_or("named plan should lower")?;
+    assert!(named.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::FieldSet {
+            member: Some(_),
+            field,
+        } if field == "value"
+    )));
+    assert!(named.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::FieldGet {
+            member: Some(_),
+            field,
+        } if field == "value"
+    )));
 
     Ok(())
 }
