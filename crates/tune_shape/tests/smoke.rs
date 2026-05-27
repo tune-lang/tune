@@ -104,6 +104,49 @@ let values = [1, 2, 3]
 }
 
 #[test]
+fn extracts_result_shapes_from_prelude_variant_constructors() -> Result<(), &'static str> {
+    let source = r#"
+let ok(value) = Ok(value)
+let error(err) = Error(err)
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    let ok_body = module.items[0].body.as_ref().ok_or("expected ok body")?;
+    let error_body = module.items[1].body.as_ref().ok_or("expected error body")?;
+
+    assert!(matches!(
+        tune_shape::expr_shape_fact(ok_body, &resolved),
+        Some(tune_shape::Shape::Result { ok, err })
+            if *ok == tune_shape::Shape::Hole && *err == tune_shape::Shape::Hole
+    ));
+    assert!(matches!(
+        tune_shape::expr_shape_fact(error_body, &resolved),
+        Some(tune_shape::Shape::Result { ok, err })
+            if *ok == tune_shape::Shape::Hole && *err == tune_shape::Shape::Hole
+    ));
+
+    Ok(())
+}
+
+#[test]
+fn propagation_shape_uses_result_ok_shape() -> Result<(), &'static str> {
+    let source = "let value = Ok(1)!";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let body = module.items[0].body.as_ref().ok_or("expected body")?;
+
+    assert_eq!(
+        tune_shape::expr_shape_fact(body, &resolved),
+        Some(tune_shape::Shape::Hole)
+    );
+
+    Ok(())
+}
+
+#[test]
 fn shape_store_keeps_stable_ids_and_origins() -> Result<(), &'static str> {
     let mut store = tune_shape::ShapeStore::new();
     let span = tune_diagnostics::Span::new(
