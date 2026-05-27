@@ -4,6 +4,7 @@ use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 
 use crate::ExprId;
 mod flow;
+mod structs;
 
 use crate::expr::{BinaryOp, Expr, ExprKind, ExprParam, LiteralKind, UnaryOp};
 use crate::pattern::{Pattern, PatternKind};
@@ -31,6 +32,7 @@ impl ExprLowerer {
                     .map(|child| self.lower(source, child))
                     .collect(),
             ),
+            AstExpr::Struct(node) => self.lower_struct(source, node),
             AstExpr::Name(node) => node
                 .name(source)
                 .map(|name| ExprKind::Name(name.to_owned()))

@@ -38,6 +38,8 @@ pub enum SyntaxKind {
     LetExpr,
     LiteralExpr,
     SequenceExpr,
+    StructExpr,
+    StructFieldInit,
     NameExpr,
     CallExpr,
     FieldExpr,

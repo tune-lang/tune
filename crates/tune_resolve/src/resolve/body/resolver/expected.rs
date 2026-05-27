@@ -8,6 +8,29 @@ use crate::locals::NameTarget;
 use super::BodyResolver;
 
 impl BodyResolver<'_> {
+    pub(super) fn expected_struct_field_shape(
+        &self,
+        struct_name: &str,
+        field_name: &str,
+    ) -> Option<ShapeExpr> {
+        self.items
+            .iter()
+            .find(|item| {
+                item.kind == tune_hir::item::ItemKind::Struct
+                    && item.name.as_deref() == Some(struct_name)
+            })
+            .and_then(|item| {
+                item.struct_members.iter().find_map(|member| {
+                    let StructMember::Field(field) = member else {
+                        return None;
+                    };
+                    (field.name.as_deref() == Some(field_name))
+                        .then(|| field.shape.clone())
+                        .flatten()
+                })
+            })
+    }
+
     pub(super) fn expected_arg_shapes_for_call(&self, callee: &Expr) -> Vec<Option<ShapeExpr>> {
         let ExprKind::Name(name) = &callee.kind else {
             return Vec::new();
@@ -140,6 +163,9 @@ fn shape_for_let_expr(expr: &Expr, target: tune_hir::ExprId) -> Option<ShapeExpr
         ExprKind::Sequence(elements) | ExprKind::Block(elements) => elements
             .iter()
             .find_map(|element| shape_for_let_expr(element, target)),
+        ExprKind::Struct { fields, .. } => fields
+            .iter()
+            .find_map(|field| shape_for_let_expr(&field.value, target)),
         ExprKind::CallableValue { body, .. }
         | ExprKind::Spawn(body)
         | ExprKind::Propagate(body)

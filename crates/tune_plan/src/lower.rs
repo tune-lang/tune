@@ -1,18 +1,20 @@
 use tune_hir::expr::{Expr, ExprKind, LiteralKind};
 mod members;
 mod module;
+mod patterns;
+mod values;
 
 use tune_hir::ExprId;
 use tune_hir::item::Item;
 use tune_hir::module::Module;
-use tune_resolve::{LocalId, NameTarget, ResolvedModule, VariantId};
+use tune_resolve::{LocalId, NameTarget, ResolvedModule};
 use tune_shape::MaterializationPlan;
 
 pub use module::lower_resolved_module_to_plan;
 
-use crate::plan::{
-    FiniteForContract, PlanFunction, PlanIfBranch, PlanMatchArm, PlanOp, PlanPatternBinding,
-};
+use crate::plan::{FiniteForContract, PlanFunction, PlanIfBranch, PlanMatchArm, PlanOp};
+
+use self::values::{expr_produces_value, falls_through, if_produces_value};
 
 #[must_use]
 pub fn lower_to_plan(name: &str) -> PlanFunction {
@@ -85,63 +87,6 @@ fn lower_item_with_context(
     Some(plan)
 }
 
-fn falls_through(expr: &Expr) -> bool {
-    match &expr.kind {
-        ExprKind::Return(_) | ExprKind::Panic(_) | ExprKind::Break | ExprKind::Continue => false,
-        ExprKind::Block(exprs) => exprs.last().is_none_or(falls_through),
-        ExprKind::If {
-            branches,
-            else_branch: Some(else_branch),
-        } => {
-            branches.iter().any(|branch| falls_through(&branch.body)) || falls_through(else_branch)
-        }
-        ExprKind::Loop(body) => falls_through(body),
-        _ => true,
-    }
-}
-
-fn if_produces_value(branches: &[tune_hir::expr::IfBranch], else_branch: Option<&Expr>) -> bool {
-    let Some(else_branch) = else_branch else {
-        return false;
-    };
-    branches
-        .iter()
-        .all(|branch| expr_produces_value(&branch.body))
-        && expr_produces_value(else_branch)
-}
-
-fn expr_produces_value(expr: &Expr) -> bool {
-    match &expr.kind {
-        ExprKind::Missing
-        | ExprKind::Let { .. }
-        | ExprKind::Assign { .. }
-        | ExprKind::While { .. }
-        | ExprKind::Loop(_)
-        | ExprKind::Break
-        | ExprKind::Continue
-        | ExprKind::Return(_)
-        | ExprKind::Panic(_)
-        | ExprKind::For { .. } => false,
-        ExprKind::Block(exprs) => exprs.last().is_some_and(expr_produces_value),
-        ExprKind::If {
-            branches,
-            else_branch,
-        } => if_produces_value(branches, else_branch.as_deref()),
-        ExprKind::Literal(_)
-        | ExprKind::Sequence(_)
-        | ExprKind::Name(_)
-        | ExprKind::CallableValue { .. }
-        | ExprKind::Call { .. }
-        | ExprKind::Field { .. }
-        | ExprKind::Index { .. }
-        | ExprKind::Unary { .. }
-        | ExprKind::Binary { .. }
-        | ExprKind::Spawn(_)
-        | ExprKind::Propagate(_)
-        | ExprKind::Match { .. } => true,
-    }
-}
-
 pub(super) struct LowerContext<'a> {
     pub(super) resolved: Option<&'a ResolvedModule>,
     pub(super) module: Option<&'a Module>,
@@ -172,6 +117,18 @@ impl LowerContext<'_> {
                 for element in elements {
                     self.lower_expr(element, ops);
                     ops.push(PlanOp::SequencePush);
+                }
+            }
+            ExprKind::Struct { name, fields } => {
+                let ordered = self.struct_field_inits(name, fields);
+                for (_, value) in &ordered {
+                    self.lower_expr(value, ops);
+                }
+                if let Some(item) = self.struct_item_id(name) {
+                    ops.push(PlanOp::StructConstruct {
+                        item,
+                        fields: ordered.into_iter().map(|(field, _)| field).collect(),
+                    });
                 }
             }
             ExprKind::Call { callee, args } => {
@@ -388,33 +345,6 @@ impl LowerContext<'_> {
         let mut ops = Vec::new();
         self.lower_expr(expr, &mut ops);
         ops
-    }
-
-    fn pattern_variant(&self, pattern: &tune_hir::pattern::Pattern) -> Option<VariantId> {
-        self.resolved?
-            .variant_pattern_refs
-            .iter()
-            .find(|variant_ref| variant_ref.pattern == pattern.id)
-            .map(|variant_ref| variant_ref.variant)
-    }
-
-    fn pattern_bindings(&self, pattern: &tune_hir::pattern::Pattern) -> Vec<PlanPatternBinding> {
-        let tune_hir::pattern::PatternKind::Variant { args, .. } = &pattern.kind else {
-            return Vec::new();
-        };
-
-        args.iter()
-            .enumerate()
-            .filter_map(|(field_index, arg)| {
-                let tune_hir::pattern::PatternKind::Binding(_) = arg.kind else {
-                    return None;
-                };
-                Some(PlanPatternBinding {
-                    local: self.local_for_expr(arg.id),
-                    field_index,
-                })
-            })
-            .collect()
     }
 
     fn call_op(&self, callee: &Expr, arg_count: usize) -> PlanOp {

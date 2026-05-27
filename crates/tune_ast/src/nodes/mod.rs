@@ -18,8 +18,8 @@ pub use enums::{DocumentedVariant, EnumDecl, VariantDecl};
 pub use exprs::{
     AssignExpr, BinaryExpr, BlockExpr, BreakExpr, CallExpr, CallableValue, ContinueExpr, Expr,
     FieldExpr, ForExpr, GroupExpr, IfExpr, IndexExpr, LetExpr, LiteralExpr, LoopExpr, MatchArm,
-    MatchExpr, NameExpr, PanicExpr, PropagateExpr, ReturnExpr, SequenceExpr, SpawnExpr, UnaryExpr,
-    WhileExpr,
+    MatchExpr, NameExpr, PanicExpr, PropagateExpr, ReturnExpr, SequenceExpr, SpawnExpr, StructExpr,
+    StructFieldInit, UnaryExpr, WhileExpr,
 };
 pub use imports::ImportDecl;
 pub use items::{DocumentedItem, Item, PubDecl, Root};

@@ -5,6 +5,7 @@ mod calls;
 mod contracts;
 mod control;
 mod diagnostics;
+mod fields;
 mod operators;
 
 use tune_hir::item::Item;
@@ -193,6 +194,12 @@ impl Analyzer<'_> {
         let shape = match &expr.kind {
             ExprKind::Missing => Shape::Hole,
             ExprKind::Literal(_) | ExprKind::Sequence(_) => self.literal_or_sequence_shape(expr),
+            ExprKind::Struct { name, fields } => {
+                for field in fields {
+                    self.analyze_expr(&field.value);
+                }
+                Shape::Struct(name.clone())
+            }
             ExprKind::Name(_) => self.name_shape(expr),
             ExprKind::Call { callee, args } => self.analyze_call(expr, callee, args),
             ExprKind::Let { shape, value, .. } => {
@@ -244,10 +251,7 @@ impl Analyzer<'_> {
                 Shape::Never
             }
             ExprKind::Spawn(inner) => Shape::Task(Box::new(self.analyze_expr(inner))),
-            ExprKind::Field { base, .. } => {
-                self.analyze_expr(base);
-                Shape::Hole
-            }
+            ExprKind::Field { base, .. } => self.field_shape(base, expr),
             ExprKind::Index { base, index } => {
                 self.analyze_expr(base);
                 self.analyze_expr(index);

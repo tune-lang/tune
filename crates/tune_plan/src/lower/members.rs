@@ -7,6 +7,31 @@ use tune_shape::{Shape, lower_resolved_hir_shape};
 use super::LowerContext;
 
 impl LowerContext<'_> {
+    pub(super) fn struct_item_id(&self, name: &str) -> Option<tune_hir::HirId> {
+        Some(self.struct_item(name)?.id)
+    }
+
+    pub(super) fn struct_field_inits<'expr>(
+        &self,
+        name: &str,
+        fields: &'expr [tune_hir::expr::StructFieldInit],
+    ) -> Vec<(MemberId, &'expr Expr)> {
+        let Some(item) = self.struct_item(name) else {
+            return Vec::new();
+        };
+        item.struct_members
+            .iter()
+            .filter_map(|member| {
+                let StructMember::Field(field) = member else {
+                    return None;
+                };
+                let field_name = field.name.as_deref()?;
+                let init = fields.iter().find(|init| init.name == field_name)?;
+                Some((field.id, &init.value))
+            })
+            .collect()
+    }
+
     pub(super) fn field_member(&self, base: &Expr, field: &str) -> Option<MemberId> {
         let shape = self.expr_shape(base)?;
         let name = self.struct_shape_name(&shape)?;
@@ -70,7 +95,9 @@ impl LowerContext<'_> {
     }
 
     fn expr_shape(&self, expr: &Expr) -> Option<Shape> {
-        if let Some(shape) = self.analysis_expr_shape(expr) {
+        if let Some(shape) = self.analysis_expr_shape(expr)
+            && shape != Shape::Hole
+        {
             return Some(shape);
         }
         match &expr.kind {

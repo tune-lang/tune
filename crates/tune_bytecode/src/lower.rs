@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use crate::Opcode;
 use crate::artifact::{BytecodeArtifact, BytecodeConst};
 use crate::function::{
-    BytecodeCallSite, BytecodeFunction, BytecodeMatchArm, BytecodeMatchSite, BytecodeVariant,
-    BytecodeVariantSite, Instruction,
+    BytecodeCallSite, BytecodeFunction, BytecodeMatchArm, BytecodeMatchSite, BytecodeStructField,
+    BytecodeStructSite, BytecodeVariantSite, Instruction,
 };
+use crate::lower_tables::{block_offsets, function_indices, lower_variant, push_artifact_const};
 use tune_hir::HirId;
-use tune_ir::{BlockId, IrConst, IrFunction, IrOp};
-use tune_resolve::{PreludeVariant, VariantId};
+use tune_ir::{BlockId, IrFunction, IrOp};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BytecodeLowerError {
@@ -54,6 +54,7 @@ fn lower_ir_function_with_constants(
         block_offsets,
         constants,
         call_sites: Vec::new(),
+        struct_sites: Vec::new(),
         variant_sites: Vec::new(),
         match_sites: Vec::new(),
         instructions: Vec::new(),
@@ -68,6 +69,7 @@ fn lower_ir_function_with_constants(
         register_count: function.regs,
         local_count: function.locals,
         call_sites: lowerer.call_sites,
+        struct_sites: lowerer.struct_sites,
         variant_sites: lowerer.variant_sites,
         match_sites: lowerer.match_sites,
         instructions: lowerer.instructions,
@@ -80,6 +82,7 @@ struct FunctionLowerer<'a> {
     block_offsets: HashMap<BlockId, u32>,
     constants: &'a mut Vec<BytecodeConst>,
     call_sites: Vec<BytecodeCallSite>,
+    struct_sites: Vec<BytecodeStructSite>,
     variant_sites: Vec<BytecodeVariantSite>,
     match_sites: Vec<BytecodeMatchSite>,
     instructions: Vec<Instruction>,
@@ -148,6 +151,24 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(())
             }
+            IrOp::GetField { dst, base, field } => {
+                self.instructions.push(Instruction {
+                    opcode: Opcode::FieldGet,
+                    a: dst.0,
+                    b: base.0,
+                    c: field.0,
+                });
+                Ok(())
+            }
+            IrOp::SetField { base, field, value } => {
+                self.instructions.push(Instruction {
+                    opcode: Opcode::FieldSet,
+                    a: base.0,
+                    b: field.0,
+                    c: value.0,
+                });
+                Ok(())
+            }
             IrOp::CallDirect {
                 dst,
                 function,
@@ -182,6 +203,27 @@ impl FunctionLowerer<'_> {
                     opcode: Opcode::VariantConstruct,
                     a: dst.0,
                     b: variant_site,
+                    c: 0,
+                });
+                Ok(())
+            }
+            IrOp::StructConstruct { dst, item, fields } => {
+                let site = u32::try_from(self.struct_sites.len())
+                    .map_err(|_| BytecodeLowerError::ConstantLimit)?;
+                self.struct_sites.push(BytecodeStructSite {
+                    owner: item.0,
+                    fields: fields
+                        .iter()
+                        .map(|field| BytecodeStructField {
+                            field: field.field.0,
+                            value: field.value.0,
+                        })
+                        .collect(),
+                });
+                self.instructions.push(Instruction {
+                    opcode: Opcode::StructConstruct,
+                    a: dst.0,
+                    b: site,
                     c: 0,
                 });
                 Ok(())
@@ -301,61 +343,4 @@ impl FunctionLowerer<'_> {
             _ => Err(BytecodeLowerError::UnsupportedIr("ir op")),
         }
     }
-}
-
-fn lower_variant(variant: VariantId) -> BytecodeVariant {
-    match variant {
-        VariantId::Prelude(PreludeVariant::Ok) => BytecodeVariant::ResultOk,
-        VariantId::Prelude(PreludeVariant::Error) => BytecodeVariant::ResultError,
-        VariantId::Member(member) => BytecodeVariant::Other {
-            owner: member.owner.0,
-            index: member.index,
-        },
-    }
-}
-
-fn push_artifact_const(
-    constants: &mut Vec<BytecodeConst>,
-    constant: &IrConst,
-) -> Result<u32, BytecodeLowerError> {
-    let index = u32::try_from(constants.len()).map_err(|_| BytecodeLowerError::ConstantLimit)?;
-    match constant {
-        IrConst::Int(value) => constants.push(BytecodeConst::Int(*value)),
-        IrConst::Bool(value) => constants.push(BytecodeConst::Bool(*value)),
-    }
-    Ok(index)
-}
-
-fn block_offsets(function: &IrFunction) -> Result<HashMap<BlockId, u32>, BytecodeLowerError> {
-    let mut offsets = HashMap::new();
-    let mut offset = 0_u32;
-    for block in &function.blocks {
-        offsets.insert(block.id, offset);
-        for op in &block.ops {
-            offset = offset
-                .checked_add(instruction_count(op))
-                .ok_or(BytecodeLowerError::ConstantLimit)?;
-        }
-    }
-    Ok(offsets)
-}
-
-fn instruction_count(op: &IrOp) -> u32 {
-    match op {
-        IrOp::Branch { .. } => 2,
-        _ => 1,
-    }
-}
-
-fn function_indices(functions: &[IrFunction]) -> Result<HashMap<HirId, u32>, BytecodeLowerError> {
-    let mut indices = HashMap::new();
-    for (index, function) in functions.iter().enumerate() {
-        if let Some(owner) = function.owner {
-            indices.insert(
-                owner,
-                u32::try_from(index).map_err(|_| BytecodeLowerError::ConstantLimit)?,
-            );
-        }
-    }
-    Ok(indices)
 }

@@ -151,6 +151,11 @@ impl PropagatedErrorCollector {
                     self.collect(element, module, resolved);
                 }
             }
+            ExprKind::Struct { fields, .. } => {
+                for field in fields {
+                    self.collect(&field.value, module, resolved);
+                }
+            }
             ExprKind::Call { callee, args } => {
                 self.collect(callee, module, resolved);
                 for arg in args {

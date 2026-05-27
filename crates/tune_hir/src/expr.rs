@@ -17,6 +17,10 @@ pub enum ExprKind {
     Missing,
     Literal(LiteralKind),
     Sequence(Vec<Expr>),
+    Struct {
+        name: String,
+        fields: Vec<StructFieldInit>,
+    },
     Name(String),
     CallableValue {
         params: Vec<ExprParam>,
@@ -91,6 +95,12 @@ pub struct ExprParam {
     pub name: Option<String>,
     pub span: Option<Span>,
     pub shape: Option<ShapeExpr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct StructFieldInit {
+    pub name: String,
+    pub value: Expr,
 }
 
 #[derive(Debug, Clone)]

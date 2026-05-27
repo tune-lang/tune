@@ -52,6 +52,15 @@ impl<'resolved> BodyResolver<'resolved> {
                     self.resolve_expr_names(element);
                 }
             }
+            ExprKind::Struct { name, fields } => {
+                self.resolve_struct_name_ref(name, expr);
+                for field in fields {
+                    self.resolve_expr_names_with_expected(
+                        &field.value,
+                        self.expected_struct_field_shape(name, &field.name).as_ref(),
+                    );
+                }
+            }
             ExprKind::Name(name) => {
                 if !self.resolve_expected_variant_name(name, expr, expected) {
                     self.resolve_name_ref(name, expr);
@@ -257,6 +266,27 @@ impl<'resolved> BodyResolver<'resolved> {
             )
             .build(),
         );
+    }
+
+    fn resolve_struct_name_ref(&mut self, name: &str, expr: &Expr) {
+        let Some(binding) = self.resolved.scope.get(name) else {
+            self.resolved.diagnostics.push(
+                Diagnostic::error(
+                    codes::UNRESOLVED_NAME,
+                    format!("unresolved struct `{name}`"),
+                    expr.span.unwrap_or_else(Span::synthetic),
+                    "this struct is not in scope",
+                )
+                .build(),
+            );
+            return;
+        };
+
+        self.resolved.name_refs.push(NameRef {
+            expr: expr.id,
+            target: NameTarget::TopLevel(binding.id),
+            span: expr.span,
+        });
     }
 
     fn bind_pattern_names(&mut self, pattern: &Pattern) {

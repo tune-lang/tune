@@ -11,6 +11,10 @@ pub enum Value {
     Bool(bool),
     String(String),
     Sequence(Vec<Value>),
+    Struct {
+        owner: u32,
+        fields: Vec<Value>,
+    },
     Variant {
         variant: RuntimeVariant,
         fields: Vec<Value>,

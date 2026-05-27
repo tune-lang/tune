@@ -72,6 +72,10 @@ pub enum PlanOp {
         variant: VariantId,
         arg_count: usize,
     },
+    StructConstruct {
+        item: HirId,
+        fields: Vec<MemberId>,
+    },
     BoundCall,
     MemberCall {
         member: Option<MemberId>,

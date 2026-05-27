@@ -1,5 +1,6 @@
 mod flow;
 mod operators;
+mod structs;
 
 use crate::{SyntaxKind, TokenKind};
 
@@ -286,6 +287,8 @@ impl Parser<'_> {
             ) => {
                 if self.at_anonymous_callable_start() {
                     self.parse_callable_value();
+                } else if self.at_struct_literal_start() {
+                    self.parse_struct_expr();
                 } else {
                     self.start_node(SyntaxKind::NameExpr);
                     self.bump();

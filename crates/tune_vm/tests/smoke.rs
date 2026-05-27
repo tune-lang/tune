@@ -18,6 +18,7 @@ fn vm_executes_integer_add_bytecode_entry() -> Result<(), &'static str> {
                 register_count: 0,
                 local_count: 0,
                 call_sites: Vec::new(),
+                struct_sites: Vec::new(),
                 variant_sites: Vec::new(),
                 match_sites: Vec::new(),
                 instructions: Vec::new(),
@@ -27,6 +28,7 @@ fn vm_executes_integer_add_bytecode_entry() -> Result<(), &'static str> {
                 register_count: 3,
                 local_count: 0,
                 call_sites: Vec::new(),
+                struct_sites: Vec::new(),
                 variant_sites: Vec::new(),
                 match_sites: Vec::new(),
                 instructions: vec![
@@ -85,6 +87,7 @@ fn vm_executes_direct_call_with_arguments() -> Result<(), &'static str> {
                     function: 1,
                     args: vec![0, 1],
                 }],
+                struct_sites: Vec::new(),
                 variant_sites: Vec::new(),
                 match_sites: Vec::new(),
                 instructions: vec![
@@ -119,6 +122,7 @@ fn vm_executes_direct_call_with_arguments() -> Result<(), &'static str> {
                 register_count: 3,
                 local_count: 2,
                 call_sites: Vec::new(),
+                struct_sites: Vec::new(),
                 variant_sites: Vec::new(),
                 match_sites: Vec::new(),
                 instructions: vec![

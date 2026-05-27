@@ -5,7 +5,7 @@ use tune_resolve::NameTarget;
 use tune_shape::Shape;
 
 use crate::lower_slots::{local_offset, local_slot, module_slot, param_slot};
-use crate::{BlockId, ConstId, IrBlock, IrConst, IrFunction, IrOp, Reg};
+use crate::{BlockId, ConstId, FieldId, IrBlock, IrConst, IrFunction, IrOp, Reg, StructField};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IrLowerError {
@@ -216,6 +216,57 @@ impl Lowerer {
                 self.stack.push(dst);
                 Ok(())
             }
+            PlanOp::StructConstruct { item, fields } => {
+                let mut values = Vec::with_capacity(fields.len());
+                for field in fields.iter().rev() {
+                    values.push(StructField {
+                        field: FieldId(field.index),
+                        value: self.pop("struct field initializer")?,
+                    });
+                }
+                values.reverse();
+                let dst = self.alloc_reg()?;
+                self.push_op(IrOp::StructConstruct {
+                    dst,
+                    item: *item,
+                    fields: values,
+                });
+                self.stack.push(dst);
+                Ok(())
+            }
+            PlanOp::FieldGet {
+                member: Some(member),
+                ..
+            } => {
+                let base = self.pop("field base")?;
+                let dst = self.alloc_reg()?;
+                self.push_op(IrOp::GetField {
+                    dst,
+                    base,
+                    field: FieldId(member.index),
+                });
+                self.stack.push(dst);
+                Ok(())
+            }
+            PlanOp::FieldSet {
+                member: Some(member),
+                ..
+            } => {
+                let value = self.pop("field value")?;
+                let base = self.pop("field base")?;
+                self.push_op(IrOp::SetField {
+                    base,
+                    field: FieldId(member.index),
+                    value,
+                });
+                Ok(())
+            }
+            PlanOp::FieldGet { member: None, .. } => {
+                Err(IrLowerError::UnsupportedOp("unresolved field get"))
+            }
+            PlanOp::FieldSet { member: None, .. } => {
+                Err(IrLowerError::UnsupportedOp("unresolved field set"))
+            }
             PlanOp::ResultPropagate { expr, span } => {
                 let result = self.pop("result propagation")?;
                 let dst = self.alloc_reg()?;
@@ -255,8 +306,6 @@ impl Lowerer {
             | PlanOp::HostCall { .. }
             | PlanOp::Assign
             | PlanOp::UnaryOp { .. }
-            | PlanOp::FieldGet { .. }
-            | PlanOp::FieldSet { .. }
             | PlanOp::SequenceGet { .. }
             | PlanOp::SequenceSet { .. }
             | PlanOp::SequencePush

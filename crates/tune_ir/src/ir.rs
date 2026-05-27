@@ -114,6 +114,11 @@ pub enum IrOp {
         variant: VariantId,
         args: Vec<Reg>,
     },
+    StructConstruct {
+        dst: Reg,
+        item: HirId,
+        fields: Vec<StructField>,
+    },
     VariantField {
         dst: Reg,
         base: Reg,
@@ -194,4 +199,10 @@ pub enum IrOp {
 pub struct VariantArm {
     pub variant: VariantId,
     pub block: BlockId,
+}
+
+#[derive(Debug, Clone)]
+pub struct StructField {
+    pub field: FieldId,
+    pub value: Reg,
 }

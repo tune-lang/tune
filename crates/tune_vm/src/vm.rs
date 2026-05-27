@@ -16,6 +16,7 @@ pub enum VmError {
     ConstantOutOfBounds,
     FunctionOutOfBounds,
     CallSiteOutOfBounds,
+    StructSiteOutOfBounds,
     ArityMismatch,
     UnsupportedOpcode(Opcode),
 }
@@ -72,6 +73,55 @@ impl Vm {
                     let value = read_reg(&registers, instruction.b)?;
                     write_reg(&mut registers, instruction.a, value)?;
                 }
+                Opcode::StructConstruct => {
+                    let site = function
+                        .struct_sites
+                        .get(instruction.b as usize)
+                        .ok_or(VmError::StructSiteOutOfBounds)?;
+                    let max_field = site
+                        .fields
+                        .iter()
+                        .map(|field| field.field)
+                        .max()
+                        .unwrap_or(0);
+                    let mut fields = vec![Value::Unit; max_field as usize + 1];
+                    for field in &site.fields {
+                        fields[field.field as usize] = read_reg(&registers, field.value)?;
+                    }
+                    write_reg(
+                        &mut registers,
+                        instruction.a,
+                        Value::Struct {
+                            owner: site.owner,
+                            fields,
+                        },
+                    )?;
+                }
+                Opcode::FieldGet => match read_reg(&registers, instruction.b)? {
+                    Value::Struct { fields, .. } => {
+                        let value = fields
+                            .get(instruction.c as usize)
+                            .cloned()
+                            .ok_or(VmError::RegisterOutOfBounds)?;
+                        write_reg(&mut registers, instruction.a, value)?;
+                    }
+                    _ => return Err(VmError::UnsupportedOpcode(Opcode::FieldGet)),
+                },
+                Opcode::FieldSet => match read_reg(&registers, instruction.a)? {
+                    Value::Struct { owner, mut fields } => {
+                        let value = read_reg(&registers, instruction.c)?;
+                        let slot = fields
+                            .get_mut(instruction.b as usize)
+                            .ok_or(VmError::RegisterOutOfBounds)?;
+                        *slot = value;
+                        write_reg(
+                            &mut registers,
+                            instruction.a,
+                            Value::Struct { owner, fields },
+                        )?;
+                    }
+                    _ => return Err(VmError::UnsupportedOpcode(Opcode::FieldSet)),
+                },
                 Opcode::AddInt => {
                     let left = read_reg(&registers, instruction.b)?;
                     let right = read_reg(&registers, instruction.c)?;
@@ -219,6 +269,7 @@ impl Vm {
             Opcode::SeqSetUnchecked => {}
             Opcode::FieldGet => {}
             Opcode::FieldSet => {}
+            Opcode::StructConstruct => {}
             Opcode::VariantConstruct => {}
             Opcode::CallDirect => {}
             Opcode::CallBound => {}

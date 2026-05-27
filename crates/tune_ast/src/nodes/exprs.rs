@@ -10,6 +10,7 @@ pub enum Expr<'tree> {
     Group(GroupExpr<'tree>),
     Literal(LiteralExpr<'tree>),
     Sequence(SequenceExpr<'tree>),
+    Struct(StructExpr<'tree>),
     Name(NameExpr<'tree>),
     CallableValue(CallableValue<'tree>),
     Call(CallExpr<'tree>),
@@ -39,6 +40,7 @@ impl<'tree> Expr<'tree> {
         match node.kind {
             SyntaxKind::LiteralExpr => LiteralExpr::cast(node).map(Self::Literal),
             SyntaxKind::SequenceExpr => SequenceExpr::cast(node).map(Self::Sequence),
+            SyntaxKind::StructExpr => StructExpr::cast(node).map(Self::Struct),
             SyntaxKind::NameExpr => NameExpr::cast(node).map(Self::Name),
             SyntaxKind::CallableValue => CallableValue::cast(node).map(Self::CallableValue),
             SyntaxKind::CallExpr => CallExpr::cast(node).map(Self::Call),
@@ -73,6 +75,7 @@ impl<'tree> Expr<'tree> {
             Self::Group(node) => node.syntax(),
             Self::Literal(node) => node.syntax(),
             Self::Sequence(node) => node.syntax(),
+            Self::Struct(node) => node.syntax(),
             Self::Name(node) => node.syntax(),
             Self::CallableValue(node) => node.syntax(),
             Self::Call(node) => node.syntax(),
@@ -127,6 +130,8 @@ macro_rules! expr_node {
 expr_node!(LiteralExpr, SyntaxKind::LiteralExpr);
 expr_node!(GroupExpr, SyntaxKind::Expr);
 expr_node!(SequenceExpr, SyntaxKind::SequenceExpr);
+expr_node!(StructExpr, SyntaxKind::StructExpr);
+expr_node!(StructFieldInit, SyntaxKind::StructFieldInit);
 expr_node!(NameExpr, SyntaxKind::NameExpr);
 expr_node!(CallableValue, SyntaxKind::CallableValue);
 expr_node!(CallExpr, SyntaxKind::CallExpr);
@@ -161,6 +166,40 @@ impl<'tree> NameExpr<'tree> {
     #[must_use]
     pub fn name(self, source: &str) -> Option<&str> {
         direct_ident_text(self.node, source).or_else(|| direct_name_keyword_text(self.node, source))
+    }
+}
+
+impl<'tree> StructExpr<'tree> {
+    #[must_use]
+    pub fn name(self, source: &str) -> Option<&str> {
+        self.node.children.iter().find_map(|child| match child {
+            CstElement::Node(node) => NameExpr::cast(node).and_then(|name| name.name(source)),
+            CstElement::Token(_) => None,
+        })
+    }
+
+    #[must_use]
+    pub fn fields(self) -> Vec<StructFieldInit<'tree>> {
+        self.node
+            .children
+            .iter()
+            .filter_map(|child| match child {
+                CstElement::Node(node) => StructFieldInit::cast(node),
+                CstElement::Token(_) => None,
+            })
+            .collect()
+    }
+}
+
+impl<'tree> StructFieldInit<'tree> {
+    #[must_use]
+    pub fn name(self, source: &str) -> Option<&str> {
+        direct_ident_text(self.node, source)
+    }
+
+    #[must_use]
+    pub fn value(self) -> Option<Expr<'tree>> {
+        child_exprs(self.node).into_iter().next()
     }
 }
 
