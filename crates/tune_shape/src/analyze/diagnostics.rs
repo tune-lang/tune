@@ -49,6 +49,23 @@ impl Analyzer<'_> {
         self.diagnostics
             .push(result_propagation_diag(item, body, &error_shape));
     }
+
+    pub(super) fn check_returns_against(&mut self, expected: &Shape) {
+        for returned in &self.returns {
+            if expected.accepts(&returned.shape) {
+                continue;
+            }
+            self.diagnostics.push(
+                Diagnostic::error(
+                    codes::ASSIGNMENT_SHAPE_MISMATCH,
+                    "returned value does not match callable return shape",
+                    returned.span.unwrap_or_else(Span::synthetic),
+                    format!("expected `{expected:?}`, got `{:?}`", returned.shape),
+                )
+                .build(),
+            );
+        }
+    }
 }
 
 fn result_propagation_diag(item: &Item, body: &Expr, error_shape: &Shape) -> Diagnostic {

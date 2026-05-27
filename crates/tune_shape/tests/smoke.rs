@@ -70,6 +70,36 @@ let choose(ready, waiting, value) = if ready { Ok(value) } elif waiting { Error(
 }
 
 #[test]
+fn result_constructor_facts_include_explicit_returns() -> Result<(), &'static str> {
+    let source = r#"
+let choose(ready) = {
+  if ready { return Ok(1) }
+  return Error("bad")
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let body = module.items[0].body.as_ref().ok_or("expected body")?;
+
+    assert_eq!(
+        tune_shape::expr_result_constructor_shape_fact(body, &module, &resolved),
+        Some(tune_shape::Shape::Result {
+            ok: Box::new(tune_shape::Shape::Literal(
+                tune_shape::LiteralFact::Numeric { text: "1".into() }
+            )),
+            err: Box::new(tune_shape::Shape::Literal(
+                tune_shape::LiteralFact::String {
+                    segments: vec!["bad".into()],
+                }
+            )),
+        })
+    );
+
+    Ok(())
+}
+
+#[test]
 fn propagated_error_facts_union_only_bang_sites() -> Result<(), &'static str> {
     let source = r#"
 let load = {

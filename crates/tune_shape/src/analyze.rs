@@ -1,5 +1,6 @@
 use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::expr::{Expr, ExprKind};
+mod callable;
 mod calls;
 mod contracts;
 mod control;
@@ -73,10 +74,18 @@ pub struct CallCheck {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReturnCheck {
+    pub expr: ExprId,
+    pub shape: Shape,
+    pub span: Option<Span>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShapeAnalysis {
     pub frame: StateFrame,
     pub expr_shapes: Vec<ExprShape>,
     pub calls: Vec<CallCheck>,
+    pub returns: Vec<ReturnCheck>,
     pub assignments: Vec<AssignmentCheck>,
     pub finite_for: Vec<FiniteForCheck>,
     pub materializers: Vec<MaterializerCheck>,
@@ -91,6 +100,7 @@ pub fn analyze_item(module: &Module, resolved: &ResolvedModule, item: &Item) -> 
         frame: StateFrame::new(),
         expr_shapes: Vec::new(),
         calls: Vec::new(),
+        returns: Vec::new(),
         assignments: Vec::new(),
         finite_for: Vec::new(),
         materializers: Vec::new(),
@@ -105,6 +115,7 @@ pub fn analyze_item(module: &Module, resolved: &ResolvedModule, item: &Item) -> 
             let expected = lowered.shape;
             analyzer.diagnostics.extend(lowered.diagnostics);
             analyzer.check_result_propagation(item, body, &expected);
+            analyzer.check_returns_against(&expected);
             if matches!(body.kind, ExprKind::Sequence(_)) {
                 let materializer = analyzer.sequence_materializer(&expected);
                 analyzer.check_materializer(&expected, body.span);
@@ -136,6 +147,7 @@ struct Analyzer<'a> {
     frame: StateFrame,
     expr_shapes: Vec<ExprShape>,
     calls: Vec<CallCheck>,
+    returns: Vec<ReturnCheck>,
     assignments: Vec<AssignmentCheck>,
     finite_for: Vec<FiniteForCheck>,
     materializers: Vec<MaterializerCheck>,
@@ -148,6 +160,7 @@ impl Analyzer<'_> {
             frame: self.frame,
             expr_shapes: self.expr_shapes,
             calls: self.calls,
+            returns: self.returns,
             assignments: self.assignments,
             finite_for: self.finite_for,
             materializers: self.materializers,
@@ -207,10 +220,22 @@ impl Analyzer<'_> {
                     _ => Shape::Hole,
                 }
             }
-            ExprKind::Return(inner) => inner
-                .as_deref()
-                .map(|inner| self.analyze_expr(inner))
-                .unwrap_or(Shape::Never),
+            ExprKind::Return(inner) => {
+                let returned = inner
+                    .as_deref()
+                    .map(|inner| self.analyze_expr(inner))
+                    .unwrap_or(Shape::Unit);
+                self.returns.push(ReturnCheck {
+                    expr: expr.id,
+                    shape: returned.clone(),
+                    span: expr.span,
+                });
+                if inner.is_some() {
+                    returned
+                } else {
+                    Shape::Never
+                }
+            }
             ExprKind::Panic(args) => {
                 for arg in args {
                     self.analyze_expr(arg);
@@ -227,10 +252,7 @@ impl Analyzer<'_> {
                 self.analyze_expr(index);
                 Shape::Hole
             }
-            ExprKind::CallableValue { body, .. } => {
-                self.analyze_expr(body);
-                Shape::Hole
-            }
+            ExprKind::CallableValue { params, body } => self.analyze_callable_value(params, body),
             ExprKind::Loop(body) => self.analyze_loop(body),
             ExprKind::While { condition, body } => self.analyze_while(condition, body),
             ExprKind::Unary { expr, .. } => self.analyze_expr(expr),

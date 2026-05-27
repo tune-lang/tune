@@ -103,3 +103,79 @@ let make: Color = Rgb(1)
 
     Ok(())
 }
+
+#[test]
+fn analyzer_checks_bound_callable_value_signatures() -> Result<(), &'static str> {
+    let source = r#"
+let run(): Int = {
+  let f = _(value: Int) = value
+  f("bad")
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert!(analysis.expr_shapes.iter().any(|shape| {
+        matches!(
+            &shape.shape,
+            tune_shape::Shape::Callable { params, ret }
+                if params == &vec![tune_shape::Shape::Int] && **ret == tune_shape::Shape::Int
+        )
+    }));
+    assert!(analysis.calls.iter().any(|call| {
+        call.target == tune_shape::CallTarget::Bound
+            && call.params == vec![tune_shape::Shape::Int]
+            && call.ret == tune_shape::Shape::Int
+    }));
+    assert!(analysis.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::CALLABLE_MISMATCH
+            && diagnostic.title == "call argument does not match callable parameter shape"
+    }));
+
+    Ok(())
+}
+
+#[test]
+fn analyzer_checks_explicit_return_shapes() -> Result<(), &'static str> {
+    let source = r#"
+let run(flag): Int = {
+  if flag { return "bad" }
+  1
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert_eq!(analysis.returns.len(), 1);
+    assert!(analysis.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::ASSIGNMENT_SHAPE_MISMATCH
+            && diagnostic.title == "returned value does not match callable return shape"
+    }));
+
+    Ok(())
+}
+
+#[test]
+fn callable_value_returns_do_not_leak_to_outer_function() -> Result<(), &'static str> {
+    let source = r#"
+let run(): Int = {
+  let f = _(value: String) = { return value }
+  1
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert!(analysis.returns.is_empty());
+    assert!(!analysis.diagnostics.iter().any(|diagnostic| {
+        diagnostic.title == "returned value does not match callable return shape"
+    }));
+
+    Ok(())
+}

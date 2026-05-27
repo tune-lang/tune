@@ -96,6 +96,15 @@ impl Analyzer<'_> {
             NameTarget::TopLevel(id) => self.top_level_signature(id),
             NameTarget::Variant(variant) => self.variant_signature(variant),
             NameTarget::Local(_) | NameTarget::Param(_) | NameTarget::SelfValue => {
+                if let Shape::Callable { params, ret } = self.name_shape(callee) {
+                    return Some(CallSignature {
+                        target: CallTarget::Bound,
+                        params,
+                        ret: *ret,
+                        receiver: None,
+                        span: callee.span,
+                    });
+                }
                 Some(CallSignature {
                     target: CallTarget::Bound,
                     params: Vec::new(),

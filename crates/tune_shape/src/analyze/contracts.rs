@@ -205,6 +205,18 @@ impl Analyzer<'_> {
             .map(|local| local.id)
     }
 
+    pub(super) fn callable_param_local(&self, name: &str, span: Option<Span>) -> Option<LocalId> {
+        self.resolved
+            .locals
+            .iter()
+            .find(|local| {
+                local.kind == tune_resolve::LocalKind::CallableParam
+                    && local.name == name
+                    && local.span == span
+            })
+            .map(|local| local.id)
+    }
+
     pub(super) fn local_name(&self, id: LocalId) -> Option<String> {
         self.resolved
             .locals
