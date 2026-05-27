@@ -4,6 +4,9 @@ use tune_hir::HirId;
 use tune_hir::expr::{BinaryOp, UnaryOp};
 use tune_hir::pattern::Pattern;
 use tune_resolve::{LocalId, NameTarget, VariantId};
+use tune_shape::MaterializationPlan;
+
+use crate::meta::MetaPlan;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanFunction {
@@ -60,6 +63,9 @@ pub enum PlanOp {
         checked: bool,
     },
     SequencePush,
+    Materialize {
+        plan: MaterializationPlan,
+    },
     BindingSet {
         target: Option<NameTarget>,
     },
@@ -102,4 +108,7 @@ pub enum PlanOp {
     },
     TaskJoin,
     Panic,
+    Meta {
+        plan: MetaPlan,
+    },
 }

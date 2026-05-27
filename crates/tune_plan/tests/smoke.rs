@@ -159,3 +159,38 @@ let ok(value) = Ok(value)
 
     Ok(())
 }
+
+#[test]
+fn semantic_plan_has_typed_materialization_and_meta_slots() {
+    let materialize = tune_plan::PlanOp::Materialize {
+        plan: tune_shape::MaterializationPlan {
+            target: tune_shape::Shape::Sequence(Box::new(tune_shape::Shape::Int)),
+            commitment: tune_shape::Commitment::PerUse,
+        },
+    };
+    assert!(matches!(
+        materialize,
+        tune_plan::PlanOp::Materialize {
+            plan: tune_shape::MaterializationPlan {
+                commitment: tune_shape::Commitment::PerUse,
+                ..
+            }
+        }
+    ));
+
+    let meta = tune_plan::PlanOp::Meta {
+        plan: tune_plan::meta::MetaPlan::CompilerFact {
+            owner: tune_resolve::FactOwner::Item(tune_hir::HirId(0)),
+            kind: tune_resolve::CompilerFactKind::Doc,
+        },
+    };
+    assert!(matches!(
+        meta,
+        tune_plan::PlanOp::Meta {
+            plan: tune_plan::meta::MetaPlan::CompilerFact {
+                kind: tune_resolve::CompilerFactKind::Doc,
+                ..
+            }
+        }
+    ));
+}
