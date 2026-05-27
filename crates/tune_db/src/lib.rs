@@ -10,6 +10,7 @@ pub struct ModuleAnalysis {
     pub parsed: tune_syntax::Parsed,
     pub module: tune_hir::module::Module,
     pub resolved: tune_resolve::ResolvedModule,
+    pub shape: Vec<tune_shape::ShapeAnalysis>,
 }
 
 impl ModuleAnalysis {
@@ -19,6 +20,11 @@ impl ModuleAnalysis {
             .diagnostics
             .iter()
             .chain(self.resolved.diagnostics.iter())
+            .chain(
+                self.shape
+                    .iter()
+                    .flat_map(|analysis| analysis.diagnostics.iter()),
+            )
             .cloned()
             .collect()
     }
@@ -65,11 +71,13 @@ impl TuneDb {
         let parsed = tune_syntax::parse_with_file(id, &source.text);
         let module = tune_hir::lower::lower_module(&source.text, &parsed.cst);
         let resolved = tune_resolve::resolve_module(&module);
+        let shape = tune_shape::analyze_module(&module, &resolved);
 
         Some(ModuleAnalysis {
             parsed,
             module,
             resolved,
+            shape,
         })
     }
 

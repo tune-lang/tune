@@ -17,3 +17,4 @@ tune_host = { path = "../tune_host" }
 tune_plan = { path = "../tune_plan" }
 tune_resolve = { path = "../tune_resolve" }
 tune_runtime = { path = "../tune_runtime" }
+tune_shape = { path = "../tune_shape" }

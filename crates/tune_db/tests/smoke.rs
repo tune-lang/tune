@@ -68,3 +68,34 @@ let run(input: String): String = input
 
     Ok(())
 }
+
+#[test]
+fn shared_frontend_includes_shape_diagnostics() -> Result<(), &'static str> {
+    let mut db = tune_db::TuneDb::new();
+    let file = db
+        .add_file(
+            "main.tn",
+            r#"
+let run(): Int = "bad"
+"#,
+        )
+        .ok_or("source file should allocate")?;
+
+    let analysis = db
+        .analyze_file(file)
+        .ok_or("analysis should find source file")?;
+
+    assert!(analysis.shape.iter().any(|item| {
+        item.diagnostics
+            .iter()
+            .any(|diag| diag.code == tune_diagnostics::codes::ASSIGNMENT_SHAPE_MISMATCH)
+    }));
+    assert!(
+        analysis
+            .diagnostics()
+            .iter()
+            .any(|diag| diag.code == tune_diagnostics::codes::ASSIGNMENT_SHAPE_MISMATCH)
+    );
+
+    Ok(())
+}

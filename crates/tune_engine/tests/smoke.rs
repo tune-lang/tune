@@ -46,6 +46,34 @@ let run(input) = helper(input)
 }
 
 #[test]
+fn compile_source_uses_module_aware_member_lowering() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let report = tune
+        .compile_source(
+            "main.tn",
+            r#"
+struct Stack {
+  len(): Size = 0
+  Stack[index: Size]: Int = index
+}
+let first(items: Stack) = items[0]
+"#,
+        )
+        .map_err(|_| "engine should compile source")?;
+
+    assert!(report.check.diagnostics.is_empty());
+    assert!(report.functions[0].ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::SequenceGet {
+            index_member: Some(_),
+            ..
+        }
+    )));
+
+    Ok(())
+}
+
+#[test]
 fn runtime_entry_points_exist_without_claiming_vm_is_done() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

@@ -49,7 +49,14 @@ fn lower_item_with_context(
             .unwrap_or_else(|| "<anonymous>".to_owned()),
         ops: Vec::new(),
     };
-    let context = LowerContext { resolved, module };
+    let analysis = module
+        .zip(resolved)
+        .map(|(module, resolved)| tune_shape::analyze_item(module, resolved, item));
+    let context = LowerContext {
+        resolved,
+        module,
+        analysis: analysis.as_ref(),
+    };
     context.lower_expr(body, &mut plan.ops);
     if matches!(body.kind, ExprKind::Sequence(_))
         && let Some(target) = context.lower_shape(item.shape.as_ref())
@@ -67,6 +74,7 @@ fn lower_item_with_context(
 struct LowerContext<'a> {
     resolved: Option<&'a ResolvedModule>,
     module: Option<&'a Module>,
+    analysis: Option<&'a tune_shape::ShapeAnalysis>,
 }
 
 impl LowerContext<'_> {

@@ -15,6 +15,7 @@ pub struct CheckReport {
     pub diagnostics: Vec<Diagnostic>,
     pub module: tune_hir::module::Module,
     pub resolved: tune_resolve::ResolvedModule,
+    pub shape: Vec<tune_shape::ShapeAnalysis>,
 }
 
 pub struct CompileReport {
@@ -71,7 +72,9 @@ impl Tune {
             .module
             .items
             .iter()
-            .filter_map(|item| tune_plan::lower_resolved_item_to_plan(item, &check.resolved))
+            .filter_map(|item| {
+                tune_plan::lower_resolved_module_item_to_plan(&check.module, item, &check.resolved)
+            })
             .collect();
 
         Ok(CompileReport { check, functions })
@@ -137,5 +140,6 @@ fn report_from_analysis(file: FileId, analysis: ModuleAnalysis) -> CheckReport {
         diagnostics: analysis.diagnostics(),
         module: analysis.module,
         resolved: analysis.resolved,
+        shape: analysis.shape,
     }
 }

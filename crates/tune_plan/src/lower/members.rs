@@ -56,6 +56,9 @@ impl LowerContext<'_> {
     }
 
     fn expr_shape(&self, expr: &Expr) -> Option<Shape> {
+        if let Some(shape) = self.analysis_expr_shape(expr) {
+            return Some(shape);
+        }
         match &expr.kind {
             ExprKind::Name(_) => self.name_shape(expr),
             ExprKind::Sequence(_) => Some(Shape::Sequence(Box::new(Shape::Hole))),
@@ -85,6 +88,15 @@ impl LowerContext<'_> {
                 .and_then(|param| self.lower_shape(param.shape.as_ref())),
             NameTarget::Local(_) | NameTarget::SelfValue | NameTarget::Variant(_) => None,
         }
+    }
+
+    fn analysis_expr_shape(&self, expr: &Expr) -> Option<Shape> {
+        self.analysis?
+            .expr_shapes
+            .iter()
+            .rev()
+            .find(|shape| shape.expr == expr.id)
+            .map(|shape| shape.shape.clone())
     }
 
     fn struct_shape_name<'shape>(&self, shape: &'shape Shape) -> Option<&'shape str> {
