@@ -21,7 +21,12 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
         params: plan.params.clone(),
         module_bindings: plan.module_bindings.clone(),
         constants: Vec::new(),
-        ops: Vec::new(),
+        blocks: vec![IrBlock {
+            id: BlockId(0),
+            ops: Vec::new(),
+        }],
+        current_block: BlockId(0),
+        next_block: 1,
         stack: Vec::new(),
     };
 
@@ -35,10 +40,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
         regs: lowerer.next_reg,
         locals: lowerer.locals,
         constants: lowerer.constants,
-        blocks: vec![IrBlock {
-            id: BlockId(0),
-            ops: lowerer.ops,
-        }],
+        blocks: lowerer.blocks,
     })
 }
 
@@ -48,7 +50,9 @@ struct Lowerer {
     params: Vec<tune_hir::MemberId>,
     module_bindings: Vec<HirId>,
     constants: Vec<IrConst>,
-    ops: Vec<IrOp>,
+    blocks: Vec<IrBlock>,
+    current_block: BlockId,
+    next_block: u32,
     stack: Vec<Reg>,
 }
 
@@ -58,10 +62,21 @@ impl Lowerer {
             PlanOp::ConstInt { value } => {
                 let dst = self.alloc_reg()?;
                 let constant = self.push_const(IrConst::Int(*value))?;
-                self.ops.push(IrOp::LoadConst {
+                self.push_op(IrOp::LoadConst {
                     dst,
                     constant,
                     shape: Shape::Int,
+                });
+                self.stack.push(dst);
+                Ok(())
+            }
+            PlanOp::ConstBool { value } => {
+                let dst = self.alloc_reg()?;
+                let constant = self.push_const(IrConst::Bool(*value))?;
+                self.push_op(IrOp::LoadConst {
+                    dst,
+                    constant,
+                    shape: Shape::Bool,
                 });
                 self.stack.push(dst);
                 Ok(())
@@ -70,7 +85,7 @@ impl Lowerer {
                 let rhs = self.pop("binary rhs")?;
                 let lhs = self.pop("binary lhs")?;
                 let dst = self.alloc_reg()?;
-                self.ops.push(IrOp::AddInt {
+                self.push_op(IrOp::AddInt {
                     dst,
                     a: lhs,
                     b: rhs,
@@ -84,7 +99,7 @@ impl Lowerer {
                 let local = local_slot(*local, local_offset(&self.module_bindings, &self.params))?;
                 self.track_local(local)?;
                 let dst = self.alloc_reg()?;
-                self.ops.push(IrOp::LoadLocal { dst, local });
+                self.push_op(IrOp::LoadLocal { dst, local });
                 self.stack.push(dst);
                 Ok(())
             }
@@ -94,7 +109,7 @@ impl Lowerer {
                 let local = param_slot(*param, &self.module_bindings, &self.params)?;
                 self.track_local(local)?;
                 let dst = self.alloc_reg()?;
-                self.ops.push(IrOp::LoadLocal { dst, local });
+                self.push_op(IrOp::LoadLocal { dst, local });
                 self.stack.push(dst);
                 Ok(())
             }
@@ -104,7 +119,7 @@ impl Lowerer {
                 let local = module_slot(*item, &self.module_bindings)?;
                 self.track_local(local)?;
                 let dst = self.alloc_reg()?;
-                self.ops.push(IrOp::LoadLocal { dst, local });
+                self.push_op(IrOp::LoadLocal { dst, local });
                 self.stack.push(dst);
                 Ok(())
             }
@@ -115,7 +130,7 @@ impl Lowerer {
                 let local = local_slot(*local, local_offset(&self.module_bindings, &self.params))?;
                 self.track_local(local)?;
                 let value = self.pop("local initializer")?;
-                self.ops.push(IrOp::StoreLocal { local, value });
+                self.push_op(IrOp::StoreLocal { local, value });
                 Ok(())
             }
             PlanOp::LocalLet {
@@ -133,7 +148,7 @@ impl Lowerer {
                 let local = module_slot(*item, &self.module_bindings)?;
                 self.track_local(local)?;
                 let value = self.pop("module initializer")?;
-                self.ops.push(IrOp::StoreLocal { local, value });
+                self.push_op(IrOp::StoreLocal { local, value });
                 if *keep_value {
                     self.stack.push(value);
                 }
@@ -144,7 +159,7 @@ impl Lowerer {
             } => Ok(()),
             PlanOp::Return => {
                 let value = self.stack.pop();
-                self.ops.push(IrOp::Return { value });
+                self.push_op(IrOp::Return { value });
                 Ok(())
             }
             PlanOp::DirectCall { target, arg_count } => {
@@ -154,7 +169,7 @@ impl Lowerer {
                 }
                 args.reverse();
                 let dst = self.alloc_reg()?;
-                self.ops.push(IrOp::CallDirect {
+                self.push_op(IrOp::CallDirect {
                     dst,
                     function: *target,
                     args,
@@ -162,6 +177,9 @@ impl Lowerer {
                 self.stack.push(dst);
                 Ok(())
             }
+            PlanOp::If {
+                branches, else_ops, ..
+            } => self.lower_if(branches, else_ops),
             PlanOp::BinaryOp { .. } => Err(IrLowerError::UnsupportedOp("binary op")),
             PlanOp::VariantConstruct { .. }
             | PlanOp::BindingGet { .. }
@@ -181,7 +199,6 @@ impl Lowerer {
             | PlanOp::BindingSet { .. }
             | PlanOp::FiniteFor { .. }
             | PlanOp::StringBuild
-            | PlanOp::If { .. }
             | PlanOp::Match { .. }
             | PlanOp::While { .. }
             | PlanOp::Loop { .. }
@@ -221,6 +238,82 @@ impl Lowerer {
         self.stack
             .pop()
             .ok_or(IrLowerError::StackUnderflow(context))
+    }
+
+    fn lower_if(
+        &mut self,
+        branches: &[tune_plan::PlanIfBranch],
+        else_ops: &[PlanOp],
+    ) -> Result<(), IrLowerError> {
+        let join = self.alloc_block();
+        let else_block = self.alloc_block();
+        let branch_blocks = branches
+            .iter()
+            .map(|_| self.alloc_block())
+            .collect::<Vec<_>>();
+
+        for (index, branch) in branches.iter().enumerate() {
+            for op in &branch.condition_ops {
+                self.lower_op(op)?;
+            }
+            let condition = self.pop("if condition")?;
+            let then_block = branch_blocks[index];
+            let false_block = branch_blocks.get(index + 1).copied().unwrap_or(else_block);
+            self.push_op(IrOp::Branch {
+                condition,
+                then_block,
+                else_block: false_block,
+            });
+            self.switch_to_block(then_block);
+            for op in &branch.body_ops {
+                self.lower_op(op)?;
+            }
+            if !self.current_block_returns() {
+                self.push_op(IrOp::Jump { target: join });
+            }
+            self.switch_to_block(false_block);
+        }
+
+        for op in else_ops {
+            self.lower_op(op)?;
+        }
+        if !self.current_block_returns() {
+            self.push_op(IrOp::Jump { target: join });
+        }
+        self.switch_to_block(join);
+        Ok(())
+    }
+
+    fn alloc_block(&mut self) -> BlockId {
+        let block = BlockId(self.next_block);
+        self.next_block = self.next_block.saturating_add(1);
+        self.blocks.push(IrBlock {
+            id: block,
+            ops: Vec::new(),
+        });
+        block
+    }
+
+    fn switch_to_block(&mut self, block: BlockId) {
+        self.current_block = block;
+    }
+
+    fn push_op(&mut self, op: IrOp) {
+        if let Some(block) = self
+            .blocks
+            .iter_mut()
+            .find(|block| block.id == self.current_block)
+        {
+            block.ops.push(op);
+        }
+    }
+
+    fn current_block_returns(&self) -> bool {
+        self.blocks
+            .iter()
+            .find(|block| block.id == self.current_block)
+            .and_then(|block| block.ops.last())
+            .is_some_and(|op| matches!(op, IrOp::Return { .. }))
     }
 }
 

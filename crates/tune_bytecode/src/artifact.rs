@@ -10,4 +10,5 @@ pub struct BytecodeArtifact {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BytecodeConst {
     Int(i64),
+    Bool(bool),
 }

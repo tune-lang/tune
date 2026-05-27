@@ -55,6 +55,7 @@ impl Vm {
                         .ok_or(VmError::ConstantOutOfBounds)?
                     {
                         BytecodeConst::Int(value) => Value::Int(*value),
+                        BytecodeConst::Bool(value) => Value::Bool(*value),
                     };
                     write_reg(&mut registers, instruction.a, value)?;
                 }
@@ -86,6 +87,20 @@ impl Vm {
                         .collect::<Result<Vec<_>, _>>()?;
                     let value = self.execute_function(call_site.function as usize, args)?;
                     write_reg(&mut registers, instruction.a, value)?;
+                }
+                Opcode::Jump => {
+                    ip = instruction.a as usize;
+                    continue;
+                }
+                Opcode::JumpIfFalse => {
+                    let condition = read_reg(&registers, instruction.a)?;
+                    if matches!(condition, Value::Bool(false)) {
+                        ip = instruction.b as usize;
+                        continue;
+                    }
+                    if !matches!(condition, Value::Bool(true)) {
+                        return Err(VmError::UnsupportedOpcode(Opcode::JumpIfFalse));
+                    }
                 }
                 Opcode::Return => {
                     if instruction.b == 0 {

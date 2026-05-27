@@ -116,6 +116,9 @@ impl LowerContext<'_> {
                     ops.push(PlanOp::ConstInt { value });
                 }
             }
+            ExprKind::Literal(LiteralKind::Bool(value)) => {
+                ops.push(PlanOp::ConstBool { value: *value });
+            }
             ExprKind::Literal(_) => {}
             ExprKind::CallableValue { params: _, body } => {
                 self.lower_expr(body, ops);
@@ -208,22 +211,20 @@ impl LowerContext<'_> {
                 branches,
                 else_branch,
             } => {
-                for branch in branches {
-                    self.lower_expr(&branch.condition, ops);
-                    self.lower_expr(&branch.body, ops);
-                }
-                if let Some(else_branch) = else_branch {
-                    self.lower_expr(else_branch, ops);
-                }
                 ops.push(PlanOp::If {
                     branches: branches
                         .iter()
                         .map(|branch| PlanIfBranch {
                             condition: branch.condition.id,
                             body: branch.body.id,
+                            condition_ops: self.lower_expr_to_ops(&branch.condition),
+                            body_ops: self.lower_expr_to_ops(&branch.body),
                         })
                         .collect(),
                     else_body: else_branch.as_ref().map(|branch| branch.id),
+                    else_ops: else_branch
+                        .as_ref()
+                        .map_or_else(Vec::new, |branch| self.lower_expr_to_ops(branch)),
                     span: expr.span,
                 });
             }
@@ -335,6 +336,12 @@ impl LowerContext<'_> {
                 ops.push(PlanOp::Assign);
             }
         }
+    }
+
+    fn lower_expr_to_ops(&self, expr: &Expr) -> Vec<PlanOp> {
+        let mut ops = Vec::new();
+        self.lower_expr(expr, &mut ops);
+        ops
     }
 
     fn call_op(&self, callee: &Expr, arg_count: usize) -> PlanOp {

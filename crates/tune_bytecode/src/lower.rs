@@ -4,12 +4,13 @@ use crate::Opcode;
 use crate::artifact::{BytecodeArtifact, BytecodeConst};
 use crate::function::{BytecodeCallSite, BytecodeFunction, Instruction};
 use tune_hir::HirId;
-use tune_ir::{IrConst, IrFunction, IrOp};
+use tune_ir::{BlockId, IrConst, IrFunction, IrOp};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BytecodeLowerError {
     UnsupportedIr(&'static str),
     UnknownFunction,
+    UnknownBlock,
     ConstantLimit,
 }
 
@@ -44,12 +45,14 @@ fn lower_ir_function_with_constants(
 ) -> Result<BytecodeFunction, BytecodeLowerError> {
     let mut instructions = Vec::new();
     let mut call_sites = Vec::new();
+    let block_offsets = block_offsets(function)?;
     for block in &function.blocks {
         for op in &block.ops {
             lower_op(
                 op,
                 function,
                 function_indices,
+                &block_offsets,
                 constants,
                 &mut call_sites,
                 &mut instructions,
@@ -69,6 +72,7 @@ fn lower_op(
     op: &IrOp,
     function: &IrFunction,
     function_indices: &HashMap<HirId, u32>,
+    block_offsets: &HashMap<BlockId, u32>,
     constants: &mut Vec<BytecodeConst>,
     call_sites: &mut Vec<BytecodeCallSite>,
     instructions: &mut Vec<Instruction>,
@@ -137,6 +141,43 @@ fn lower_op(
             });
             Ok(())
         }
+        IrOp::Jump { target } => {
+            let target = *block_offsets
+                .get(target)
+                .ok_or(BytecodeLowerError::UnknownBlock)?;
+            instructions.push(Instruction {
+                opcode: Opcode::Jump,
+                a: target,
+                b: 0,
+                c: 0,
+            });
+            Ok(())
+        }
+        IrOp::Branch {
+            condition,
+            then_block,
+            else_block,
+        } => {
+            let then_block = *block_offsets
+                .get(then_block)
+                .ok_or(BytecodeLowerError::UnknownBlock)?;
+            let else_block = *block_offsets
+                .get(else_block)
+                .ok_or(BytecodeLowerError::UnknownBlock)?;
+            instructions.push(Instruction {
+                opcode: Opcode::JumpIfFalse,
+                a: condition.0,
+                b: else_block,
+                c: 0,
+            });
+            instructions.push(Instruction {
+                opcode: Opcode::Jump,
+                a: then_block,
+                b: 0,
+                c: 0,
+            });
+            Ok(())
+        }
         IrOp::Return { value: Some(value) } => {
             instructions.push(Instruction {
                 opcode: Opcode::Return,
@@ -166,8 +207,30 @@ fn push_artifact_const(
     let index = u32::try_from(constants.len()).map_err(|_| BytecodeLowerError::ConstantLimit)?;
     match constant {
         IrConst::Int(value) => constants.push(BytecodeConst::Int(*value)),
+        IrConst::Bool(value) => constants.push(BytecodeConst::Bool(*value)),
     }
     Ok(index)
+}
+
+fn block_offsets(function: &IrFunction) -> Result<HashMap<BlockId, u32>, BytecodeLowerError> {
+    let mut offsets = HashMap::new();
+    let mut offset = 0_u32;
+    for block in &function.blocks {
+        offsets.insert(block.id, offset);
+        for op in &block.ops {
+            offset = offset
+                .checked_add(instruction_count(op))
+                .ok_or(BytecodeLowerError::ConstantLimit)?;
+        }
+    }
+    Ok(offsets)
+}
+
+fn instruction_count(op: &IrOp) -> u32 {
+    match op {
+        IrOp::Branch { .. } => 2,
+        _ => 1,
+    }
 }
 
 fn function_indices(functions: &[IrFunction]) -> Result<HashMap<HirId, u32>, BytecodeLowerError> {

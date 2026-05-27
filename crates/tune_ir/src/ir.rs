@@ -31,6 +31,7 @@ pub struct IrFunction {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IrConst {
     Int(i64),
+    Bool(bool),
 }
 
 #[derive(Debug, Clone)]

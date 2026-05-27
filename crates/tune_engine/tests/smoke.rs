@@ -152,6 +152,56 @@ fn run_file_executes_direct_callable_invocation() -> Result<(), &'static str> {
 }
 
 #[test]
+fn run_file_executes_explicit_return_from_callable() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            "let id(value: Int): Int = { return value; 99 }\nlet result: Int = id(3)",
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        tune.run_file(file).map_err(|error| {
+            eprintln!("{error:?}");
+            "file entry should run"
+        })?,
+        tune_runtime::value::Value::Int(3)
+    );
+
+    Ok(())
+}
+
+#[test]
+fn run_file_executes_if_return_from_callable() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let pick(flag: Bool): Int = {
+  if flag {
+    return 1
+  };
+  2
+}
+let result: Int = pick(true)
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        tune.run_file(file).map_err(|error| {
+            eprintln!("{error:?}");
+            "file entry should run"
+        })?,
+        tune_runtime::value::Value::Int(1)
+    );
+
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_local_binding_slice_through_vm() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

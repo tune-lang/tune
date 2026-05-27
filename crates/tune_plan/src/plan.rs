@@ -28,6 +28,8 @@ pub struct PlanModule {
 pub struct PlanIfBranch {
     pub condition: ExprId,
     pub body: ExprId,
+    pub condition_ops: Vec<PlanOp>,
+    pub body_ops: Vec<PlanOp>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,6 +51,9 @@ pub struct FiniteForContract {
 pub enum PlanOp {
     ConstInt {
         value: i64,
+    },
+    ConstBool {
+        value: bool,
     },
     DirectCall {
         target: HirId,
@@ -120,6 +125,7 @@ pub enum PlanOp {
     If {
         branches: Vec<PlanIfBranch>,
         else_body: Option<ExprId>,
+        else_ops: Vec<PlanOp>,
         span: Option<Span>,
     },
     Match {
