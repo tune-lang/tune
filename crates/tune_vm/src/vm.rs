@@ -20,21 +20,36 @@ impl Vm {
         match opcode {
             Opcode::Nop => {}
             Opcode::LoadConst => {}
+            Opcode::LoadLocal => {}
+            Opcode::StoreLocal => {}
+            Opcode::Move => {}
             Opcode::AddInt => {}
             Opcode::AddFloat => {}
             Opcode::AddSizeChecked => {}
             Opcode::AddByteWrap => {}
+            Opcode::SeqBuild => {}
+            Opcode::SeqPush => {}
             Opcode::SeqGetChecked => {}
             Opcode::SeqGetUnchecked => {}
+            Opcode::SeqSetChecked => {}
+            Opcode::SeqSetUnchecked => {}
             Opcode::FieldGet => {}
             Opcode::FieldSet => {}
+            Opcode::VariantConstruct => {}
             Opcode::CallDirect => {}
             Opcode::CallBound => {}
             Opcode::CallWitness => {}
             Opcode::CallHost => {}
+            Opcode::Jump => {}
+            Opcode::JumpIfFalse => {}
+            Opcode::MatchVariant => {}
+            Opcode::FiniteForInit => {}
+            Opcode::FiniteForNext => {}
             Opcode::ResultPropagate => {}
             Opcode::SpawnTask => {}
             Opcode::TaskJoin => {}
+            Opcode::StringBuild => {}
+            Opcode::Panic => {}
             Opcode::Return => {}
         }
     }
