@@ -1,16 +1,17 @@
 use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::expr::{Expr, ExprKind};
+mod calls;
 mod contracts;
 mod control;
+mod diagnostics;
 
-use tune_hir::item::{Item, ItemKind, Visibility};
+use tune_hir::item::Item;
 use tune_hir::module::Module;
 use tune_hir::{ExprId, MemberId};
-use tune_resolve::ResolvedModule;
+use tune_resolve::{ResolvedModule, VariantId};
 
 use crate::{
-    BindingKey, BindingState, Shape, StateFrame, expr_literal_fact,
-    expr_propagated_error_shape_fact, expr_shape_fact, lower_resolved_hir_shape,
+    BindingKey, BindingState, Shape, StateFrame, expr_literal_fact, lower_resolved_hir_shape,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,10 +43,40 @@ pub struct MaterializerCheck {
     pub span: Option<Span>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallTarget {
+    TopLevel(tune_hir::HirId),
+    Member(MemberId),
+    Variant(VariantId),
+    Bound,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallSignature {
+    pub target: CallTarget,
+    pub params: Vec<Shape>,
+    pub ret: Shape,
+    pub receiver: Option<Shape>,
+    pub span: Option<Span>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallCheck {
+    pub expr: ExprId,
+    pub target: CallTarget,
+    pub args: Vec<Shape>,
+    pub params: Vec<Shape>,
+    pub ret: Shape,
+    pub receiver: Option<Shape>,
+    pub span: Option<Span>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShapeAnalysis {
     pub frame: StateFrame,
     pub expr_shapes: Vec<ExprShape>,
+    pub calls: Vec<CallCheck>,
     pub assignments: Vec<AssignmentCheck>,
     pub finite_for: Vec<FiniteForCheck>,
     pub materializers: Vec<MaterializerCheck>,
@@ -59,6 +90,7 @@ pub fn analyze_item(module: &Module, resolved: &ResolvedModule, item: &Item) -> 
         resolved,
         frame: StateFrame::new(),
         expr_shapes: Vec::new(),
+        calls: Vec::new(),
         assignments: Vec::new(),
         finite_for: Vec::new(),
         materializers: Vec::new(),
@@ -103,6 +135,7 @@ struct Analyzer<'a> {
     resolved: &'a ResolvedModule,
     frame: StateFrame,
     expr_shapes: Vec<ExprShape>,
+    calls: Vec<CallCheck>,
     assignments: Vec<AssignmentCheck>,
     finite_for: Vec<FiniteForCheck>,
     materializers: Vec<MaterializerCheck>,
@@ -114,6 +147,7 @@ impl Analyzer<'_> {
         ShapeAnalysis {
             frame: self.frame,
             expr_shapes: self.expr_shapes,
+            calls: self.calls,
             assignments: self.assignments,
             finite_for: self.finite_for,
             materializers: self.materializers,
@@ -146,13 +180,7 @@ impl Analyzer<'_> {
             ExprKind::Missing => Shape::Hole,
             ExprKind::Literal(_) | ExprKind::Sequence(_) => self.literal_or_sequence_shape(expr),
             ExprKind::Name(_) => self.name_shape(expr),
-            ExprKind::Call { callee, args } => {
-                self.analyze_expr(callee);
-                for arg in args {
-                    self.analyze_expr(arg);
-                }
-                expr_shape_fact(expr, self.module, self.resolved).unwrap_or(Shape::Hole)
-            }
+            ExprKind::Call { callee, args } => self.analyze_call(expr, callee, args),
             ExprKind::Let { shape, value, .. } => {
                 self.analyze_let(expr, shape.as_ref(), value.as_deref())
             }
@@ -308,50 +336,6 @@ impl Analyzer<'_> {
         actual
     }
 
-    fn check_public_api_shape(&mut self, item: &Item) {
-        if item.visibility != Visibility::Public || item.shape.is_some() {
-            return;
-        }
-        if !matches!(item.kind, ItemKind::Let | ItemKind::CallableDecl) {
-            return;
-        }
-        self.diagnostics.push(
-            Diagnostic::warning(
-                codes::PUBLIC_API_INFERENCE,
-                "public API relies on inferred shape",
-                item.span.unwrap_or_else(Span::synthetic),
-                "public items need an explicit shape for stable compiler facts",
-            )
-            .with_help("add an explicit return or storage shape to this public item")
-            .build(),
-        );
-    }
-
-    fn check_result_propagation(&mut self, item: &Item, body: &Expr, expected: &Shape) {
-        let Some(error_shape) = expr_propagated_error_shape_fact(body, self.module, self.resolved)
-        else {
-            return;
-        };
-        let Shape::Result { err, .. } = expected else {
-            self.diagnostics
-                .push(result_propagation_diag(item, body, &error_shape));
-            return;
-        };
-        if !err.accepts(&error_shape) {
-            self.diagnostics
-                .push(result_propagation_diag(item, body, &error_shape));
-        }
-    }
-
-    fn check_untyped_result_propagation(&mut self, item: &Item, body: &Expr) {
-        let Some(error_shape) = expr_propagated_error_shape_fact(body, self.module, self.resolved)
-        else {
-            return;
-        };
-        self.diagnostics
-            .push(result_propagation_diag(item, body, &error_shape));
-    }
-
     fn check_value_against(&mut self, expected: &Shape, actual: &Shape, span: Option<Span>) {
         if !expected.accepts(actual) {
             self.diagnostics.push(
@@ -365,15 +349,4 @@ impl Analyzer<'_> {
             );
         }
     }
-}
-
-fn result_propagation_diag(item: &Item, body: &Expr, error_shape: &Shape) -> Diagnostic {
-    Diagnostic::error(
-        codes::RESULT_PROPAGATION_ERROR,
-        "`!` propagates an error shape not carried by the return shape",
-        body.span.or(item.span).unwrap_or_else(Span::synthetic),
-        format!("propagated error shape is `{error_shape:?}`"),
-    )
-    .with_help("return a `Result<Ok, Error>` shape that can carry this error")
-    .build()
 }

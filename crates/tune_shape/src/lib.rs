@@ -9,8 +9,8 @@ pub mod shape;
 pub mod state;
 
 pub use analyze::{
-    AssignmentCheck, ExprShape, FiniteForCheck, MaterializerCheck, ShapeAnalysis, analyze_item,
-    analyze_module,
+    AssignmentCheck, CallCheck, CallSignature, CallTarget, ExprShape, FiniteForCheck,
+    MaterializerCheck, ShapeAnalysis, analyze_item, analyze_module,
 };
 pub use expr::{expr_literal_fact, expr_shape_fact};
 pub use flow::{expr_propagated_error_shape_fact, expr_result_constructor_shape_fact};
