@@ -228,7 +228,7 @@ fn direct_call_targets(
     function: &tune_plan::PlanFunction,
 ) -> impl Iterator<Item = tune_hir::HirId> + '_ {
     function.ops.iter().filter_map(|op| match op {
-        tune_plan::PlanOp::DirectCall { target } => Some(*target),
+        tune_plan::PlanOp::DirectCall { target, .. } => Some(*target),
         _ => None,
     })
 }

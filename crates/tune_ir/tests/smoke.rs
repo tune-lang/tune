@@ -40,6 +40,7 @@ fn ir_has_typed_slots_for_core_planned_operations() {
         ],
     };
     let function = tune_ir::IrFunction {
+        owner: None,
         name: "run".into(),
         regs: 8,
         locals: 0,
@@ -63,6 +64,7 @@ fn lowers_integer_add_plan_to_ir() -> Result<(), &'static str> {
     let plan = tune_plan::PlanFunction {
         name: "main".into(),
         owner: None,
+        params: Vec::new(),
         module_bindings: Vec::new(),
         ops: vec![
             tune_plan::PlanOp::ConstInt { value: 1 },
@@ -96,6 +98,7 @@ fn lowers_local_binding_plan_to_ir_loads_and_stores() -> Result<(), &'static str
     let plan = tune_plan::PlanFunction {
         owner: None,
         name: "entry".into(),
+        params: Vec::new(),
         module_bindings: Vec::new(),
         ops: vec![
             tune_plan::PlanOp::ConstInt { value: 1 },
@@ -130,6 +133,66 @@ fn lowers_local_binding_plan_to_ir_loads_and_stores() -> Result<(), &'static str
             local: tune_resolve::LocalId(0),
             ..
         }
+    ));
+
+    Ok(())
+}
+
+#[test]
+fn lowers_direct_call_plan_to_ir_with_param_slots() -> Result<(), &'static str> {
+    let param = tune_hir::MemberId {
+        owner: tune_hir::HirId(1),
+        kind: tune_hir::MemberKind::Param,
+        index: 0,
+    };
+    let plan = tune_plan::PlanFunction {
+        owner: Some(tune_hir::HirId(1)),
+        name: "id".into(),
+        params: vec![param],
+        module_bindings: Vec::new(),
+        ops: vec![
+            tune_plan::PlanOp::BindingGet {
+                source: Some(tune_resolve::NameTarget::Param(param)),
+            },
+            tune_plan::PlanOp::Return,
+        ],
+    };
+
+    let ir = tune_ir::lower_plan_function(&plan).map_err(|_| "plan should lower")?;
+
+    assert_eq!(ir.owner, Some(tune_hir::HirId(1)));
+    assert_eq!(ir.locals, 1);
+    assert!(matches!(
+        ir.blocks[0].ops[0],
+        tune_ir::IrOp::LoadLocal {
+            local: tune_resolve::LocalId(0),
+            ..
+        }
+    ));
+
+    let entry = tune_plan::PlanFunction {
+        owner: None,
+        name: "<entry>".into(),
+        params: Vec::new(),
+        module_bindings: Vec::new(),
+        ops: vec![
+            tune_plan::PlanOp::ConstInt { value: 7 },
+            tune_plan::PlanOp::DirectCall {
+                target: tune_hir::HirId(1),
+                arg_count: 1,
+            },
+            tune_plan::PlanOp::Return,
+        ],
+    };
+    let ir = tune_ir::lower_plan_function(&entry).map_err(|_| "entry should lower")?;
+
+    assert!(matches!(
+        ir.blocks[0].ops[1],
+        tune_ir::IrOp::CallDirect {
+            function: tune_hir::HirId(1),
+            ref args,
+            ..
+        } if args == &vec![tune_ir::Reg(0)]
     ));
 
     Ok(())

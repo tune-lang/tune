@@ -1,21 +1,28 @@
+use std::collections::HashMap;
+
 use crate::Opcode;
 use crate::artifact::{BytecodeArtifact, BytecodeConst};
-use crate::function::{BytecodeFunction, Instruction};
+use crate::function::{BytecodeCallSite, BytecodeFunction, Instruction};
+use tune_hir::HirId;
 use tune_ir::{IrConst, IrFunction, IrOp};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BytecodeLowerError {
     UnsupportedIr(&'static str),
+    UnknownFunction,
     ConstantLimit,
 }
 
 pub fn lower_ir_functions(
     functions: &[IrFunction],
 ) -> Result<BytecodeArtifact, BytecodeLowerError> {
+    let function_indices = function_indices(functions)?;
     let mut constants = Vec::new();
     let functions = functions
         .iter()
-        .map(|function| lower_ir_function_with_constants(function, &mut constants))
+        .map(|function| {
+            lower_ir_function_with_constants(function, &function_indices, &mut constants)
+        })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(BytecodeArtifact {
         entry_function: (!functions.is_empty()).then_some(0),
@@ -26,23 +33,34 @@ pub fn lower_ir_functions(
 
 pub fn lower_ir_function(function: &IrFunction) -> Result<BytecodeFunction, BytecodeLowerError> {
     let mut constants = Vec::new();
-    lower_ir_function_with_constants(function, &mut constants)
+    let function_indices = function_indices(std::slice::from_ref(function))?;
+    lower_ir_function_with_constants(function, &function_indices, &mut constants)
 }
 
 fn lower_ir_function_with_constants(
     function: &IrFunction,
+    function_indices: &HashMap<HirId, u32>,
     constants: &mut Vec<BytecodeConst>,
 ) -> Result<BytecodeFunction, BytecodeLowerError> {
     let mut instructions = Vec::new();
+    let mut call_sites = Vec::new();
     for block in &function.blocks {
         for op in &block.ops {
-            lower_op(op, function, constants, &mut instructions)?;
+            lower_op(
+                op,
+                function,
+                function_indices,
+                constants,
+                &mut call_sites,
+                &mut instructions,
+            )?;
         }
     }
     Ok(BytecodeFunction {
         name: function.name.clone(),
         register_count: function.regs,
         local_count: function.locals,
+        call_sites,
         instructions,
     })
 }
@@ -50,7 +68,9 @@ fn lower_ir_function_with_constants(
 fn lower_op(
     op: &IrOp,
     function: &IrFunction,
+    function_indices: &HashMap<HirId, u32>,
     constants: &mut Vec<BytecodeConst>,
+    call_sites: &mut Vec<BytecodeCallSite>,
     instructions: &mut Vec<Instruction>,
 ) -> Result<(), BytecodeLowerError> {
     match op {
@@ -95,6 +115,28 @@ fn lower_op(
             });
             Ok(())
         }
+        IrOp::CallDirect {
+            dst,
+            function,
+            args,
+        } => {
+            let function = *function_indices
+                .get(function)
+                .ok_or(BytecodeLowerError::UnknownFunction)?;
+            let call_site =
+                u32::try_from(call_sites.len()).map_err(|_| BytecodeLowerError::ConstantLimit)?;
+            call_sites.push(BytecodeCallSite {
+                function,
+                args: args.iter().map(|arg| arg.0).collect(),
+            });
+            instructions.push(Instruction {
+                opcode: Opcode::CallDirect,
+                a: dst.0,
+                b: call_site,
+                c: 0,
+            });
+            Ok(())
+        }
         IrOp::Return { value: Some(value) } => {
             instructions.push(Instruction {
                 opcode: Opcode::Return,
@@ -126,4 +168,17 @@ fn push_artifact_const(
         IrConst::Int(value) => constants.push(BytecodeConst::Int(*value)),
     }
     Ok(index)
+}
+
+fn function_indices(functions: &[IrFunction]) -> Result<HashMap<HirId, u32>, BytecodeLowerError> {
+    let mut indices = HashMap::new();
+    for (index, function) in functions.iter().enumerate() {
+        if let Some(owner) = function.owner {
+            indices.insert(
+                owner,
+                u32::try_from(index).map_err(|_| BytecodeLowerError::ConstantLimit)?,
+            );
+        }
+    }
+    Ok(indices)
 }

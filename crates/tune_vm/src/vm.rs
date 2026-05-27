@@ -13,6 +13,9 @@ pub enum VmError {
     MissingEntry,
     RegisterOutOfBounds,
     ConstantOutOfBounds,
+    FunctionOutOfBounds,
+    CallSiteOutOfBounds,
+    ArityMismatch,
     UnsupportedOpcode(Opcode),
 }
 
@@ -24,13 +27,23 @@ impl Vm {
     pub fn run_entry(&mut self) -> Result<Value, VmError> {
         // v0: dense Rust match dispatch. Optimized VM can add superinstructions later.
         let entry = self.artifact.entry_function.ok_or(VmError::MissingEntry)? as usize;
+        self.execute_function(entry, Vec::new())
+    }
+
+    fn execute_function(&self, function_index: usize, args: Vec<Value>) -> Result<Value, VmError> {
         let function = self
             .artifact
             .functions
-            .get(entry)
-            .ok_or(VmError::MissingEntry)?;
+            .get(function_index)
+            .ok_or(VmError::FunctionOutOfBounds)?;
         let mut registers = vec![Value::Unit; function.register_count as usize];
         let mut locals = vec![Value::Unit; function.local_count as usize];
+        if args.len() > locals.len() {
+            return Err(VmError::ArityMismatch);
+        }
+        for (slot, arg) in args.into_iter().enumerate() {
+            locals[slot] = arg;
+        }
         let mut ip = 0;
         while let Some(instruction) = function.instructions.get(ip) {
             match instruction.opcode {
@@ -60,6 +73,19 @@ impl Vm {
                         return Err(VmError::UnsupportedOpcode(Opcode::AddInt));
                     };
                     write_reg(&mut registers, instruction.a, Value::Int(left + right))?;
+                }
+                Opcode::CallDirect => {
+                    let call_site = function
+                        .call_sites
+                        .get(instruction.b as usize)
+                        .ok_or(VmError::CallSiteOutOfBounds)?;
+                    let args = call_site
+                        .args
+                        .iter()
+                        .map(|arg| read_reg(&registers, *arg))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let value = self.execute_function(call_site.function as usize, args)?;
+                    write_reg(&mut registers, instruction.a, value)?;
                 }
                 Opcode::Return => {
                     if instruction.b == 0 {

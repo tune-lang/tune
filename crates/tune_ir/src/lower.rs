@@ -18,6 +18,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
     let mut lowerer = Lowerer {
         next_reg: 0,
         locals: 0,
+        params: plan.params.clone(),
         module_bindings: plan.module_bindings.clone(),
         constants: Vec::new(),
         ops: Vec::new(),
@@ -29,6 +30,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
     }
 
     Ok(IrFunction {
+        owner: plan.owner,
         name: plan.name.clone(),
         regs: lowerer.next_reg,
         locals: lowerer.locals,
@@ -43,6 +45,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
 struct Lowerer {
     next_reg: u32,
     locals: u32,
+    params: Vec<tune_hir::MemberId>,
     module_bindings: Vec<HirId>,
     constants: Vec<IrConst>,
     ops: Vec<IrOp>,
@@ -78,7 +81,17 @@ impl Lowerer {
             PlanOp::BindingGet {
                 source: Some(NameTarget::Local(local)),
             } => {
-                let local = local_slot(*local, plan_local_offset(&self.module_bindings))?;
+                let local = local_slot(*local, local_offset(&self.module_bindings, &self.params))?;
+                self.track_local(local)?;
+                let dst = self.alloc_reg()?;
+                self.ops.push(IrOp::LoadLocal { dst, local });
+                self.stack.push(dst);
+                Ok(())
+            }
+            PlanOp::BindingGet {
+                source: Some(NameTarget::Param(param)),
+            } => {
+                let local = param_slot(*param, &self.module_bindings, &self.params)?;
                 self.track_local(local)?;
                 let dst = self.alloc_reg()?;
                 self.ops.push(IrOp::LoadLocal { dst, local });
@@ -99,7 +112,7 @@ impl Lowerer {
                 local: Some(local),
                 initialized: true,
             } => {
-                let local = local_slot(*local, plan_local_offset(&self.module_bindings))?;
+                let local = local_slot(*local, local_offset(&self.module_bindings, &self.params))?;
                 self.track_local(local)?;
                 let value = self.pop("local initializer")?;
                 self.ops.push(IrOp::StoreLocal { local, value });
@@ -134,9 +147,23 @@ impl Lowerer {
                 self.ops.push(IrOp::Return { value });
                 Ok(())
             }
+            PlanOp::DirectCall { target, arg_count } => {
+                let mut args = Vec::with_capacity(*arg_count);
+                for _ in 0..*arg_count {
+                    args.push(self.pop("call argument")?);
+                }
+                args.reverse();
+                let dst = self.alloc_reg()?;
+                self.ops.push(IrOp::CallDirect {
+                    dst,
+                    function: *target,
+                    args,
+                });
+                self.stack.push(dst);
+                Ok(())
+            }
             PlanOp::BinaryOp { .. } => Err(IrLowerError::UnsupportedOp("binary op")),
-            PlanOp::DirectCall { .. }
-            | PlanOp::VariantConstruct { .. }
+            PlanOp::VariantConstruct { .. }
             | PlanOp::BindingGet { .. }
             | PlanOp::BoundCall
             | PlanOp::MemberCall { .. }
@@ -197,8 +224,9 @@ impl Lowerer {
     }
 }
 
-fn plan_local_offset(module_bindings: &[HirId]) -> u32 {
-    u32::try_from(module_bindings.len()).unwrap_or(u32::MAX)
+fn local_offset(module_bindings: &[HirId], params: &[tune_hir::MemberId]) -> u32 {
+    let offset = module_bindings.len().saturating_add(params.len());
+    u32::try_from(offset).unwrap_or(u32::MAX)
 }
 
 fn local_slot(local: LocalId, offset: u32) -> Result<LocalId, IrLowerError> {
@@ -217,5 +245,23 @@ fn module_slot(item: HirId, module_bindings: &[HirId]) -> Result<LocalId, IrLowe
         .ok_or(IrLowerError::UnsupportedOp("module binding"))?;
     Ok(LocalId(
         u32::try_from(index).map_err(|_| IrLowerError::RegisterLimit)?,
+    ))
+}
+
+fn param_slot(
+    param: tune_hir::MemberId,
+    module_bindings: &[HirId],
+    params: &[tune_hir::MemberId],
+) -> Result<LocalId, IrLowerError> {
+    let index = params
+        .iter()
+        .position(|candidate| *candidate == param)
+        .ok_or(IrLowerError::UnsupportedOp("param binding"))?;
+    let slot = module_bindings
+        .len()
+        .checked_add(index)
+        .ok_or(IrLowerError::RegisterLimit)?;
+    Ok(LocalId(
+        u32::try_from(slot).map_err(|_| IrLowerError::RegisterLimit)?,
     ))
 }

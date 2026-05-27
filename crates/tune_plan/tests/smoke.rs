@@ -65,7 +65,8 @@ let ok(value) = Ok(value)
         }
     )));
     assert!(each.ops.contains(&tune_plan::PlanOp::DirectCall {
-        target: tune_hir::HirId(0)
+        target: tune_hir::HirId(0),
+        arg_count: 1,
     }));
 
     let values = tune_plan::lower_resolved_item_to_plan(&module.items[3], &resolved)

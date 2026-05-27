@@ -20,6 +20,7 @@ pub struct HostSymbolId(pub u32);
 
 #[derive(Debug, Clone)]
 pub struct IrFunction {
+    pub owner: Option<HirId>,
     pub name: String,
     pub regs: u32,
     pub locals: u32,

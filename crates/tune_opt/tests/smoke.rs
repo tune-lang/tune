@@ -7,6 +7,7 @@ fn smoke() {
 #[test]
 fn optimizer_runs_ordered_semantic_passes_over_ir() {
     let mut function = tune_ir::IrFunction {
+        owner: None,
         name: "run".into(),
         regs: 0,
         locals: 0,

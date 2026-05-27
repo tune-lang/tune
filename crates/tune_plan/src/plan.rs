@@ -13,6 +13,7 @@ use crate::meta::MetaPlan;
 pub struct PlanFunction {
     pub owner: Option<HirId>,
     pub name: String,
+    pub params: Vec<MemberId>,
     pub module_bindings: Vec<HirId>,
     pub ops: Vec<PlanOp>,
 }
@@ -51,6 +52,7 @@ pub enum PlanOp {
     },
     DirectCall {
         target: HirId,
+        arg_count: usize,
     },
     VariantConstruct {
         variant: VariantId,

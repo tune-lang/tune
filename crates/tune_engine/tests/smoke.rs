@@ -39,7 +39,8 @@ let run(input) = helper(input)
         report.functions[1]
             .ops
             .contains(&tune_plan::PlanOp::DirectCall {
-                target: tune_hir::HirId(0)
+                target: tune_hir::HirId(0),
+                arg_count: 1,
             })
     );
 
@@ -116,6 +117,27 @@ fn run_file_executes_top_level_value_bindings_in_order() -> Result<(), &'static 
     let mut tune = tune_engine::Tune::new();
     let file = tune
         .add_file("app.tn", "let a: Int = 1\nlet b: Int = a + 2")
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        tune.run_file(file).map_err(|error| {
+            eprintln!("{error:?}");
+            "file entry should run"
+        })?,
+        tune_runtime::value::Value::Int(3)
+    );
+
+    Ok(())
+}
+
+#[test]
+fn run_file_executes_direct_callable_invocation() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            "let add(a: Int, b: Int): Int = a + b\nlet value: Int = add(1, 2)",
+        )
         .ok_or("file should allocate")?;
 
     assert_eq!(

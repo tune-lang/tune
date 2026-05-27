@@ -19,6 +19,7 @@ pub fn lower_resolved_module_to_plan(module: &Module, resolved: &ResolvedModule)
         let mut entry = PlanFunction {
             owner: None,
             name: "<entry>".to_owned(),
+            params: Vec::new(),
             module_bindings: module_bindings.clone(),
             ops: Vec::new(),
         };

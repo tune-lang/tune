@@ -17,6 +17,7 @@ pub fn lower_to_plan(name: &str) -> PlanFunction {
     PlanFunction {
         owner: None,
         name: name.into(),
+        params: Vec::new(),
         module_bindings: Vec::new(),
         ops: Vec::new(),
     }
@@ -53,6 +54,7 @@ fn lower_item_with_context(
             .name
             .clone()
             .unwrap_or_else(|| "<anonymous>".to_owned()),
+        params: item.params.iter().map(|param| param.id).collect(),
         module_bindings: Vec::new(),
         ops: Vec::new(),
     };
@@ -138,7 +140,7 @@ impl LowerContext<'_> {
                 for arg in args {
                     self.lower_expr(arg, ops);
                 }
-                ops.push(self.call_op(callee));
+                ops.push(self.call_op(callee, args.len()));
             }
             ExprKind::Field { base, name } => {
                 self.lower_expr(base, ops);
@@ -335,7 +337,7 @@ impl LowerContext<'_> {
         }
     }
 
-    fn call_op(&self, callee: &Expr) -> PlanOp {
+    fn call_op(&self, callee: &Expr, arg_count: usize) -> PlanOp {
         if let ExprKind::Field { base, name } = &callee.kind {
             let name = name.clone().unwrap_or_default();
             return PlanOp::MemberCall {
@@ -345,7 +347,7 @@ impl LowerContext<'_> {
         }
 
         match self.name_target(callee.id) {
-            Some(NameTarget::TopLevel(target)) => PlanOp::DirectCall { target },
+            Some(NameTarget::TopLevel(target)) => PlanOp::DirectCall { target, arg_count },
             Some(NameTarget::Variant(variant)) => PlanOp::VariantConstruct { variant },
             _ => PlanOp::BoundCall,
         }
