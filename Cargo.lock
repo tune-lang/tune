@@ -182,7 +182,10 @@ dependencies = [
 name = "tune_ir"
 version = "0.1.0"
 dependencies = [
+ "tune_diagnostics",
+ "tune_hir",
  "tune_plan",
+ "tune_resolve",
  "tune_shape",
 ]
 

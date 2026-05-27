@@ -1,15 +1,55 @@
+use tune_diagnostics::Span;
+use tune_hir::{ExprId, HirId};
+use tune_resolve::{LocalId, VariantId};
+use tune_shape::Shape;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Reg(pub u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct BlockId(pub u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ConstId(pub u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FieldId(pub u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct HostSymbolId(pub u32);
 
 #[derive(Debug, Clone)]
 pub struct IrFunction {
     pub name: String,
     pub regs: u32,
+    pub blocks: Vec<IrBlock>,
+}
+
+#[derive(Debug, Clone)]
+pub struct IrBlock {
+    pub id: BlockId,
     pub ops: Vec<IrOp>,
 }
 
 #[derive(Debug, Clone)]
 pub enum IrOp {
+    LoadConst {
+        dst: Reg,
+        constant: ConstId,
+        shape: Shape,
+    },
+    LoadLocal {
+        dst: Reg,
+        local: LocalId,
+    },
+    StoreLocal {
+        local: LocalId,
+        value: Reg,
+    },
+    Move {
+        dst: Reg,
+        src: Reg,
+    },
     AddInt {
         dst: Reg,
         a: Reg,
@@ -25,14 +65,22 @@ pub enum IrOp {
         a: Reg,
         b: Reg,
     },
+    SeqBuild {
+        dst: Reg,
+        element_shape: Shape,
+    },
+    SeqPush {
+        seq: Reg,
+        value: Reg,
+    },
     GetField {
         dst: Reg,
         base: Reg,
-        field: u32,
+        field: FieldId,
     },
     SetField {
         base: Reg,
-        field: u32,
+        field: FieldId,
         value: Reg,
     },
     SeqGet {
@@ -41,12 +89,90 @@ pub enum IrOp {
         index: Reg,
         checked: bool,
     },
+    SeqSet {
+        seq: Reg,
+        index: Reg,
+        value: Reg,
+        checked: bool,
+    },
+    VariantConstruct {
+        dst: Reg,
+        variant: VariantId,
+        args: Vec<Reg>,
+    },
     CallDirect {
         dst: Reg,
-        function: u32,
+        function: HirId,
+        args: Vec<Reg>,
+    },
+    CallBound {
+        dst: Reg,
+        callee: Reg,
+        args: Vec<Reg>,
+    },
+    CallWitness {
+        dst: Reg,
+        witness: Reg,
+        args: Vec<Reg>,
+    },
+    CallHost {
+        dst: Reg,
+        symbol: HostSymbolId,
+        args: Vec<Reg>,
+    },
+    Jump {
+        target: BlockId,
+    },
+    Branch {
+        condition: Reg,
+        then_block: BlockId,
+        else_block: BlockId,
+    },
+    MatchVariant {
+        scrutinee: Reg,
+        arms: Vec<VariantArm>,
+        else_block: Option<BlockId>,
+    },
+    FiniteForInit {
+        iterator: Reg,
+        iterable: Reg,
+        len: Reg,
+    },
+    FiniteForNext {
+        iterator: Reg,
+        index: Reg,
+        item: Reg,
+        body: BlockId,
+        done: BlockId,
+    },
+    ResultPropagate {
+        dst: Reg,
+        result: Reg,
+        expr: ExprId,
+        span: Option<Span>,
+    },
+    Spawn {
+        dst: Reg,
+        callable: Reg,
+    },
+    TaskJoin {
+        dst: Reg,
+        task: Reg,
+    },
+    StringBuild {
+        dst: Reg,
+        parts: Vec<Reg>,
+    },
+    Panic {
         args: Vec<Reg>,
     },
     Return {
-        value: Reg,
+        value: Option<Reg>,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct VariantArm {
+    pub variant: VariantId,
+    pub block: BlockId,
 }
