@@ -4,3 +4,5 @@ pub mod hover;
 pub mod inlay;
 pub mod server;
 pub mod signature;
+
+pub use server::LspSession;
