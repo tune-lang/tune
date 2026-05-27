@@ -1,7 +1,10 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::state::StateHandle;
 use crate::task::TaskId;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Value {
     Unit,
     Int(i64),
@@ -13,7 +16,7 @@ pub enum Value {
     Sequence(Vec<Value>),
     Struct {
         owner: u32,
-        fields: Vec<Value>,
+        fields: StructFields,
     },
     Variant {
         variant: RuntimeVariant,
@@ -22,6 +25,73 @@ pub enum Value {
     StructState(StateHandle),
     Callable(CallableValue),
     Task(TaskHandle),
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Unit, Self::Unit) => true,
+            (Self::Int(left), Self::Int(right)) => left == right,
+            (Self::Float(left), Self::Float(right)) => left == right,
+            (Self::Size(left), Self::Size(right)) => left == right,
+            (Self::Byte(left), Self::Byte(right)) => left == right,
+            (Self::Bool(left), Self::Bool(right)) => left == right,
+            (Self::String(left), Self::String(right)) => left == right,
+            (Self::Sequence(left), Self::Sequence(right)) => left == right,
+            (
+                Self::Struct {
+                    owner: left_owner,
+                    fields: left_fields,
+                },
+                Self::Struct {
+                    owner: right_owner,
+                    fields: right_fields,
+                },
+            ) => left_owner == right_owner && left_fields == right_fields,
+            (
+                Self::Variant {
+                    variant: left_variant,
+                    fields: left_fields,
+                },
+                Self::Variant {
+                    variant: right_variant,
+                    fields: right_fields,
+                },
+            ) => left_variant == right_variant && left_fields == right_fields,
+            (Self::StructState(left), Self::StructState(right)) => left == right,
+            (Self::Callable(left), Self::Callable(right)) => left == right,
+            (Self::Task(left), Self::Task(right)) => left == right,
+            _ => false,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StructFields(Rc<RefCell<Vec<Value>>>);
+
+impl StructFields {
+    #[must_use]
+    pub fn new(fields: Vec<Value>) -> Self {
+        Self(Rc::new(RefCell::new(fields)))
+    }
+
+    #[must_use]
+    pub fn get(&self, index: usize) -> Option<Value> {
+        self.0.borrow().get(index).cloned()
+    }
+
+    pub fn set(&self, index: usize, value: Value) -> Option<()> {
+        let mut fields = self.0.borrow_mut();
+        let field = fields.get_mut(index)?;
+        *field = value;
+        Some(())
+    }
+}
+
+impl PartialEq for StructFields {
+    fn eq(&self, other: &Self) -> bool {
+        *self.0.borrow() == *other.0.borrow()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

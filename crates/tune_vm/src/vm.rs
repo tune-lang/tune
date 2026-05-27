@@ -3,7 +3,7 @@ use tune_bytecode::{
     artifact::{BytecodeArtifact, BytecodeConst},
     function::BytecodeVariant,
 };
-use tune_runtime::value::{RuntimeVariant, Value};
+use tune_runtime::value::{RuntimeVariant, StructFields, Value};
 
 pub struct Vm {
     pub artifact: BytecodeArtifact,
@@ -93,7 +93,7 @@ impl Vm {
                         instruction.a,
                         Value::Struct {
                             owner: site.owner,
-                            fields,
+                            fields: StructFields::new(fields),
                         },
                     )?;
                 }
@@ -101,24 +101,17 @@ impl Vm {
                     Value::Struct { fields, .. } => {
                         let value = fields
                             .get(instruction.c as usize)
-                            .cloned()
                             .ok_or(VmError::RegisterOutOfBounds)?;
                         write_reg(&mut registers, instruction.a, value)?;
                     }
                     _ => return Err(VmError::UnsupportedOpcode(Opcode::FieldGet)),
                 },
                 Opcode::FieldSet => match read_reg(&registers, instruction.a)? {
-                    Value::Struct { owner, mut fields } => {
+                    Value::Struct { fields, .. } => {
                         let value = read_reg(&registers, instruction.c)?;
-                        let slot = fields
-                            .get_mut(instruction.b as usize)
+                        fields
+                            .set(instruction.b as usize, value)
                             .ok_or(VmError::RegisterOutOfBounds)?;
-                        *slot = value;
-                        write_reg(
-                            &mut registers,
-                            instruction.a,
-                            Value::Struct { owner, fields },
-                        )?;
                     }
                     _ => return Err(VmError::UnsupportedOpcode(Opcode::FieldSet)),
                 },
