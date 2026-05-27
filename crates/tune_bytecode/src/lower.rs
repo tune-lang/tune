@@ -18,6 +18,7 @@ pub fn lower_ir_functions(
         .map(|function| lower_ir_function_with_constants(function, &mut constants))
         .collect::<Result<Vec<_>, _>>()?;
     Ok(BytecodeArtifact {
+        entry_function: (!functions.is_empty()).then_some(0),
         functions,
         constants,
     })

@@ -1,5 +1,6 @@
 use tune_db::{FileId, ModuleAnalysis, TuneDb};
 use tune_diagnostics::Diagnostic;
+use tune_hir::item::ItemKind;
 use tune_host::module::HostModule;
 use tune_runtime::value::Value;
 
@@ -21,6 +22,7 @@ pub struct CheckReport {
 pub struct CompileReport {
     pub check: CheckReport,
     pub functions: Vec<tune_plan::PlanFunction>,
+    pub entry_function: Option<usize>,
 }
 
 pub struct ExecutableReport {
@@ -78,16 +80,25 @@ impl Tune {
         let check = self
             .check_file(file)
             .ok_or(EngineError::FileNotFound(file))?;
-        let functions = check
-            .module
-            .items
-            .iter()
-            .filter_map(|item| {
+        let mut functions = Vec::new();
+        let mut entry_function = None;
+        for item in &check.module.items {
+            let Some(plan) =
                 tune_plan::lower_resolved_module_item_to_plan(&check.module, item, &check.resolved)
-            })
-            .collect();
+            else {
+                continue;
+            };
+            if entry_function.is_none() && item.kind == ItemKind::Let {
+                entry_function = Some(functions.len());
+            }
+            functions.push(plan);
+        }
 
-        Ok(CompileReport { check, functions })
+        Ok(CompileReport {
+            check,
+            functions,
+            entry_function,
+        })
     }
 
     pub fn compile_source(
@@ -104,7 +115,7 @@ impl Tune {
     pub fn run_file(&self, file: FileId) -> Result<Value, EngineError> {
         let executable = self.executable_file(file)?;
         let mut vm = tune_vm::Vm::new(executable.bytecode);
-        vm.run_main()
+        vm.run_entry()
             .map_err(|error| EngineError::Vm(format!("{error:?}")))
     }
 
@@ -119,8 +130,13 @@ impl Tune {
             .map(tune_ir::lower_plan_function)
             .collect::<Result<Vec<_>, _>>()
             .map_err(|error| EngineError::IrLower(format!("{error:?}")))?;
-        let bytecode = tune_bytecode::lower_ir_functions(&ir)
+        let mut bytecode = tune_bytecode::lower_ir_functions(&ir)
             .map_err(|error| EngineError::BytecodeLower(format!("{error:?}")))?;
+        bytecode.entry_function = compile
+            .entry_function
+            .map(u32::try_from)
+            .transpose()
+            .map_err(|_| EngineError::AllocationLimit)?;
         Ok(ExecutableReport {
             compile,
             ir,

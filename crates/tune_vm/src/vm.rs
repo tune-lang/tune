@@ -7,7 +7,7 @@ pub struct Vm {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VmError {
-    MissingMain,
+    MissingEntry,
     RegisterOutOfBounds,
     ConstantOutOfBounds,
     InvalidConstant,
@@ -19,14 +19,14 @@ impl Vm {
         Self { artifact }
     }
 
-    pub fn run_main(&mut self) -> Result<Value, VmError> {
+    pub fn run_entry(&mut self) -> Result<Value, VmError> {
         // v0: dense Rust match dispatch. Optimized VM can add superinstructions later.
+        let entry = self.artifact.entry_function.ok_or(VmError::MissingEntry)? as usize;
         let function = self
             .artifact
             .functions
-            .iter()
-            .find(|function| function.name == "main")
-            .ok_or(VmError::MissingMain)?;
+            .get(entry)
+            .ok_or(VmError::MissingEntry)?;
         let mut registers = vec![Value::Unit; function.register_count as usize];
         let mut ip = 0;
         while let Some(instruction) = function.instructions.get(ip) {

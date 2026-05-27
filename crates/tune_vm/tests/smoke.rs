@@ -5,44 +5,52 @@ fn smoke() {
 }
 
 #[test]
-fn vm_executes_integer_add_bytecode_main() -> Result<(), &'static str> {
+fn vm_executes_integer_add_bytecode_entry() -> Result<(), &'static str> {
     let artifact = tune_bytecode::artifact::BytecodeArtifact {
+        entry_function: Some(1),
         constants: vec!["1".into(), "2".into()],
-        functions: vec![tune_bytecode::function::BytecodeFunction {
-            name: "main".into(),
-            register_count: 3,
-            instructions: vec![
-                tune_bytecode::function::Instruction {
-                    opcode: tune_bytecode::Opcode::LoadConst,
-                    a: 0,
-                    b: 0,
-                    c: 0,
-                },
-                tune_bytecode::function::Instruction {
-                    opcode: tune_bytecode::Opcode::LoadConst,
-                    a: 1,
-                    b: 1,
-                    c: 0,
-                },
-                tune_bytecode::function::Instruction {
-                    opcode: tune_bytecode::Opcode::AddInt,
-                    a: 2,
-                    b: 0,
-                    c: 1,
-                },
-                tune_bytecode::function::Instruction {
-                    opcode: tune_bytecode::Opcode::Return,
-                    a: 2,
-                    b: 1,
-                    c: 0,
-                },
-            ],
-        }],
+        functions: vec![
+            tune_bytecode::function::BytecodeFunction {
+                name: "main".into(),
+                register_count: 0,
+                instructions: Vec::new(),
+            },
+            tune_bytecode::function::BytecodeFunction {
+                name: "<entry>".into(),
+                register_count: 3,
+                instructions: vec![
+                    tune_bytecode::function::Instruction {
+                        opcode: tune_bytecode::Opcode::LoadConst,
+                        a: 0,
+                        b: 0,
+                        c: 0,
+                    },
+                    tune_bytecode::function::Instruction {
+                        opcode: tune_bytecode::Opcode::LoadConst,
+                        a: 1,
+                        b: 1,
+                        c: 0,
+                    },
+                    tune_bytecode::function::Instruction {
+                        opcode: tune_bytecode::Opcode::AddInt,
+                        a: 2,
+                        b: 0,
+                        c: 1,
+                    },
+                    tune_bytecode::function::Instruction {
+                        opcode: tune_bytecode::Opcode::Return,
+                        a: 2,
+                        b: 1,
+                        c: 0,
+                    },
+                ],
+            },
+        ],
     };
 
     let mut vm = tune_vm::Vm::new(artifact);
     assert_eq!(
-        vm.run_main().map_err(|_| "vm should run main")?,
+        vm.run_entry().map_err(|_| "vm should run entry")?,
         tune_runtime::value::Value::Int(3)
     );
 

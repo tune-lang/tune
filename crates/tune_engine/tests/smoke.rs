@@ -34,6 +34,7 @@ let run(input) = helper(input)
 
     assert!(report.check.diagnostics.is_empty());
     assert_eq!(report.functions.len(), 2);
+    assert_eq!(report.entry_function, None);
     assert!(
         report.functions[1]
             .ops
@@ -74,16 +75,16 @@ let first(items: Stack) = items[0]
 }
 
 #[test]
-fn run_file_executes_tiny_integer_main_through_vm() -> Result<(), &'static str> {
+fn run_file_executes_tiny_integer_file_entry_through_vm() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file("main.tn", "let main(): Int = 1 + 2")
+        .add_file("app.tn", "let helper(): Int = 99\nlet value: Int = 1 + 2")
         .ok_or("file should allocate")?;
 
     assert_eq!(
         tune.run_file(file).map_err(|error| {
             eprintln!("{error:?}");
-            "main should run"
+            "file entry should run"
         })?,
         tune_runtime::value::Value::Int(3)
     );

@@ -45,7 +45,7 @@ fn propagation_shape_uses_result_ok_shape() -> Result<(), &'static str> {
 
 #[test]
 fn integer_arithmetic_binary_shape_is_int() -> Result<(), &'static str> {
-    let source = "let main(): Int = 1 + 2";
+    let source = "let value: Int = 1 + 2";
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
     let resolved = tune_resolve::resolve_module(&module);
