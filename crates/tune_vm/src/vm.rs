@@ -1,12 +1,17 @@
 use tune_bytecode::{
     Opcode,
     artifact::{BytecodeArtifact, BytecodeConst},
-    function::BytecodeVariant,
+    function::{BytecodeOwnershipPlan, BytecodeStateRepr, BytecodeStructState, BytecodeVariant},
 };
-use tune_runtime::value::{RuntimeVariant, StructFields, Value};
+use tune_runtime::{
+    ownership::OwnershipPlan,
+    state::{StateHandle, StateId, StateRepr},
+    value::{RuntimeVariant, StructFields, Value},
+};
 
 pub struct Vm {
     pub artifact: BytecodeArtifact,
+    next_state_id: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,7 +28,10 @@ pub enum VmError {
 
 impl Vm {
     pub fn new(artifact: BytecodeArtifact) -> Self {
-        Self { artifact }
+        Self {
+            artifact,
+            next_state_id: 0,
+        }
     }
 
     pub fn run_entry(&mut self) -> Result<Value, VmError> {
@@ -32,11 +40,16 @@ impl Vm {
         self.execute_function(entry, Vec::new())
     }
 
-    fn execute_function(&self, function_index: usize, args: Vec<Value>) -> Result<Value, VmError> {
+    fn execute_function(
+        &mut self,
+        function_index: usize,
+        args: Vec<Value>,
+    ) -> Result<Value, VmError> {
         let function = self
             .artifact
             .functions
             .get(function_index)
+            .cloned()
             .ok_or(VmError::FunctionOutOfBounds)?;
         let mut registers = vec![Value::Unit; function.register_count as usize];
         let mut locals = vec![Value::Unit; function.local_count as usize];
@@ -93,6 +106,7 @@ impl Vm {
                         instruction.a,
                         Value::Struct {
                             owner: site.owner,
+                            state: self.alloc_state(site.state),
                             fields: StructFields::new(fields),
                         },
                     )?;
@@ -242,6 +256,16 @@ impl Vm {
         Ok(Value::Unit)
     }
 
+    fn alloc_state(&mut self, state: BytecodeStructState) -> StateHandle {
+        let id = StateId(self.next_state_id);
+        self.next_state_id = self.next_state_id.saturating_add(1);
+        StateHandle {
+            id,
+            repr: runtime_state_repr(state.repr),
+            ownership: runtime_ownership(state.ownership),
+        }
+    }
+
     #[allow(dead_code)]
     fn dispatch_one(&mut self, opcode: Opcode) {
         match opcode {
@@ -282,6 +306,26 @@ impl Vm {
             Opcode::GreaterInt => {}
             Opcode::VariantField => {}
         }
+    }
+}
+
+fn runtime_state_repr(repr: BytecodeStateRepr) -> StateRepr {
+    match repr {
+        BytecodeStateRepr::Inline => StateRepr::Inline,
+        BytecodeStateRepr::LocalHandle => StateRepr::LocalHandle,
+        BytecodeStateRepr::SharedHandle => StateRepr::SharedHandle,
+        BytecodeStateRepr::HostResource => StateRepr::HostResource,
+    }
+}
+
+fn runtime_ownership(ownership: BytecodeOwnershipPlan) -> OwnershipPlan {
+    match ownership {
+        BytecodeOwnershipPlan::Stack => OwnershipPlan::Stack,
+        BytecodeOwnershipPlan::DirectDrop => OwnershipPlan::DirectDrop,
+        BytecodeOwnershipPlan::NonAtomicRc => OwnershipPlan::NonAtomicRc,
+        BytecodeOwnershipPlan::Cow => OwnershipPlan::Cow,
+        BytecodeOwnershipPlan::SharedAtomic => OwnershipPlan::SharedAtomic,
+        BytecodeOwnershipPlan::HostRetained => OwnershipPlan::HostRetained,
     }
 }
 

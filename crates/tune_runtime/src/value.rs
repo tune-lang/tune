@@ -16,6 +16,7 @@ pub enum Value {
     Sequence(Vec<Value>),
     Struct {
         owner: u32,
+        state: StateHandle,
         fields: StructFields,
     },
     Variant {
@@ -41,13 +42,19 @@ impl PartialEq for Value {
             (
                 Self::Struct {
                     owner: left_owner,
+                    state: left_state,
                     fields: left_fields,
                 },
                 Self::Struct {
                     owner: right_owner,
+                    state: right_state,
                     fields: right_fields,
                 },
-            ) => left_owner == right_owner && left_fields == right_fields,
+            ) => {
+                left_owner == right_owner
+                    && left_state == right_state
+                    && left_fields == right_fields
+            }
             (
                 Self::Variant {
                     variant: left_variant,

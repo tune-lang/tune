@@ -23,7 +23,39 @@ pub struct BytecodeVariantSite {
 #[derive(Debug, Clone)]
 pub struct BytecodeStructSite {
     pub owner: u32,
+    pub state: BytecodeStructState,
     pub fields: Vec<BytecodeStructField>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BytecodeStructState {
+    pub repr: BytecodeStateRepr,
+    pub ownership: BytecodeOwnershipPlan,
+}
+
+impl BytecodeStructState {
+    pub const LOCAL: Self = Self {
+        repr: BytecodeStateRepr::LocalHandle,
+        ownership: BytecodeOwnershipPlan::NonAtomicRc,
+    };
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BytecodeStateRepr {
+    Inline,
+    LocalHandle,
+    SharedHandle,
+    HostResource,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BytecodeOwnershipPlan {
+    Stack,
+    DirectDrop,
+    NonAtomicRc,
+    Cow,
+    SharedAtomic,
+    HostRetained,
 }
 
 #[derive(Debug, Clone)]

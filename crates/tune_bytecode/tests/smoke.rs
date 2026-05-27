@@ -127,6 +127,50 @@ fn lowers_integer_add_ir_to_bytecode() -> Result<(), &'static str> {
 }
 
 #[test]
+fn lowers_struct_construct_with_explicit_local_state_plan() -> Result<(), &'static str> {
+    let ir = tune_ir::IrFunction {
+        owner: None,
+        member: None,
+        name: "entry".into(),
+        regs: 2,
+        locals: 0,
+        constants: vec![tune_ir::IrConst::Int(1)],
+        blocks: vec![tune_ir::IrBlock {
+            id: tune_ir::BlockId(0),
+            ops: vec![
+                tune_ir::IrOp::LoadConst {
+                    dst: tune_ir::Reg(0),
+                    constant: tune_ir::ConstId(0),
+                    shape: tune_shape::Shape::Int,
+                },
+                tune_ir::IrOp::StructConstruct {
+                    dst: tune_ir::Reg(1),
+                    item: tune_hir::HirId(7),
+                    fields: vec![tune_ir::StructField {
+                        field: tune_ir::FieldId(0),
+                        value: tune_ir::Reg(0),
+                    }],
+                },
+                tune_ir::IrOp::Return {
+                    value: Some(tune_ir::Reg(1)),
+                },
+            ],
+        }],
+    };
+
+    let artifact =
+        tune_bytecode::lower_ir_functions(&[ir]).map_err(|_| "ir should lower to bytecode")?;
+    let site = &artifact.functions[0].struct_sites[0];
+
+    assert_eq!(site.owner, 7);
+    assert_eq!(
+        site.state,
+        tune_bytecode::function::BytecodeStructState::LOCAL
+    );
+    Ok(())
+}
+
+#[test]
 fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
     let entry = tune_ir::IrFunction {
         owner: None,
