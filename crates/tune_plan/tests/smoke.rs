@@ -13,6 +13,10 @@ let each(items) = for item in items { handle(item) }
 let values = [1, 2]
 let scoped(input) = { let f = _(x) = x; input = f(input); return input }
 let ops(value, other) = not value and other is not none
+let branch(value, ready, waiting) = if ready { value } elif waiting { panic("wait") } else { panic("bad") }
+let select(result, value) = match result { value => value; else => panic("bad") }
+let repeated(ready) = while ready { continue }
+let forever() = loop { break }
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
@@ -71,6 +75,25 @@ let ops(value, other) = not value and other is not none
     assert!(ops.ops.contains(&tune_plan::PlanOp::BinaryOp {
         op: tune_hir::expr::BinaryOp::IsNot
     }));
+
+    let branch = tune_plan::lower_resolved_item_to_plan(&module.items[6], &resolved)
+        .ok_or("expected branch plan")?;
+    assert!(branch.ops.contains(&tune_plan::PlanOp::If));
+    assert!(branch.ops.contains(&tune_plan::PlanOp::Panic));
+
+    let select = tune_plan::lower_resolved_item_to_plan(&module.items[7], &resolved)
+        .ok_or("expected select plan")?;
+    assert!(select.ops.contains(&tune_plan::PlanOp::Match));
+
+    let repeated = tune_plan::lower_resolved_item_to_plan(&module.items[8], &resolved)
+        .ok_or("expected repeated plan")?;
+    assert!(repeated.ops.contains(&tune_plan::PlanOp::While));
+    assert!(repeated.ops.contains(&tune_plan::PlanOp::Continue));
+
+    let forever = tune_plan::lower_resolved_item_to_plan(&module.items[9], &resolved)
+        .ok_or("expected forever plan")?;
+    assert!(forever.ops.contains(&tune_plan::PlanOp::Loop));
+    assert!(forever.ops.contains(&tune_plan::PlanOp::Break));
 
     Ok(())
 }

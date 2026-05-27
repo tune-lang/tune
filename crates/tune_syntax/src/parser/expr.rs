@@ -1,3 +1,4 @@
+mod flow;
 mod operators;
 
 use crate::{SyntaxKind, TokenKind};
@@ -17,9 +18,16 @@ impl Parser<'_> {
     fn parse_expr(&mut self) {
         match self.current_kind() {
             Some(TokenKind::KeywordLet) => self.parse_let_expr(),
+            Some(TokenKind::KeywordIf) => self.parse_if_expr(),
+            Some(TokenKind::KeywordMatch) => self.parse_match_expr(),
             Some(TokenKind::KeywordReturn) => self.parse_return_expr(),
             Some(TokenKind::KeywordSpawn) => self.parse_spawn_expr(),
             Some(TokenKind::KeywordFor) => self.parse_for_expr(),
+            Some(TokenKind::KeywordWhile) => self.parse_while_expr(),
+            Some(TokenKind::KeywordLoop) => self.parse_loop_expr(),
+            Some(TokenKind::KeywordBreak) => self.parse_break_expr(),
+            Some(TokenKind::KeywordContinue) => self.parse_continue_expr(),
+            Some(TokenKind::KeywordPanic) => self.parse_panic_expr(),
             Some(TokenKind::LeftBrace) => self.parse_block_expr(),
             Some(_) => self.parse_assignment_expr(),
             None => self.error_at_current("expected expression"),
@@ -113,11 +121,17 @@ impl Parser<'_> {
         self.finish_node();
     }
 
-    fn parse_pattern(&mut self) {
+    pub(super) fn parse_pattern(&mut self) {
         self.start_node(SyntaxKind::Pattern);
         if matches!(
             self.current_kind(),
-            Some(TokenKind::Ident | TokenKind::KeywordSelf)
+            Some(
+                TokenKind::Ident
+                    | TokenKind::KeywordSelf
+                    | TokenKind::KeywordOk
+                    | TokenKind::KeywordError
+                    | TokenKind::KeywordElse
+            )
         ) {
             self.bump();
         } else {
@@ -126,7 +140,7 @@ impl Parser<'_> {
         self.finish_node();
     }
 
-    fn parse_block_expr(&mut self) {
+    pub(super) fn parse_block_expr(&mut self) {
         self.start_node(SyntaxKind::Block);
         self.expect(TokenKind::LeftBrace, "expected `{`");
         self.skip_trivia();
@@ -210,7 +224,7 @@ impl Parser<'_> {
         self.expect(end, "expected expression list closer");
     }
 
-    fn consume_expr_separator(&mut self) -> bool {
+    pub(super) fn consume_expr_separator(&mut self) -> bool {
         if self.at(TokenKind::Semicolon) {
             self.bump();
             self.skip_trivia();
@@ -240,7 +254,12 @@ impl Parser<'_> {
                 self.bump();
                 self.finish_node();
             }
-            Some(TokenKind::Ident | TokenKind::KeywordSelf) => {
+            Some(
+                TokenKind::Ident
+                | TokenKind::KeywordSelf
+                | TokenKind::KeywordOk
+                | TokenKind::KeywordError,
+            ) => {
                 if self.at_anonymous_callable_start() {
                     self.parse_callable_value();
                 } else {

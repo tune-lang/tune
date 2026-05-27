@@ -200,6 +200,10 @@ let run(input) = helper(input)
 let each(items) = for item in items { helper(item) }
 let scoped(input) = { let local = _(x) = helper(x); local(input) }
 let check(input, other) = not input and other is not none
+let branch(input, ready) = if ready { helper(input) } else { panic("bad") }
+let select(result) = match result { value => helper(value); else => panic("bad") }
+let repeated(ready) = while ready { continue }
+let forever() = loop { break }
 struct Box {
   value: String
   get(default: String): String = default

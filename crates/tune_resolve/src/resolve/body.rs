@@ -139,9 +139,43 @@ impl BodyResolver<'_> {
             ExprKind::Spawn(inner) | ExprKind::Propagate(inner) => {
                 self.resolve_expr_names(inner);
             }
+            ExprKind::If {
+                branches,
+                else_branch,
+            } => {
+                for branch in branches {
+                    self.resolve_expr_names(&branch.condition);
+                    self.with_scope(|this| this.resolve_expr_names(&branch.body));
+                }
+                if let Some(else_branch) = else_branch {
+                    self.with_scope(|this| this.resolve_expr_names(else_branch));
+                }
+            }
+            ExprKind::Match { scrutinee, arms } => {
+                self.resolve_expr_names(scrutinee);
+                for arm in arms {
+                    self.with_scope(|this| {
+                        this.bind_pattern_names(&arm.pattern);
+                        this.resolve_expr_names(&arm.body);
+                    });
+                }
+            }
+            ExprKind::While { condition, body } => {
+                self.resolve_expr_names(condition);
+                self.with_scope(|this| this.resolve_expr_names(body));
+            }
+            ExprKind::Loop(body) => {
+                self.with_scope(|this| this.resolve_expr_names(body));
+            }
+            ExprKind::Break | ExprKind::Continue => {}
             ExprKind::Return(inner) => {
                 if let Some(inner) = inner {
                     self.resolve_expr_names(inner);
+                }
+            }
+            ExprKind::Panic(args) => {
+                for arg in args {
+                    self.resolve_expr_names(arg);
                 }
             }
             ExprKind::For {

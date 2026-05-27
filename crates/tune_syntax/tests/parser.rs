@@ -252,6 +252,10 @@ let numbers = [1, 2, 3]
 let block = { let x = 1; x = x; return x }
 let grouped = (1 + 2)
 let ops = (not value and other) or (other is not none)
+let branched = if ready { Ok(value) } elif waiting { Error("wait") } else { panic("bad") }
+let matched = match result { Ok => value; Error => panic("bad"); else => none }
+let repeated = while ready { continue }
+let forever = loop { break }
 "#,
     );
     let kinds = nested_node_kinds(&parsed.cst);
@@ -270,6 +274,14 @@ let ops = (not value and other) or (other is not none)
     assert!(kinds.contains(&SyntaxKind::ReturnExpr));
     assert!(kinds.contains(&SyntaxKind::UnaryExpr));
     assert!(kinds.contains(&SyntaxKind::BinaryExpr));
+    assert!(kinds.contains(&SyntaxKind::IfExpr));
+    assert!(kinds.contains(&SyntaxKind::MatchExpr));
+    assert!(kinds.contains(&SyntaxKind::MatchArm));
+    assert!(kinds.contains(&SyntaxKind::WhileExpr));
+    assert!(kinds.contains(&SyntaxKind::LoopExpr));
+    assert!(kinds.contains(&SyntaxKind::BreakExpr));
+    assert!(kinds.contains(&SyntaxKind::ContinueExpr));
+    assert!(kinds.contains(&SyntaxKind::PanicExpr));
     assert!(parsed.diagnostics.is_empty());
 }
 

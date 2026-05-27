@@ -103,11 +103,48 @@ impl LowerContext<'_> {
                 self.lower_expr(inner, ops);
                 ops.push(PlanOp::ResultPropagate);
             }
+            ExprKind::If {
+                branches,
+                else_branch,
+            } => {
+                for branch in branches {
+                    self.lower_expr(&branch.condition, ops);
+                    self.lower_expr(&branch.body, ops);
+                }
+                if let Some(else_branch) = else_branch {
+                    self.lower_expr(else_branch, ops);
+                }
+                ops.push(PlanOp::If);
+            }
+            ExprKind::Match { scrutinee, arms } => {
+                self.lower_expr(scrutinee, ops);
+                for arm in arms {
+                    self.lower_expr(&arm.body, ops);
+                }
+                ops.push(PlanOp::Match);
+            }
+            ExprKind::While { condition, body } => {
+                self.lower_expr(condition, ops);
+                self.lower_expr(body, ops);
+                ops.push(PlanOp::While);
+            }
+            ExprKind::Loop(body) => {
+                self.lower_expr(body, ops);
+                ops.push(PlanOp::Loop);
+            }
+            ExprKind::Break => ops.push(PlanOp::Break),
+            ExprKind::Continue => ops.push(PlanOp::Continue),
             ExprKind::Return(inner) => {
                 if let Some(inner) = inner {
                     self.lower_expr(inner, ops);
                 }
                 ops.push(PlanOp::Return);
+            }
+            ExprKind::Panic(args) => {
+                for arg in args {
+                    self.lower_expr(arg, ops);
+                }
+                ops.push(PlanOp::Panic);
             }
             ExprKind::For { iterable, body, .. } => {
                 self.lower_expr(iterable, ops);

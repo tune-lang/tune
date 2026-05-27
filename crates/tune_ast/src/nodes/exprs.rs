@@ -20,9 +20,16 @@ pub enum Expr<'tree> {
     Unary(UnaryExpr<'tree>),
     Binary(BinaryExpr<'tree>),
     Propagate(PropagateExpr<'tree>),
+    If(IfExpr<'tree>),
+    Match(MatchExpr<'tree>),
+    While(WhileExpr<'tree>),
+    Loop(LoopExpr<'tree>),
+    Break(BreakExpr<'tree>),
+    Continue(ContinueExpr<'tree>),
     Return(ReturnExpr<'tree>),
     For(ForExpr<'tree>),
     Spawn(SpawnExpr<'tree>),
+    Panic(PanicExpr<'tree>),
     Block(BlockExpr<'tree>),
 }
 
@@ -42,9 +49,16 @@ impl<'tree> Expr<'tree> {
             SyntaxKind::UnaryExpr => UnaryExpr::cast(node).map(Self::Unary),
             SyntaxKind::BinaryExpr => BinaryExpr::cast(node).map(Self::Binary),
             SyntaxKind::PropagateExpr => PropagateExpr::cast(node).map(Self::Propagate),
+            SyntaxKind::IfExpr => IfExpr::cast(node).map(Self::If),
+            SyntaxKind::MatchExpr => MatchExpr::cast(node).map(Self::Match),
+            SyntaxKind::WhileExpr => WhileExpr::cast(node).map(Self::While),
+            SyntaxKind::LoopExpr => LoopExpr::cast(node).map(Self::Loop),
+            SyntaxKind::BreakExpr => BreakExpr::cast(node).map(Self::Break),
+            SyntaxKind::ContinueExpr => ContinueExpr::cast(node).map(Self::Continue),
             SyntaxKind::ReturnExpr => ReturnExpr::cast(node).map(Self::Return),
             SyntaxKind::ForExpr => ForExpr::cast(node).map(Self::For),
             SyntaxKind::SpawnExpr => SpawnExpr::cast(node).map(Self::Spawn),
+            SyntaxKind::PanicExpr => PanicExpr::cast(node).map(Self::Panic),
             SyntaxKind::Block => BlockExpr::cast(node).map(Self::Block),
             SyntaxKind::Expr => GroupExpr::cast(node).map(Self::Group),
             SyntaxKind::Error => Some(Self::Missing(node)),
@@ -69,9 +83,16 @@ impl<'tree> Expr<'tree> {
             Self::Unary(node) => node.syntax(),
             Self::Binary(node) => node.syntax(),
             Self::Propagate(node) => node.syntax(),
+            Self::If(node) => node.syntax(),
+            Self::Match(node) => node.syntax(),
+            Self::While(node) => node.syntax(),
+            Self::Loop(node) => node.syntax(),
+            Self::Break(node) => node.syntax(),
+            Self::Continue(node) => node.syntax(),
             Self::Return(node) => node.syntax(),
             Self::For(node) => node.syntax(),
             Self::Spawn(node) => node.syntax(),
+            Self::Panic(node) => node.syntax(),
             Self::Block(node) => node.syntax(),
         }
     }
@@ -116,9 +137,17 @@ expr_node!(AssignExpr, SyntaxKind::AssignExpr);
 expr_node!(UnaryExpr, SyntaxKind::UnaryExpr);
 expr_node!(BinaryExpr, SyntaxKind::BinaryExpr);
 expr_node!(PropagateExpr, SyntaxKind::PropagateExpr);
+expr_node!(IfExpr, SyntaxKind::IfExpr);
+expr_node!(MatchExpr, SyntaxKind::MatchExpr);
+expr_node!(MatchArm, SyntaxKind::MatchArm);
+expr_node!(WhileExpr, SyntaxKind::WhileExpr);
+expr_node!(LoopExpr, SyntaxKind::LoopExpr);
+expr_node!(BreakExpr, SyntaxKind::BreakExpr);
+expr_node!(ContinueExpr, SyntaxKind::ContinueExpr);
 expr_node!(ReturnExpr, SyntaxKind::ReturnExpr);
 expr_node!(ForExpr, SyntaxKind::ForExpr);
 expr_node!(SpawnExpr, SyntaxKind::SpawnExpr);
+expr_node!(PanicExpr, SyntaxKind::PanicExpr);
 expr_node!(BlockExpr, SyntaxKind::Block);
 
 impl<'tree> LiteralExpr<'tree> {
@@ -131,7 +160,7 @@ impl<'tree> LiteralExpr<'tree> {
 impl<'tree> NameExpr<'tree> {
     #[must_use]
     pub fn name(self, source: &str) -> Option<&str> {
-        direct_ident_text(self.node, source).or_else(|| direct_self_text(self.node, source))
+        direct_ident_text(self.node, source).or_else(|| direct_name_keyword_text(self.node, source))
     }
 }
 
@@ -156,6 +185,27 @@ impl<'tree> BlockExpr<'tree> {
     }
 }
 
+impl<'tree> MatchExpr<'tree> {
+    #[must_use]
+    pub fn arms(self) -> Vec<MatchArm<'tree>> {
+        self.node
+            .children
+            .iter()
+            .filter_map(|child| match child {
+                CstElement::Node(node) => MatchArm::cast(node),
+                CstElement::Token(_) => None,
+            })
+            .collect()
+    }
+}
+
+impl<'tree> MatchArm<'tree> {
+    #[must_use]
+    pub fn expr(self) -> Option<Expr<'tree>> {
+        child_exprs(self.node).into_iter().next()
+    }
+}
+
 fn child_exprs(node: &CstNode) -> Vec<Expr<'_>> {
     node.children
         .iter()
@@ -177,9 +227,14 @@ fn first_direct_token_text<'src>(node: &CstNode, source: &'src str) -> Option<&'
     })
 }
 
-fn direct_self_text<'src>(node: &CstNode, source: &'src str) -> Option<&'src str> {
+fn direct_name_keyword_text<'src>(node: &CstNode, source: &'src str) -> Option<&'src str> {
     node.children.iter().find_map(|child| match child {
-        CstElement::Token(token) if token.kind == TokenKind::KeywordSelf => {
+        CstElement::Token(token)
+            if matches!(
+                token.kind,
+                TokenKind::KeywordSelf | TokenKind::KeywordOk | TokenKind::KeywordError
+            ) =>
+        {
             let start = token.span.start.get() as usize;
             let end = token.span.end.get() as usize;
             source.get(start..end)

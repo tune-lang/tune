@@ -3,6 +3,8 @@ use tune_ast::nodes::{CallableParam, Expr as AstExpr, LiteralExpr, ParamList, Sh
 use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 
 use crate::ExprId;
+mod flow;
+
 use crate::expr::{BinaryOp, Expr, ExprKind, ExprParam, LiteralKind, UnaryOp};
 use crate::pattern::{Pattern, PatternKind};
 
@@ -42,6 +44,12 @@ impl ExprLowerer {
             AstExpr::Unary(_) => self.lower_unary_op(source, expr),
             AstExpr::Binary(_) => self.lower_binary_op(source, expr),
             AstExpr::Propagate(_) => self.lower_unary(source, expr, ExprKind::Propagate),
+            AstExpr::If(_) => self.lower_if(source, expr),
+            AstExpr::Match(node) => self.lower_match(source, expr, node),
+            AstExpr::While(_) => self.lower_while(source, expr),
+            AstExpr::Loop(_) => self.lower_unary(source, expr, ExprKind::Loop),
+            AstExpr::Break(_) => ExprKind::Break,
+            AstExpr::Continue(_) => ExprKind::Continue,
             AstExpr::Return(_) => ExprKind::Return(
                 expr.child_exprs()
                     .into_iter()
@@ -49,6 +57,12 @@ impl ExprLowerer {
                     .map(|inner| Box::new(self.lower(source, inner))),
             ),
             AstExpr::Spawn(_) => self.lower_unary(source, expr, ExprKind::Spawn),
+            AstExpr::Panic(_) => ExprKind::Panic(
+                expr.child_exprs()
+                    .into_iter()
+                    .map(|arg| self.lower(source, arg))
+                    .collect(),
+            ),
             AstExpr::For(_) => self.lower_for(source, expr),
             AstExpr::Block(node) => ExprKind::Block(
                 node.exprs()
@@ -182,19 +196,6 @@ impl ExprLowerer {
         wrap(Box::new(self.lower(source, inner)))
     }
 
-    fn lower_for(&mut self, source: &str, expr: AstExpr<'_>) -> ExprKind {
-        let mut children = expr.child_exprs().into_iter();
-        let (Some(iterable), Some(body)) = (children.next(), children.next()) else {
-            return ExprKind::Missing;
-        };
-
-        ExprKind::For {
-            pattern: lower_pattern(source, expr.syntax()),
-            iterable: Box::new(self.lower(source, iterable)),
-            body: Box::new(self.lower(source, body)),
-        }
-    }
-
     fn alloc_id(&mut self) -> ExprId {
         let id = ExprId(self.next_id);
         self.next_id += 1;
@@ -323,7 +324,14 @@ fn lower_pattern(source: &str, node: &CstNode) -> Pattern {
 
     let name = pattern.children.iter().find_map(|child| match child {
         CstElement::Token(token)
-            if matches!(token.kind, TokenKind::Ident | TokenKind::KeywordSelf) =>
+            if matches!(
+                token.kind,
+                TokenKind::Ident
+                    | TokenKind::KeywordSelf
+                    | TokenKind::KeywordOk
+                    | TokenKind::KeywordError
+                    | TokenKind::KeywordElse
+            ) =>
         {
             let start = token.span.start.get() as usize;
             let end = token.span.end.get() as usize;
@@ -334,8 +342,9 @@ fn lower_pattern(source: &str, node: &CstNode) -> Pattern {
 
     Pattern {
         span: pattern.span,
-        kind: name.map_or(PatternKind::Hole, |name| {
-            PatternKind::Binding(name.to_owned())
+        kind: name.map_or(PatternKind::Hole, |name| match name {
+            "else" => PatternKind::Else,
+            _ => PatternKind::Binding(name.to_owned()),
         }),
     }
 }

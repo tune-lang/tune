@@ -54,7 +54,23 @@ pub enum ExprKind {
     },
     Spawn(Box<Expr>),
     Propagate(Box<Expr>),
+    If {
+        branches: Vec<IfBranch>,
+        else_branch: Option<Box<Expr>>,
+    },
+    Match {
+        scrutinee: Box<Expr>,
+        arms: Vec<MatchArm>,
+    },
+    While {
+        condition: Box<Expr>,
+        body: Box<Expr>,
+    },
+    Loop(Box<Expr>),
+    Break,
+    Continue,
     Return(Option<Box<Expr>>),
+    Panic(Vec<Expr>),
     For {
         pattern: Pattern,
         iterable: Box<Expr>,
@@ -75,6 +91,18 @@ pub struct ExprParam {
     pub name: Option<String>,
     pub span: Option<Span>,
     pub shape: Option<ShapeExpr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct IfBranch {
+    pub condition: Expr,
+    pub body: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub struct MatchArm {
+    pub pattern: Pattern,
+    pub body: Expr,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
