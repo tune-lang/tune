@@ -1,6 +1,7 @@
 pub mod artifact;
 pub mod function;
 pub mod lower;
+mod lower_state;
 mod lower_tables;
 pub mod opcode;
 

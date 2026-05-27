@@ -9,5 +9,5 @@ pub use lower::{
 };
 pub use plan::{
     FiniteForContract, PlanFunction, PlanIfBranch, PlanMatchArm, PlanModule, PlanOp,
-    PlanPatternBinding,
+    PlanPatternBinding, StructOwnershipPlan, StructStatePlan, StructStateRepr,
 };

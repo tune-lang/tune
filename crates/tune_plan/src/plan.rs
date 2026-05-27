@@ -57,6 +57,37 @@ pub struct FiniteForContract {
     pub length_evaluated_once: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StructStatePlan {
+    pub repr: StructStateRepr,
+    pub ownership: StructOwnershipPlan,
+}
+
+impl StructStatePlan {
+    pub const LOCAL: Self = Self {
+        repr: StructStateRepr::LocalHandle,
+        ownership: StructOwnershipPlan::NonAtomicRc,
+    };
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StructStateRepr {
+    Inline,
+    LocalHandle,
+    SharedHandle,
+    HostResource,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StructOwnershipPlan {
+    Stack,
+    DirectDrop,
+    NonAtomicRc,
+    Cow,
+    SharedAtomic,
+    HostRetained,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlanOp {
     ConstInt {
@@ -75,6 +106,7 @@ pub enum PlanOp {
     },
     StructConstruct {
         item: HirId,
+        state: StructStatePlan,
         fields: Vec<MemberId>,
     },
     BoundCall,

@@ -142,6 +142,46 @@ fn lowers_local_binding_plan_to_ir_loads_and_stores() -> Result<(), &'static str
 }
 
 #[test]
+fn lowers_struct_state_plan_to_ir() -> Result<(), &'static str> {
+    let field = tune_hir::MemberId {
+        owner: tune_hir::HirId(1),
+        kind: tune_hir::MemberKind::Field,
+        index: 0,
+    };
+    let plan = tune_plan::PlanFunction {
+        owner: None,
+        member: None,
+        name: "entry".into(),
+        params: Vec::new(),
+        module_bindings: Vec::new(),
+        ops: vec![
+            tune_plan::PlanOp::ConstInt { value: 1 },
+            tune_plan::PlanOp::StructConstruct {
+                item: tune_hir::HirId(1),
+                state: tune_plan::StructStatePlan::LOCAL,
+                fields: vec![field],
+            },
+            tune_plan::PlanOp::Return,
+        ],
+    };
+
+    let ir = tune_ir::lower_plan_function(&plan).map_err(|_| "plan should lower")?;
+
+    assert!(matches!(
+        ir.blocks[0].ops[1],
+        tune_ir::IrOp::StructConstruct {
+            state: tune_ir::IrStructState {
+                repr: tune_ir::IrStateRepr::LocalHandle,
+                ownership: tune_ir::IrOwnershipPlan::NonAtomicRc,
+            },
+            ..
+        }
+    ));
+
+    Ok(())
+}
+
+#[test]
 fn lowers_direct_call_plan_to_ir_with_param_slots() -> Result<(), &'static str> {
     let param = tune_hir::MemberId {
         owner: tune_hir::HirId(1),

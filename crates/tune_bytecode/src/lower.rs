@@ -4,7 +4,7 @@ use crate::Opcode;
 use crate::artifact::{BytecodeArtifact, BytecodeConst};
 use crate::function::{
     BytecodeCallSite, BytecodeFunction, BytecodeMatchArm, BytecodeMatchSite, BytecodeStructField,
-    BytecodeStructSite, BytecodeStructState, BytecodeVariantSite, Instruction,
+    BytecodeStructSite, BytecodeVariantSite, Instruction,
 };
 use crate::lower_tables::{
     block_offsets, function_indices, lower_variant, member_function_indices, push_artifact_const,
@@ -238,12 +238,17 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(())
             }
-            IrOp::StructConstruct { dst, item, fields } => {
+            IrOp::StructConstruct {
+                dst,
+                item,
+                state,
+                fields,
+            } => {
                 let site = u32::try_from(self.struct_sites.len())
                     .map_err(|_| BytecodeLowerError::ConstantLimit)?;
                 self.struct_sites.push(BytecodeStructSite {
                     owner: item.0,
-                    state: BytecodeStructState::LOCAL,
+                    state: crate::lower_state::lower_struct_state(*state),
                     fields: fields
                         .iter()
                         .map(|field| BytecodeStructField {

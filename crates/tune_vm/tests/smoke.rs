@@ -163,3 +163,39 @@ fn vm_executes_direct_call_with_arguments() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+#[test]
+fn vm_rejects_unimplemented_shared_struct_state_plan() {
+    let artifact = tune_bytecode::artifact::BytecodeArtifact {
+        entry_function: Some(0),
+        constants: Vec::new(),
+        functions: vec![tune_bytecode::function::BytecodeFunction {
+            name: "<entry>".into(),
+            register_count: 1,
+            local_count: 0,
+            call_sites: Vec::new(),
+            struct_sites: vec![tune_bytecode::function::BytecodeStructSite {
+                owner: 0,
+                state: tune_bytecode::function::BytecodeStructState {
+                    repr: tune_bytecode::function::BytecodeStateRepr::SharedHandle,
+                    ownership: tune_bytecode::function::BytecodeOwnershipPlan::SharedAtomic,
+                },
+                fields: Vec::new(),
+            }],
+            variant_sites: Vec::new(),
+            match_sites: Vec::new(),
+            instructions: vec![tune_bytecode::function::Instruction {
+                opcode: tune_bytecode::Opcode::StructConstruct,
+                a: 0,
+                b: 0,
+                c: 0,
+            }],
+        }],
+    };
+
+    let mut vm = tune_vm::Vm::new(artifact);
+    assert_eq!(
+        vm.run_entry(),
+        Err(tune_vm::VmError::UnsupportedStructState)
+    );
+}

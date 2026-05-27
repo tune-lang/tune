@@ -13,7 +13,9 @@ use tune_shape::MaterializationPlan;
 
 pub use module::lower_resolved_module_to_plan;
 
-use crate::plan::{FiniteForContract, PlanFunction, PlanIfBranch, PlanMatchArm, PlanOp};
+use crate::plan::{
+    FiniteForContract, PlanFunction, PlanIfBranch, PlanMatchArm, PlanOp, StructStatePlan,
+};
 
 use self::values::{expr_produces_value, falls_through, if_produces_value};
 
@@ -132,6 +134,7 @@ impl LowerContext<'_> {
                 if let Some(item) = self.struct_item_id(name) {
                     ops.push(PlanOp::StructConstruct {
                         item,
+                        state: StructStatePlan::LOCAL,
                         fields: ordered.into_iter().map(|(field, _)| field).collect(),
                     });
                 }

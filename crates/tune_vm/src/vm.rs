@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use tune_bytecode::{
     Opcode,
     artifact::{BytecodeArtifact, BytecodeConst},
@@ -11,7 +13,7 @@ use tune_runtime::{
 
 pub struct Vm {
     pub artifact: BytecodeArtifact,
-    next_state_id: u64,
+    next_state_id: Cell<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,6 +25,7 @@ pub enum VmError {
     CallSiteOutOfBounds,
     StructSiteOutOfBounds,
     ArityMismatch,
+    UnsupportedStructState,
     UnsupportedOpcode(Opcode),
 }
 
@@ -30,7 +33,7 @@ impl Vm {
     pub fn new(artifact: BytecodeArtifact) -> Self {
         Self {
             artifact,
-            next_state_id: 0,
+            next_state_id: Cell::new(0),
         }
     }
 
@@ -40,16 +43,11 @@ impl Vm {
         self.execute_function(entry, Vec::new())
     }
 
-    fn execute_function(
-        &mut self,
-        function_index: usize,
-        args: Vec<Value>,
-    ) -> Result<Value, VmError> {
+    fn execute_function(&self, function_index: usize, args: Vec<Value>) -> Result<Value, VmError> {
         let function = self
             .artifact
             .functions
             .get(function_index)
-            .cloned()
             .ok_or(VmError::FunctionOutOfBounds)?;
         let mut registers = vec![Value::Unit; function.register_count as usize];
         let mut locals = vec![Value::Unit; function.local_count as usize];
@@ -106,7 +104,7 @@ impl Vm {
                         instruction.a,
                         Value::Struct {
                             owner: site.owner,
-                            state: self.alloc_state(site.state),
+                            state: self.alloc_state(site.state)?,
                             fields: StructFields::new(fields),
                         },
                     )?;
@@ -256,14 +254,20 @@ impl Vm {
         Ok(Value::Unit)
     }
 
-    fn alloc_state(&mut self, state: BytecodeStructState) -> StateHandle {
-        let id = StateId(self.next_state_id);
-        self.next_state_id = self.next_state_id.saturating_add(1);
-        StateHandle {
+    fn alloc_state(&self, state: BytecodeStructState) -> Result<StateHandle, VmError> {
+        if state.repr != BytecodeStateRepr::LocalHandle
+            || state.ownership != BytecodeOwnershipPlan::NonAtomicRc
+        {
+            return Err(VmError::UnsupportedStructState);
+        }
+        let id = StateId(self.next_state_id.get());
+        self.next_state_id
+            .set(self.next_state_id.get().saturating_add(1));
+        Ok(StateHandle {
             id,
             repr: runtime_state_repr(state.repr),
             ownership: runtime_ownership(state.ownership),
-        }
+        })
     }
 
     #[allow(dead_code)]

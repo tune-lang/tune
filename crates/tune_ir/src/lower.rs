@@ -221,7 +221,11 @@ impl Lowerer {
                 self.stack.push(dst);
                 Ok(())
             }
-            PlanOp::StructConstruct { item, fields } => {
+            PlanOp::StructConstruct {
+                item,
+                state,
+                fields,
+            } => {
                 let mut values = Vec::with_capacity(fields.len());
                 for field in fields.iter().rev() {
                     values.push(StructField {
@@ -234,6 +238,7 @@ impl Lowerer {
                 self.push_op(IrOp::StructConstruct {
                     dst,
                     item: *item,
+                    state: crate::lower_state::lower_struct_state(*state),
                     fields: values,
                 });
                 self.stack.push(dst);

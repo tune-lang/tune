@@ -118,6 +118,7 @@ pub enum IrOp {
     StructConstruct {
         dst: Reg,
         item: HirId,
+        state: IrStructState,
         fields: Vec<StructField>,
     },
     VariantField {
@@ -211,4 +212,28 @@ pub struct VariantArm {
 pub struct StructField {
     pub field: FieldId,
     pub value: Reg,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IrStructState {
+    pub repr: IrStateRepr,
+    pub ownership: IrOwnershipPlan,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrStateRepr {
+    Inline,
+    LocalHandle,
+    SharedHandle,
+    HostResource,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrOwnershipPlan {
+    Stack,
+    DirectDrop,
+    NonAtomicRc,
+    Cow,
+    SharedAtomic,
+    HostRetained,
 }

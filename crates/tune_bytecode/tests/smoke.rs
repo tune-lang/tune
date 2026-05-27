@@ -146,6 +146,10 @@ fn lowers_struct_construct_with_explicit_local_state_plan() -> Result<(), &'stat
                 tune_ir::IrOp::StructConstruct {
                     dst: tune_ir::Reg(1),
                     item: tune_hir::HirId(7),
+                    state: tune_ir::IrStructState {
+                        repr: tune_ir::IrStateRepr::LocalHandle,
+                        ownership: tune_ir::IrOwnershipPlan::NonAtomicRc,
+                    },
                     fields: vec![tune_ir::StructField {
                         field: tune_ir::FieldId(0),
                         value: tune_ir::Reg(0),

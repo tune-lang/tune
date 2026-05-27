@@ -197,6 +197,34 @@ fn explicit_return_body_does_not_get_extra_implicit_return() -> Result<(), &'sta
 }
 
 #[test]
+fn struct_construct_plan_carries_local_state_plan() -> Result<(), &'static str> {
+    let source = r#"
+struct Counter {
+  value: Int
+}
+let result: Counter = Counter {
+  value = 1
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    let plan = tune_plan::lower_resolved_module_item_to_plan(&module, &module.items[1], &resolved)
+        .ok_or("expected result plan")?;
+
+    assert!(plan.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::StructConstruct {
+            state: tune_plan::StructStatePlan::LOCAL,
+            ..
+        }
+    )));
+
+    Ok(())
+}
+
+#[test]
 fn module_plan_entry_runs_top_level_values_in_order() -> Result<(), &'static str> {
     let source = "let a: Int = 1\nlet b: Int = a + 2\nlet helper(): Int = 99";
     let parsed = tune_syntax::parse(source);
