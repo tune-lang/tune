@@ -41,11 +41,19 @@ let ok(value) = Ok(value)
             .iter()
             .any(|op| matches!(op, tune_plan::PlanOp::ResultPropagate { span: Some(_), .. }))
     );
-    assert!(run.ops.contains(&tune_plan::PlanOp::Spawn));
+    assert!(
+        run.ops
+            .iter()
+            .any(|op| matches!(op, tune_plan::PlanOp::Spawn { span: Some(_), .. }))
+    );
 
     let each = tune_plan::lower_resolved_item_to_plan(&module.items[2], &resolved)
         .ok_or("expected each plan")?;
-    assert!(each.ops.contains(&tune_plan::PlanOp::FiniteFor));
+    assert!(
+        each.ops
+            .iter()
+            .any(|op| matches!(op, tune_plan::PlanOp::FiniteFor { span: Some(_), .. }))
+    );
     assert!(each.ops.contains(&tune_plan::PlanOp::DirectCall {
         target: tune_hir::HirId(0)
     }));
@@ -102,21 +110,45 @@ let ok(value) = Ok(value)
 
     let branch = tune_plan::lower_resolved_item_to_plan(&module.items[7], &resolved)
         .ok_or("expected branch plan")?;
-    assert!(branch.ops.contains(&tune_plan::PlanOp::If));
+    assert!(branch.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::If {
+            branches,
+            else_body: Some(_),
+            span: Some(_)
+        } if branches.len() == 2
+    )));
     assert!(branch.ops.contains(&tune_plan::PlanOp::Panic));
 
     let select = tune_plan::lower_resolved_item_to_plan(&module.items[8], &resolved)
         .ok_or("expected select plan")?;
-    assert!(select.ops.contains(&tune_plan::PlanOp::Match));
+    assert!(select.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::Match {
+            arms,
+            span: Some(_),
+            ..
+        } if arms.len() == 2
+    )));
 
     let repeated = tune_plan::lower_resolved_item_to_plan(&module.items[9], &resolved)
         .ok_or("expected repeated plan")?;
-    assert!(repeated.ops.contains(&tune_plan::PlanOp::While));
+    assert!(
+        repeated
+            .ops
+            .iter()
+            .any(|op| matches!(op, tune_plan::PlanOp::While { span: Some(_), .. }))
+    );
     assert!(repeated.ops.contains(&tune_plan::PlanOp::Continue));
 
     let forever = tune_plan::lower_resolved_item_to_plan(&module.items[10], &resolved)
         .ok_or("expected forever plan")?;
-    assert!(forever.ops.contains(&tune_plan::PlanOp::Loop));
+    assert!(
+        forever
+            .ops
+            .iter()
+            .any(|op| matches!(op, tune_plan::PlanOp::Loop { span: Some(_), .. }))
+    );
     assert!(forever.ops.contains(&tune_plan::PlanOp::Break));
 
     let ok = tune_plan::lower_resolved_item_to_plan(&module.items[11], &resolved)

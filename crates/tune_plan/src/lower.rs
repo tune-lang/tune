@@ -3,7 +3,7 @@ use tune_hir::expr::{Expr, ExprKind};
 use tune_hir::item::Item;
 use tune_resolve::{LocalId, NameTarget, ResolvedModule};
 
-use crate::plan::{PlanFunction, PlanOp};
+use crate::plan::{PlanFunction, PlanIfBranch, PlanMatchArm, PlanOp};
 
 #[must_use]
 pub fn lower_to_plan(name: &str) -> PlanFunction {
@@ -95,7 +95,10 @@ impl LowerContext<'_> {
             }
             ExprKind::Spawn(inner) => {
                 self.lower_expr(inner, ops);
-                ops.push(PlanOp::Spawn);
+                ops.push(PlanOp::Spawn {
+                    body: inner.id,
+                    span: expr.span,
+                });
             }
             ExprKind::Propagate(inner) => {
                 self.lower_expr(inner, ops);
@@ -115,23 +118,50 @@ impl LowerContext<'_> {
                 if let Some(else_branch) = else_branch {
                     self.lower_expr(else_branch, ops);
                 }
-                ops.push(PlanOp::If);
+                ops.push(PlanOp::If {
+                    branches: branches
+                        .iter()
+                        .map(|branch| PlanIfBranch {
+                            condition: branch.condition.id,
+                            body: branch.body.id,
+                        })
+                        .collect(),
+                    else_body: else_branch.as_ref().map(|branch| branch.id),
+                    span: expr.span,
+                });
             }
             ExprKind::Match { scrutinee, arms } => {
                 self.lower_expr(scrutinee, ops);
                 for arm in arms {
                     self.lower_expr(&arm.body, ops);
                 }
-                ops.push(PlanOp::Match);
+                ops.push(PlanOp::Match {
+                    scrutinee: scrutinee.id,
+                    arms: arms
+                        .iter()
+                        .map(|arm| PlanMatchArm {
+                            pattern: arm.pattern.clone(),
+                            body: arm.body.id,
+                        })
+                        .collect(),
+                    span: expr.span,
+                });
             }
             ExprKind::While { condition, body } => {
                 self.lower_expr(condition, ops);
                 self.lower_expr(body, ops);
-                ops.push(PlanOp::While);
+                ops.push(PlanOp::While {
+                    condition: condition.id,
+                    body: body.id,
+                    span: expr.span,
+                });
             }
             ExprKind::Loop(body) => {
                 self.lower_expr(body, ops);
-                ops.push(PlanOp::Loop);
+                ops.push(PlanOp::Loop {
+                    body: body.id,
+                    span: expr.span,
+                });
             }
             ExprKind::Break => ops.push(PlanOp::Break),
             ExprKind::Continue => ops.push(PlanOp::Continue),
@@ -147,10 +177,19 @@ impl LowerContext<'_> {
                 }
                 ops.push(PlanOp::Panic);
             }
-            ExprKind::For { iterable, body, .. } => {
+            ExprKind::For {
+                pattern,
+                iterable,
+                body,
+            } => {
                 self.lower_expr(iterable, ops);
                 self.lower_expr(body, ops);
-                ops.push(PlanOp::FiniteFor);
+                ops.push(PlanOp::FiniteFor {
+                    pattern: pattern.clone(),
+                    iterable: iterable.id,
+                    body: body.id,
+                    span: expr.span,
+                });
             }
             ExprKind::Block(exprs) => {
                 for expr in exprs {

@@ -1,12 +1,12 @@
 use tune_diagnostics::Span;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Pattern {
     pub span: Option<Span>,
     pub kind: PatternKind,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PatternKind {
     Hole,
     Binding(String),
