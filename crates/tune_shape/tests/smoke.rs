@@ -65,6 +65,26 @@ fn integer_arithmetic_binary_shape_is_int() -> Result<(), &'static str> {
 }
 
 #[test]
+fn contextual_logic_aliases_shape_as_bool_or_int() -> Result<(), &'static str> {
+    let source = r#"
+let bool_words: Bool = true and false
+let bool_symbols: Bool = true & false
+let int_words: Int = 1 or 2
+let int_symbols: Int = 1 | 2
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    for item in &module.items {
+        let analysis = tune_shape::analyze_item(&module, &resolved, item);
+        assert!(analysis.diagnostics.is_empty());
+    }
+
+    Ok(())
+}
+
+#[test]
 fn result_constructor_facts_union_variant_payloads_from_value_flow() -> Result<(), &'static str> {
     let source = r#"
 let choose(ready, waiting, value) = if ready { Ok(value) } elif waiting { Error("wait") } else { Error(1) }

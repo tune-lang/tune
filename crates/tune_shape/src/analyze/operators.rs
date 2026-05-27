@@ -8,23 +8,36 @@ impl Analyzer<'_> {
         let lhs = self.analyze_expr(lhs);
         let rhs = self.analyze_expr(rhs);
         match op {
+            BinaryOp::Or
+            | BinaryOp::And
+            | BinaryOp::BitOr
+            | BinaryOp::BitXor
+            | BinaryOp::BitAnd
+                if Shape::Bool.accepts(&lhs) && Shape::Bool.accepts(&rhs) =>
+            {
+                Shape::Bool
+            }
+            BinaryOp::Or
+            | BinaryOp::And
+            | BinaryOp::BitOr
+            | BinaryOp::BitXor
+            | BinaryOp::BitAnd
+                if Shape::Int.accepts(&lhs) && Shape::Int.accepts(&rhs) =>
+            {
+                Shape::Int
+            }
             BinaryOp::Add
             | BinaryOp::Sub
             | BinaryOp::Mul
             | BinaryOp::Div
             | BinaryOp::Rem
-            | BinaryOp::BitOr
-            | BinaryOp::BitXor
-            | BinaryOp::BitAnd
             | BinaryOp::ShiftLeft
             | BinaryOp::ShiftRight
                 if Shape::Int.accepts(&lhs) && Shape::Int.accepts(&rhs) =>
             {
                 Shape::Int
             }
-            BinaryOp::Or
-            | BinaryOp::And
-            | BinaryOp::Is
+            BinaryOp::Is
             | BinaryOp::IsNot
             | BinaryOp::Equal
             | BinaryOp::NotEqual
@@ -37,6 +50,8 @@ impl Analyzer<'_> {
             | BinaryOp::Mul
             | BinaryOp::Div
             | BinaryOp::Rem
+            | BinaryOp::Or
+            | BinaryOp::And
             | BinaryOp::BitOr
             | BinaryOp::BitXor
             | BinaryOp::BitAnd
