@@ -150,7 +150,7 @@ impl Parser<'_> {
     fn parse_postfix_expr(&mut self) {
         let checkpoint = self.builder.checkpoint();
         self.parse_primary_expr();
-        self.skip_trivia();
+        self.skip_inline_trivia();
 
         loop {
             match self.current_kind() {
@@ -187,7 +187,7 @@ impl Parser<'_> {
                 _ => break,
             }
 
-            self.skip_trivia();
+            self.skip_inline_trivia();
         }
     }
 

@@ -142,6 +142,16 @@ impl<'src> Parser<'src> {
         }
     }
 
+    pub(super) fn skip_inline_trivia(&mut self) {
+        while self
+            .current()
+            .is_some_and(|token| crate::cst::is_trivia(token.kind))
+            && !self.current_text_has_newline()
+        {
+            self.bump();
+        }
+    }
+
     pub(super) fn skip_whitespace(&mut self) {
         while self.at(TokenKind::Whitespace) {
             self.bump();

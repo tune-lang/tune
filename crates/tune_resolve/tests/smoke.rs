@@ -200,6 +200,12 @@ let run(input) = helper(input)
 let each(items) = for item in items { helper(item) }
 let scoped(input) = { let local = _(x) = helper(x); local(input) }
 let check(input, other) = not input and other is not none
+struct Box {
+  value: String
+  get(default: String): String = default
+  [items] = items
+  Box[index: Size]: String = index
+}
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);

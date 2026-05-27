@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::expr::{Expr, ExprKind};
-use tune_hir::item::Item;
+use tune_hir::item::{Item, StructMember};
 use tune_hir::pattern::{Pattern, PatternKind};
 use tune_hir::{HirId, MemberId};
 
@@ -11,23 +11,75 @@ use crate::locals::{LocalBinding, LocalId, LocalKind, NameRef, NameTarget};
 use super::ResolvedModule;
 
 pub(super) fn resolve_item_body(resolved: &mut ResolvedModule, item: &Item) {
-    let Some(body) = &item.body else {
-        return;
-    };
+    if let Some(body) = &item.body {
+        let mut resolver = BodyResolver {
+            resolved,
+            owner: item.id,
+            scopes: vec![HashMap::new()],
+        };
 
-    let mut resolver = BodyResolver {
-        resolved,
-        owner: item.id,
-        scopes: vec![HashMap::new()],
-    };
-
-    for param in &item.params {
-        if let Some(name) = &param.name {
-            resolver.bind_param(name, param.id);
+        for param in &item.params {
+            if let Some(name) = &param.name {
+                resolver.bind_param(name, param.id);
+            }
         }
+
+        resolver.resolve_expr_names(body);
     }
 
-    resolver.resolve_expr_names(body);
+    for member in &item.struct_members {
+        resolve_struct_member_body(resolved, item, member);
+    }
+}
+
+fn resolve_struct_member_body(resolved: &mut ResolvedModule, item: &Item, member: &StructMember) {
+    match member {
+        StructMember::Callable(callable) => {
+            let Some(body) = &callable.body else {
+                return;
+            };
+            let mut resolver = BodyResolver {
+                resolved,
+                owner: item.id,
+                scopes: vec![HashMap::new()],
+            };
+            for param in &callable.params {
+                if let Some(name) = &param.name {
+                    resolver.bind_param(name, param.id);
+                }
+            }
+            resolver.resolve_expr_names(body);
+        }
+        StructMember::SequenceMaterializer(materializer) => {
+            let Some(body) = &materializer.body else {
+                return;
+            };
+            let mut resolver = BodyResolver {
+                resolved,
+                owner: item.id,
+                scopes: vec![HashMap::new()],
+            };
+            if let Some(name) = &materializer.param_name {
+                resolver.bind_local(name, LocalKind::Pattern, None, materializer.span);
+            }
+            resolver.resolve_expr_names(body);
+        }
+        StructMember::IndexAccess(access) => {
+            let Some(body) = &access.body else {
+                return;
+            };
+            let mut resolver = BodyResolver {
+                resolved,
+                owner: item.id,
+                scopes: vec![HashMap::new()],
+            };
+            if let Some(name) = &access.index_param_name {
+                resolver.bind_local(name, LocalKind::Pattern, None, access.span);
+            }
+            resolver.resolve_expr_names(body);
+        }
+        StructMember::Field(_) => {}
+    }
 }
 
 struct BodyResolver<'resolved> {

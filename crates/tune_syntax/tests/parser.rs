@@ -206,6 +206,9 @@ struct User {
   -- Name docs.
   name: String
   age: Int
+  change(): Unit = self
+  [items] = items
+  User[index: Size]: String = name
 }
 enum LoadResult {
   Ok(User)
@@ -225,6 +228,9 @@ tag tool {
             .count(),
         3
     );
+    assert!(kinds.contains(&SyntaxKind::MemberCallableDecl));
+    assert!(kinds.contains(&SyntaxKind::SequenceMaterializerDecl));
+    assert!(kinds.contains(&SyntaxKind::IndexAccessDecl));
     assert_eq!(
         kinds
             .iter()

@@ -3,7 +3,7 @@ mod body;
 use std::collections::HashMap;
 
 use tune_diagnostics::{Diagnostic, Span, codes};
-use tune_hir::item::{Item, ItemKind};
+use tune_hir::item::{Item, ItemKind, StructMember};
 use tune_hir::module::Module;
 
 use crate::facts::{CompilerFact, CompilerFactPayload, FactOwner};
@@ -82,14 +82,7 @@ fn validate_member_names(resolved: &mut ResolvedModule, item: &Item) {
             .filter_map(|param| Some((param.name.as_deref()?, param.span))),
         "parameter",
     );
-    validate_named_members(
-        resolved,
-        item,
-        item.fields
-            .iter()
-            .filter_map(|field| Some((field.name.as_deref()?, field.span))),
-        "field",
-    );
+    validate_named_members(resolved, item, named_struct_value_members(item), "field");
     validate_named_members(
         resolved,
         item,
@@ -98,6 +91,25 @@ fn validate_member_names(resolved: &mut ResolvedModule, item: &Item) {
             .filter_map(|variant| Some((variant.name.as_deref()?, variant.span))),
         "variant",
     );
+}
+
+fn named_struct_value_members(item: &Item) -> Vec<(&str, Option<Span>)> {
+    if item.struct_members.is_empty() {
+        return item
+            .fields
+            .iter()
+            .filter_map(|field| Some((field.name.as_deref()?, field.span)))
+            .collect();
+    }
+
+    item.struct_members
+        .iter()
+        .filter_map(|member| match member {
+            StructMember::Field(field) => Some((field.name.as_deref()?, field.span)),
+            StructMember::Callable(callable) => Some((callable.name.as_deref()?, callable.span)),
+            StructMember::SequenceMaterializer(_) | StructMember::IndexAccess(_) => None,
+        })
+        .collect()
 }
 
 fn validate_named_members<'name>(

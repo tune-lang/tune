@@ -26,5 +26,8 @@ pub use shapes::{
     CallableShape, GenericShape, NamedShape, OptionalShape, SequenceShape, Shape, TupleShape,
     UnionShape,
 };
-pub use structs::{DocumentedField, FieldDecl, StructDecl};
+pub use structs::{
+    DocumentedField, DocumentedStructMember, FieldDecl, IndexAccessDecl, MemberCallableDecl,
+    SequenceMaterializerDecl, StructDecl, StructMember,
+};
 pub use tags::{TagApplication, TagDecl};

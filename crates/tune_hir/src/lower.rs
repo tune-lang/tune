@@ -7,7 +7,10 @@ use tune_ast::nodes::{
 };
 use tune_syntax::CstNode;
 
-use crate::item::{Field, Item, ItemKind, Param, TagApplication, Variant, Visibility};
+use crate::item::{
+    CallableMember, Field, IndexAccess, Item, ItemKind, Param, SequenceMaterializer, StructMember,
+    TagApplication, Variant, Visibility,
+};
 use crate::module::Module;
 use crate::{HirId, MemberId, MemberKind, ModuleId};
 
@@ -51,9 +54,10 @@ fn lower_item(
         AstItem::Let(node) => {
             push_item(items, lower_let(source, node, visibility, doc, tags, exprs))
         }
-        AstItem::Struct(node) => {
-            push_item(items, lower_struct(source, node, visibility, doc, tags))
-        }
+        AstItem::Struct(node) => push_item(
+            items,
+            lower_struct(source, node, visibility, doc, tags, exprs),
+        ),
         AstItem::Enum(node) => push_item(items, lower_enum(source, node, visibility, doc, tags)),
         AstItem::Tag(node) => push_item(items, lower_tag(source, node, visibility, doc, tags)),
         AstItem::Pub(node) => {
@@ -89,8 +93,25 @@ fn assign_member_owners(item: &mut Item) {
     for field in &mut item.fields {
         field.id.owner = item.id;
     }
+    for member in &mut item.struct_members {
+        assign_struct_member_owner(member, item.id);
+    }
     for variant in &mut item.variants {
         variant.id.owner = item.id;
+    }
+}
+
+fn assign_struct_member_owner(member: &mut StructMember, owner: HirId) {
+    match member {
+        StructMember::Field(field) => field.id.owner = owner,
+        StructMember::Callable(callable) => {
+            callable.id.owner = owner;
+            for param in &mut callable.params {
+                param.id.owner = owner;
+            }
+        }
+        StructMember::SequenceMaterializer(materializer) => materializer.id.owner = owner,
+        StructMember::IndexAccess(access) => access.id.owner = owner,
     }
 }
 
@@ -110,6 +131,7 @@ fn lower_import(
         doc,
         tags,
         params: Vec::new(),
+        struct_members: Vec::new(),
         fields: Vec::new(),
         variants: Vec::new(),
         shape: None,
@@ -139,6 +161,7 @@ fn lower_let(
         doc,
         tags,
         params: lower_params(source, node),
+        struct_members: Vec::new(),
         fields: Vec::new(),
         variants: Vec::new(),
         shape: node
@@ -154,7 +177,9 @@ fn lower_struct(
     visibility: Visibility,
     doc: Option<String>,
     tags: Vec<TagApplication>,
+    exprs: &mut ExprLowerer,
 ) -> Item {
+    let struct_members = lower_struct_members(source, node.members(), exprs);
     Item {
         id: HirId(0),
         name: node.name(source).map(str::to_owned),
@@ -164,7 +189,16 @@ fn lower_struct(
         doc,
         tags,
         params: Vec::new(),
-        fields: lower_fields(source, node.fields()),
+        fields: struct_members
+            .iter()
+            .filter_map(|member| match member {
+                StructMember::Field(field) => Some(field.clone()),
+                StructMember::Callable(_)
+                | StructMember::SequenceMaterializer(_)
+                | StructMember::IndexAccess(_) => None,
+            })
+            .collect(),
+        struct_members,
         variants: Vec::new(),
         shape: None,
         body: None,
@@ -187,6 +221,7 @@ fn lower_enum(
         doc,
         tags,
         params: Vec::new(),
+        struct_members: Vec::new(),
         fields: Vec::new(),
         variants: lower_variants(source, node.variants()),
         shape: None,
@@ -210,6 +245,7 @@ fn lower_tag(
         doc,
         tags,
         params: Vec::new(),
+        struct_members: Vec::new(),
         fields: lower_fields(source, node.fields()),
         variants: Vec::new(),
         shape: None,
@@ -246,6 +282,24 @@ fn lower_params(source: &str, node: LetDecl<'_>) -> Vec<Param> {
         .collect()
 }
 
+fn lower_member_params(source: &str, params: Option<tune_ast::nodes::ParamList<'_>>) -> Vec<Param> {
+    params
+        .into_iter()
+        .flat_map(|params| params.params())
+        .enumerate()
+        .filter_map(|(index, param)| {
+            Some(Param {
+                id: member_id(index, MemberKind::Param)?,
+                name: param.name(source).map(str::to_owned),
+                span: param.syntax().span,
+                shape: param
+                    .shape_annotation()
+                    .map(|shape| lower_shape(source, shape)),
+            })
+        })
+        .collect()
+}
+
 fn lower_fields(source: &str, fields: Vec<tune_ast::nodes::DocumentedField<'_>>) -> Vec<Field> {
     fields
         .into_iter()
@@ -263,6 +317,86 @@ fn lower_fields(source: &str, fields: Vec<tune_ast::nodes::DocumentedField<'_>>)
             })
         })
         .collect()
+}
+
+fn lower_struct_members(
+    source: &str,
+    members: Vec<tune_ast::nodes::DocumentedStructMember<'_>>,
+    exprs: &mut ExprLowerer,
+) -> Vec<StructMember> {
+    members
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, documented)| {
+            let id = member_id_for_struct_member(index, documented.member)?;
+            let doc = documented.doc_text(source);
+            match documented.member {
+                tune_ast::nodes::StructMember::Field(field) => Some(StructMember::Field(Field {
+                    id,
+                    name: field.name(source).map(str::to_owned),
+                    span: field.syntax().span,
+                    doc,
+                    shape: field
+                        .shape_annotation()
+                        .map(|shape| lower_shape(source, shape)),
+                })),
+                tune_ast::nodes::StructMember::Callable(callable) => {
+                    Some(StructMember::Callable(CallableMember {
+                        id,
+                        name: callable.name(source).map(str::to_owned),
+                        span: callable.syntax().span,
+                        doc,
+                        params: lower_member_params(source, callable.params()),
+                        shape: callable
+                            .shape_annotation()
+                            .map(|shape| lower_shape(source, shape)),
+                        body: callable.body_expr().map(|body| exprs.lower(source, body)),
+                    }))
+                }
+                tune_ast::nodes::StructMember::SequenceMaterializer(materializer) => {
+                    Some(StructMember::SequenceMaterializer(SequenceMaterializer {
+                        id,
+                        param_name: materializer.param_name(source).map(str::to_owned),
+                        span: materializer.syntax().span,
+                        doc,
+                        body: materializer
+                            .body_expr()
+                            .map(|body| exprs.lower(source, body)),
+                    }))
+                }
+                tune_ast::nodes::StructMember::IndexAccess(access) => {
+                    let shapes = access
+                        .shapes()
+                        .into_iter()
+                        .map(|shape| lower_shape(source, shape))
+                        .collect::<Vec<_>>();
+                    Some(StructMember::IndexAccess(IndexAccess {
+                        id,
+                        receiver_name: access.receiver_name(source).map(str::to_owned),
+                        index_param_name: access.index_param_name(source).map(str::to_owned),
+                        span: access.syntax().span,
+                        doc,
+                        index_shape: shapes.first().cloned(),
+                        result_shape: shapes.get(1).cloned(),
+                        body: access.body_expr().map(|body| exprs.lower(source, body)),
+                    }))
+                }
+            }
+        })
+        .collect()
+}
+
+fn member_id_for_struct_member(
+    index: usize,
+    member: tune_ast::nodes::StructMember<'_>,
+) -> Option<MemberId> {
+    let kind = match member {
+        tune_ast::nodes::StructMember::Field(_) => MemberKind::Field,
+        tune_ast::nodes::StructMember::Callable(_) => MemberKind::Callable,
+        tune_ast::nodes::StructMember::SequenceMaterializer(_) => MemberKind::SequenceMaterializer,
+        tune_ast::nodes::StructMember::IndexAccess(_) => MemberKind::IndexAccess,
+    };
+    member_id(index, kind)
 }
 
 fn lower_variants(

@@ -43,6 +43,46 @@ pub struct Field {
 }
 
 #[derive(Debug, Clone)]
+pub enum StructMember {
+    Field(Field),
+    Callable(CallableMember),
+    SequenceMaterializer(SequenceMaterializer),
+    IndexAccess(IndexAccess),
+}
+
+#[derive(Debug, Clone)]
+pub struct CallableMember {
+    pub id: MemberId,
+    pub name: Option<String>,
+    pub span: Option<Span>,
+    pub doc: Option<String>,
+    pub params: Vec<Param>,
+    pub shape: Option<ShapeExpr>,
+    pub body: Option<Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SequenceMaterializer {
+    pub id: MemberId,
+    pub param_name: Option<String>,
+    pub span: Option<Span>,
+    pub doc: Option<String>,
+    pub body: Option<Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct IndexAccess {
+    pub id: MemberId,
+    pub receiver_name: Option<String>,
+    pub index_param_name: Option<String>,
+    pub span: Option<Span>,
+    pub doc: Option<String>,
+    pub index_shape: Option<ShapeExpr>,
+    pub result_shape: Option<ShapeExpr>,
+    pub body: Option<Expr>,
+}
+
+#[derive(Debug, Clone)]
 pub struct Variant {
     pub id: MemberId,
     pub name: Option<String>,
@@ -61,6 +101,7 @@ pub struct Item {
     pub doc: Option<String>,
     pub tags: Vec<TagApplication>,
     pub params: Vec<Param>,
+    pub struct_members: Vec<StructMember>,
     pub fields: Vec<Field>,
     pub variants: Vec<Variant>,
     pub shape: Option<ShapeExpr>,

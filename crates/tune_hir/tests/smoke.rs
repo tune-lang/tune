@@ -202,6 +202,9 @@ struct User {
   -- Name docs.
   name: String
   age: Int
+  rename(value: String): Unit = value
+  [items] = items
+  User[index: Size]: String = name
 }
 enum LoadResult {
   Ok(User)
@@ -215,11 +218,21 @@ tag tool {
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
 
     assert_eq!(module.items[0].fields.len(), 2);
+    assert_eq!(module.items[0].struct_members.len(), 5);
     assert_eq!(module.items[0].fields[0].id.owner, module.items[0].id);
     assert_eq!(module.items[0].fields[0].id.index, 0);
     assert_eq!(module.items[0].fields[0].name.as_deref(), Some("name"));
     assert_eq!(module.items[0].fields[0].doc.as_deref(), Some("Name docs."));
     assert!(module.items[0].fields[0].shape.is_some());
+    assert!(module.items[0].struct_members.iter().any(|member| {
+        matches!(member, tune_hir::item::StructMember::Callable(callable) if callable.name.as_deref() == Some("rename") && callable.body.is_some())
+    }));
+    assert!(module.items[0].struct_members.iter().any(|member| {
+        matches!(member, tune_hir::item::StructMember::SequenceMaterializer(materializer) if materializer.param_name.as_deref() == Some("items") && materializer.body.is_some())
+    }));
+    assert!(module.items[0].struct_members.iter().any(|member| {
+        matches!(member, tune_hir::item::StructMember::IndexAccess(access) if access.receiver_name.as_deref() == Some("User") && access.index_param_name.as_deref() == Some("index") && access.index_shape.is_some() && access.result_shape.is_some())
+    }));
     assert_eq!(module.items[1].variants.len(), 2);
     assert_eq!(module.items[1].variants[0].id.owner, module.items[1].id);
     assert_eq!(module.items[1].variants[0].id.index, 0);

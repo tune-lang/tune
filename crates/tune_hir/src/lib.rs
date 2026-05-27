@@ -15,6 +15,9 @@ pub struct ExprId(pub u64);
 pub enum MemberKind {
     Param,
     Field,
+    Callable,
+    SequenceMaterializer,
+    IndexAccess,
     Variant,
 }
 
