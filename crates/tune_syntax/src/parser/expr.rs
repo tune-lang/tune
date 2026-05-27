@@ -37,13 +37,13 @@ impl Parser<'_> {
     fn parse_assignment_expr(&mut self) {
         let checkpoint = self.builder.checkpoint();
         self.parse_binary_expr(0);
-        self.skip_trivia();
+        self.skip_inline_trivia();
 
         if self.at(TokenKind::Equal) {
             self.builder
                 .start_node_at(checkpoint, SyntaxKind::AssignExpr);
             self.bump();
-            self.skip_trivia();
+            self.skip_inline_trivia();
             self.parse_expr();
             self.finish_node();
         }

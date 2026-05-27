@@ -355,6 +355,21 @@ let pick = {
 }
 
 #[test]
+fn newline_after_literal_initializer_separates_next_block_expression() {
+    let parsed = parse(
+        r#"
+let pick = {
+  let result = 0
+  if ready { result = 1 } else { result = 2 }
+  result
+}
+"#,
+    );
+
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
 fn wraps_unexpected_top_level_token_in_error_node() {
     let parsed = parse("}");
 
