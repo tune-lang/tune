@@ -170,6 +170,27 @@ let ok(value) = Ok(value)
 }
 
 #[test]
+fn explicit_return_body_does_not_get_extra_implicit_return() -> Result<(), &'static str> {
+    let source = "let main(): Int = return 1";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    let plan = tune_plan::lower_resolved_item_to_plan(&module.items[0], &resolved)
+        .ok_or("expected main plan")?;
+
+    assert_eq!(
+        plan.ops
+            .iter()
+            .filter(|op| **op == tune_plan::PlanOp::Return)
+            .count(),
+        1
+    );
+
+    Ok(())
+}
+
+#[test]
 fn semantic_plan_has_typed_materialization_and_meta_slots() {
     let materialize = tune_plan::PlanOp::Materialize {
         plan: tune_shape::MaterializationPlan {

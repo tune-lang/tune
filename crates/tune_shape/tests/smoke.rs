@@ -44,6 +44,27 @@ fn propagation_shape_uses_result_ok_shape() -> Result<(), &'static str> {
 }
 
 #[test]
+fn integer_arithmetic_binary_shape_is_int() -> Result<(), &'static str> {
+    let source = "let main(): Int = 1 + 2";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert!(analysis.diagnostics.is_empty());
+    assert_eq!(
+        module.items[0].body.as_ref().and_then(|body| analysis
+            .expr_shapes
+            .iter()
+            .find(|expr| expr.expr == body.id)
+            .map(|expr| &expr.shape)),
+        Some(&tune_shape::Shape::Int)
+    );
+
+    Ok(())
+}
+
+#[test]
 fn result_constructor_facts_union_variant_payloads_from_value_flow() -> Result<(), &'static str> {
     let source = r#"
 let choose(ready, waiting, value) = if ready { Ok(value) } elif waiting { Error("wait") } else { Error(1) }

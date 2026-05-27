@@ -1,4 +1,4 @@
-use tune_hir::expr::{Expr, ExprKind};
+use tune_hir::expr::{Expr, ExprKind, LiteralKind};
 mod members;
 
 use tune_hir::ExprId;
@@ -68,7 +68,25 @@ fn lower_item_with_context(
             },
         });
     }
+    if falls_through(body) {
+        plan.ops.push(PlanOp::Return);
+    }
     Some(plan)
+}
+
+fn falls_through(expr: &Expr) -> bool {
+    match &expr.kind {
+        ExprKind::Return(_) | ExprKind::Panic(_) | ExprKind::Break | ExprKind::Continue => false,
+        ExprKind::Block(exprs) => exprs.last().is_none_or(falls_through),
+        ExprKind::If {
+            branches,
+            else_branch: Some(else_branch),
+        } => {
+            branches.iter().any(|branch| falls_through(&branch.body)) || falls_through(else_branch)
+        }
+        ExprKind::Loop(body) => falls_through(body),
+        _ => true,
+    }
 }
 
 struct LowerContext<'a> {
@@ -80,7 +98,13 @@ struct LowerContext<'a> {
 impl LowerContext<'_> {
     fn lower_expr(&self, expr: &Expr, ops: &mut Vec<PlanOp>) {
         match &expr.kind {
-            ExprKind::Missing | ExprKind::Literal(_) | ExprKind::Name(_) => {}
+            ExprKind::Missing | ExprKind::Name(_) => {}
+            ExprKind::Literal(LiteralKind::Int(text)) => {
+                if let Ok(value) = text.parse::<i64>() {
+                    ops.push(PlanOp::ConstInt { value });
+                }
+            }
+            ExprKind::Literal(_) => {}
             ExprKind::CallableValue { params: _, body } => {
                 self.lower_expr(body, ops);
                 ops.push(PlanOp::CallableValue);

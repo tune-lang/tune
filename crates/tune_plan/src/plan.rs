@@ -38,6 +38,9 @@ pub struct FiniteForContract {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlanOp {
+    ConstInt {
+        value: i64,
+    },
     DirectCall {
         target: HirId,
     },

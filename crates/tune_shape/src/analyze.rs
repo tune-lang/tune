@@ -5,6 +5,7 @@ mod calls;
 mod contracts;
 mod control;
 mod diagnostics;
+mod operators;
 
 use tune_hir::item::Item;
 use tune_hir::module::Module;
@@ -256,11 +257,7 @@ impl Analyzer<'_> {
             ExprKind::Loop(body) => self.analyze_loop(body),
             ExprKind::While { condition, body } => self.analyze_while(condition, body),
             ExprKind::Unary { expr, .. } => self.analyze_expr(expr),
-            ExprKind::Binary { lhs, rhs, .. } => {
-                self.analyze_expr(lhs);
-                self.analyze_expr(rhs);
-                Shape::Bool
-            }
+            ExprKind::Binary { op, lhs, rhs } => self.analyze_binary(*op, lhs, rhs),
             ExprKind::Break | ExprKind::Continue => Shape::Never,
         };
         self.record_expr_shape(expr.id, shape.clone());
