@@ -126,6 +126,7 @@ name = "tune_bytecode"
 version = "0.1.0"
 dependencies = [
  "tune_ir",
+ "tune_resolve",
  "tune_shape",
 ]
 

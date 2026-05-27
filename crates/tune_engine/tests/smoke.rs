@@ -93,6 +93,43 @@ fn run_file_executes_tiny_integer_file_entry_through_vm() -> Result<(), &'static
 }
 
 #[test]
+fn executable_file_lowers_only_reachable_entry_plans() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file("app.tn", "let helper(): Int = 99\nlet value: Int = 1 + 2")
+        .ok_or("file should allocate")?;
+
+    let executable = tune
+        .executable_entry(tune_engine::EntryPoint::File(file))
+        .map_err(|_| "file should lower to executable")?;
+
+    assert_eq!(executable.compile.functions.len(), 2);
+    assert_eq!(executable.ir.len(), 1);
+    assert_eq!(executable.bytecode.entry_function, Some(0));
+
+    Ok(())
+}
+
+#[test]
+fn run_file_executes_local_binding_slice_through_vm() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file("app.tn", "let value: Int = { let x: Int = 1; x + 2 }")
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        tune.run_entry(tune_engine::EntryPoint::File(file))
+            .map_err(|error| {
+                eprintln!("{error:?}");
+                "file entry should run"
+            })?,
+        tune_runtime::value::Value::Int(3)
+    );
+
+    Ok(())
+}
+
+#[test]
 fn registers_host_modules_and_project_manifests() -> Result<(), &'static str> {
     struct EmptyHost;
 

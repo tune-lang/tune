@@ -1,4 +1,7 @@
-use tune_bytecode::{Opcode, artifact::BytecodeArtifact};
+use tune_bytecode::{
+    Opcode,
+    artifact::{BytecodeArtifact, BytecodeConst},
+};
 use tune_runtime::value::Value;
 
 pub struct Vm {
@@ -10,7 +13,6 @@ pub enum VmError {
     MissingEntry,
     RegisterOutOfBounds,
     ConstantOutOfBounds,
-    InvalidConstant,
     UnsupportedOpcode(Opcode),
 }
 
@@ -28,18 +30,28 @@ impl Vm {
             .get(entry)
             .ok_or(VmError::MissingEntry)?;
         let mut registers = vec![Value::Unit; function.register_count as usize];
+        let mut locals = vec![Value::Unit; function.local_count as usize];
         let mut ip = 0;
         while let Some(instruction) = function.instructions.get(ip) {
             match instruction.opcode {
                 Opcode::LoadConst => {
-                    let value = self
+                    let value = match self
                         .artifact
                         .constants
                         .get(instruction.b as usize)
                         .ok_or(VmError::ConstantOutOfBounds)?
-                        .parse::<i64>()
-                        .map_err(|_| VmError::InvalidConstant)?;
-                    write_reg(&mut registers, instruction.a, Value::Int(value))?;
+                    {
+                        BytecodeConst::Int(value) => Value::Int(*value),
+                    };
+                    write_reg(&mut registers, instruction.a, value)?;
+                }
+                Opcode::LoadLocal => {
+                    let value = read_reg(&locals, instruction.b)?;
+                    write_reg(&mut registers, instruction.a, value)?;
+                }
+                Opcode::StoreLocal => {
+                    let value = read_reg(&registers, instruction.b)?;
+                    write_reg(&mut locals, instruction.a, value)?;
                 }
                 Opcode::AddInt => {
                     let left = read_reg(&registers, instruction.b)?;

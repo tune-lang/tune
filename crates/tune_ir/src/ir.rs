@@ -22,6 +22,7 @@ pub struct HostSymbolId(pub u32);
 pub struct IrFunction {
     pub name: String,
     pub regs: u32,
+    pub locals: u32,
     pub constants: Vec<IrConst>,
     pub blocks: Vec<IrBlock>,
 }

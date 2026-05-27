@@ -42,6 +42,7 @@ fn ir_has_typed_slots_for_core_planned_operations() {
     let function = tune_ir::IrFunction {
         name: "run".into(),
         regs: 8,
+        locals: 0,
         constants: vec![tune_ir::IrConst::Int(1)],
         blocks: vec![block],
     };
@@ -61,6 +62,7 @@ fn ir_has_typed_slots_for_core_planned_operations() {
 fn lowers_integer_add_plan_to_ir() -> Result<(), &'static str> {
     let plan = tune_plan::PlanFunction {
         name: "main".into(),
+        owner: None,
         ops: vec![
             tune_plan::PlanOp::ConstInt { value: 1 },
             tune_plan::PlanOp::ConstInt { value: 2 },
@@ -74,6 +76,7 @@ fn lowers_integer_add_plan_to_ir() -> Result<(), &'static str> {
     let ir = tune_ir::lower_plan_function(&plan).map_err(|_| "plan should lower")?;
 
     assert_eq!(ir.regs, 3);
+    assert_eq!(ir.locals, 0);
     assert_eq!(
         ir.constants,
         vec![tune_ir::IrConst::Int(1), tune_ir::IrConst::Int(2)]
@@ -82,6 +85,49 @@ fn lowers_integer_add_plan_to_ir() -> Result<(), &'static str> {
     assert!(matches!(
         ir.blocks[0].ops[3],
         tune_ir::IrOp::Return { value: Some(_) }
+    ));
+
+    Ok(())
+}
+
+#[test]
+fn lowers_local_binding_plan_to_ir_loads_and_stores() -> Result<(), &'static str> {
+    let plan = tune_plan::PlanFunction {
+        owner: None,
+        name: "entry".into(),
+        ops: vec![
+            tune_plan::PlanOp::ConstInt { value: 1 },
+            tune_plan::PlanOp::LocalLet {
+                local: Some(tune_resolve::LocalId(0)),
+                initialized: true,
+            },
+            tune_plan::PlanOp::BindingGet {
+                source: Some(tune_resolve::NameTarget::Local(tune_resolve::LocalId(0))),
+            },
+            tune_plan::PlanOp::ConstInt { value: 2 },
+            tune_plan::PlanOp::BinaryOp {
+                op: tune_hir::expr::BinaryOp::Add,
+            },
+            tune_plan::PlanOp::Return,
+        ],
+    };
+
+    let ir = tune_ir::lower_plan_function(&plan).map_err(|_| "plan should lower")?;
+
+    assert_eq!(ir.locals, 1);
+    assert!(matches!(
+        ir.blocks[0].ops[1],
+        tune_ir::IrOp::StoreLocal {
+            local: tune_resolve::LocalId(0),
+            ..
+        }
+    ));
+    assert!(matches!(
+        ir.blocks[0].ops[2],
+        tune_ir::IrOp::LoadLocal {
+            local: tune_resolve::LocalId(0),
+            ..
+        }
     ));
 
     Ok(())

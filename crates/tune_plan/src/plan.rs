@@ -11,6 +11,7 @@ use crate::meta::MetaPlan;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanFunction {
+    pub owner: Option<HirId>,
     pub name: String,
     pub ops: Vec<PlanOp>,
 }
@@ -57,8 +58,12 @@ pub enum PlanOp {
     HostCall {
         symbol: String,
     },
+    BindingGet {
+        source: Option<NameTarget>,
+    },
     LocalLet {
         local: Option<LocalId>,
+        initialized: bool,
     },
     Assign,
     UnaryOp {

@@ -13,4 +13,5 @@ workspace = true
 tune_ir = { path = "../tune_ir" }
 
 [dev-dependencies]
+tune_resolve = { path = "../tune_resolve" }
 tune_shape = { path = "../tune_shape" }

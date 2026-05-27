@@ -1,5 +1,5 @@
 use crate::Opcode;
-use crate::artifact::BytecodeArtifact;
+use crate::artifact::{BytecodeArtifact, BytecodeConst};
 use crate::function::{BytecodeFunction, Instruction};
 use tune_ir::{IrConst, IrFunction, IrOp};
 
@@ -31,7 +31,7 @@ pub fn lower_ir_function(function: &IrFunction) -> Result<BytecodeFunction, Byte
 
 fn lower_ir_function_with_constants(
     function: &IrFunction,
-    constants: &mut Vec<String>,
+    constants: &mut Vec<BytecodeConst>,
 ) -> Result<BytecodeFunction, BytecodeLowerError> {
     let mut instructions = Vec::new();
     for block in &function.blocks {
@@ -42,6 +42,7 @@ fn lower_ir_function_with_constants(
     Ok(BytecodeFunction {
         name: function.name.clone(),
         register_count: function.regs,
+        local_count: function.locals,
         instructions,
     })
 }
@@ -49,7 +50,7 @@ fn lower_ir_function_with_constants(
 fn lower_op(
     op: &IrOp,
     function: &IrFunction,
-    constants: &mut Vec<String>,
+    constants: &mut Vec<BytecodeConst>,
     instructions: &mut Vec<Instruction>,
 ) -> Result<(), BytecodeLowerError> {
     match op {
@@ -76,6 +77,24 @@ fn lower_op(
             });
             Ok(())
         }
+        IrOp::LoadLocal { dst, local } => {
+            instructions.push(Instruction {
+                opcode: Opcode::LoadLocal,
+                a: dst.0,
+                b: local.0,
+                c: 0,
+            });
+            Ok(())
+        }
+        IrOp::StoreLocal { local, value } => {
+            instructions.push(Instruction {
+                opcode: Opcode::StoreLocal,
+                a: local.0,
+                b: value.0,
+                c: 0,
+            });
+            Ok(())
+        }
         IrOp::Return { value: Some(value) } => {
             instructions.push(Instruction {
                 opcode: Opcode::Return,
@@ -99,12 +118,12 @@ fn lower_op(
 }
 
 fn push_artifact_const(
-    constants: &mut Vec<String>,
+    constants: &mut Vec<BytecodeConst>,
     constant: &IrConst,
 ) -> Result<u32, BytecodeLowerError> {
     let index = u32::try_from(constants.len()).map_err(|_| BytecodeLowerError::ConstantLimit)?;
     match constant {
-        IrConst::Int(value) => constants.push(value.to_string()),
+        IrConst::Int(value) => constants.push(BytecodeConst::Int(*value)),
     }
     Ok(index)
 }

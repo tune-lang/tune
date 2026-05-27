@@ -12,5 +12,6 @@ pub struct Instruction {
 pub struct BytecodeFunction {
     pub name: String,
     pub register_count: u32,
+    pub local_count: u32,
     pub instructions: Vec<Instruction>,
 }

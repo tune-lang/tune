@@ -31,6 +31,11 @@ pub struct ExecutableReport {
     pub bytecode: tune_bytecode::artifact::BytecodeArtifact,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntryPoint {
+    File(FileId),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ProjectHandle(pub u32);
 
@@ -47,6 +52,7 @@ pub enum EngineError {
     IrLower(String),
     BytecodeLower(String),
     Vm(String),
+    MissingEntry,
     NotImplemented(&'static str),
 }
 
@@ -113,30 +119,46 @@ impl Tune {
     }
 
     pub fn run_file(&self, file: FileId) -> Result<Value, EngineError> {
-        let executable = self.executable_file(file)?;
+        self.run_entry(EntryPoint::File(file))
+    }
+
+    pub fn run_entry(&self, entry: EntryPoint) -> Result<Value, EngineError> {
+        let executable = self.executable_entry(entry)?;
         let mut vm = tune_vm::Vm::new(executable.bytecode);
         vm.run_entry()
             .map_err(|error| EngineError::Vm(format!("{error:?}")))
     }
 
     pub fn executable_file(&self, file: FileId) -> Result<ExecutableReport, EngineError> {
+        self.executable_entry(EntryPoint::File(file))
+    }
+
+    pub fn executable_entry(&self, entry: EntryPoint) -> Result<ExecutableReport, EngineError> {
+        let EntryPoint::File(file) = entry;
         let compile = self.compile_file(file)?;
         if !compile.check.diagnostics.is_empty() {
             return Err(EngineError::Diagnostics(compile.check.diagnostics.clone()));
         }
-        let ir = compile
-            .functions
+        let entry_function = compile.entry_function.ok_or(EngineError::MissingEntry)?;
+        let reachable = reachable_functions(&compile.functions, entry_function);
+        let bytecode_entry = reachable
             .iter()
+            .position(|index| *index == entry_function)
+            .ok_or(EngineError::MissingEntry)?;
+        let planned = reachable
+            .iter()
+            .map(|index| &compile.functions[*index])
+            .collect::<Vec<_>>();
+        let ir = planned
+            .iter()
+            .copied()
             .map(tune_ir::lower_plan_function)
             .collect::<Result<Vec<_>, _>>()
             .map_err(|error| EngineError::IrLower(format!("{error:?}")))?;
         let mut bytecode = tune_bytecode::lower_ir_functions(&ir)
             .map_err(|error| EngineError::BytecodeLower(format!("{error:?}")))?;
-        bytecode.entry_function = compile
-            .entry_function
-            .map(u32::try_from)
-            .transpose()
-            .map_err(|_| EngineError::AllocationLimit)?;
+        bytecode.entry_function =
+            Some(u32::try_from(bytecode_entry).map_err(|_| EngineError::AllocationLimit)?);
         Ok(ExecutableReport {
             compile,
             ir,
@@ -188,4 +210,34 @@ fn report_from_analysis(file: FileId, analysis: ModuleAnalysis) -> CheckReport {
         resolved: analysis.resolved,
         shape: analysis.shape,
     }
+}
+
+fn reachable_functions(functions: &[tune_plan::PlanFunction], entry: usize) -> Vec<usize> {
+    let mut reachable = Vec::new();
+    let mut pending = vec![entry];
+    while let Some(index) = pending.pop() {
+        if reachable.contains(&index) {
+            continue;
+        }
+        reachable.push(index);
+        for target in direct_call_targets(&functions[index]) {
+            if let Some(target_index) = functions
+                .iter()
+                .position(|function| function.owner == Some(target))
+            {
+                pending.push(target_index);
+            }
+        }
+    }
+    reachable.sort_unstable();
+    reachable
+}
+
+fn direct_call_targets(
+    function: &tune_plan::PlanFunction,
+) -> impl Iterator<Item = tune_hir::HirId> + '_ {
+    function.ops.iter().filter_map(|op| match op {
+        tune_plan::PlanOp::DirectCall { target } => Some(*target),
+        _ => None,
+    })
 }

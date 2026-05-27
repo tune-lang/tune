@@ -12,6 +12,7 @@ use crate::plan::{FiniteForContract, PlanFunction, PlanIfBranch, PlanMatchArm, P
 #[must_use]
 pub fn lower_to_plan(name: &str) -> PlanFunction {
     PlanFunction {
+        owner: None,
         name: name.into(),
         ops: Vec::new(),
     }
@@ -43,6 +44,7 @@ fn lower_item_with_context(
 ) -> Option<PlanFunction> {
     let body = item.body.as_ref()?;
     let mut plan = PlanFunction {
+        owner: Some(item.id),
         name: item
             .name
             .clone()
@@ -98,7 +100,10 @@ struct LowerContext<'a> {
 impl LowerContext<'_> {
     fn lower_expr(&self, expr: &Expr, ops: &mut Vec<PlanOp>) {
         match &expr.kind {
-            ExprKind::Missing | ExprKind::Name(_) => {}
+            ExprKind::Missing => {}
+            ExprKind::Name(_) => ops.push(PlanOp::BindingGet {
+                source: self.name_target(expr.id),
+            }),
             ExprKind::Literal(LiteralKind::Int(text)) => {
                 if let Ok(value) = text.parse::<i64>() {
                     ops.push(PlanOp::ConstInt { value });
@@ -122,7 +127,9 @@ impl LowerContext<'_> {
                     return;
                 }
 
-                self.lower_expr(callee, ops);
+                if !self.static_call_target(callee) {
+                    self.lower_expr(callee, ops);
+                }
                 for arg in args {
                     self.lower_expr(arg, ops);
                 }
@@ -145,6 +152,7 @@ impl LowerContext<'_> {
                 });
             }
             ExprKind::Let { shape, value, .. } => {
+                let initialized = value.is_some();
                 if let Some(value) = value {
                     self.lower_expr(value, ops);
                     if matches!(value.kind, ExprKind::Sequence(_))
@@ -160,6 +168,7 @@ impl LowerContext<'_> {
                 }
                 ops.push(PlanOp::LocalLet {
                     local: self.local_for_expr(expr.id),
+                    initialized,
                 });
             }
             ExprKind::Assign { target, value } => {
@@ -335,6 +344,13 @@ impl LowerContext<'_> {
             Some(NameTarget::Variant(variant)) => PlanOp::VariantConstruct { variant },
             _ => PlanOp::BoundCall,
         }
+    }
+
+    fn static_call_target(&self, callee: &Expr) -> bool {
+        matches!(
+            self.name_target(callee.id),
+            Some(NameTarget::TopLevel(_) | NameTarget::Variant(_))
+        )
     }
 
     fn name_target(&self, expr: ExprId) -> Option<NameTarget> {

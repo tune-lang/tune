@@ -8,16 +8,21 @@ fn smoke() {
 fn vm_executes_integer_add_bytecode_entry() -> Result<(), &'static str> {
     let artifact = tune_bytecode::artifact::BytecodeArtifact {
         entry_function: Some(1),
-        constants: vec!["1".into(), "2".into()],
+        constants: vec![
+            tune_bytecode::artifact::BytecodeConst::Int(1),
+            tune_bytecode::artifact::BytecodeConst::Int(2),
+        ],
         functions: vec![
             tune_bytecode::function::BytecodeFunction {
                 name: "main".into(),
                 register_count: 0,
+                local_count: 0,
                 instructions: Vec::new(),
             },
             tune_bytecode::function::BytecodeFunction {
                 name: "<entry>".into(),
                 register_count: 3,
+                local_count: 0,
                 instructions: vec![
                     tune_bytecode::function::Instruction {
                         opcode: tune_bytecode::Opcode::LoadConst,

@@ -1,5 +1,6 @@
 use tune_hir::expr::BinaryOp;
 use tune_plan::{PlanFunction, PlanOp};
+use tune_resolve::NameTarget;
 use tune_shape::Shape;
 
 use crate::{BlockId, ConstId, IrBlock, IrConst, IrFunction, IrOp, Reg};
@@ -15,6 +16,7 @@ pub enum IrLowerError {
 pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerError> {
     let mut lowerer = Lowerer {
         next_reg: 0,
+        locals: 0,
         constants: Vec::new(),
         ops: Vec::new(),
         stack: Vec::new(),
@@ -27,6 +29,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
     Ok(IrFunction {
         name: plan.name.clone(),
         regs: lowerer.next_reg,
+        locals: lowerer.locals,
         constants: lowerer.constants,
         blocks: vec![IrBlock {
             id: BlockId(0),
@@ -37,6 +40,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
 
 struct Lowerer {
     next_reg: u32,
+    locals: u32,
     constants: Vec<IrConst>,
     ops: Vec<IrOp>,
     stack: Vec<Reg>,
@@ -68,6 +72,34 @@ impl Lowerer {
                 self.stack.push(dst);
                 Ok(())
             }
+            PlanOp::BindingGet {
+                source: Some(NameTarget::Local(local)),
+            } => {
+                self.track_local(*local)?;
+                let dst = self.alloc_reg()?;
+                self.ops.push(IrOp::LoadLocal { dst, local: *local });
+                self.stack.push(dst);
+                Ok(())
+            }
+            PlanOp::LocalLet {
+                local: Some(local),
+                initialized: true,
+            } => {
+                self.track_local(*local)?;
+                let value = self.pop("local initializer")?;
+                self.ops.push(IrOp::StoreLocal {
+                    local: *local,
+                    value,
+                });
+                Ok(())
+            }
+            PlanOp::LocalLet {
+                local: None,
+                initialized: true,
+            } => Err(IrLowerError::UnsupportedOp("unresolved local initializer")),
+            PlanOp::LocalLet {
+                initialized: false, ..
+            } => Ok(()),
             PlanOp::Return => {
                 let value = self.stack.pop();
                 self.ops.push(IrOp::Return { value });
@@ -76,12 +108,12 @@ impl Lowerer {
             PlanOp::BinaryOp { .. } => Err(IrLowerError::UnsupportedOp("binary op")),
             PlanOp::DirectCall { .. }
             | PlanOp::VariantConstruct { .. }
+            | PlanOp::BindingGet { .. }
             | PlanOp::BoundCall
             | PlanOp::MemberCall { .. }
             | PlanOp::CallableValue
             | PlanOp::WitnessCall
             | PlanOp::HostCall { .. }
-            | PlanOp::LocalLet { .. }
             | PlanOp::Assign
             | PlanOp::UnaryOp { .. }
             | PlanOp::FieldGet { .. }
@@ -120,6 +152,13 @@ impl Lowerer {
         let index = u32::try_from(self.constants.len()).map_err(|_| IrLowerError::ConstantLimit)?;
         self.constants.push(value);
         Ok(ConstId(index))
+    }
+
+    fn track_local(&mut self, local: tune_resolve::LocalId) -> Result<(), IrLowerError> {
+        self.locals = self
+            .locals
+            .max(local.0.checked_add(1).ok_or(IrLowerError::RegisterLimit)?);
+        Ok(())
     }
 
     fn pop(&mut self, context: &'static str) -> Result<Reg, IrLowerError> {
