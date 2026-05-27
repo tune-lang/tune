@@ -50,6 +50,18 @@ fn reports_duplicate_top_level_bindings() {
 }
 
 #[test]
+fn underscore_bindings_do_not_enter_scope() {
+    let source = "let _ = 1\nlet value = { let _ = 2; _ }";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert!(resolved.scope.get("_").is_none());
+    assert!(resolved.locals.iter().all(|local| local.name != "_"));
+    assert!(resolved.diagnostics.is_empty());
+}
+
+#[test]
 fn records_callable_signature_facts() {
     let source = "let parse(text: String, strict: Bool): Result = text";
     let parsed = tune_syntax::parse(source);

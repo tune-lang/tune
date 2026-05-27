@@ -158,7 +158,7 @@ fn lower_let(
     let body = node.body_expr().map(|expr| exprs.lower(source, expr));
     Item {
         id: HirId(0),
-        name: node.name(source).map(str::to_owned),
+        name: binding_name(node.name(source)),
         kind: if node.is_callable_decl() {
             ItemKind::CallableDecl
         } else {
@@ -178,6 +178,10 @@ fn lower_let(
             .map(|shape| lower_shape(source, shape)),
         body,
     }
+}
+
+fn binding_name(name: Option<&str>) -> Option<String> {
+    name.filter(|name| *name != "_").map(str::to_owned)
 }
 
 fn lower_struct(

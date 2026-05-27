@@ -217,6 +217,10 @@ impl<'resolved> BodyResolver<'resolved> {
     }
 
     fn resolve_name_ref(&mut self, name: &str, expr: &Expr) {
+        if name == "_" {
+            return;
+        }
+
         let target = if name == "self" {
             Some(NameTarget::SelfValue)
         } else {

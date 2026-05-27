@@ -131,7 +131,7 @@ impl ExprLowerer {
 
     fn lower_let(&mut self, source: &str, expr: AstExpr<'_>, name: Option<&str>) -> ExprKind {
         ExprKind::Let {
-            name: name.map(str::to_owned),
+            name: binding_name(name),
             shape: first_shape(expr.syntax()).map(|shape| lower_shape(source, shape)),
             value: expr
                 .child_exprs()
@@ -201,6 +201,10 @@ impl ExprLowerer {
         self.next_id += 1;
         id
     }
+}
+
+fn binding_name(name: Option<&str>) -> Option<String> {
+    name.filter(|name| *name != "_").map(str::to_owned)
 }
 
 fn literal_kind(source: &str, node: LiteralExpr<'_>) -> Option<LiteralKind> {

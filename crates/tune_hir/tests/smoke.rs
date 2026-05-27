@@ -41,6 +41,25 @@ let value = 1
 }
 
 #[test]
+fn lowers_underscore_binding_names_as_absent() -> Result<(), &'static str> {
+    let source = "let _ = 1\nlet value = { let _ = 2; 3 }";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+
+    assert_eq!(module.items[0].name, None);
+    let body = module.items[1].body.as_ref().ok_or("expected value body")?;
+    let tune_hir::expr::ExprKind::Block(exprs) = &body.kind else {
+        return Err("expected block");
+    };
+    assert!(matches!(
+        exprs[0].kind,
+        tune_hir::expr::ExprKind::Let { name: None, .. }
+    ));
+
+    Ok(())
+}
+
+#[test]
 fn lowers_shape_annotations_to_hir_shape_exprs() -> Result<(), &'static str> {
     let source = "let value: [Int | String]? = none";
     let parsed = tune_syntax::parse(source);
