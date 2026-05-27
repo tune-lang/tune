@@ -170,6 +170,48 @@ enum LoadResult {
 }
 
 #[test]
+fn reports_compiler_reserved_user_names() {
+    let source = r#"
+let __doc = 1
+let run(__name: String): String = __name
+struct Box {
+  __json_invoker: String
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert_eq!(
+        resolved
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| {
+                diagnostic.code == tune_diagnostics::codes::COMPILER_RESERVED_NAME
+            })
+            .count(),
+        3
+    );
+}
+
+#[test]
+fn reports_match_hole_fallback() {
+    let source = r#"
+let select(value) = match value {
+  _ => value
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert!(resolved.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::MATCH_HOLE_FALLBACK
+            && diagnostic.title == "`_` is a pattern hole, not a match fallback"
+    }));
+}
+
+#[test]
 fn records_tag_application_facts() {
     let source = r#"
 tag tool {}

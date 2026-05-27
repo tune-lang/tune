@@ -6,6 +6,10 @@ use tune_hir::item::{Item, StructMember};
 use super::ResolvedModule;
 
 pub(super) fn validate_member_names(resolved: &mut ResolvedModule, item: &Item) {
+    if let Some(name) = &item.name {
+        validate_user_name(resolved, name, item.span, "declaration");
+    }
+
     validate_named_members(
         resolved,
         item,
@@ -23,6 +27,30 @@ pub(super) fn validate_member_names(resolved: &mut ResolvedModule, item: &Item) 
         "parameter",
     );
     validate_named_members(resolved, item, named_struct_value_members(item), "field");
+    for member in &item.struct_members {
+        match member {
+            StructMember::Callable(callable) => validate_named_members(
+                resolved,
+                item,
+                callable
+                    .params
+                    .iter()
+                    .filter_map(|param| Some((param.name.as_deref()?, param.span))),
+                "parameter",
+            ),
+            StructMember::SequenceMaterializer(materializer) => {
+                if let Some(name) = &materializer.param_name {
+                    validate_user_name(resolved, name, materializer.span, "materializer parameter");
+                }
+            }
+            StructMember::IndexAccess(access) => {
+                if let Some(name) = &access.index_param_name {
+                    validate_user_name(resolved, name, access.span, "index parameter");
+                }
+            }
+            StructMember::Field(_) => {}
+        }
+    }
     validate_named_members(
         resolved,
         item,
@@ -60,6 +88,8 @@ fn validate_named_members<'name>(
 ) {
     let mut seen = HashMap::new();
     for (name, span) in members {
+        validate_user_name(resolved, name, span, kind);
+
         if let Some(existing_span) = seen.insert(name.to_owned(), span) {
             let span = span.or(item.span).unwrap_or_else(Span::synthetic);
             let mut builder = Diagnostic::error(
@@ -76,4 +106,21 @@ fn validate_named_members<'name>(
             resolved.diagnostics.push(builder.build());
         }
     }
+}
+
+fn validate_user_name(resolved: &mut ResolvedModule, name: &str, span: Option<Span>, kind: &str) {
+    if !name.starts_with("__") {
+        return;
+    }
+
+    resolved.diagnostics.push(
+        Diagnostic::error(
+            codes::COMPILER_RESERVED_NAME,
+            format!("compiler-reserved {kind} name `{name}`"),
+            span.unwrap_or_else(Span::synthetic),
+            "`__` names are owned by compiler facts and generated helpers",
+        )
+        .with_help("rename this symbol without the leading `__` prefix")
+        .build(),
+    );
 }

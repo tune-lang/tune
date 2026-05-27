@@ -331,6 +331,7 @@ fn lower_pattern_node(source: &str, pattern: &CstNode) -> Pattern {
 
     let kind = match (name, args) {
         (Some("else"), None) => PatternKind::Else,
+        (Some("_"), None) => PatternKind::Hole,
         (Some(name), Some(args)) => PatternKind::Variant {
             name: name.to_owned(),
             args,

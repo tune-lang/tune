@@ -39,5 +39,6 @@ pub const MATCH_HOLE_FALLBACK: DiagnosticCode = DiagnosticCode::new("T0804");
 pub const RESULT_PROPAGATION_ERROR: DiagnosticCode = DiagnosticCode::new("T0901");
 pub const SPAWN_TASK_ERROR: DiagnosticCode = DiagnosticCode::new("T1001");
 pub const PUBLIC_API_INFERENCE: DiagnosticCode = DiagnosticCode::new("T1101");
+pub const COMPILER_RESERVED_NAME: DiagnosticCode = DiagnosticCode::new("T1201");
 pub const TAG_FACT_MISSING: DiagnosticCode = DiagnosticCode::new("T1203");
 pub const HOST_AUTHORITY_DENIED: DiagnosticCode = DiagnosticCode::new("T1301");
