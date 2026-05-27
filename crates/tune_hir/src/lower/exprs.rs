@@ -322,7 +322,33 @@ fn lower_pattern(source: &str, node: &CstNode) -> Pattern {
         };
     };
 
-    let name = pattern.children.iter().find_map(|child| match child {
+    lower_pattern_node(source, pattern)
+}
+
+fn lower_pattern_node(source: &str, pattern: &CstNode) -> Pattern {
+    let name = pattern_name(source, pattern);
+    let args = pattern_list(source, pattern);
+
+    let kind = match (name, args) {
+        (Some("else"), None) => PatternKind::Else,
+        (Some(name), Some(args)) => PatternKind::Variant {
+            name: name.to_owned(),
+            args,
+        },
+        (Some(name), None) => PatternKind::Binding(name.to_owned()),
+        (None, Some(args)) if args.is_empty() => PatternKind::Unit,
+        (None, Some(args)) => PatternKind::Tuple(args),
+        (None, None) => PatternKind::Hole,
+    };
+
+    Pattern {
+        span: pattern.span,
+        kind,
+    }
+}
+
+fn pattern_name<'src>(source: &'src str, pattern: &CstNode) -> Option<&'src str> {
+    pattern.children.iter().find_map(|child| match child {
         CstElement::Token(token)
             if matches!(
                 token.kind,
@@ -338,13 +364,22 @@ fn lower_pattern(source: &str, node: &CstNode) -> Pattern {
             source.get(start..end)
         }
         CstElement::Node(_) | CstElement::Token(_) => None,
-    });
+    })
+}
 
-    Pattern {
-        span: pattern.span,
-        kind: name.map_or(PatternKind::Hole, |name| match name {
-            "else" => PatternKind::Else,
-            _ => PatternKind::Binding(name.to_owned()),
-        }),
-    }
+fn pattern_list(source: &str, pattern: &CstNode) -> Option<Vec<Pattern>> {
+    pattern.children.iter().find_map(|child| match child {
+        CstElement::Node(node) if node.kind == SyntaxKind::PatternList => Some(
+            node.children
+                .iter()
+                .filter_map(|child| match child {
+                    CstElement::Node(node) if node.kind == SyntaxKind::Pattern => {
+                        Some(lower_pattern_node(source, node))
+                    }
+                    CstElement::Node(_) | CstElement::Token(_) => None,
+                })
+                .collect(),
+        ),
+        CstElement::Node(_) | CstElement::Token(_) => None,
+    })
 }

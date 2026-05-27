@@ -123,20 +123,44 @@ impl Parser<'_> {
 
     pub(super) fn parse_pattern(&mut self) {
         self.start_node(SyntaxKind::Pattern);
-        if matches!(
-            self.current_kind(),
+        match self.current_kind() {
             Some(
                 TokenKind::Ident
-                    | TokenKind::KeywordSelf
-                    | TokenKind::KeywordOk
-                    | TokenKind::KeywordError
-                    | TokenKind::KeywordElse
-            )
-        ) {
-            self.bump();
-        } else {
-            self.error_at_current("expected pattern");
+                | TokenKind::KeywordSelf
+                | TokenKind::KeywordOk
+                | TokenKind::KeywordError
+                | TokenKind::KeywordElse,
+            ) => {
+                self.bump();
+                self.skip_trivia();
+                if self.at(TokenKind::LeftParen) {
+                    self.parse_pattern_list();
+                }
+            }
+            Some(TokenKind::LeftParen) => self.parse_pattern_list(),
+            Some(_) | None => self.error_at_current("expected pattern"),
         }
+        self.finish_node();
+    }
+
+    fn parse_pattern_list(&mut self) {
+        self.start_node(SyntaxKind::PatternList);
+        self.expect(TokenKind::LeftParen, "expected `(`");
+        self.skip_trivia();
+
+        while !self.at(TokenKind::Eof) && !self.at(TokenKind::RightParen) {
+            self.parse_pattern();
+            self.skip_trivia();
+            if self.at(TokenKind::Comma) {
+                self.bump();
+                self.skip_trivia();
+            } else if !self.at(TokenKind::RightParen) {
+                self.error_at_current("expected `,` between patterns");
+                break;
+            }
+        }
+
+        self.expect(TokenKind::RightParen, "expected `)`");
         self.finish_node();
     }
 
