@@ -120,6 +120,16 @@ impl Vm {
                         },
                     )?;
                 }
+                Opcode::VariantField => match read_reg(&registers, instruction.b)? {
+                    Value::Variant { fields, .. } => {
+                        let value = fields
+                            .get(instruction.c as usize)
+                            .cloned()
+                            .ok_or(VmError::RegisterOutOfBounds)?;
+                        write_reg(&mut registers, instruction.a, value)?;
+                    }
+                    _ => return Err(VmError::UnsupportedOpcode(Opcode::VariantField)),
+                },
                 Opcode::ResultPropagate => match read_reg(&registers, instruction.b)? {
                     Value::Variant {
                         variant: RuntimeVariant::ResultOk,
@@ -151,6 +161,29 @@ impl Vm {
                     if !matches!(condition, Value::Bool(true)) {
                         return Err(VmError::UnsupportedOpcode(Opcode::JumpIfFalse));
                     }
+                }
+                Opcode::MatchVariant => {
+                    let Value::Variant { variant, .. } = read_reg(&registers, instruction.a)?
+                    else {
+                        return Err(VmError::UnsupportedOpcode(Opcode::MatchVariant));
+                    };
+                    let match_site = function
+                        .match_sites
+                        .get(instruction.b as usize)
+                        .ok_or(VmError::CallSiteOutOfBounds)?;
+                    if let Some(arm) = match_site
+                        .arms
+                        .iter()
+                        .find(|arm| runtime_variant(arm.variant) == variant)
+                    {
+                        ip = arm.target as usize;
+                        continue;
+                    }
+                    if instruction.c == u32::MAX {
+                        return Err(VmError::UnsupportedOpcode(Opcode::MatchVariant));
+                    }
+                    ip = instruction.c as usize;
+                    continue;
                 }
                 Opcode::Return => {
                     if instruction.b == 0 {
@@ -203,6 +236,7 @@ impl Vm {
             Opcode::Panic => {}
             Opcode::Return => {}
             Opcode::GreaterInt => {}
+            Opcode::VariantField => {}
         }
     }
 }
@@ -226,6 +260,6 @@ fn runtime_variant(variant: BytecodeVariant) -> RuntimeVariant {
     match variant {
         BytecodeVariant::ResultOk => RuntimeVariant::ResultOk,
         BytecodeVariant::ResultError => RuntimeVariant::ResultError,
-        BytecodeVariant::Other(id) => RuntimeVariant::Other(id),
+        BytecodeVariant::Other { owner, index } => RuntimeVariant::Other { owner, index },
     }
 }

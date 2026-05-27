@@ -5,12 +5,14 @@ mod module;
 use tune_hir::ExprId;
 use tune_hir::item::Item;
 use tune_hir::module::Module;
-use tune_resolve::{LocalId, NameTarget, ResolvedModule};
+use tune_resolve::{LocalId, NameTarget, ResolvedModule, VariantId};
 use tune_shape::MaterializationPlan;
 
 pub use module::lower_resolved_module_to_plan;
 
-use crate::plan::{FiniteForContract, PlanFunction, PlanIfBranch, PlanMatchArm, PlanOp};
+use crate::plan::{
+    FiniteForContract, PlanFunction, PlanIfBranch, PlanMatchArm, PlanOp, PlanPatternBinding,
+};
 
 #[must_use]
 pub fn lower_to_plan(name: &str) -> PlanFunction {
@@ -273,9 +275,6 @@ impl LowerContext<'_> {
             }
             ExprKind::Match { scrutinee, arms } => {
                 self.lower_expr(scrutinee, ops);
-                for arm in arms {
-                    self.lower_expr(&arm.body, ops);
-                }
                 ops.push(PlanOp::Match {
                     scrutinee: scrutinee.id,
                     arms: arms
@@ -283,8 +282,12 @@ impl LowerContext<'_> {
                         .map(|arm| PlanMatchArm {
                             pattern: arm.pattern.clone(),
                             body: arm.body.id,
+                            variant: self.pattern_variant(&arm.pattern),
+                            bindings: self.pattern_bindings(&arm.pattern),
+                            body_ops: self.lower_expr_to_ops(&arm.body),
                         })
                         .collect(),
+                    produces_value: arms.iter().all(|arm| expr_produces_value(&arm.body)),
                     span: expr.span,
                 });
             }
@@ -385,6 +388,33 @@ impl LowerContext<'_> {
         let mut ops = Vec::new();
         self.lower_expr(expr, &mut ops);
         ops
+    }
+
+    fn pattern_variant(&self, pattern: &tune_hir::pattern::Pattern) -> Option<VariantId> {
+        self.resolved?
+            .variant_pattern_refs
+            .iter()
+            .find(|variant_ref| variant_ref.pattern == pattern.id)
+            .map(|variant_ref| variant_ref.variant)
+    }
+
+    fn pattern_bindings(&self, pattern: &tune_hir::pattern::Pattern) -> Vec<PlanPatternBinding> {
+        let tune_hir::pattern::PatternKind::Variant { args, .. } = &pattern.kind else {
+            return Vec::new();
+        };
+
+        args.iter()
+            .enumerate()
+            .filter_map(|(field_index, arg)| {
+                let tune_hir::pattern::PatternKind::Binding(_) = arg.kind else {
+                    return None;
+                };
+                Some(PlanPatternBinding {
+                    local: self.local_for_expr(arg.id),
+                    field_index,
+                })
+            })
+            .collect()
     }
 
     fn call_op(&self, callee: &Expr, arg_count: usize) -> PlanOp {

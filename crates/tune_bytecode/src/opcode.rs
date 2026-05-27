@@ -35,6 +35,7 @@ pub enum Opcode {
     Panic = 31,
     Return = 32,
     GreaterInt = 33,
+    VariantField = 34,
 }
 
 impl Opcode {
@@ -73,5 +74,6 @@ impl Opcode {
         Self::Panic,
         Self::Return,
         Self::GreaterInt,
+        Self::VariantField,
     ];
 }

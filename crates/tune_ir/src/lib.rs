@@ -1,5 +1,6 @@
 pub mod ir;
 pub mod lower;
+mod lower_control;
 mod lower_slots;
 
 pub use ir::{

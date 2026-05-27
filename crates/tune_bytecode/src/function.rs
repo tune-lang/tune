@@ -20,11 +20,22 @@ pub struct BytecodeVariantSite {
     pub args: Vec<u32>,
 }
 
+#[derive(Debug, Clone)]
+pub struct BytecodeMatchSite {
+    pub arms: Vec<BytecodeMatchArm>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BytecodeMatchArm {
+    pub variant: BytecodeVariant,
+    pub target: u32,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BytecodeVariant {
     ResultOk,
     ResultError,
-    Other(u32),
+    Other { owner: u32, index: u32 },
 }
 
 #[derive(Debug, Clone)]
@@ -34,5 +45,6 @@ pub struct BytecodeFunction {
     pub local_count: u32,
     pub call_sites: Vec<BytecodeCallSite>,
     pub variant_sites: Vec<BytecodeVariantSite>,
+    pub match_sites: Vec<BytecodeMatchSite>,
     pub instructions: Vec<Instruction>,
 }

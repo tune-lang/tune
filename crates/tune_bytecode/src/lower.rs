@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use crate::Opcode;
 use crate::artifact::{BytecodeArtifact, BytecodeConst};
 use crate::function::{
-    BytecodeCallSite, BytecodeFunction, BytecodeVariant, BytecodeVariantSite, Instruction,
+    BytecodeCallSite, BytecodeFunction, BytecodeMatchArm, BytecodeMatchSite, BytecodeVariant,
+    BytecodeVariantSite, Instruction,
 };
 use tune_hir::HirId;
 use tune_ir::{BlockId, IrConst, IrFunction, IrOp};
@@ -54,6 +55,7 @@ fn lower_ir_function_with_constants(
         constants,
         call_sites: Vec::new(),
         variant_sites: Vec::new(),
+        match_sites: Vec::new(),
         instructions: Vec::new(),
     };
     for block in &function.blocks {
@@ -67,6 +69,7 @@ fn lower_ir_function_with_constants(
         local_count: function.locals,
         call_sites: lowerer.call_sites,
         variant_sites: lowerer.variant_sites,
+        match_sites: lowerer.match_sites,
         instructions: lowerer.instructions,
     })
 }
@@ -78,6 +81,7 @@ struct FunctionLowerer<'a> {
     constants: &'a mut Vec<BytecodeConst>,
     call_sites: Vec<BytecodeCallSite>,
     variant_sites: Vec<BytecodeVariantSite>,
+    match_sites: Vec<BytecodeMatchSite>,
     instructions: Vec<Instruction>,
 }
 
@@ -182,6 +186,15 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(())
             }
+            IrOp::VariantField { dst, base, index } => {
+                self.instructions.push(Instruction {
+                    opcode: Opcode::VariantField,
+                    a: dst.0,
+                    b: base.0,
+                    c: *index,
+                });
+                Ok(())
+            }
             IrOp::ResultPropagate { dst, result, .. } => {
                 self.instructions.push(Instruction {
                     opcode: Opcode::ResultPropagate,
@@ -231,6 +244,42 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(())
             }
+            IrOp::MatchVariant {
+                scrutinee,
+                arms,
+                else_block,
+            } => {
+                let match_site = u32::try_from(self.match_sites.len())
+                    .map_err(|_| BytecodeLowerError::ConstantLimit)?;
+                let arms = arms
+                    .iter()
+                    .map(|arm| {
+                        Ok(BytecodeMatchArm {
+                            variant: lower_variant(arm.variant),
+                            target: *self
+                                .block_offsets
+                                .get(&arm.block)
+                                .ok_or(BytecodeLowerError::UnknownBlock)?,
+                        })
+                    })
+                    .collect::<Result<Vec<_>, BytecodeLowerError>>()?;
+                let else_target = if let Some(else_block) = else_block {
+                    *self
+                        .block_offsets
+                        .get(else_block)
+                        .ok_or(BytecodeLowerError::UnknownBlock)?
+                } else {
+                    u32::MAX
+                };
+                self.match_sites.push(BytecodeMatchSite { arms });
+                self.instructions.push(Instruction {
+                    opcode: Opcode::MatchVariant,
+                    a: scrutinee.0,
+                    b: match_site,
+                    c: else_target,
+                });
+                Ok(())
+            }
             IrOp::Return { value: Some(value) } => {
                 self.instructions.push(Instruction {
                     opcode: Opcode::Return,
@@ -258,7 +307,10 @@ fn lower_variant(variant: VariantId) -> BytecodeVariant {
     match variant {
         VariantId::Prelude(PreludeVariant::Ok) => BytecodeVariant::ResultOk,
         VariantId::Prelude(PreludeVariant::Error) => BytecodeVariant::ResultError,
-        VariantId::Member(member) => BytecodeVariant::Other(member.index),
+        VariantId::Member(member) => BytecodeVariant::Other {
+            owner: member.owner.0,
+            index: member.index,
+        },
     }
 }
 

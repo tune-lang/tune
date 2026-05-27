@@ -36,6 +36,15 @@ pub struct PlanIfBranch {
 pub struct PlanMatchArm {
     pub pattern: Pattern,
     pub body: ExprId,
+    pub variant: Option<VariantId>,
+    pub bindings: Vec<PlanPatternBinding>,
+    pub body_ops: Vec<PlanOp>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PlanPatternBinding {
+    pub local: Option<LocalId>,
+    pub field_index: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -133,6 +142,7 @@ pub enum PlanOp {
     Match {
         scrutinee: ExprId,
         arms: Vec<PlanMatchArm>,
+        produces_value: bool,
         span: Option<Span>,
     },
     While {

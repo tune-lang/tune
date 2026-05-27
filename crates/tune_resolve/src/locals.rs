@@ -41,6 +41,7 @@ pub struct NameRef {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct VariantPatternRef {
+    pub pattern: ExprId,
     pub variant: VariantId,
     pub span: Option<Span>,
 }

@@ -1,7 +1,9 @@
+use crate::ExprId;
 use tune_diagnostics::Span;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Pattern {
+    pub id: ExprId,
     pub span: Option<Span>,
     pub kind: PatternKind,
 }

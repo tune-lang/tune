@@ -114,6 +114,11 @@ pub enum IrOp {
         variant: VariantId,
         args: Vec<Reg>,
     },
+    VariantField {
+        dst: Reg,
+        base: Reg,
+        index: u32,
+    },
     CallDirect {
         dst: Reg,
         function: HirId,

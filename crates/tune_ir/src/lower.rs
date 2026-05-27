@@ -45,20 +45,20 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
     })
 }
 
-struct Lowerer {
-    next_reg: u32,
-    locals: u32,
-    params: Vec<tune_hir::MemberId>,
-    module_bindings: Vec<HirId>,
-    constants: Vec<IrConst>,
-    blocks: Vec<IrBlock>,
-    current_block: BlockId,
-    next_block: u32,
-    stack: Vec<Reg>,
+pub(super) struct Lowerer {
+    pub(super) next_reg: u32,
+    pub(super) locals: u32,
+    pub(super) params: Vec<tune_hir::MemberId>,
+    pub(super) module_bindings: Vec<HirId>,
+    pub(super) constants: Vec<IrConst>,
+    pub(super) blocks: Vec<IrBlock>,
+    pub(super) current_block: BlockId,
+    pub(super) next_block: u32,
+    pub(super) stack: Vec<Reg>,
 }
 
 impl Lowerer {
-    fn lower_op(&mut self, op: &PlanOp) -> Result<(), IrLowerError> {
+    pub(super) fn lower_op(&mut self, op: &PlanOp) -> Result<(), IrLowerError> {
         match op {
             PlanOp::ConstInt { value } => {
                 let dst = self.alloc_reg()?;
@@ -241,6 +241,11 @@ impl Lowerer {
                     }
                 ),
             ),
+            PlanOp::Match {
+                arms,
+                produces_value,
+                ..
+            } => self.lower_match(arms, *produces_value),
             PlanOp::BinaryOp { .. } => Err(IrLowerError::UnsupportedOp("binary op")),
             PlanOp::BindingGet { .. }
             | PlanOp::BoundCall
@@ -259,7 +264,6 @@ impl Lowerer {
             | PlanOp::BindingSet { .. }
             | PlanOp::FiniteFor { .. }
             | PlanOp::StringBuild
-            | PlanOp::Match { .. }
             | PlanOp::While { .. }
             | PlanOp::Loop { .. }
             | PlanOp::Break
@@ -271,7 +275,7 @@ impl Lowerer {
         }
     }
 
-    fn alloc_reg(&mut self) -> Result<Reg, IrLowerError> {
+    pub(super) fn alloc_reg(&mut self) -> Result<Reg, IrLowerError> {
         let reg = Reg(self.next_reg);
         self.next_reg = self
             .next_reg
@@ -286,114 +290,16 @@ impl Lowerer {
         Ok(ConstId(index))
     }
 
-    fn track_local(&mut self, local: tune_resolve::LocalId) -> Result<(), IrLowerError> {
+    pub(super) fn track_local(&mut self, local: tune_resolve::LocalId) -> Result<(), IrLowerError> {
         self.locals = self
             .locals
             .max(local.0.checked_add(1).ok_or(IrLowerError::RegisterLimit)?);
         Ok(())
     }
 
-    fn pop(&mut self, context: &'static str) -> Result<Reg, IrLowerError> {
+    pub(super) fn pop(&mut self, context: &'static str) -> Result<Reg, IrLowerError> {
         self.stack
             .pop()
             .ok_or(IrLowerError::StackUnderflow(context))
-    }
-
-    fn lower_if(
-        &mut self,
-        branches: &[tune_plan::PlanIfBranch],
-        else_ops: &[PlanOp],
-        produces_value: bool,
-    ) -> Result<(), IrLowerError> {
-        let base_stack_len = self.stack.len();
-        let result = produces_value.then(|| self.alloc_reg()).transpose()?;
-        let join = self.alloc_block();
-        let else_block = self.alloc_block();
-        let branch_blocks = branches
-            .iter()
-            .map(|_| self.alloc_block())
-            .collect::<Vec<_>>();
-
-        for (index, branch) in branches.iter().enumerate() {
-            for op in &branch.condition_ops {
-                self.lower_op(op)?;
-            }
-            let condition = self.pop("if condition")?;
-            let then_block = branch_blocks[index];
-            let false_block = branch_blocks.get(index + 1).copied().unwrap_or(else_block);
-            self.push_op(IrOp::Branch {
-                condition,
-                then_block,
-                else_block: false_block,
-            });
-            self.switch_to_block(then_block);
-            for op in &branch.body_ops {
-                self.lower_op(op)?;
-            }
-            if !self.current_block_returns() {
-                if let Some(result) = result {
-                    let value = self.pop("if branch value")?;
-                    self.push_op(IrOp::Move {
-                        dst: result,
-                        src: value,
-                    });
-                }
-                self.push_op(IrOp::Jump { target: join });
-            }
-            self.stack.truncate(base_stack_len);
-            self.switch_to_block(false_block);
-        }
-
-        for op in else_ops {
-            self.lower_op(op)?;
-        }
-        if !self.current_block_returns() {
-            if let Some(result) = result {
-                let value = self.pop("if else value")?;
-                self.push_op(IrOp::Move {
-                    dst: result,
-                    src: value,
-                });
-            }
-            self.push_op(IrOp::Jump { target: join });
-        }
-        self.stack.truncate(base_stack_len);
-        self.switch_to_block(join);
-        if let Some(result) = result {
-            self.stack.push(result);
-        }
-        Ok(())
-    }
-
-    fn alloc_block(&mut self) -> BlockId {
-        let block = BlockId(self.next_block);
-        self.next_block = self.next_block.saturating_add(1);
-        self.blocks.push(IrBlock {
-            id: block,
-            ops: Vec::new(),
-        });
-        block
-    }
-
-    fn switch_to_block(&mut self, block: BlockId) {
-        self.current_block = block;
-    }
-
-    fn push_op(&mut self, op: IrOp) {
-        if let Some(block) = self
-            .blocks
-            .iter_mut()
-            .find(|block| block.id == self.current_block)
-        {
-            block.ops.push(op);
-        }
-    }
-
-    fn current_block_returns(&self) -> bool {
-        self.blocks
-            .iter()
-            .find(|block| block.id == self.current_block)
-            .and_then(|block| block.ops.last())
-            .is_some_and(|op| matches!(op, IrOp::Return { .. }))
     }
 }

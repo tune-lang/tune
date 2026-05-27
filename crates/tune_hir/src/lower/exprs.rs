@@ -315,23 +315,24 @@ fn binary_op(node: &CstNode) -> Option<BinaryOp> {
     }
 }
 
-fn lower_pattern(source: &str, node: &CstNode) -> Pattern {
+fn lower_pattern(source: &str, node: &CstNode, lowerer: &mut ExprLowerer) -> Pattern {
     let Some(pattern) = node.children.iter().find_map(|child| match child {
         CstElement::Node(node) if node.kind == SyntaxKind::Pattern => Some(node),
         CstElement::Node(_) | CstElement::Token(_) => None,
     }) else {
         return Pattern {
+            id: lowerer.alloc_id(),
             span: node.span,
             kind: PatternKind::Hole,
         };
     };
 
-    lower_pattern_node(source, pattern)
+    lower_pattern_node(source, pattern, lowerer)
 }
 
-fn lower_pattern_node(source: &str, pattern: &CstNode) -> Pattern {
+fn lower_pattern_node(source: &str, pattern: &CstNode, lowerer: &mut ExprLowerer) -> Pattern {
     let name = pattern_name(source, pattern);
-    let args = pattern_list(source, pattern);
+    let args = pattern_list(source, pattern, lowerer);
 
     let kind = match (name, args) {
         (Some("else"), None) => PatternKind::Else,
@@ -347,6 +348,7 @@ fn lower_pattern_node(source: &str, pattern: &CstNode) -> Pattern {
     };
 
     Pattern {
+        id: lowerer.alloc_id(),
         span: pattern.span,
         kind,
     }
@@ -372,14 +374,18 @@ fn pattern_name<'src>(source: &'src str, pattern: &CstNode) -> Option<&'src str>
     })
 }
 
-fn pattern_list(source: &str, pattern: &CstNode) -> Option<Vec<Pattern>> {
+fn pattern_list(
+    source: &str,
+    pattern: &CstNode,
+    lowerer: &mut ExprLowerer,
+) -> Option<Vec<Pattern>> {
     pattern.children.iter().find_map(|child| match child {
         CstElement::Node(node) if node.kind == SyntaxKind::PatternList => Some(
             node.children
                 .iter()
                 .filter_map(|child| match child {
                     CstElement::Node(node) if node.kind == SyntaxKind::Pattern => {
-                        Some(lower_pattern_node(source, node))
+                        Some(lower_pattern_node(source, node, lowerer))
                     }
                     CstElement::Node(_) | CstElement::Token(_) => None,
                 })

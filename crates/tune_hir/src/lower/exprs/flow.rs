@@ -46,7 +46,7 @@ impl ExprLowerer {
                 .into_iter()
                 .filter_map(|arm| {
                     Some(HirMatchArm {
-                        pattern: lower_pattern(source, arm.syntax()),
+                        pattern: lower_pattern(source, arm.syntax(), self),
                         body: self.lower(source, arm.expr()?),
                     })
                 })
@@ -73,7 +73,7 @@ impl ExprLowerer {
         };
 
         ExprKind::For {
-            pattern: lower_pattern(source, expr.syntax()),
+            pattern: lower_pattern(source, expr.syntax(), self),
             iterable: Box::new(self.lower(source, iterable)),
             body: Box::new(self.lower(source, body)),
         }

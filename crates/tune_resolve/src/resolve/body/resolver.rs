@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::expr::{Expr, ExprKind};
-use tune_hir::item::{Item, ItemKind};
+use tune_hir::item::Item;
 use tune_hir::pattern::{Pattern, PatternKind};
-use tune_hir::shape::{ShapeExpr, ShapeExprKind};
+use tune_hir::shape::ShapeExpr;
 use tune_hir::{HirId, MemberId};
 
 use crate::locals::{LocalBinding, LocalId, LocalKind, NameRef, NameTarget};
@@ -12,6 +12,7 @@ use crate::prelude::VariantId;
 
 use super::super::ResolvedModule;
 
+mod expected;
 mod validation;
 
 pub(super) struct BodyResolver<'resolved> {
@@ -115,10 +116,11 @@ impl<'resolved> BodyResolver<'resolved> {
             }
             ExprKind::Match { scrutinee, arms } => {
                 self.resolve_expr_names(scrutinee);
+                let expected = self.expected_shape_for_expr(scrutinee);
                 for arm in arms {
                     self.validate_match_pattern(&arm.pattern);
                     self.with_scope(|this| {
-                        this.bind_pattern_names(&arm.pattern);
+                        this.bind_pattern_names_with_expected(&arm.pattern, expected.as_ref());
                         this.resolve_expr_names(&arm.body);
                     });
                 }
@@ -254,19 +256,27 @@ impl<'resolved> BodyResolver<'resolved> {
     }
 
     fn bind_pattern_names(&mut self, pattern: &Pattern) {
+        self.bind_pattern_names_with_expected(pattern, None);
+    }
+
+    fn bind_pattern_names_with_expected(
+        &mut self,
+        pattern: &Pattern,
+        expected: Option<&ShapeExpr>,
+    ) {
         match &pattern.kind {
             PatternKind::Binding(name) => {
-                self.bind_local(name, LocalKind::Pattern, None, pattern.span);
+                self.bind_local(name, LocalKind::Pattern, Some(pattern.id), pattern.span);
             }
             PatternKind::Tuple(patterns) => {
                 for pattern in patterns {
-                    self.bind_pattern_names(pattern);
+                    self.bind_pattern_names_with_expected(pattern, None);
                 }
             }
             PatternKind::Variant { name, args } => {
-                self.resolve_variant_pattern(name, pattern.span);
+                self.resolve_variant_pattern(pattern.id, name, pattern.span, expected);
                 for pattern in args {
-                    self.bind_pattern_names(pattern);
+                    self.bind_pattern_names_with_expected(pattern, None);
                 }
             }
             PatternKind::Hole
@@ -276,11 +286,25 @@ impl<'resolved> BodyResolver<'resolved> {
         }
     }
 
-    fn resolve_variant_pattern(&mut self, name: &str, span: Option<Span>) {
-        if let Some(variant) = self.variant_by_name(name) {
+    fn resolve_variant_pattern(
+        &mut self,
+        pattern: tune_hir::ExprId,
+        name: &str,
+        span: Option<Span>,
+        expected: Option<&ShapeExpr>,
+    ) {
+        if let Some(variant) = self
+            .variant_for_expected_enum(name, expected)
+            .map(VariantId::Member)
+            .or_else(|| self.variant_by_name(name))
+        {
             self.resolved
                 .variant_pattern_refs
-                .push(crate::VariantPatternRef { variant, span });
+                .push(crate::VariantPatternRef {
+                    pattern,
+                    variant,
+                    span,
+                });
             return;
         }
 
@@ -345,23 +369,6 @@ impl<'resolved> BodyResolver<'resolved> {
         true
     }
 
-    fn variant_for_expected_enum(
-        &self,
-        variant_name: &str,
-        expected: Option<&ShapeExpr>,
-    ) -> Option<MemberId> {
-        let enum_name = expected_enum_name(expected?)?;
-        self.items
-            .iter()
-            .find(|item| item.kind == ItemKind::Enum && item.name.as_deref() == Some(enum_name))
-            .and_then(|item| {
-                item.variants
-                    .iter()
-                    .find(|variant| variant.name.as_deref() == Some(variant_name))
-            })
-            .map(|variant| variant.id)
-    }
-
     fn lookup_local(&self, name: &str) -> Option<NameTarget> {
         self.scopes
             .iter()
@@ -373,12 +380,5 @@ impl<'resolved> BodyResolver<'resolved> {
         self.scopes.push(HashMap::new());
         f(self);
         self.scopes.pop();
-    }
-}
-
-fn expected_enum_name(expected: &ShapeExpr) -> Option<&str> {
-    match &expected.kind {
-        ShapeExprKind::Named(name) | ShapeExprKind::Generic { name, .. } => Some(name.as_str()),
-        _ => None,
     }
 }

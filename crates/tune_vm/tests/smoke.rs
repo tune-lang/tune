@@ -19,6 +19,7 @@ fn vm_executes_integer_add_bytecode_entry() -> Result<(), &'static str> {
                 local_count: 0,
                 call_sites: Vec::new(),
                 variant_sites: Vec::new(),
+                match_sites: Vec::new(),
                 instructions: Vec::new(),
             },
             tune_bytecode::function::BytecodeFunction {
@@ -27,6 +28,7 @@ fn vm_executes_integer_add_bytecode_entry() -> Result<(), &'static str> {
                 local_count: 0,
                 call_sites: Vec::new(),
                 variant_sites: Vec::new(),
+                match_sites: Vec::new(),
                 instructions: vec![
                     tune_bytecode::function::Instruction {
                         opcode: tune_bytecode::Opcode::LoadConst,
@@ -84,6 +86,7 @@ fn vm_executes_direct_call_with_arguments() -> Result<(), &'static str> {
                     args: vec![0, 1],
                 }],
                 variant_sites: Vec::new(),
+                match_sites: Vec::new(),
                 instructions: vec![
                     tune_bytecode::function::Instruction {
                         opcode: tune_bytecode::Opcode::LoadConst,
@@ -117,6 +120,7 @@ fn vm_executes_direct_call_with_arguments() -> Result<(), &'static str> {
                 local_count: 2,
                 call_sites: Vec::new(),
                 variant_sites: Vec::new(),
+                match_sites: Vec::new(),
                 instructions: vec![
                     tune_bytecode::function::Instruction {
                         opcode: tune_bytecode::Opcode::LoadLocal,

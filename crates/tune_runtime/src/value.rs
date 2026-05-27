@@ -30,5 +30,5 @@ pub struct TaskHandle(pub TaskId);
 pub enum RuntimeVariant {
     ResultOk,
     ResultError,
-    Other(u32),
+    Other { owner: u32, index: u32 },
 }
