@@ -140,7 +140,62 @@ fn propagation_shape_uses_result_ok_shape() -> Result<(), &'static str> {
 
     assert_eq!(
         tune_shape::expr_shape_fact(body, &module, &resolved),
-        Some(tune_shape::Shape::Hole)
+        Some(tune_shape::Shape::Literal(
+            tune_shape::LiteralFact::Numeric { text: "1".into() }
+        ))
+    );
+
+    Ok(())
+}
+
+#[test]
+fn result_constructor_facts_union_variant_payloads_from_value_flow() -> Result<(), &'static str> {
+    let source = r#"
+let choose(ready, waiting, value) = if ready { Ok(value) } elif waiting { Error("wait") } else { Error(1) }
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let body = module.items[0].body.as_ref().ok_or("expected body")?;
+
+    assert_eq!(
+        tune_shape::expr_result_constructor_shape_fact(body, &module, &resolved),
+        Some(tune_shape::Shape::Result {
+            ok: Box::new(tune_shape::Shape::Hole),
+            err: Box::new(tune_shape::Shape::Union(vec![
+                tune_shape::Shape::Literal(tune_shape::LiteralFact::String {
+                    segments: vec!["wait".into()],
+                }),
+                tune_shape::Shape::Literal(tune_shape::LiteralFact::Numeric { text: "1".into() }),
+            ])),
+        })
+    );
+
+    Ok(())
+}
+
+#[test]
+fn propagated_error_facts_union_only_bang_sites() -> Result<(), &'static str> {
+    let source = r#"
+let load = {
+  Error("fs")!
+  Error(1)!
+  Ok("done")
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let body = module.items[0].body.as_ref().ok_or("expected body")?;
+
+    assert_eq!(
+        tune_shape::expr_propagated_error_shape_fact(body, &module, &resolved),
+        Some(tune_shape::Shape::Union(vec![
+            tune_shape::Shape::Literal(tune_shape::LiteralFact::String {
+                segments: vec!["fs".into()],
+            }),
+            tune_shape::Shape::Literal(tune_shape::LiteralFact::Numeric { text: "1".into() }),
+        ]))
     );
 
     Ok(())
