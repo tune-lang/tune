@@ -1,16 +1,16 @@
 use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::expr::{Expr, ExprKind};
 mod contracts;
+mod control;
 
-use tune_hir::item::Item;
+use tune_hir::item::{Item, ItemKind, Visibility};
 use tune_hir::module::Module;
-use tune_hir::pattern::Pattern;
 use tune_hir::{ExprId, MemberId};
 use tune_resolve::ResolvedModule;
 
 use crate::{
-    BindingKey, BindingState, Shape, StateFrame, expr_literal_fact, expr_shape_fact,
-    lower_resolved_hir_shape,
+    BindingKey, BindingState, Shape, StateFrame, expr_literal_fact,
+    expr_propagated_error_shape_fact, expr_shape_fact, lower_resolved_hir_shape,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,12 +65,14 @@ pub fn analyze_item(module: &Module, resolved: &ResolvedModule, item: &Item) -> 
         diagnostics: Vec::new(),
     };
     analyzer.seed_item(item);
+    analyzer.check_public_api_shape(item);
     if let Some(body) = &item.body {
         let actual = analyzer.analyze_expr(body);
         if let Some(shape) = &item.shape {
             let lowered = lower_resolved_hir_shape(shape, &resolved.scope);
             let expected = lowered.shape;
             analyzer.diagnostics.extend(lowered.diagnostics);
+            analyzer.check_result_propagation(item, body, &expected);
             if matches!(body.kind, ExprKind::Sequence(_)) {
                 let materializer = analyzer.sequence_materializer(&expected);
                 analyzer.check_materializer(&expected, body.span);
@@ -80,6 +82,8 @@ pub fn analyze_item(module: &Module, resolved: &ResolvedModule, item: &Item) -> 
             } else {
                 analyzer.check_value_against(&expected, &actual, body.span);
             }
+        } else {
+            analyzer.check_untyped_result_propagation(item, body);
         }
     }
     analyzer.finish()
@@ -156,17 +160,7 @@ impl Analyzer<'_> {
             ExprKind::If {
                 branches,
                 else_branch,
-            } => {
-                let mut shapes = Vec::new();
-                for branch in branches {
-                    self.analyze_expr(&branch.condition);
-                    shapes.push(self.analyze_expr(&branch.body));
-                }
-                if let Some(else_branch) = else_branch {
-                    shapes.push(self.analyze_expr(else_branch));
-                }
-                Shape::join_all(shapes)
-            }
+            } => self.analyze_if(branches, else_branch.as_deref()),
             ExprKind::Match { scrutinee, arms } => self.analyze_match(expr, scrutinee, arms),
             ExprKind::For {
                 pattern,
@@ -205,15 +199,12 @@ impl Analyzer<'_> {
                 self.analyze_expr(index);
                 Shape::Hole
             }
-            ExprKind::CallableValue { body, .. } | ExprKind::Loop(body) => {
+            ExprKind::CallableValue { body, .. } => {
                 self.analyze_expr(body);
                 Shape::Hole
             }
-            ExprKind::While { condition, body } => {
-                self.analyze_expr(condition);
-                self.analyze_expr(body);
-                Shape::Unit
-            }
+            ExprKind::Loop(body) => self.analyze_loop(body),
+            ExprKind::While { condition, body } => self.analyze_while(condition, body),
             ExprKind::Unary { expr, .. } => self.analyze_expr(expr),
             ExprKind::Binary { lhs, rhs, .. } => {
                 self.analyze_expr(lhs);
@@ -317,35 +308,48 @@ impl Analyzer<'_> {
         actual
     }
 
-    fn analyze_match(
-        &mut self,
-        expr: &Expr,
-        scrutinee: &Expr,
-        arms: &[tune_hir::expr::MatchArm],
-    ) -> Shape {
-        let scrutinee_shape = self.analyze_expr(scrutinee);
-        self.check_match_exhaustive(expr, &scrutinee_shape, arms);
-        Shape::join_all(arms.iter().map(|arm| self.analyze_expr(&arm.body)))
+    fn check_public_api_shape(&mut self, item: &Item) {
+        if item.visibility != Visibility::Public || item.shape.is_some() {
+            return;
+        }
+        if !matches!(item.kind, ItemKind::Let | ItemKind::CallableDecl) {
+            return;
+        }
+        self.diagnostics.push(
+            Diagnostic::warning(
+                codes::PUBLIC_API_INFERENCE,
+                "public API relies on inferred shape",
+                item.span.unwrap_or_else(Span::synthetic),
+                "public items need an explicit shape for stable compiler facts",
+            )
+            .with_help("add an explicit return or storage shape to this public item")
+            .build(),
+        );
     }
 
-    fn analyze_for(
-        &mut self,
-        expr: &Expr,
-        pattern: &Pattern,
-        iterable: &Expr,
-        body: &Expr,
-    ) -> Shape {
-        let iterable_shape = self.analyze_expr(iterable);
-        let (len_member, index_member) = self.iteration_contract(&iterable_shape, expr.span);
-        self.finite_for.push(FiniteForCheck {
-            iterable: iterable.id,
-            len_member,
-            index_member,
-            span: expr.span,
-        });
-        self.bind_pattern(pattern, Shape::Hole);
-        self.analyze_expr(body);
-        Shape::Unit
+    fn check_result_propagation(&mut self, item: &Item, body: &Expr, expected: &Shape) {
+        let Some(error_shape) = expr_propagated_error_shape_fact(body, self.module, self.resolved)
+        else {
+            return;
+        };
+        let Shape::Result { err, .. } = expected else {
+            self.diagnostics
+                .push(result_propagation_diag(item, body, &error_shape));
+            return;
+        };
+        if !err.accepts(&error_shape) {
+            self.diagnostics
+                .push(result_propagation_diag(item, body, &error_shape));
+        }
+    }
+
+    fn check_untyped_result_propagation(&mut self, item: &Item, body: &Expr) {
+        let Some(error_shape) = expr_propagated_error_shape_fact(body, self.module, self.resolved)
+        else {
+            return;
+        };
+        self.diagnostics
+            .push(result_propagation_diag(item, body, &error_shape));
     }
 
     fn check_value_against(&mut self, expected: &Shape, actual: &Shape, span: Option<Span>) {
@@ -361,4 +365,15 @@ impl Analyzer<'_> {
             );
         }
     }
+}
+
+fn result_propagation_diag(item: &Item, body: &Expr, error_shape: &Shape) -> Diagnostic {
+    Diagnostic::error(
+        codes::RESULT_PROPAGATION_ERROR,
+        "`!` propagates an error shape not carried by the return shape",
+        body.span.or(item.span).unwrap_or_else(Span::synthetic),
+        format!("propagated error shape is `{error_shape:?}`"),
+    )
+    .with_help("return a `Result<Ok, Error>` shape that can carry this error")
+    .build()
 }

@@ -7,6 +7,9 @@ use tune_resolve::{LocalId, NameTarget};
 
 use super::{Analyzer, ExprShape, MaterializerCheck};
 use crate::{BindingKey, BindingState, Shape, expr_shape_fact};
+mod effects;
+
+use effects::{expr_assigns_binding, expr_has_materializer_effect};
 
 impl Analyzer<'_> {
     pub(super) fn check_materializer(&mut self, expected: &Shape, span: Option<Span>) {
@@ -18,6 +21,19 @@ impl Analyzer<'_> {
                     "sequence literal has no materializer for target shape",
                     span.unwrap_or_else(Span::synthetic),
                     "this target must be a sequence shape or define a sequence materializer",
+                )
+                .build(),
+            );
+        } else if materializer
+            .and_then(|id| self.materializer_body(id))
+            .is_some_and(expr_has_materializer_effect)
+        {
+            self.diagnostics.push(
+                Diagnostic::error(
+                    codes::MATERIALIZATION_FAILED,
+                    "sequence materializer is not pure",
+                    span.unwrap_or_else(Span::synthetic),
+                    "materializers must not mutate state, spawn tasks, panic, or propagate errors",
                 )
                 .build(),
             );
@@ -51,16 +67,12 @@ impl Analyzer<'_> {
         let Some(item) = self.enum_item(enum_name) else {
             return;
         };
+        let covered = self.covered_variant_ids(item, arms);
         let missing = item.variants.iter().any(|variant| {
-            variant.name.as_ref().is_some_and(|name| {
-                !arms.iter().any(|arm| {
-                    matches!(
-                        &arm.pattern.kind,
-                        PatternKind::Variant { name: arm_name, .. }
-                            | PatternKind::Binding(arm_name) if arm_name == name
-                    )
-                })
-            })
+            variant
+                .name
+                .as_ref()
+                .is_some_and(|_| !covered.contains(&variant.id))
         });
         if missing {
             self.diagnostics.push(
@@ -145,6 +157,30 @@ impl Analyzer<'_> {
             | PatternKind::StructuralShape
             | PatternKind::Else => {}
         }
+    }
+
+    pub(super) fn check_iteration_source_mutation(
+        &mut self,
+        iterable: &Expr,
+        body: &Expr,
+        span: Option<Span>,
+    ) {
+        let Some(source) = self.binding_key(iterable) else {
+            return;
+        };
+        if !expr_assigns_binding(body, source, self) {
+            return;
+        }
+        self.diagnostics.push(
+            Diagnostic::warning(
+                codes::ITERATION_SOURCE_MUTATED,
+                "finite `for` source is mutated during iteration",
+                span.unwrap_or_else(Span::synthetic),
+                "the source length and indexed access contract must remain stable while iterating",
+            )
+            .with_help("iterate over a stable snapshot or move the mutation after the loop")
+            .build(),
+        );
     }
 
     pub(super) fn binding_key(&self, expr: &Expr) -> Option<BindingKey> {
@@ -249,6 +285,31 @@ impl Analyzer<'_> {
                 _ => None,
             })
     }
+
+    fn materializer_body(&self, id: MemberId) -> Option<&Expr> {
+        self.module
+            .items
+            .iter()
+            .flat_map(|item| item.struct_members.iter())
+            .find_map(|member| match member {
+                StructMember::SequenceMaterializer(materializer) if materializer.id == id => {
+                    materializer.body.as_ref()
+                }
+                _ => None,
+            })
+    }
+
+    fn covered_variant_ids(&self, item: &Item, arms: &[tune_hir::expr::MatchArm]) -> Vec<MemberId> {
+        arms.iter()
+            .filter_map(|arm| pattern_variant_name(&arm.pattern))
+            .filter_map(|name| {
+                item.variants
+                    .iter()
+                    .find(|variant| variant.name.as_deref() == Some(name))
+                    .map(|variant| variant.id)
+            })
+            .collect()
+    }
 }
 
 fn iter_diag(
@@ -263,4 +324,11 @@ fn iter_diag(
         "finite `for` only lowers over sources with known length and indexed access",
     )
     .build()
+}
+
+fn pattern_variant_name(pattern: &Pattern) -> Option<&str> {
+    match &pattern.kind {
+        PatternKind::Variant { name, .. } | PatternKind::Binding(name) => Some(name),
+        _ => None,
+    }
 }

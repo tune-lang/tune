@@ -245,3 +245,105 @@ let choose(color: Color) = match color { Red => 1 }
 
     Ok(())
 }
+
+#[test]
+fn analyzer_joins_branch_state_after_if() -> Result<(), &'static str> {
+    let source = r#"
+let run(flag) = {
+  let value = 1
+  if flag { value = 2 } else { value = "two" }
+  value
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    let value = analysis
+        .frame
+        .bindings
+        .iter()
+        .find(|binding| binding.name.as_deref() == Some("value"))
+        .ok_or("value binding should survive branch join")?;
+    assert!(matches!(value.current_shape, tune_shape::Shape::Union(_)));
+
+    Ok(())
+}
+
+#[test]
+fn analyzer_warns_when_finite_for_source_is_mutated() -> Result<(), &'static str> {
+    let source = r#"
+struct Stack {
+  len(): Size = 0
+  Stack[index: Size]: Int = index
+}
+let each(items: Stack) = for item in items { items = items }
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[1]);
+
+    assert!(analysis.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::ITERATION_SOURCE_MUTATED
+    }));
+
+    Ok(())
+}
+
+#[test]
+fn analyzer_rejects_effectful_sequence_materializers() -> Result<(), &'static str> {
+    let source = r#"
+struct Stack {
+  [items] = { items = []; items }
+}
+let stack: Stack = [1, 2]
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[1]);
+
+    assert!(analysis.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::MATERIALIZATION_FAILED
+            && diagnostic.title == "sequence materializer is not pure"
+    }));
+
+    Ok(())
+}
+
+#[test]
+fn analyzer_enforces_result_propagation_return_shape() -> Result<(), &'static str> {
+    let source = r#"
+let run(): Int = Error("bad")!
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert!(analysis.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::RESULT_PROPAGATION_ERROR
+    }));
+
+    Ok(())
+}
+
+#[test]
+fn analyzer_warns_for_public_api_inference() -> Result<(), &'static str> {
+    let source = "pub let run(input) = input";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert!(
+        analysis
+            .diagnostics
+            .iter()
+            .any(|diagnostic| { diagnostic.code == tune_diagnostics::codes::PUBLIC_API_INFERENCE })
+    );
+
+    Ok(())
+}
