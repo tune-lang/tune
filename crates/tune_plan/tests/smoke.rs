@@ -12,6 +12,7 @@ let run(items) = spawn items[0].load()!
 let each(items) = for item in items { handle(item) }
 let values = [1, 2]
 let scoped(input) = { let f = _(x) = x; input = f(input); return input }
+let mutate(user, values) = { user.name = "Rey"; values[0] = user.name }
 let ops(value, other) = not value and other is not none
 let branch(value, ready, waiting) = if ready { value } elif waiting { panic("wait") } else { panic("bad") }
 let select(result, value) = match result { value => value; else => panic("bad") }
@@ -65,10 +66,28 @@ let ok(value) = Ok(value)
             .iter()
             .any(|op| matches!(op, tune_plan::PlanOp::LocalLet { local: Some(_) }))
     );
-    assert!(scoped.ops.contains(&tune_plan::PlanOp::Assign));
+    assert!(
+        scoped
+            .ops
+            .iter()
+            .any(|op| matches!(op, tune_plan::PlanOp::BindingSet { target: Some(_) }))
+    );
     assert!(scoped.ops.contains(&tune_plan::PlanOp::Return));
 
-    let ops = tune_plan::lower_resolved_item_to_plan(&module.items[5], &resolved)
+    let mutate = tune_plan::lower_resolved_item_to_plan(&module.items[5], &resolved)
+        .ok_or("expected mutate plan")?;
+    assert!(mutate.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::FieldSet { field } if field == "name"
+    )));
+    assert!(
+        mutate
+            .ops
+            .contains(&tune_plan::PlanOp::SequenceSet { checked: true })
+    );
+    assert!(!mutate.ops.contains(&tune_plan::PlanOp::Assign));
+
+    let ops = tune_plan::lower_resolved_item_to_plan(&module.items[6], &resolved)
         .ok_or("expected ops plan")?;
     assert!(ops.ops.contains(&tune_plan::PlanOp::UnaryOp {
         op: tune_hir::expr::UnaryOp::Not
@@ -77,26 +96,26 @@ let ok(value) = Ok(value)
         op: tune_hir::expr::BinaryOp::IsNot
     }));
 
-    let branch = tune_plan::lower_resolved_item_to_plan(&module.items[6], &resolved)
+    let branch = tune_plan::lower_resolved_item_to_plan(&module.items[7], &resolved)
         .ok_or("expected branch plan")?;
     assert!(branch.ops.contains(&tune_plan::PlanOp::If));
     assert!(branch.ops.contains(&tune_plan::PlanOp::Panic));
 
-    let select = tune_plan::lower_resolved_item_to_plan(&module.items[7], &resolved)
+    let select = tune_plan::lower_resolved_item_to_plan(&module.items[8], &resolved)
         .ok_or("expected select plan")?;
     assert!(select.ops.contains(&tune_plan::PlanOp::Match));
 
-    let repeated = tune_plan::lower_resolved_item_to_plan(&module.items[8], &resolved)
+    let repeated = tune_plan::lower_resolved_item_to_plan(&module.items[9], &resolved)
         .ok_or("expected repeated plan")?;
     assert!(repeated.ops.contains(&tune_plan::PlanOp::While));
     assert!(repeated.ops.contains(&tune_plan::PlanOp::Continue));
 
-    let forever = tune_plan::lower_resolved_item_to_plan(&module.items[9], &resolved)
+    let forever = tune_plan::lower_resolved_item_to_plan(&module.items[10], &resolved)
         .ok_or("expected forever plan")?;
     assert!(forever.ops.contains(&tune_plan::PlanOp::Loop));
     assert!(forever.ops.contains(&tune_plan::PlanOp::Break));
 
-    let ok = tune_plan::lower_resolved_item_to_plan(&module.items[10], &resolved)
+    let ok = tune_plan::lower_resolved_item_to_plan(&module.items[11], &resolved)
         .ok_or("expected ok plan")?;
     assert!(ok.ops.contains(&tune_plan::PlanOp::VariantConstruct {
         variant: tune_resolve::VariantId::Prelude(tune_resolve::PreludeVariant::Ok)

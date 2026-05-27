@@ -82,9 +82,7 @@ impl LowerContext<'_> {
                 });
             }
             ExprKind::Assign { target, value } => {
-                self.lower_expr(target, ops);
-                self.lower_expr(value, ops);
-                ops.push(PlanOp::Assign);
+                self.lower_assignment(target, value, ops);
             }
             ExprKind::Unary { op, expr } => {
                 self.lower_expr(expr, ops);
@@ -155,6 +153,35 @@ impl LowerContext<'_> {
                 for expr in exprs {
                     self.lower_expr(expr, ops);
                 }
+            }
+        }
+    }
+
+    fn lower_assignment(&self, target: &Expr, value: &Expr, ops: &mut Vec<PlanOp>) {
+        match &target.kind {
+            ExprKind::Name(_) => {
+                self.lower_expr(value, ops);
+                ops.push(PlanOp::BindingSet {
+                    target: self.name_target(target.id),
+                });
+            }
+            ExprKind::Field { base, name } => {
+                self.lower_expr(base, ops);
+                self.lower_expr(value, ops);
+                ops.push(PlanOp::FieldSet {
+                    field: name.clone().unwrap_or_default(),
+                });
+            }
+            ExprKind::Index { base, index } => {
+                self.lower_expr(base, ops);
+                self.lower_expr(index, ops);
+                self.lower_expr(value, ops);
+                ops.push(PlanOp::SequenceSet { checked: true });
+            }
+            _ => {
+                self.lower_expr(target, ops);
+                self.lower_expr(value, ops);
+                ops.push(PlanOp::Assign);
             }
         }
     }

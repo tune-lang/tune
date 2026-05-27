@@ -1,6 +1,6 @@
 use tune_hir::HirId;
 use tune_hir::expr::{BinaryOp, UnaryOp};
-use tune_resolve::{LocalId, VariantId};
+use tune_resolve::{LocalId, NameTarget, VariantId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanFunction {
@@ -23,7 +23,9 @@ pub enum PlanOp {
     FieldGet { field: String },
     FieldSet { field: String },
     SequenceGet { checked: bool },
+    SequenceSet { checked: bool },
     SequencePush,
+    BindingSet { target: Option<NameTarget> },
     FiniteFor,
     StringBuild,
     If,
