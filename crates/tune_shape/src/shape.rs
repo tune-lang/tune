@@ -84,6 +84,58 @@ pub enum Shape {
 
 impl Shape {
     #[must_use]
+    pub fn accepts(&self, value: &Self) -> bool {
+        match (self, value) {
+            (Self::Hole, _) | (_, Self::Hole) => true,
+            (expected, actual) if expected == actual => true,
+            (Self::Union(items), actual) => items.iter().any(|item| item.accepts(actual)),
+            (expected, Self::Union(items)) => items.iter().all(|item| expected.accepts(item)),
+            (Self::Optional(inner), Self::Optional(actual)) => inner.accepts(actual),
+            (Self::Optional(_), Self::Literal(crate::literal::LiteralFact::None)) => true,
+            (Self::Sequence(expected), Self::Sequence(actual)) => expected.accepts(actual),
+            (Self::Tuple(expected), Self::Tuple(actual)) if expected.len() == actual.len() => {
+                expected
+                    .iter()
+                    .zip(actual)
+                    .all(|(expected, actual)| expected.accepts(actual))
+            }
+            (
+                Self::Callable { params, ret },
+                Self::Callable {
+                    params: actual_params,
+                    ret: actual_ret,
+                },
+            ) if params.len() == actual_params.len() => {
+                params
+                    .iter()
+                    .zip(actual_params)
+                    .all(|(expected, actual)| expected.accepts(actual))
+                    && ret.accepts(actual_ret)
+            }
+            (
+                Self::Result { ok, err },
+                Self::Result {
+                    ok: actual_ok,
+                    err: actual_err,
+                },
+            ) => ok.accepts(actual_ok) && err.accepts(actual_err),
+            (Self::Task(expected), Self::Task(actual)) => expected.accepts(actual),
+            (
+                Self::Apply { name, args },
+                Self::Apply {
+                    name: actual_name,
+                    args: actual_args,
+                },
+            ) if name == actual_name && args.len() == actual_args.len() => args
+                .iter()
+                .zip(actual_args)
+                .all(|(expected, actual)| expected.accepts(actual)),
+            (expected, Self::Literal(literal)) => crate::can_materialize(literal, expected),
+            _ => false,
+        }
+    }
+
+    #[must_use]
     pub fn join(self, next: Self) -> Self {
         match (self, next) {
             (Self::Hole, shape) | (shape, Self::Hole) => shape,

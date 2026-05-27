@@ -141,3 +141,107 @@ fn state_frame_rejects_storage_shape_mismatch_on_join() {
         Err(tune_shape::StateJoinError::StorageMismatch(key))
     );
 }
+
+#[test]
+fn analyzer_checks_assignment_storage_shapes() -> Result<(), &'static str> {
+    let source = r#"
+let run(value: Int) = {
+  let local: Int = 1
+  local = "bad"
+  value
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert!(analysis.assignments.iter().any(|assignment| {
+        assignment.expected == tune_shape::Shape::Int
+            && matches!(assignment.actual, tune_shape::Shape::Literal(_))
+    }));
+    assert!(analysis.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::ASSIGNMENT_SHAPE_MISMATCH
+    }));
+
+    Ok(())
+}
+
+#[test]
+fn analyzer_validates_finite_for_contracts_and_materializers() -> Result<(), &'static str> {
+    let source = r#"
+struct Stack {
+  len(): Size = 0
+  Stack[index: Size]: Int = index
+  [items] = items
+}
+struct Bag {}
+let stack: Stack = [1, 2]
+let bag: Bag = [1, 2]
+let each(items: Stack) = for item in items { item }
+let broken(value: Int) = for item in value { item }
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    let stack = tune_shape::analyze_item(&module, &resolved, &module.items[2]);
+    assert!(
+        stack
+            .materializers
+            .iter()
+            .any(|materializer| materializer.materializer.is_some())
+    );
+
+    let bag = tune_shape::analyze_item(&module, &resolved, &module.items[3]);
+    assert!(
+        bag.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == tune_diagnostics::codes::MATERIALIZATION_FAILED
+        })
+    );
+
+    let each = tune_shape::analyze_item(&module, &resolved, &module.items[4]);
+    assert!(
+        each.finite_for
+            .iter()
+            .any(|finite| finite.len_member.is_some() && finite.index_member.is_some())
+    );
+
+    let broken = tune_shape::analyze_item(&module, &resolved, &module.items[5]);
+    assert!(
+        broken.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == tune_diagnostics::codes::ITERATION_LEN_MISSING
+        })
+    );
+    assert!(
+        broken.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == tune_diagnostics::codes::ITERATION_INDEX_MISSING
+        })
+    );
+
+    Ok(())
+}
+
+#[test]
+fn analyzer_reports_non_exhaustive_enum_matches() -> Result<(), &'static str> {
+    let source = r#"
+enum Color {
+  Red
+  Blue
+}
+let choose(color: Color) = match color { Red => 1 }
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[1]);
+
+    assert!(
+        analysis
+            .diagnostics
+            .iter()
+            .any(|diagnostic| { diagnostic.code == tune_diagnostics::codes::MATCH_NOT_EXHAUSTIVE })
+    );
+
+    Ok(())
+}
