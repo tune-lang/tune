@@ -63,7 +63,7 @@ let run(input: String): String = input
     assert!(analysis.resolved.scope.get("run").is_some());
     assert!(analysis.resolved.facts.iter().any(|fact| matches!(
         &fact.payload,
-        tune_resolve::CompilerFactPayload::Tag(tag) if tag == "tool"
+        tune_resolve::CompilerFactPayload::Tag(tag) if tag.name == "tool"
     )));
 
     Ok(())

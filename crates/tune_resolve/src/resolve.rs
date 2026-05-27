@@ -6,7 +6,7 @@ use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::item::{Item, ItemKind, StructMember};
 use tune_hir::module::Module;
 
-use crate::facts::{CompilerFact, CompilerFactPayload, FactOwner};
+use crate::facts::{CompilerFact, CompilerFactPayload, FactOwner, TagFact, TagFactArg};
 use crate::locals::{LocalBinding, NameRef};
 use crate::scope::{Binding, BindingKind, Scope};
 
@@ -308,7 +308,18 @@ fn record_tag_fact(
         Some(binding) if binding.kind == BindingKind::Tag => {
             resolved.facts.push(CompilerFact {
                 owner: FactOwner::Item(item.id),
-                payload: CompilerFactPayload::Tag(tag.name.clone()),
+                payload: CompilerFactPayload::Tag(TagFact {
+                    name: tag.name.clone(),
+                    args: tag
+                        .args
+                        .iter()
+                        .map(|arg| TagFactArg {
+                            name: arg.name.clone(),
+                            value: arg.value.id,
+                            span: arg.value.span,
+                        })
+                        .collect(),
+                }),
                 span: tag.span,
             });
         }

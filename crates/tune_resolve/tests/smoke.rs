@@ -169,7 +169,10 @@ let run(input) = input
         fact.owner == tune_resolve::FactOwner::Item(tune_hir::HirId(2))
             && matches!(
                 &fact.payload,
-                tune_resolve::CompilerFactPayload::Tag(tag) if tag == "tool"
+                tune_resolve::CompilerFactPayload::Tag(tag)
+                    if tag.name == "tool"
+                        && tag.args.len() == 1
+                        && tag.args[0].name.as_deref() == Some("capability")
             )
             && fact.span.is_some()
     }));
@@ -206,7 +209,7 @@ let each(items) = for item in items { helper(item) }
 let scoped(input) = { let local = _(x) = helper(x); local(input) }
 let check(input, other) = not input and other is not none
 let branch(input, ready) = if ready { helper(input) } else { panic("bad") }
-let select(result) = match result { value => helper(value); else => panic("bad") }
+let select(result) = match result { Ok(value) => helper(value); else => panic("bad") }
 let repeated(ready) = while ready { continue }
 let forever() = loop { break }
 struct Box {

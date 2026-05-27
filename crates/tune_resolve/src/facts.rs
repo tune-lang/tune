@@ -1,7 +1,7 @@
 use tune_diagnostics::Span;
 use tune_hir::item::Visibility;
 use tune_hir::shape::ShapeExpr;
-use tune_hir::{HirId, MemberId};
+use tune_hir::{ExprId, HirId, MemberId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CompilerFactKind {
@@ -36,9 +36,22 @@ pub enum CompilerFactPayload {
     JsonInvoker(String),
     Fields(Vec<MemberId>),
     Variants(Vec<MemberId>),
-    Tag(String),
+    Tag(TagFact),
     Shape(ShapeExpr),
     Payload(Vec<ShapeExpr>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TagFact {
+    pub name: String,
+    pub args: Vec<TagFactArg>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TagFactArg {
+    pub name: Option<String>,
+    pub value: ExprId,
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
