@@ -32,12 +32,51 @@ impl Parser<'_> {
         self.expect(TokenKind::Ident, "expected tag name");
         self.skip_trivia();
 
-        if let Some(TokenKind::LeftParen | TokenKind::LeftBrace | TokenKind::LeftBracket) =
-            self.current_kind()
-        {
+        if self.at(TokenKind::LeftParen) {
+            self.parse_tag_arg_list();
+        } else if let Some(TokenKind::LeftBrace | TokenKind::LeftBracket) = self.current_kind() {
             self.consume_balanced_group();
         }
 
+        self.finish_node();
+    }
+
+    fn parse_tag_arg_list(&mut self) {
+        self.start_node(SyntaxKind::TagArgList);
+        self.expect(TokenKind::LeftParen, "expected `(`");
+        self.skip_trivia();
+
+        while !self.at(TokenKind::Eof) && !self.at(TokenKind::RightParen) {
+            self.parse_tag_arg();
+            self.skip_trivia();
+            if self.at(TokenKind::Comma) {
+                self.bump();
+                self.skip_trivia();
+            } else if !self.at(TokenKind::RightParen) {
+                self.error_at_current("expected `,` between tag arguments");
+                break;
+            }
+        }
+
+        self.expect(TokenKind::RightParen, "expected `)`");
+        self.finish_node();
+    }
+
+    fn parse_tag_arg(&mut self) {
+        self.start_node(SyntaxKind::TagArg);
+        if self.at(TokenKind::Ident)
+            && matches!(
+                self.lookahead_significant(1),
+                Some(TokenKind::Colon | TokenKind::Equal)
+            )
+        {
+            self.bump();
+            self.skip_trivia();
+            self.bump();
+            self.skip_trivia();
+        }
+
+        self.parse_expr();
         self.finish_node();
     }
 

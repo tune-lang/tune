@@ -31,4 +31,4 @@ pub use structs::{
     DocumentedField, DocumentedStructMember, FieldDecl, IndexAccessDecl, MemberCallableDecl,
     SequenceMaterializerDecl, StructDecl, StructMember,
 };
-pub use tags::{TagApplication, TagDecl};
+pub use tags::{TagApplication, TagArg, TagDecl};

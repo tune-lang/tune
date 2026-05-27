@@ -292,14 +292,24 @@ tag tool {
 fn lowers_tag_applications_to_hir_items() {
     let source = r#"
 tag tool {}
-@tool
+let capability = 1
+@tool(path: "/search", capability = capability)
 pub let search(query) = query
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
 
-    assert_eq!(module.items[1].name.as_deref(), Some("search"));
-    assert_eq!(module.items[1].tags.len(), 1);
-    assert_eq!(module.items[1].tags[0].name, "tool");
-    assert!(module.items[1].tags[0].span.is_some());
+    assert_eq!(module.items[2].name.as_deref(), Some("search"));
+    assert_eq!(module.items[2].tags.len(), 1);
+    assert_eq!(module.items[2].tags[0].name, "tool");
+    assert!(module.items[2].tags[0].span.is_some());
+    assert_eq!(module.items[2].tags[0].args.len(), 2);
+    assert_eq!(
+        module.items[2].tags[0].args[0].name.as_deref(),
+        Some("path")
+    );
+    assert_eq!(
+        module.items[2].tags[0].args[1].name.as_deref(),
+        Some("capability")
+    );
 }

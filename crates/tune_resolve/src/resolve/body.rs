@@ -11,6 +11,19 @@ use crate::locals::{LocalBinding, LocalId, LocalKind, NameRef, NameTarget};
 use super::ResolvedModule;
 
 pub(super) fn resolve_item_body(resolved: &mut ResolvedModule, item: &Item) {
+    if item.tags.iter().any(|tag| !tag.args.is_empty()) {
+        let mut resolver = BodyResolver {
+            resolved,
+            owner: item.id,
+            scopes: vec![HashMap::new()],
+        };
+        for tag in &item.tags {
+            for arg in &tag.args {
+                resolver.resolve_expr_names(&arg.value);
+            }
+        }
+    }
+
     if let Some(body) = &item.body {
         let mut resolver = BodyResolver {
             resolved,

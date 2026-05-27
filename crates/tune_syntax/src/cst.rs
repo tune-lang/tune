@@ -12,6 +12,8 @@ pub enum SyntaxKind {
     EnumDecl,
     TagDecl,
     TagApplication,
+    TagArgList,
+    TagArg,
     ImportDecl,
     PubDecl,
     Block,

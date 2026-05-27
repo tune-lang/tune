@@ -8,7 +8,7 @@ use tune_ast::nodes::{
 };
 use tune_syntax::CstNode;
 
-use crate::item::{Item, ItemKind, StructMember, TagApplication, Visibility};
+use crate::item::{Item, ItemKind, StructMember, TagApplication, TagArg, Visibility};
 use crate::module::Module;
 use crate::{HirId, ModuleId};
 
@@ -45,7 +45,7 @@ fn lower_item(
     exprs: &mut ExprLowerer,
 ) {
     let doc = documented.doc_text(source);
-    let tags = lower_tags(source, &documented.tags);
+    let tags = lower_tags(source, &documented.tags, exprs);
     match documented.item {
         AstItem::Import(node) => {
             push_item(items, lower_import(source, node, visibility, doc, tags))
@@ -252,12 +252,26 @@ fn lower_tag(
     }
 }
 
-fn lower_tags(source: &str, tags: &[tune_ast::nodes::TagApplication<'_>]) -> Vec<TagApplication> {
+fn lower_tags(
+    source: &str,
+    tags: &[tune_ast::nodes::TagApplication<'_>],
+    exprs: &mut ExprLowerer,
+) -> Vec<TagApplication> {
     tags.iter()
         .filter_map(|tag| {
             Some(TagApplication {
                 name: tag.name(source)?.to_owned(),
                 span: tag.syntax().span,
+                args: tag
+                    .args()
+                    .into_iter()
+                    .filter_map(|arg| {
+                        Some(TagArg {
+                            name: arg.name(source).map(str::to_owned),
+                            value: exprs.lower(source, arg.value_expr()?),
+                        })
+                    })
+                    .collect(),
             })
         })
         .collect()

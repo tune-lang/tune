@@ -19,10 +19,17 @@ pub enum Visibility {
     Public,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct TagApplication {
     pub name: String,
     pub span: Option<Span>,
+    pub args: Vec<TagArg>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TagArg {
+    pub name: Option<String>,
+    pub value: Expr,
 }
 
 #[derive(Debug, Clone)]

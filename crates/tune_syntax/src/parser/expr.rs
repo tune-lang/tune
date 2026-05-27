@@ -15,7 +15,7 @@ impl Parser<'_> {
         }
     }
 
-    fn parse_expr(&mut self) {
+    pub(super) fn parse_expr(&mut self) {
         match self.current_kind() {
             Some(TokenKind::KeywordLet) => self.parse_let_expr(),
             Some(TokenKind::KeywordIf) => self.parse_if_expr(),

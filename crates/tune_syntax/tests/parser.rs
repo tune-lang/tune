@@ -92,7 +92,7 @@ fn parses_tag_applications_as_top_level_attachments() {
     let parsed = parse(
         r#"
 @tool
-@route(path: "/search")
+@route(path: "/search", capability = Capability.Read)
 pub let search(query) = query
 "#,
     );
@@ -104,6 +104,15 @@ pub let search(query) = query
             SyntaxKind::TagApplication,
             SyntaxKind::PubDecl,
         ]
+    );
+    let kinds = nested_node_kinds(&parsed.cst);
+    assert!(kinds.contains(&SyntaxKind::TagArgList));
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| **kind == SyntaxKind::TagArg)
+            .count(),
+        2
     );
     assert!(parsed.diagnostics.is_empty());
 }

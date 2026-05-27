@@ -156,7 +156,8 @@ enum LoadResult {
 fn records_tag_application_facts() {
     let source = r#"
 tag tool {}
-@tool
+let capability = 1
+@tool(capability = capability)
 let run(input) = input
 "#;
     let parsed = tune_syntax::parse(source);
@@ -165,13 +166,17 @@ let run(input) = input
 
     assert!(resolved.diagnostics.is_empty());
     assert!(resolved.facts.iter().any(|fact| {
-        fact.owner == tune_resolve::FactOwner::Item(tune_hir::HirId(1))
+        fact.owner == tune_resolve::FactOwner::Item(tune_hir::HirId(2))
             && matches!(
                 &fact.payload,
                 tune_resolve::CompilerFactPayload::Tag(tag) if tag == "tool"
             )
             && fact.span.is_some()
     }));
+    assert!(resolved.name_refs.iter().any(|name_ref| matches!(
+        name_ref.target,
+        tune_resolve::NameTarget::TopLevel(tune_hir::HirId(1))
+    )));
 }
 
 #[test]

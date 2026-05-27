@@ -79,7 +79,7 @@ tag tool {}
 
 -- Search docs.
 @tool
-@route(path: "/search")
+@route(path: "/search", capability = Capability.Read)
 pub let search(query) = query
 "#;
     let parsed = tune_syntax::parse(source);
@@ -93,6 +93,12 @@ pub let search(query) = query
     assert_eq!(items[1].tags.len(), 2);
     assert_eq!(items[1].tags[0].name(source), Some("tool"));
     assert_eq!(items[1].tags[1].name(source), Some("route"));
+    let args = items[1].tags[1].args();
+    assert_eq!(args.len(), 2);
+    assert_eq!(args[0].name(source), Some("path"));
+    assert!(args[0].value_expr().is_some());
+    assert_eq!(args[1].name(source), Some("capability"));
+    assert!(args[1].value_expr().is_some());
 
     Ok(())
 }
