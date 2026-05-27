@@ -79,3 +79,65 @@ fn state_frame_tracks_bindings_by_typed_key() {
         Some(&tune_shape::Shape::Byte)
     );
 }
+
+#[test]
+fn state_frame_joins_current_shapes_without_changing_storage() {
+    let key = tune_shape::BindingKey::Local(tune_resolve::LocalId(3));
+    let mut left = tune_shape::StateFrame::new();
+    let mut right = tune_shape::StateFrame::new();
+
+    assert!(left.define(tune_shape::BindingState::new(
+        key,
+        Some("value".into()),
+        tune_shape::Shape::Hole,
+        tune_shape::Shape::Int,
+        None,
+    )));
+    assert!(right.define(tune_shape::BindingState::new(
+        key,
+        Some("value".into()),
+        tune_shape::Shape::Hole,
+        tune_shape::Shape::String,
+        None,
+    )));
+
+    assert_eq!(left.join_from(&right), Ok(()));
+    assert_eq!(
+        left.get(key).map(|binding| &binding.storage_shape),
+        Some(&tune_shape::Shape::Hole)
+    );
+    assert_eq!(
+        left.get(key).map(|binding| &binding.current_shape),
+        Some(&tune_shape::Shape::Union(vec![
+            tune_shape::Shape::Int,
+            tune_shape::Shape::String,
+        ]))
+    );
+}
+
+#[test]
+fn state_frame_rejects_storage_shape_mismatch_on_join() {
+    let key = tune_shape::BindingKey::Local(tune_resolve::LocalId(4));
+    let mut left = tune_shape::StateFrame::new();
+    let mut right = tune_shape::StateFrame::new();
+
+    assert!(left.define(tune_shape::BindingState::new(
+        key,
+        Some("value".into()),
+        tune_shape::Shape::Int,
+        tune_shape::Shape::Int,
+        None,
+    )));
+    assert!(right.define(tune_shape::BindingState::new(
+        key,
+        Some("value".into()),
+        tune_shape::Shape::String,
+        tune_shape::Shape::String,
+        None,
+    )));
+
+    assert_eq!(
+        left.join_from(&right),
+        Err(tune_shape::StateJoinError::StorageMismatch(key))
+    );
+}

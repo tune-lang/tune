@@ -82,6 +82,48 @@ pub enum Shape {
     Structural(Vec<MemberRequirement>),
 }
 
+impl Shape {
+    #[must_use]
+    pub fn join(self, next: Self) -> Self {
+        match (self, next) {
+            (Self::Hole, shape) | (shape, Self::Hole) => shape,
+            (Self::Union(items), Self::Union(next_items)) => {
+                Self::join_all(items.into_iter().chain(next_items).collect::<Vec<_>>())
+            }
+            (Self::Union(items), shape) | (shape, Self::Union(items)) => {
+                Self::join_all(items.into_iter().chain([shape]).collect::<Vec<_>>())
+            }
+            (existing, next) if existing == next => existing,
+            (existing, next) => Self::Union(vec![existing, next]),
+        }
+    }
+
+    #[must_use]
+    pub fn join_all(shapes: impl IntoIterator<Item = Self>) -> Self {
+        let mut unique = Vec::new();
+        for shape in shapes {
+            match shape {
+                Self::Hole => {}
+                Self::Union(items) => {
+                    for item in items {
+                        if item != Self::Hole && !unique.contains(&item) {
+                            unique.push(item);
+                        }
+                    }
+                }
+                shape if !unique.contains(&shape) => unique.push(shape),
+                _ => {}
+            }
+        }
+
+        match unique.as_slice() {
+            [] => Self::Hole,
+            [shape] => shape.clone(),
+            _ => Self::Union(unique),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MemberRequirement {
     Field {

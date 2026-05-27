@@ -162,7 +162,7 @@ fn collect_shape_params(payload: &Shape, arg: &Shape, solved: &mut [(String, Sha
     match (payload, arg) {
         (Shape::Param(name), arg) => {
             if let Some((_, existing)) = solved.iter_mut().find(|(param, _)| param == name) {
-                *existing = merge_shape(existing.clone(), arg.clone());
+                *existing = existing.clone().join(arg.clone());
             }
         }
         (Shape::Sequence(payload), Shape::Sequence(arg))
@@ -252,28 +252,6 @@ fn named_shape_hint(name: &str) -> Shape {
         "Bool" => Shape::Bool,
         "String" => Shape::String,
         _ => Shape::Hole,
-    }
-}
-
-fn merge_shape(existing: Shape, next: Shape) -> Shape {
-    match (existing, next) {
-        (Shape::Hole, shape) | (shape, Shape::Hole) => shape,
-        (Shape::Union(mut items), Shape::Union(next_items)) => {
-            for item in next_items {
-                if !items.contains(&item) {
-                    items.push(item);
-                }
-            }
-            Shape::Union(items)
-        }
-        (Shape::Union(mut items), shape) | (shape, Shape::Union(mut items)) => {
-            if !items.contains(&shape) {
-                items.push(shape);
-            }
-            Shape::Union(items)
-        }
-        (existing, next) if existing == next => existing,
-        (existing, next) => Shape::Union(vec![existing, next]),
     }
 }
 

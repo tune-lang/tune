@@ -124,8 +124,8 @@ impl ResultConstructorCollector {
 
     fn finish(self) -> Option<Shape> {
         (!self.ok.is_empty() || !self.err.is_empty()).then(|| Shape::Result {
-            ok: Box::new(union_shapes(self.ok)),
-            err: Box::new(union_shapes(self.err)),
+            ok: Box::new(Shape::join_all(self.ok)),
+            err: Box::new(Shape::join_all(self.err)),
         })
     }
 }
@@ -221,29 +221,6 @@ impl PropagatedErrorCollector {
     }
 
     fn finish(self) -> Option<Shape> {
-        (!self.errors.is_empty()).then(|| union_shapes(self.errors))
-    }
-}
-
-fn union_shapes(shapes: Vec<Shape>) -> Shape {
-    let mut flattened = Vec::new();
-    for shape in shapes {
-        match shape {
-            Shape::Union(items) => flattened.extend(items),
-            other => flattened.push(other),
-        }
-    }
-
-    let mut unique = Vec::new();
-    for shape in flattened {
-        if !unique.contains(&shape) {
-            unique.push(shape);
-        }
-    }
-
-    match unique.as_slice() {
-        [] => Shape::Hole,
-        [shape] => shape.clone(),
-        _ => Shape::Union(unique),
+        (!self.errors.is_empty()).then(|| Shape::join_all(self.errors))
     }
 }

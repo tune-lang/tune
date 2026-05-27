@@ -23,6 +23,12 @@ pub struct BindingState {
     pub span: Option<Span>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StateJoinError {
+    MissingBinding(BindingKey),
+    StorageMismatch(BindingKey),
+}
+
 impl BindingState {
     #[must_use]
     pub fn new(
@@ -77,6 +83,12 @@ impl BindingState {
     pub fn assign_literal(&mut self, literal_fact: LiteralFact) {
         self.current_shape = Shape::Literal(literal_fact.clone());
         self.literal_fact = Some(literal_fact);
+        self.materialization = None;
+    }
+
+    pub fn join_current(&mut self, shape: Shape) {
+        self.current_shape = self.current_shape.clone().join(shape);
+        self.literal_fact = None;
         self.materialization = None;
     }
 
@@ -144,5 +156,18 @@ impl StateFrame {
     pub fn commit_materialization(&mut self, key: BindingKey, target: Shape) -> bool {
         self.get_mut(key)
             .is_some_and(|binding| binding.commit_materialization(target))
+    }
+
+    pub fn join_from(&mut self, other: &Self) -> Result<(), StateJoinError> {
+        for binding in &mut self.bindings {
+            let Some(other_binding) = other.get(binding.key) else {
+                return Err(StateJoinError::MissingBinding(binding.key));
+            };
+            if binding.storage_shape != other_binding.storage_shape {
+                return Err(StateJoinError::StorageMismatch(binding.key));
+            }
+            binding.join_current(other_binding.current_shape.clone());
+        }
+        Ok(())
     }
 }
