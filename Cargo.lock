@@ -150,10 +150,14 @@ dependencies = [
 name = "tune_engine"
 version = "0.1.0"
 dependencies = [
+ "dyno_project",
  "tune_db",
  "tune_diagnostics",
  "tune_hir",
+ "tune_host",
+ "tune_plan",
  "tune_resolve",
+ "tune_runtime",
 ]
 
 [[package]]
