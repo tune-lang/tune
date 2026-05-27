@@ -12,6 +12,7 @@ use crate::meta::MetaPlan;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanFunction {
     pub owner: Option<HirId>,
+    pub member: Option<MemberId>,
     pub name: String,
     pub params: Vec<MemberId>,
     pub module_bindings: Vec<HirId>,
@@ -80,6 +81,7 @@ pub enum PlanOp {
     MemberCall {
         member: Option<MemberId>,
         name: String,
+        arg_count: usize,
     },
     CallableValue,
     WitnessCall,

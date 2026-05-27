@@ -208,7 +208,7 @@ fn reachable_functions(
     while let Some(target) = pending.pop() {
         let Some(index) = functions
             .iter()
-            .position(|function| function.owner == Some(target))
+            .position(|function| function_matches_target(function, target))
         else {
             continue;
         };
@@ -224,15 +224,32 @@ fn reachable_functions(
     reachable
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FunctionTarget {
+    Item(tune_hir::HirId),
+    Member(tune_hir::MemberId),
+}
+
+fn function_matches_target(function: &tune_plan::PlanFunction, target: FunctionTarget) -> bool {
+    match target {
+        FunctionTarget::Item(item) => function.owner == Some(item) && function.member.is_none(),
+        FunctionTarget::Member(member) => function.member == Some(member),
+    }
+}
+
 fn direct_call_targets(
     function: &tune_plan::PlanFunction,
-) -> impl Iterator<Item = tune_hir::HirId> + '_ {
+) -> impl Iterator<Item = FunctionTarget> + '_ {
     function.ops.iter().flat_map(direct_call_targets_in_op)
 }
 
-fn direct_call_targets_in_op(op: &tune_plan::PlanOp) -> Vec<tune_hir::HirId> {
+fn direct_call_targets_in_op(op: &tune_plan::PlanOp) -> Vec<FunctionTarget> {
     match op {
-        tune_plan::PlanOp::DirectCall { target, .. } => Some(*target),
+        tune_plan::PlanOp::DirectCall { target, .. } => Some(FunctionTarget::Item(*target)),
+        tune_plan::PlanOp::MemberCall {
+            member: Some(member),
+            ..
+        } => Some(FunctionTarget::Member(*member)),
         _ => None,
     }
     .into_iter()

@@ -1,5 +1,5 @@
 use tune_diagnostics::Span;
-use tune_hir::{ExprId, HirId};
+use tune_hir::{ExprId, HirId, MemberId};
 use tune_resolve::{LocalId, VariantId};
 use tune_shape::Shape;
 
@@ -21,6 +21,7 @@ pub struct HostSymbolId(pub u32);
 #[derive(Debug, Clone)]
 pub struct IrFunction {
     pub owner: Option<HirId>,
+    pub member: Option<MemberId>,
     pub name: String,
     pub regs: u32,
     pub locals: u32,
@@ -127,6 +128,11 @@ pub enum IrOp {
     CallDirect {
         dst: Reg,
         function: HirId,
+        args: Vec<Reg>,
+    },
+    CallMember {
+        dst: Reg,
+        member: MemberId,
         args: Vec<Reg>,
     },
     CallBound {

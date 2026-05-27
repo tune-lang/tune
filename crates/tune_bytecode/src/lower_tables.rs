@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::artifact::BytecodeConst;
 use crate::function::BytecodeVariant;
 use crate::lower::BytecodeLowerError;
-use tune_hir::HirId;
+use tune_hir::{HirId, MemberId};
 use tune_ir::{BlockId, IrConst, IrFunction, IrOp};
 use tune_resolve::{PreludeVariant, VariantId};
 
@@ -54,6 +54,21 @@ pub(super) fn function_indices(
         if let Some(owner) = function.owner {
             indices.insert(
                 owner,
+                u32::try_from(index).map_err(|_| BytecodeLowerError::ConstantLimit)?,
+            );
+        }
+    }
+    Ok(indices)
+}
+
+pub(super) fn member_function_indices(
+    functions: &[IrFunction],
+) -> Result<HashMap<MemberId, u32>, BytecodeLowerError> {
+    let mut indices = HashMap::new();
+    for (index, function) in functions.iter().enumerate() {
+        if let Some(member) = function.member {
+            indices.insert(
+                member,
                 u32::try_from(index).map_err(|_| BytecodeLowerError::ConstantLimit)?,
             );
         }

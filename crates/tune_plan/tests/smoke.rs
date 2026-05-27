@@ -33,10 +33,6 @@ let ok(value) = Ok(value)
     }));
     assert!(run.ops.iter().any(|op| matches!(
         op,
-        tune_plan::PlanOp::FieldGet { field, .. } if field == "load"
-    )));
-    assert!(run.ops.iter().any(|op| matches!(
-        op,
         tune_plan::PlanOp::MemberCall { name, .. } if name == "load"
     )));
     assert!(
@@ -359,6 +355,7 @@ let member(items: Stack) = items.get(0)
         tune_plan::PlanOp::MemberCall {
             member: Some(_),
             name,
+            ..
         } if name == "get"
     )));
 

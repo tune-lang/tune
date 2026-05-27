@@ -29,6 +29,7 @@ fn core_opcodes_reserve_dense_bytecode_slots() -> Result<(), &'static str> {
 fn lowers_typed_local_ir_to_bytecode() -> Result<(), &'static str> {
     let ir = tune_ir::IrFunction {
         owner: None,
+        member: None,
         name: "entry".into(),
         regs: 2,
         locals: 1,
@@ -76,6 +77,7 @@ fn lowers_typed_local_ir_to_bytecode() -> Result<(), &'static str> {
 fn lowers_integer_add_ir_to_bytecode() -> Result<(), &'static str> {
     let ir = tune_ir::IrFunction {
         owner: None,
+        member: None,
         name: "main".into(),
         regs: 3,
         locals: 0,
@@ -128,6 +130,7 @@ fn lowers_integer_add_ir_to_bytecode() -> Result<(), &'static str> {
 fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
     let entry = tune_ir::IrFunction {
         owner: None,
+        member: None,
         name: "<entry>".into(),
         regs: 2,
         locals: 0,
@@ -153,6 +156,7 @@ fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
     };
     let callee = tune_ir::IrFunction {
         owner: Some(tune_hir::HirId(1)),
+        member: None,
         name: "id".into(),
         regs: 1,
         locals: 1,

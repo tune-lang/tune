@@ -47,6 +47,32 @@ let result: Int = {
     Ok(())
 }
 
+#[test]
+fn run_file_executes_struct_member_call_with_self_receiver() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+struct Counter {
+  value: Int
+  next(): Int = {
+    self.value = self.value + 1
+    self.value
+  }
+}
+let counter: Counter = Counter {
+  value = 1
+}
+let result: Int = counter.next()
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, Value::Int(2));
+    Ok(())
+}
+
 fn run_file(tune: &tune_engine::Tune, file: tune_db::FileId) -> Result<Value, &'static str> {
     tune.run_file(file).map_err(|error| {
         eprintln!("{error:?}");

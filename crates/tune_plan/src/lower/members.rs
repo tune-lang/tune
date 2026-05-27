@@ -134,7 +134,8 @@ impl LowerContext<'_> {
                 .flat_map(|item| item.params.iter())
                 .find(|param| param.id == id)
                 .and_then(|param| self.lower_shape(param.shape.as_ref())),
-            NameTarget::Local(_) | NameTarget::SelfValue | NameTarget::Variant(_) => None,
+            NameTarget::SelfValue => self.self_shape.clone(),
+            NameTarget::Local(_) | NameTarget::Variant(_) => None,
         }
     }
 

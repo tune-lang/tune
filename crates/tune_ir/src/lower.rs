@@ -37,6 +37,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
 
     Ok(IrFunction {
         owner: plan.owner,
+        member: plan.member,
         name: plan.name.clone(),
         regs: lowerer.next_reg,
         locals: lowerer.locals,
@@ -129,6 +130,16 @@ impl Lowerer {
                 Ok(())
             }
             PlanOp::BindingGet {
+                source: Some(NameTarget::SelfValue),
+            } => {
+                let local = tune_resolve::LocalId(0);
+                self.track_local(local)?;
+                let dst = self.alloc_reg()?;
+                self.push_op(IrOp::LoadLocal { dst, local });
+                self.stack.push(dst);
+                Ok(())
+            }
+            PlanOp::BindingGet {
                 source: Some(NameTarget::TopLevel(item)),
             } if self.module_bindings.contains(item) => {
                 let local = module_slot(*item, &self.module_bindings)?;
@@ -186,20 +197,14 @@ impl Lowerer {
                 self.push_op(IrOp::Return { value });
                 Ok(())
             }
-            PlanOp::DirectCall { target, arg_count } => {
-                let mut args = Vec::with_capacity(*arg_count);
-                for _ in 0..*arg_count {
-                    args.push(self.pop("call argument")?);
-                }
-                args.reverse();
-                let dst = self.alloc_reg()?;
-                self.push_op(IrOp::CallDirect {
-                    dst,
-                    function: *target,
-                    args,
-                });
-                self.stack.push(dst);
-                Ok(())
+            PlanOp::DirectCall { target, arg_count } => self.lower_direct_call(*target, *arg_count),
+            PlanOp::MemberCall {
+                member: Some(member),
+                arg_count,
+                ..
+            } => self.lower_member_call(*member, *arg_count),
+            PlanOp::MemberCall { member: None, .. } => {
+                Err(IrLowerError::UnsupportedOp("unresolved member call"))
             }
             PlanOp::VariantConstruct { variant, arg_count } => {
                 let mut args = Vec::with_capacity(*arg_count);
@@ -304,7 +309,6 @@ impl Lowerer {
             PlanOp::BinaryOp { .. } => Err(IrLowerError::UnsupportedOp("binary op")),
             PlanOp::BindingGet { .. }
             | PlanOp::BoundCall
-            | PlanOp::MemberCall { .. }
             | PlanOp::CallableValue
             | PlanOp::WitnessCall
             | PlanOp::HostCall { .. }
@@ -376,7 +380,13 @@ impl Lowerer {
                 self.push_op(IrOp::StoreLocal { local, value });
                 Ok(())
             }
-            NameTarget::TopLevel(_) | NameTarget::SelfValue | NameTarget::Variant(_) => Ok(()),
+            NameTarget::SelfValue => {
+                let local = tune_resolve::LocalId(0);
+                self.track_local(local)?;
+                self.push_op(IrOp::StoreLocal { local, value });
+                Ok(())
+            }
+            NameTarget::TopLevel(_) | NameTarget::Variant(_) => Ok(()),
         }
     }
 }

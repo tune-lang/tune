@@ -1,4 +1,5 @@
 use tune_hir::expr::{Expr, ExprKind, LiteralKind};
+mod calls;
 mod members;
 mod module;
 mod patterns;
@@ -14,12 +15,13 @@ pub use module::lower_resolved_module_to_plan;
 
 use crate::plan::{FiniteForContract, PlanFunction, PlanIfBranch, PlanMatchArm, PlanOp};
 
-use self::values::{expr_produces_value, falls_through, if_produces_value, task_join_base};
+use self::values::{expr_produces_value, falls_through, if_produces_value};
 
 #[must_use]
 pub fn lower_to_plan(name: &str) -> PlanFunction {
     PlanFunction {
         owner: None,
+        member: None,
         name: name.into(),
         params: Vec::new(),
         module_bindings: Vec::new(),
@@ -54,6 +56,7 @@ fn lower_item_with_context(
     let body = item.body.as_ref()?;
     let mut plan = PlanFunction {
         owner: Some(item.id),
+        member: None,
         name: item
             .name
             .clone()
@@ -69,6 +72,7 @@ fn lower_item_with_context(
         resolved,
         module,
         analysis: analysis.as_ref(),
+        self_shape: None,
     };
     context.lower_expr(body, &mut plan.ops);
     if matches!(body.kind, ExprKind::Sequence(_))
@@ -91,6 +95,7 @@ pub(super) struct LowerContext<'a> {
     pub(super) resolved: Option<&'a ResolvedModule>,
     pub(super) module: Option<&'a Module>,
     pub(super) analysis: Option<&'a tune_shape::ShapeAnalysis>,
+    pub(super) self_shape: Option<tune_shape::Shape>,
 }
 
 impl LowerContext<'_> {
@@ -132,19 +137,7 @@ impl LowerContext<'_> {
                 }
             }
             ExprKind::Call { callee, args } => {
-                if let Some(base) = task_join_base(callee, args) {
-                    self.lower_expr(base, ops);
-                    ops.push(PlanOp::TaskJoin);
-                    return;
-                }
-
-                if !self.static_call_target(callee) {
-                    self.lower_expr(callee, ops);
-                }
-                for arg in args {
-                    self.lower_expr(arg, ops);
-                }
-                ops.push(self.call_op(callee, args.len()));
+                self.lower_call(callee, args, ops);
             }
             ExprKind::Field { base, name } => {
                 self.lower_expr(base, ops);
@@ -346,29 +339,6 @@ impl LowerContext<'_> {
         let mut ops = Vec::new();
         self.lower_expr(expr, &mut ops);
         ops
-    }
-
-    fn call_op(&self, callee: &Expr, arg_count: usize) -> PlanOp {
-        if let ExprKind::Field { base, name } = &callee.kind {
-            let name = name.clone().unwrap_or_default();
-            return PlanOp::MemberCall {
-                member: self.callable_member(base, &name),
-                name,
-            };
-        }
-
-        match self.name_target(callee.id) {
-            Some(NameTarget::TopLevel(target)) => PlanOp::DirectCall { target, arg_count },
-            Some(NameTarget::Variant(variant)) => PlanOp::VariantConstruct { variant, arg_count },
-            _ => PlanOp::BoundCall,
-        }
-    }
-
-    fn static_call_target(&self, callee: &Expr) -> bool {
-        matches!(
-            self.name_target(callee.id),
-            Some(NameTarget::TopLevel(_) | NameTarget::Variant(_))
-        )
     }
 
     fn name_target(&self, expr: ExprId) -> Option<NameTarget> {

@@ -1,7 +1,7 @@
-use tune_hir::item::{Item, ItemKind};
+use tune_hir::item::{CallableMember, Item, ItemKind, StructMember};
 use tune_hir::module::Module;
 use tune_resolve::ResolvedModule;
-use tune_shape::MaterializationPlan;
+use tune_shape::{MaterializationPlan, Shape};
 
 use super::{LowerContext, lower_resolved_module_item_to_plan};
 use crate::plan::{PlanFunction, PlanModule, PlanOp};
@@ -18,6 +18,7 @@ pub fn lower_resolved_module_to_plan(module: &Module, resolved: &ResolvedModule)
         let last_binding = module_bindings.last().copied();
         let mut entry = PlanFunction {
             owner: None,
+            member: None,
             name: "<entry>".to_owned(),
             params: Vec::new(),
             module_bindings: module_bindings.clone(),
@@ -38,6 +39,7 @@ pub fn lower_resolved_module_to_plan(module: &Module, resolved: &ResolvedModule)
         .iter()
         .filter(|item| item.kind == ItemKind::CallableDecl)
         .filter_map(|item| lower_resolved_module_item_to_plan(module, item, resolved))
+        .chain(lower_struct_member_functions(module, resolved))
         .collect();
 
     PlanModule { entry, functions }
@@ -58,6 +60,7 @@ fn lower_module_item_into_entry(
         resolved: Some(resolved),
         module: Some(module),
         analysis: Some(&analysis),
+        self_shape: None,
     };
     context.lower_expr(body, ops);
     if matches!(body.kind, tune_hir::expr::ExprKind::Sequence(_))
@@ -75,4 +78,57 @@ fn lower_module_item_into_entry(
         initialized: true,
         keep_value: last_binding == Some(item.id),
     });
+}
+
+fn lower_struct_member_functions<'a>(
+    module: &'a Module,
+    resolved: &'a ResolvedModule,
+) -> impl Iterator<Item = PlanFunction> + 'a {
+    module
+        .items
+        .iter()
+        .filter(|item| item.kind == ItemKind::Struct)
+        .flat_map(move |item| {
+            item.struct_members.iter().filter_map(move |member| {
+                let StructMember::Callable(callable) = member else {
+                    return None;
+                };
+                lower_callable_member(module, resolved, item, callable)
+            })
+        })
+}
+
+fn lower_callable_member(
+    module: &Module,
+    resolved: &ResolvedModule,
+    owner: &Item,
+    callable: &CallableMember,
+) -> Option<PlanFunction> {
+    let body = callable.body.as_ref()?;
+    let analysis = tune_shape::analyze_item(module, resolved, owner);
+    let mut plan = PlanFunction {
+        owner: Some(owner.id),
+        member: Some(callable.id),
+        name: format!(
+            "{}.{}",
+            owner.name.as_deref().unwrap_or("<anonymous>"),
+            callable.name.as_deref().unwrap_or("<anonymous>")
+        ),
+        params: std::iter::once(callable.id)
+            .chain(callable.params.iter().map(|param| param.id))
+            .collect(),
+        module_bindings: Vec::new(),
+        ops: Vec::new(),
+    };
+    let context = LowerContext {
+        resolved: Some(resolved),
+        module: Some(module),
+        analysis: Some(&analysis),
+        self_shape: owner.name.as_ref().map(|name| Shape::Struct(name.clone())),
+    };
+    context.lower_expr(body, &mut plan.ops);
+    if super::falls_through(body) {
+        plan.ops.push(PlanOp::Return);
+    }
+    Some(plan)
 }
