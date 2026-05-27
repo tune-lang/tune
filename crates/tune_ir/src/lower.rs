@@ -1,6 +1,7 @@
+use tune_hir::HirId;
 use tune_hir::expr::BinaryOp;
 use tune_plan::{PlanFunction, PlanOp};
-use tune_resolve::NameTarget;
+use tune_resolve::{LocalId, NameTarget};
 use tune_shape::Shape;
 
 use crate::{BlockId, ConstId, IrBlock, IrConst, IrFunction, IrOp, Reg};
@@ -17,6 +18,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
     let mut lowerer = Lowerer {
         next_reg: 0,
         locals: 0,
+        module_bindings: plan.module_bindings.clone(),
         constants: Vec::new(),
         ops: Vec::new(),
         stack: Vec::new(),
@@ -41,6 +43,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
 struct Lowerer {
     next_reg: u32,
     locals: u32,
+    module_bindings: Vec<HirId>,
     constants: Vec<IrConst>,
     ops: Vec<IrOp>,
     stack: Vec<Reg>,
@@ -75,9 +78,20 @@ impl Lowerer {
             PlanOp::BindingGet {
                 source: Some(NameTarget::Local(local)),
             } => {
-                self.track_local(*local)?;
+                let local = local_slot(*local, plan_local_offset(&self.module_bindings))?;
+                self.track_local(local)?;
                 let dst = self.alloc_reg()?;
-                self.ops.push(IrOp::LoadLocal { dst, local: *local });
+                self.ops.push(IrOp::LoadLocal { dst, local });
+                self.stack.push(dst);
+                Ok(())
+            }
+            PlanOp::BindingGet {
+                source: Some(NameTarget::TopLevel(item)),
+            } if self.module_bindings.contains(item) => {
+                let local = module_slot(*item, &self.module_bindings)?;
+                self.track_local(local)?;
+                let dst = self.alloc_reg()?;
+                self.ops.push(IrOp::LoadLocal { dst, local });
                 self.stack.push(dst);
                 Ok(())
             }
@@ -85,12 +99,10 @@ impl Lowerer {
                 local: Some(local),
                 initialized: true,
             } => {
-                self.track_local(*local)?;
+                let local = local_slot(*local, plan_local_offset(&self.module_bindings))?;
+                self.track_local(local)?;
                 let value = self.pop("local initializer")?;
-                self.ops.push(IrOp::StoreLocal {
-                    local: *local,
-                    value,
-                });
+                self.ops.push(IrOp::StoreLocal { local, value });
                 Ok(())
             }
             PlanOp::LocalLet {
@@ -98,6 +110,23 @@ impl Lowerer {
                 initialized: true,
             } => Err(IrLowerError::UnsupportedOp("unresolved local initializer")),
             PlanOp::LocalLet {
+                initialized: false, ..
+            } => Ok(()),
+            PlanOp::ModuleLet {
+                item,
+                initialized: true,
+                keep_value,
+            } => {
+                let local = module_slot(*item, &self.module_bindings)?;
+                self.track_local(local)?;
+                let value = self.pop("module initializer")?;
+                self.ops.push(IrOp::StoreLocal { local, value });
+                if *keep_value {
+                    self.stack.push(value);
+                }
+                Ok(())
+            }
+            PlanOp::ModuleLet {
                 initialized: false, ..
             } => Ok(()),
             PlanOp::Return => {
@@ -166,4 +195,27 @@ impl Lowerer {
             .pop()
             .ok_or(IrLowerError::StackUnderflow(context))
     }
+}
+
+fn plan_local_offset(module_bindings: &[HirId]) -> u32 {
+    u32::try_from(module_bindings.len()).unwrap_or(u32::MAX)
+}
+
+fn local_slot(local: LocalId, offset: u32) -> Result<LocalId, IrLowerError> {
+    Ok(LocalId(
+        local
+            .0
+            .checked_add(offset)
+            .ok_or(IrLowerError::RegisterLimit)?,
+    ))
+}
+
+fn module_slot(item: HirId, module_bindings: &[HirId]) -> Result<LocalId, IrLowerError> {
+    let index = module_bindings
+        .iter()
+        .position(|binding| *binding == item)
+        .ok_or(IrLowerError::UnsupportedOp("module binding"))?;
+    Ok(LocalId(
+        u32::try_from(index).map_err(|_| IrLowerError::RegisterLimit)?,
+    ))
 }

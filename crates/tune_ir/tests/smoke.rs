@@ -63,6 +63,7 @@ fn lowers_integer_add_plan_to_ir() -> Result<(), &'static str> {
     let plan = tune_plan::PlanFunction {
         name: "main".into(),
         owner: None,
+        module_bindings: Vec::new(),
         ops: vec![
             tune_plan::PlanOp::ConstInt { value: 1 },
             tune_plan::PlanOp::ConstInt { value: 2 },
@@ -95,6 +96,7 @@ fn lowers_local_binding_plan_to_ir_loads_and_stores() -> Result<(), &'static str
     let plan = tune_plan::PlanFunction {
         owner: None,
         name: "entry".into(),
+        module_bindings: Vec::new(),
         ops: vec![
             tune_plan::PlanOp::ConstInt { value: 1 },
             tune_plan::PlanOp::LocalLet {

@@ -1,6 +1,5 @@
 use tune_db::{FileId, ModuleAnalysis, TuneDb};
 use tune_diagnostics::Diagnostic;
-use tune_hir::item::ItemKind;
 use tune_host::module::HostModule;
 use tune_runtime::value::Value;
 
@@ -21,8 +20,8 @@ pub struct CheckReport {
 
 pub struct CompileReport {
     pub check: CheckReport,
+    pub module_plan: tune_plan::PlanModule,
     pub functions: Vec<tune_plan::PlanFunction>,
-    pub entry_function: Option<usize>,
 }
 
 pub struct ExecutableReport {
@@ -86,24 +85,13 @@ impl Tune {
         let check = self
             .check_file(file)
             .ok_or(EngineError::FileNotFound(file))?;
-        let mut functions = Vec::new();
-        let mut entry_function = None;
-        for item in &check.module.items {
-            let Some(plan) =
-                tune_plan::lower_resolved_module_item_to_plan(&check.module, item, &check.resolved)
-            else {
-                continue;
-            };
-            if entry_function.is_none() && item.kind == ItemKind::Let {
-                entry_function = Some(functions.len());
-            }
-            functions.push(plan);
-        }
+        let module_plan = tune_plan::lower_resolved_module_to_plan(&check.module, &check.resolved);
+        let functions = module_plan.functions.clone();
 
         Ok(CompileReport {
             check,
+            module_plan,
             functions,
-            entry_function,
         })
     }
 
@@ -139,15 +127,14 @@ impl Tune {
         if !compile.check.diagnostics.is_empty() {
             return Err(EngineError::Diagnostics(compile.check.diagnostics.clone()));
         }
-        let entry_function = compile.entry_function.ok_or(EngineError::MissingEntry)?;
-        let reachable = reachable_functions(&compile.functions, entry_function);
-        let bytecode_entry = reachable
-            .iter()
-            .position(|index| *index == entry_function)
+        let entry_plan = compile
+            .module_plan
+            .entry
+            .as_ref()
             .ok_or(EngineError::MissingEntry)?;
-        let planned = reachable
-            .iter()
-            .map(|index| &compile.functions[*index])
+        let reachable = reachable_functions(&compile.functions, entry_plan);
+        let planned = core::iter::once(entry_plan)
+            .chain(reachable.iter().map(|index| &compile.functions[*index]))
             .collect::<Vec<_>>();
         let ir = planned
             .iter()
@@ -157,8 +144,7 @@ impl Tune {
             .map_err(|error| EngineError::IrLower(format!("{error:?}")))?;
         let mut bytecode = tune_bytecode::lower_ir_functions(&ir)
             .map_err(|error| EngineError::BytecodeLower(format!("{error:?}")))?;
-        bytecode.entry_function =
-            Some(u32::try_from(bytecode_entry).map_err(|_| EngineError::AllocationLimit)?);
+        bytecode.entry_function = Some(0);
         Ok(ExecutableReport {
             compile,
             ir,
@@ -212,21 +198,26 @@ fn report_from_analysis(file: FileId, analysis: ModuleAnalysis) -> CheckReport {
     }
 }
 
-fn reachable_functions(functions: &[tune_plan::PlanFunction], entry: usize) -> Vec<usize> {
+fn reachable_functions(
+    functions: &[tune_plan::PlanFunction],
+    entry: &tune_plan::PlanFunction,
+) -> Vec<usize> {
     let mut reachable = Vec::new();
-    let mut pending = vec![entry];
-    while let Some(index) = pending.pop() {
+    let mut pending = direct_call_targets(entry).collect::<Vec<_>>();
+    pending.reverse();
+    while let Some(target) = pending.pop() {
+        let Some(index) = functions
+            .iter()
+            .position(|function| function.owner == Some(target))
+        else {
+            continue;
+        };
         if reachable.contains(&index) {
             continue;
         }
         reachable.push(index);
         for target in direct_call_targets(&functions[index]) {
-            if let Some(target_index) = functions
-                .iter()
-                .position(|function| function.owner == Some(target))
-            {
-                pending.push(target_index);
-            }
+            pending.push(target);
         }
     }
     reachable.sort_unstable();

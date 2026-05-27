@@ -13,7 +13,14 @@ use crate::meta::MetaPlan;
 pub struct PlanFunction {
     pub owner: Option<HirId>,
     pub name: String,
+    pub module_bindings: Vec<HirId>,
     pub ops: Vec<PlanOp>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlanModule {
+    pub entry: Option<PlanFunction>,
+    pub functions: Vec<PlanFunction>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,6 +71,11 @@ pub enum PlanOp {
     LocalLet {
         local: Option<LocalId>,
         initialized: bool,
+    },
+    ModuleLet {
+        item: HirId,
+        initialized: bool,
+        keep_value: bool,
     },
     Assign,
     UnaryOp {

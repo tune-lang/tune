@@ -34,7 +34,7 @@ let run(input) = helper(input)
 
     assert!(report.check.diagnostics.is_empty());
     assert_eq!(report.functions.len(), 2);
-    assert_eq!(report.entry_function, None);
+    assert!(report.module_plan.entry.is_none());
     assert!(
         report.functions[1]
             .ops
@@ -93,7 +93,7 @@ fn run_file_executes_tiny_integer_file_entry_through_vm() -> Result<(), &'static
 }
 
 #[test]
-fn executable_file_lowers_only_reachable_entry_plans() -> Result<(), &'static str> {
+fn executable_file_uses_module_entry_plan() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
         .add_file("app.tn", "let helper(): Int = 99\nlet value: Int = 1 + 2")
@@ -103,9 +103,28 @@ fn executable_file_lowers_only_reachable_entry_plans() -> Result<(), &'static st
         .executable_entry(tune_engine::EntryPoint::File(file))
         .map_err(|_| "file should lower to executable")?;
 
-    assert_eq!(executable.compile.functions.len(), 2);
+    assert_eq!(executable.compile.functions.len(), 1);
     assert_eq!(executable.ir.len(), 1);
     assert_eq!(executable.bytecode.entry_function, Some(0));
+    assert_eq!(executable.ir[0].name, "<entry>");
+
+    Ok(())
+}
+
+#[test]
+fn run_file_executes_top_level_value_bindings_in_order() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file("app.tn", "let a: Int = 1\nlet b: Int = a + 2")
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        tune.run_file(file).map_err(|error| {
+            eprintln!("{error:?}");
+            "file entry should run"
+        })?,
+        tune_runtime::value::Value::Int(3)
+    );
 
     Ok(())
 }

@@ -1,11 +1,14 @@
 use tune_hir::expr::{Expr, ExprKind, LiteralKind};
 mod members;
+mod module;
 
 use tune_hir::ExprId;
 use tune_hir::item::Item;
 use tune_hir::module::Module;
 use tune_resolve::{LocalId, NameTarget, ResolvedModule};
 use tune_shape::MaterializationPlan;
+
+pub use module::lower_resolved_module_to_plan;
 
 use crate::plan::{FiniteForContract, PlanFunction, PlanIfBranch, PlanMatchArm, PlanOp};
 
@@ -14,6 +17,7 @@ pub fn lower_to_plan(name: &str) -> PlanFunction {
     PlanFunction {
         owner: None,
         name: name.into(),
+        module_bindings: Vec::new(),
         ops: Vec::new(),
     }
 }
@@ -49,6 +53,7 @@ fn lower_item_with_context(
             .name
             .clone()
             .unwrap_or_else(|| "<anonymous>".to_owned()),
+        module_bindings: Vec::new(),
         ops: Vec::new(),
     };
     let analysis = module
@@ -91,14 +96,14 @@ fn falls_through(expr: &Expr) -> bool {
     }
 }
 
-struct LowerContext<'a> {
-    resolved: Option<&'a ResolvedModule>,
-    module: Option<&'a Module>,
-    analysis: Option<&'a tune_shape::ShapeAnalysis>,
+pub(super) struct LowerContext<'a> {
+    pub(super) resolved: Option<&'a ResolvedModule>,
+    pub(super) module: Option<&'a Module>,
+    pub(super) analysis: Option<&'a tune_shape::ShapeAnalysis>,
 }
 
 impl LowerContext<'_> {
-    fn lower_expr(&self, expr: &Expr, ops: &mut Vec<PlanOp>) {
+    pub(super) fn lower_expr(&self, expr: &Expr, ops: &mut Vec<PlanOp>) {
         match &expr.kind {
             ExprKind::Missing => {}
             ExprKind::Name(_) => ops.push(PlanOp::BindingGet {
