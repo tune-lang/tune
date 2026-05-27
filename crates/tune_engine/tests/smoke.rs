@@ -74,18 +74,19 @@ let first(items: Stack) = items[0]
 }
 
 #[test]
-fn runtime_entry_points_exist_without_claiming_vm_is_done() -> Result<(), &'static str> {
+fn run_file_executes_tiny_integer_main_through_vm() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file("main.tn", "let run() = 1")
+        .add_file("main.tn", "let main(): Int = 1 + 2")
         .ok_or("file should allocate")?;
 
-    assert!(matches!(
-        tune.run_file(file),
-        Err(tune_engine::EngineError::NotImplemented(
-            "typed bytecode lowering and VM execution"
-        ))
-    ));
+    assert_eq!(
+        tune.run_file(file).map_err(|error| {
+            eprintln!("{error:?}");
+            "main should run"
+        })?,
+        tune_runtime::value::Value::Int(3)
+    );
 
     Ok(())
 }

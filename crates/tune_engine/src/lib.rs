@@ -23,6 +23,12 @@ pub struct CompileReport {
     pub functions: Vec<tune_plan::PlanFunction>,
 }
 
+pub struct ExecutableReport {
+    pub compile: CompileReport,
+    pub ir: Vec<tune_ir::IrFunction>,
+    pub bytecode: tune_bytecode::artifact::BytecodeArtifact,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ProjectHandle(pub u32);
 
@@ -35,6 +41,10 @@ pub struct HostRegistration {
 pub enum EngineError {
     FileNotFound(FileId),
     AllocationLimit,
+    Diagnostics(Vec<Diagnostic>),
+    IrLower(String),
+    BytecodeLower(String),
+    Vm(String),
     NotImplemented(&'static str),
 }
 
@@ -92,10 +102,30 @@ impl Tune {
     }
 
     pub fn run_file(&self, file: FileId) -> Result<Value, EngineError> {
-        let _compiled = self.compile_file(file)?;
-        Err(EngineError::NotImplemented(
-            "typed bytecode lowering and VM execution",
-        ))
+        let executable = self.executable_file(file)?;
+        let mut vm = tune_vm::Vm::new(executable.bytecode);
+        vm.run_main()
+            .map_err(|error| EngineError::Vm(format!("{error:?}")))
+    }
+
+    pub fn executable_file(&self, file: FileId) -> Result<ExecutableReport, EngineError> {
+        let compile = self.compile_file(file)?;
+        if !compile.check.diagnostics.is_empty() {
+            return Err(EngineError::Diagnostics(compile.check.diagnostics.clone()));
+        }
+        let ir = compile
+            .functions
+            .iter()
+            .map(tune_ir::lower_plan_function)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| EngineError::IrLower(format!("{error:?}")))?;
+        let bytecode = tune_bytecode::lower_ir_functions(&ir)
+            .map_err(|error| EngineError::BytecodeLower(format!("{error:?}")))?;
+        Ok(ExecutableReport {
+            compile,
+            ir,
+            bytecode,
+        })
     }
 
     pub fn load_project(
