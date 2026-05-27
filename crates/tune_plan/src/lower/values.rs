@@ -57,3 +57,15 @@ pub(super) fn expr_produces_value(expr: &Expr) -> bool {
         | ExprKind::Match { .. } => true,
     }
 }
+
+pub(super) fn task_join_base<'expr>(callee: &'expr Expr, args: &[Expr]) -> Option<&'expr Expr> {
+    if !args.is_empty() {
+        return None;
+    }
+
+    let ExprKind::Field { base, name } = &callee.kind else {
+        return None;
+    };
+
+    matches!(name.as_deref(), Some("join")).then_some(base)
+}

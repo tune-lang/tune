@@ -250,6 +250,7 @@ impl Lowerer {
             }
             PlanOp::FieldSet {
                 member: Some(member),
+                base: base_target,
                 ..
             } => {
                 let value = self.pop("field value")?;
@@ -259,6 +260,9 @@ impl Lowerer {
                     field: FieldId(member.index),
                     value,
                 });
+                if let Some(target) = base_target {
+                    self.store_binding_target(*target, base)?;
+                }
                 Ok(())
             }
             PlanOp::FieldGet { member: None, .. } => {
@@ -350,5 +354,29 @@ impl Lowerer {
         self.stack
             .pop()
             .ok_or(IrLowerError::StackUnderflow(context))
+    }
+
+    fn store_binding_target(&mut self, target: NameTarget, value: Reg) -> Result<(), IrLowerError> {
+        match target {
+            NameTarget::Local(local) => {
+                let local = local_slot(local, local_offset(&self.module_bindings, &self.params))?;
+                self.track_local(local)?;
+                self.push_op(IrOp::StoreLocal { local, value });
+                Ok(())
+            }
+            NameTarget::Param(param) => {
+                let local = param_slot(param, &self.module_bindings, &self.params)?;
+                self.track_local(local)?;
+                self.push_op(IrOp::StoreLocal { local, value });
+                Ok(())
+            }
+            NameTarget::TopLevel(item) if self.module_bindings.contains(&item) => {
+                let local = module_slot(item, &self.module_bindings)?;
+                self.track_local(local)?;
+                self.push_op(IrOp::StoreLocal { local, value });
+                Ok(())
+            }
+            NameTarget::TopLevel(_) | NameTarget::SelfValue | NameTarget::Variant(_) => Ok(()),
+        }
     }
 }

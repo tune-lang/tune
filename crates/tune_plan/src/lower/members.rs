@@ -49,6 +49,13 @@ impl LowerContext<'_> {
             })
     }
 
+    pub(super) fn field_base_target(&self, base: &Expr) -> Option<NameTarget> {
+        let ExprKind::Name(_) = &base.kind else {
+            return None;
+        };
+        self.name_target(base.id)
+    }
+
     pub(super) fn len_member(&self, base: &Expr) -> Option<MemberId> {
         let shape = self.expr_shape(base)?;
         let name = self.struct_shape_name(&shape)?;

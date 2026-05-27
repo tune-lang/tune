@@ -112,6 +112,7 @@ pub enum PlanOp {
     FieldSet {
         field: String,
         member: Option<MemberId>,
+        base: Option<NameTarget>,
     },
     SequenceGet {
         checked: bool,

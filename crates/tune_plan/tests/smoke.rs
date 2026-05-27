@@ -340,6 +340,7 @@ let member(items: Stack) = items.get(0)
         tune_plan::PlanOp::FieldSet {
             member: Some(_),
             field,
+            ..
         } if field == "value"
     )));
     assert!(named.ops.iter().any(|op| matches!(

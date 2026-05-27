@@ -14,7 +14,7 @@ pub use module::lower_resolved_module_to_plan;
 
 use crate::plan::{FiniteForContract, PlanFunction, PlanIfBranch, PlanMatchArm, PlanOp};
 
-use self::values::{expr_produces_value, falls_through, if_produces_value};
+use self::values::{expr_produces_value, falls_through, if_produces_value, task_join_base};
 
 #[must_use]
 pub fn lower_to_plan(name: &str) -> PlanFunction {
@@ -322,6 +322,7 @@ impl LowerContext<'_> {
                 ops.push(PlanOp::FieldSet {
                     member: self.field_member(base, &field),
                     field,
+                    base: self.field_base_target(base),
                 });
             }
             ExprKind::Index { base, index } => {
@@ -385,16 +386,4 @@ impl LowerContext<'_> {
             .find(|local| local.expr == Some(expr))
             .map(|local| local.id)
     }
-}
-
-fn task_join_base<'expr>(callee: &'expr Expr, args: &[Expr]) -> Option<&'expr Expr> {
-    if !args.is_empty() {
-        return None;
-    }
-
-    let ExprKind::Field { base, name } = &callee.kind else {
-        return None;
-    };
-
-    matches!(name.as_deref(), Some("join")).then_some(base)
 }
