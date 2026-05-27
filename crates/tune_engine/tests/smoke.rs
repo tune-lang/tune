@@ -182,7 +182,7 @@ fn run_file_executes_if_return_from_callable() -> Result<(), &'static str> {
 let pick(flag: Bool): Int = {
   if flag {
     return 1
-  };
+  }
   2
 }
 let result: Int = pick(true)

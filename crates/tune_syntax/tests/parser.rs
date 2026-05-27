@@ -339,6 +339,22 @@ fn reports_missing_block_expression_separator() {
 }
 
 #[test]
+fn newline_after_if_body_separates_next_block_expression() {
+    let parsed = parse(
+        r#"
+let pick = {
+  if ready {
+    return 1
+  }
+  2
+}
+"#,
+    );
+
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
 fn wraps_unexpected_top_level_token_in_error_node() {
     let parsed = parse("}");
 

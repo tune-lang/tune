@@ -10,7 +10,7 @@ impl Parser<'_> {
         self.parse_expr();
         self.skip_trivia();
         self.expect_block_expr("expected `if` body");
-        self.skip_trivia();
+        self.skip_trivia_before_if_continuation();
 
         while self.at(TokenKind::KeywordElif) {
             self.bump();
@@ -18,7 +18,7 @@ impl Parser<'_> {
             self.parse_expr();
             self.skip_trivia();
             self.expect_block_expr("expected `elif` body");
-            self.skip_trivia();
+            self.skip_trivia_before_if_continuation();
         }
 
         if self.at(TokenKind::KeywordElse) {
@@ -28,6 +28,15 @@ impl Parser<'_> {
         }
 
         self.finish_node();
+    }
+
+    fn skip_trivia_before_if_continuation(&mut self) {
+        if matches!(
+            self.lookahead_significant(0),
+            Some(TokenKind::KeywordElif | TokenKind::KeywordElse)
+        ) {
+            self.skip_trivia();
+        }
     }
 
     pub(super) fn parse_match_expr(&mut self) {
