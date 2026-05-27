@@ -1,4 +1,7 @@
-#[derive(Debug, Clone)]
+use crate::state::StateHandle;
+use crate::task::TaskId;
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Unit,
     Int(i64),
@@ -13,11 +16,8 @@ pub enum Value {
     Task(TaskHandle),
 }
 
-#[derive(Debug, Clone)]
-pub struct StateHandle(pub u64);
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CallableValue(pub u64);
 
-#[derive(Debug, Clone)]
-pub struct TaskHandle(pub u64);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TaskHandle(pub TaskId);
