@@ -1,8 +1,9 @@
 use tune_bytecode::{
     Opcode,
     artifact::{BytecodeArtifact, BytecodeConst},
+    function::BytecodeVariant,
 };
-use tune_runtime::value::Value;
+use tune_runtime::value::{RuntimeVariant, Value};
 
 pub struct Vm {
     pub artifact: BytecodeArtifact,
@@ -67,6 +68,10 @@ impl Vm {
                     let value = read_reg(&registers, instruction.b)?;
                     write_reg(&mut locals, instruction.a, value)?;
                 }
+                Opcode::Move => {
+                    let value = read_reg(&registers, instruction.b)?;
+                    write_reg(&mut registers, instruction.a, value)?;
+                }
                 Opcode::AddInt => {
                     let left = read_reg(&registers, instruction.b)?;
                     let right = read_reg(&registers, instruction.c)?;
@@ -74,6 +79,14 @@ impl Vm {
                         return Err(VmError::UnsupportedOpcode(Opcode::AddInt));
                     };
                     write_reg(&mut registers, instruction.a, Value::Int(left + right))?;
+                }
+                Opcode::GreaterInt => {
+                    let left = read_reg(&registers, instruction.b)?;
+                    let right = read_reg(&registers, instruction.c)?;
+                    let (Value::Int(left), Value::Int(right)) = (left, right) else {
+                        return Err(VmError::UnsupportedOpcode(Opcode::GreaterInt));
+                    };
+                    write_reg(&mut registers, instruction.a, Value::Bool(left > right))?;
                 }
                 Opcode::CallDirect => {
                     let call_site = function
@@ -88,6 +101,43 @@ impl Vm {
                     let value = self.execute_function(call_site.function as usize, args)?;
                     write_reg(&mut registers, instruction.a, value)?;
                 }
+                Opcode::VariantConstruct => {
+                    let variant_site = function
+                        .variant_sites
+                        .get(instruction.b as usize)
+                        .ok_or(VmError::CallSiteOutOfBounds)?;
+                    let fields = variant_site
+                        .args
+                        .iter()
+                        .map(|arg| read_reg(&registers, *arg))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    write_reg(
+                        &mut registers,
+                        instruction.a,
+                        Value::Variant {
+                            variant: runtime_variant(variant_site.variant),
+                            fields,
+                        },
+                    )?;
+                }
+                Opcode::ResultPropagate => match read_reg(&registers, instruction.b)? {
+                    Value::Variant {
+                        variant: RuntimeVariant::ResultOk,
+                        mut fields,
+                    } if fields.len() == 1 => {
+                        write_reg(&mut registers, instruction.a, fields.remove(0))?;
+                    }
+                    Value::Variant {
+                        variant: RuntimeVariant::ResultError,
+                        fields,
+                    } => {
+                        return Ok(Value::Variant {
+                            variant: RuntimeVariant::ResultError,
+                            fields,
+                        });
+                    }
+                    _ => return Err(VmError::UnsupportedOpcode(Opcode::ResultPropagate)),
+                },
                 Opcode::Jump => {
                     ip = instruction.a as usize;
                     continue;
@@ -152,6 +202,7 @@ impl Vm {
             Opcode::StringBuild => {}
             Opcode::Panic => {}
             Opcode::Return => {}
+            Opcode::GreaterInt => {}
         }
     }
 }
@@ -169,4 +220,12 @@ fn write_reg(registers: &mut [Value], reg: u32, value: Value) -> Result<(), VmEr
         .ok_or(VmError::RegisterOutOfBounds)?;
     *slot = value;
     Ok(())
+}
+
+fn runtime_variant(variant: BytecodeVariant) -> RuntimeVariant {
+    match variant {
+        BytecodeVariant::ResultOk => RuntimeVariant::ResultOk,
+        BytecodeVariant::ResultError => RuntimeVariant::ResultError,
+        BytecodeVariant::Other(id) => RuntimeVariant::Other(id),
+    }
 }

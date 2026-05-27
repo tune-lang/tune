@@ -1,9 +1,10 @@
 use tune_hir::HirId;
 use tune_hir::expr::BinaryOp;
 use tune_plan::{PlanFunction, PlanOp};
-use tune_resolve::{LocalId, NameTarget};
+use tune_resolve::NameTarget;
 use tune_shape::Shape;
 
+use crate::lower_slots::{local_offset, local_slot, module_slot, param_slot};
 use crate::{BlockId, ConstId, IrBlock, IrConst, IrFunction, IrOp, Reg};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,6 +94,20 @@ impl Lowerer {
                 self.stack.push(dst);
                 Ok(())
             }
+            PlanOp::BinaryOp {
+                op: BinaryOp::Greater,
+            } => {
+                let rhs = self.pop("binary rhs")?;
+                let lhs = self.pop("binary lhs")?;
+                let dst = self.alloc_reg()?;
+                self.push_op(IrOp::GreaterInt {
+                    dst,
+                    a: lhs,
+                    b: rhs,
+                });
+                self.stack.push(dst);
+                Ok(())
+            }
             PlanOp::BindingGet {
                 source: Some(NameTarget::Local(local)),
             } => {
@@ -157,6 +172,15 @@ impl Lowerer {
             PlanOp::ModuleLet {
                 initialized: false, ..
             } => Ok(()),
+            PlanOp::BindingSet {
+                target: Some(NameTarget::Local(local)),
+            } => {
+                let local = local_slot(*local, local_offset(&self.module_bindings, &self.params))?;
+                self.track_local(local)?;
+                let value = self.pop("local assignment")?;
+                self.push_op(IrOp::StoreLocal { local, value });
+                Ok(())
+            }
             PlanOp::Return => {
                 let value = self.stack.pop();
                 self.push_op(IrOp::Return { value });
@@ -177,12 +201,48 @@ impl Lowerer {
                 self.stack.push(dst);
                 Ok(())
             }
+            PlanOp::VariantConstruct { variant, arg_count } => {
+                let mut args = Vec::with_capacity(*arg_count);
+                for _ in 0..*arg_count {
+                    args.push(self.pop("variant argument")?);
+                }
+                args.reverse();
+                let dst = self.alloc_reg()?;
+                self.push_op(IrOp::VariantConstruct {
+                    dst,
+                    variant: *variant,
+                    args,
+                });
+                self.stack.push(dst);
+                Ok(())
+            }
+            PlanOp::ResultPropagate { expr, span } => {
+                let result = self.pop("result propagation")?;
+                let dst = self.alloc_reg()?;
+                self.push_op(IrOp::ResultPropagate {
+                    dst,
+                    result,
+                    expr: *expr,
+                    span: *span,
+                });
+                self.stack.push(dst);
+                Ok(())
+            }
             PlanOp::If {
                 branches, else_ops, ..
-            } => self.lower_if(branches, else_ops),
+            } => self.lower_if(
+                branches,
+                else_ops,
+                matches!(
+                    op,
+                    PlanOp::If {
+                        produces_value: true,
+                        ..
+                    }
+                ),
+            ),
             PlanOp::BinaryOp { .. } => Err(IrLowerError::UnsupportedOp("binary op")),
-            PlanOp::VariantConstruct { .. }
-            | PlanOp::BindingGet { .. }
+            PlanOp::BindingGet { .. }
             | PlanOp::BoundCall
             | PlanOp::MemberCall { .. }
             | PlanOp::CallableValue
@@ -204,7 +264,6 @@ impl Lowerer {
             | PlanOp::Loop { .. }
             | PlanOp::Break
             | PlanOp::Continue
-            | PlanOp::ResultPropagate { .. }
             | PlanOp::Spawn { .. }
             | PlanOp::TaskJoin
             | PlanOp::Panic
@@ -244,7 +303,10 @@ impl Lowerer {
         &mut self,
         branches: &[tune_plan::PlanIfBranch],
         else_ops: &[PlanOp],
+        produces_value: bool,
     ) -> Result<(), IrLowerError> {
+        let base_stack_len = self.stack.len();
+        let result = produces_value.then(|| self.alloc_reg()).transpose()?;
         let join = self.alloc_block();
         let else_block = self.alloc_block();
         let branch_blocks = branches
@@ -269,8 +331,16 @@ impl Lowerer {
                 self.lower_op(op)?;
             }
             if !self.current_block_returns() {
+                if let Some(result) = result {
+                    let value = self.pop("if branch value")?;
+                    self.push_op(IrOp::Move {
+                        dst: result,
+                        src: value,
+                    });
+                }
                 self.push_op(IrOp::Jump { target: join });
             }
+            self.stack.truncate(base_stack_len);
             self.switch_to_block(false_block);
         }
 
@@ -278,9 +348,20 @@ impl Lowerer {
             self.lower_op(op)?;
         }
         if !self.current_block_returns() {
+            if let Some(result) = result {
+                let value = self.pop("if else value")?;
+                self.push_op(IrOp::Move {
+                    dst: result,
+                    src: value,
+                });
+            }
             self.push_op(IrOp::Jump { target: join });
         }
+        self.stack.truncate(base_stack_len);
         self.switch_to_block(join);
+        if let Some(result) = result {
+            self.stack.push(result);
+        }
         Ok(())
     }
 
@@ -315,46 +396,4 @@ impl Lowerer {
             .and_then(|block| block.ops.last())
             .is_some_and(|op| matches!(op, IrOp::Return { .. }))
     }
-}
-
-fn local_offset(module_bindings: &[HirId], params: &[tune_hir::MemberId]) -> u32 {
-    let offset = module_bindings.len().saturating_add(params.len());
-    u32::try_from(offset).unwrap_or(u32::MAX)
-}
-
-fn local_slot(local: LocalId, offset: u32) -> Result<LocalId, IrLowerError> {
-    Ok(LocalId(
-        local
-            .0
-            .checked_add(offset)
-            .ok_or(IrLowerError::RegisterLimit)?,
-    ))
-}
-
-fn module_slot(item: HirId, module_bindings: &[HirId]) -> Result<LocalId, IrLowerError> {
-    let index = module_bindings
-        .iter()
-        .position(|binding| *binding == item)
-        .ok_or(IrLowerError::UnsupportedOp("module binding"))?;
-    Ok(LocalId(
-        u32::try_from(index).map_err(|_| IrLowerError::RegisterLimit)?,
-    ))
-}
-
-fn param_slot(
-    param: tune_hir::MemberId,
-    module_bindings: &[HirId],
-    params: &[tune_hir::MemberId],
-) -> Result<LocalId, IrLowerError> {
-    let index = params
-        .iter()
-        .position(|candidate| *candidate == param)
-        .ok_or(IrLowerError::UnsupportedOp("param binding"))?;
-    let slot = module_bindings
-        .len()
-        .checked_add(index)
-        .ok_or(IrLowerError::RegisterLimit)?;
-    Ok(LocalId(
-        u32::try_from(slot).map_err(|_| IrLowerError::RegisterLimit)?,
-    ))
 }

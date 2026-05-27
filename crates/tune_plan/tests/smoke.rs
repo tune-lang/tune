@@ -172,7 +172,8 @@ let ok(value) = Ok(value)
     let ok = tune_plan::lower_resolved_item_to_plan(&module.items[11], &resolved)
         .ok_or("expected ok plan")?;
     assert!(ok.ops.contains(&tune_plan::PlanOp::VariantConstruct {
-        variant: tune_resolve::VariantId::Prelude(tune_resolve::PreludeVariant::Ok)
+        variant: tune_resolve::VariantId::Prelude(tune_resolve::PreludeVariant::Ok),
+        arg_count: 1,
     }));
 
     Ok(())

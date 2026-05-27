@@ -2,9 +2,12 @@ use std::collections::HashMap;
 
 use crate::Opcode;
 use crate::artifact::{BytecodeArtifact, BytecodeConst};
-use crate::function::{BytecodeCallSite, BytecodeFunction, Instruction};
+use crate::function::{
+    BytecodeCallSite, BytecodeFunction, BytecodeVariant, BytecodeVariantSite, Instruction,
+};
 use tune_hir::HirId;
 use tune_ir::{BlockId, IrConst, IrFunction, IrOp};
+use tune_resolve::{PreludeVariant, VariantId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BytecodeLowerError {
@@ -43,160 +46,219 @@ fn lower_ir_function_with_constants(
     function_indices: &HashMap<HirId, u32>,
     constants: &mut Vec<BytecodeConst>,
 ) -> Result<BytecodeFunction, BytecodeLowerError> {
-    let mut instructions = Vec::new();
-    let mut call_sites = Vec::new();
     let block_offsets = block_offsets(function)?;
+    let mut lowerer = FunctionLowerer {
+        function,
+        function_indices,
+        block_offsets,
+        constants,
+        call_sites: Vec::new(),
+        variant_sites: Vec::new(),
+        instructions: Vec::new(),
+    };
     for block in &function.blocks {
         for op in &block.ops {
-            lower_op(
-                op,
-                function,
-                function_indices,
-                &block_offsets,
-                constants,
-                &mut call_sites,
-                &mut instructions,
-            )?;
+            lowerer.lower_op(op)?;
         }
     }
     Ok(BytecodeFunction {
         name: function.name.clone(),
         register_count: function.regs,
         local_count: function.locals,
-        call_sites,
-        instructions,
+        call_sites: lowerer.call_sites,
+        variant_sites: lowerer.variant_sites,
+        instructions: lowerer.instructions,
     })
 }
 
-fn lower_op(
-    op: &IrOp,
-    function: &IrFunction,
-    function_indices: &HashMap<HirId, u32>,
-    block_offsets: &HashMap<BlockId, u32>,
-    constants: &mut Vec<BytecodeConst>,
-    call_sites: &mut Vec<BytecodeCallSite>,
-    instructions: &mut Vec<Instruction>,
-) -> Result<(), BytecodeLowerError> {
-    match op {
-        IrOp::LoadConst { dst, constant, .. } => {
-            let constant = function
-                .constants
-                .get(constant.0 as usize)
-                .ok_or(BytecodeLowerError::ConstantLimit)?;
-            let artifact_const = push_artifact_const(constants, constant)?;
-            instructions.push(Instruction {
-                opcode: Opcode::LoadConst,
-                a: dst.0,
-                b: artifact_const,
-                c: 0,
-            });
-            Ok(())
-        }
-        IrOp::AddInt { dst, a, b } => {
-            instructions.push(Instruction {
-                opcode: Opcode::AddInt,
-                a: dst.0,
-                b: a.0,
-                c: b.0,
-            });
-            Ok(())
-        }
-        IrOp::LoadLocal { dst, local } => {
-            instructions.push(Instruction {
-                opcode: Opcode::LoadLocal,
-                a: dst.0,
-                b: local.0,
-                c: 0,
-            });
-            Ok(())
-        }
-        IrOp::StoreLocal { local, value } => {
-            instructions.push(Instruction {
-                opcode: Opcode::StoreLocal,
-                a: local.0,
-                b: value.0,
-                c: 0,
-            });
-            Ok(())
-        }
-        IrOp::CallDirect {
-            dst,
-            function,
-            args,
-        } => {
-            let function = *function_indices
-                .get(function)
-                .ok_or(BytecodeLowerError::UnknownFunction)?;
-            let call_site =
-                u32::try_from(call_sites.len()).map_err(|_| BytecodeLowerError::ConstantLimit)?;
-            call_sites.push(BytecodeCallSite {
+struct FunctionLowerer<'a> {
+    function: &'a IrFunction,
+    function_indices: &'a HashMap<HirId, u32>,
+    block_offsets: HashMap<BlockId, u32>,
+    constants: &'a mut Vec<BytecodeConst>,
+    call_sites: Vec<BytecodeCallSite>,
+    variant_sites: Vec<BytecodeVariantSite>,
+    instructions: Vec<Instruction>,
+}
+
+impl FunctionLowerer<'_> {
+    fn lower_op(&mut self, op: &IrOp) -> Result<(), BytecodeLowerError> {
+        match op {
+            IrOp::LoadConst { dst, constant, .. } => {
+                let constant = self
+                    .function
+                    .constants
+                    .get(constant.0 as usize)
+                    .ok_or(BytecodeLowerError::ConstantLimit)?;
+                let artifact_const = push_artifact_const(self.constants, constant)?;
+                self.instructions.push(Instruction {
+                    opcode: Opcode::LoadConst,
+                    a: dst.0,
+                    b: artifact_const,
+                    c: 0,
+                });
+                Ok(())
+            }
+            IrOp::AddInt { dst, a, b } => {
+                self.instructions.push(Instruction {
+                    opcode: Opcode::AddInt,
+                    a: dst.0,
+                    b: a.0,
+                    c: b.0,
+                });
+                Ok(())
+            }
+            IrOp::GreaterInt { dst, a, b } => {
+                self.instructions.push(Instruction {
+                    opcode: Opcode::GreaterInt,
+                    a: dst.0,
+                    b: a.0,
+                    c: b.0,
+                });
+                Ok(())
+            }
+            IrOp::Move { dst, src } => {
+                self.instructions.push(Instruction {
+                    opcode: Opcode::Move,
+                    a: dst.0,
+                    b: src.0,
+                    c: 0,
+                });
+                Ok(())
+            }
+            IrOp::LoadLocal { dst, local } => {
+                self.instructions.push(Instruction {
+                    opcode: Opcode::LoadLocal,
+                    a: dst.0,
+                    b: local.0,
+                    c: 0,
+                });
+                Ok(())
+            }
+            IrOp::StoreLocal { local, value } => {
+                self.instructions.push(Instruction {
+                    opcode: Opcode::StoreLocal,
+                    a: local.0,
+                    b: value.0,
+                    c: 0,
+                });
+                Ok(())
+            }
+            IrOp::CallDirect {
+                dst,
                 function,
-                args: args.iter().map(|arg| arg.0).collect(),
-            });
-            instructions.push(Instruction {
-                opcode: Opcode::CallDirect,
-                a: dst.0,
-                b: call_site,
-                c: 0,
-            });
-            Ok(())
+                args,
+            } => {
+                let function = *self
+                    .function_indices
+                    .get(function)
+                    .ok_or(BytecodeLowerError::UnknownFunction)?;
+                let call_site = u32::try_from(self.call_sites.len())
+                    .map_err(|_| BytecodeLowerError::ConstantLimit)?;
+                self.call_sites.push(BytecodeCallSite {
+                    function,
+                    args: args.iter().map(|arg| arg.0).collect(),
+                });
+                self.instructions.push(Instruction {
+                    opcode: Opcode::CallDirect,
+                    a: dst.0,
+                    b: call_site,
+                    c: 0,
+                });
+                Ok(())
+            }
+            IrOp::VariantConstruct { dst, variant, args } => {
+                let variant_site = u32::try_from(self.variant_sites.len())
+                    .map_err(|_| BytecodeLowerError::ConstantLimit)?;
+                self.variant_sites.push(BytecodeVariantSite {
+                    variant: lower_variant(*variant),
+                    args: args.iter().map(|arg| arg.0).collect(),
+                });
+                self.instructions.push(Instruction {
+                    opcode: Opcode::VariantConstruct,
+                    a: dst.0,
+                    b: variant_site,
+                    c: 0,
+                });
+                Ok(())
+            }
+            IrOp::ResultPropagate { dst, result, .. } => {
+                self.instructions.push(Instruction {
+                    opcode: Opcode::ResultPropagate,
+                    a: dst.0,
+                    b: result.0,
+                    c: 0,
+                });
+                Ok(())
+            }
+            IrOp::Jump { target } => {
+                let target = *self
+                    .block_offsets
+                    .get(target)
+                    .ok_or(BytecodeLowerError::UnknownBlock)?;
+                self.instructions.push(Instruction {
+                    opcode: Opcode::Jump,
+                    a: target,
+                    b: 0,
+                    c: 0,
+                });
+                Ok(())
+            }
+            IrOp::Branch {
+                condition,
+                then_block,
+                else_block,
+            } => {
+                let then_block = *self
+                    .block_offsets
+                    .get(then_block)
+                    .ok_or(BytecodeLowerError::UnknownBlock)?;
+                let else_block = *self
+                    .block_offsets
+                    .get(else_block)
+                    .ok_or(BytecodeLowerError::UnknownBlock)?;
+                self.instructions.push(Instruction {
+                    opcode: Opcode::JumpIfFalse,
+                    a: condition.0,
+                    b: else_block,
+                    c: 0,
+                });
+                self.instructions.push(Instruction {
+                    opcode: Opcode::Jump,
+                    a: then_block,
+                    b: 0,
+                    c: 0,
+                });
+                Ok(())
+            }
+            IrOp::Return { value: Some(value) } => {
+                self.instructions.push(Instruction {
+                    opcode: Opcode::Return,
+                    a: value.0,
+                    b: 1,
+                    c: 0,
+                });
+                Ok(())
+            }
+            IrOp::Return { value: None } => {
+                self.instructions.push(Instruction {
+                    opcode: Opcode::Return,
+                    a: 0,
+                    b: 0,
+                    c: 0,
+                });
+                Ok(())
+            }
+            _ => Err(BytecodeLowerError::UnsupportedIr("ir op")),
         }
-        IrOp::Jump { target } => {
-            let target = *block_offsets
-                .get(target)
-                .ok_or(BytecodeLowerError::UnknownBlock)?;
-            instructions.push(Instruction {
-                opcode: Opcode::Jump,
-                a: target,
-                b: 0,
-                c: 0,
-            });
-            Ok(())
-        }
-        IrOp::Branch {
-            condition,
-            then_block,
-            else_block,
-        } => {
-            let then_block = *block_offsets
-                .get(then_block)
-                .ok_or(BytecodeLowerError::UnknownBlock)?;
-            let else_block = *block_offsets
-                .get(else_block)
-                .ok_or(BytecodeLowerError::UnknownBlock)?;
-            instructions.push(Instruction {
-                opcode: Opcode::JumpIfFalse,
-                a: condition.0,
-                b: else_block,
-                c: 0,
-            });
-            instructions.push(Instruction {
-                opcode: Opcode::Jump,
-                a: then_block,
-                b: 0,
-                c: 0,
-            });
-            Ok(())
-        }
-        IrOp::Return { value: Some(value) } => {
-            instructions.push(Instruction {
-                opcode: Opcode::Return,
-                a: value.0,
-                b: 1,
-                c: 0,
-            });
-            Ok(())
-        }
-        IrOp::Return { value: None } => {
-            instructions.push(Instruction {
-                opcode: Opcode::Return,
-                a: 0,
-                b: 0,
-                c: 0,
-            });
-            Ok(())
-        }
-        _ => Err(BytecodeLowerError::UnsupportedIr("ir op")),
+    }
+}
+
+fn lower_variant(variant: VariantId) -> BytecodeVariant {
+    match variant {
+        VariantId::Prelude(PreludeVariant::Ok) => BytecodeVariant::ResultOk,
+        VariantId::Prelude(PreludeVariant::Error) => BytecodeVariant::ResultError,
+        VariantId::Member(member) => BytecodeVariant::Other(member.index),
     }
 }
 

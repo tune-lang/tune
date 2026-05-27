@@ -12,6 +12,7 @@ workspace = true
 [dependencies]
 tune_hir = { path = "../tune_hir" }
 tune_ir = { path = "../tune_ir" }
+tune_resolve = { path = "../tune_resolve" }
 
 [dev-dependencies]
 tune_resolve = { path = "../tune_resolve" }

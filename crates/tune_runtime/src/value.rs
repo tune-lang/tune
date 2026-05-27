@@ -11,6 +11,10 @@ pub enum Value {
     Bool(bool),
     String(String),
     Sequence(Vec<Value>),
+    Variant {
+        variant: RuntimeVariant,
+        fields: Vec<Value>,
+    },
     StructState(StateHandle),
     Callable(CallableValue),
     Task(TaskHandle),
@@ -21,3 +25,10 @@ pub struct CallableValue(pub u64);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TaskHandle(pub TaskId);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RuntimeVariant {
+    ResultOk,
+    ResultError,
+    Other(u32),
+}

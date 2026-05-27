@@ -6,7 +6,7 @@ fn smoke() {
 
 #[test]
 fn core_opcodes_reserve_dense_bytecode_slots() -> Result<(), &'static str> {
-    assert_eq!(tune_bytecode::Opcode::ALL.len(), 33);
+    assert_eq!(tune_bytecode::Opcode::ALL.len(), 34);
     for (index, opcode) in tune_bytecode::Opcode::ALL.iter().enumerate() {
         let expected = u8::try_from(index).map_err(|_| "opcode index overflow")?;
         assert_eq!(*opcode as u8, expected);
@@ -18,6 +18,7 @@ fn core_opcodes_reserve_dense_bytecode_slots() -> Result<(), &'static str> {
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::FiniteForInit));
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::ResultPropagate));
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::SpawnTask));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::GreaterInt));
 
     Ok(())
 }

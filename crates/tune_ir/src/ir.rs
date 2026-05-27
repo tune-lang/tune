@@ -64,6 +64,11 @@ pub enum IrOp {
         a: Reg,
         b: Reg,
     },
+    GreaterInt {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+    },
     AddFloat {
         dst: Reg,
         a: Reg,

@@ -61,6 +61,7 @@ pub enum PlanOp {
     },
     VariantConstruct {
         variant: VariantId,
+        arg_count: usize,
     },
     BoundCall,
     MemberCall {
@@ -126,6 +127,7 @@ pub enum PlanOp {
         branches: Vec<PlanIfBranch>,
         else_body: Option<ExprId>,
         else_ops: Vec<PlanOp>,
+        produces_value: bool,
         span: Option<Span>,
     },
     Match {

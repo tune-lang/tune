@@ -34,6 +34,7 @@ pub enum Opcode {
     StringBuild = 30,
     Panic = 31,
     Return = 32,
+    GreaterInt = 33,
 }
 
 impl Opcode {
@@ -71,5 +72,6 @@ impl Opcode {
         Self::StringBuild,
         Self::Panic,
         Self::Return,
+        Self::GreaterInt,
     ];
 }
