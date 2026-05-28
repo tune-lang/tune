@@ -35,7 +35,18 @@ impl IrOp {
     #[must_use]
     pub const fn provenance_span(&self) -> Option<Span> {
         match self {
-            Self::ResultPropagate { span, .. } => *span,
+            Self::AddInt { span, .. }
+            | Self::GreaterInt { span, .. }
+            | Self::GetField { span, .. }
+            | Self::SetField { span, .. }
+            | Self::VariantConstruct { span, .. }
+            | Self::StructConstruct { span, .. }
+            | Self::CallDirect { span, .. }
+            | Self::CallMember { span, .. }
+            | Self::Branch { span, .. }
+            | Self::MatchVariant { span, .. }
+            | Self::ResultPropagate { span, .. } => *span,
+            Self::Spawn { span, .. } | Self::TaskJoin { span, .. } => *span,
             _ => None,
         }
     }
@@ -76,11 +87,13 @@ pub enum IrOp {
         dst: Reg,
         a: Reg,
         b: Reg,
+        span: Option<Span>,
     },
     GreaterInt {
         dst: Reg,
         a: Reg,
         b: Reg,
+        span: Option<Span>,
     },
     AddFloat {
         dst: Reg,
@@ -104,11 +117,13 @@ pub enum IrOp {
         dst: Reg,
         base: Reg,
         field: FieldId,
+        span: Option<Span>,
     },
     SetField {
         base: Reg,
         field: FieldId,
         value: Reg,
+        span: Option<Span>,
     },
     SeqGet {
         dst: Reg,
@@ -126,12 +141,14 @@ pub enum IrOp {
         dst: Reg,
         variant: VariantId,
         args: Vec<Reg>,
+        span: Option<Span>,
     },
     StructConstruct {
         dst: Reg,
         item: HirId,
         state: IrStructState,
         fields: Vec<StructField>,
+        span: Option<Span>,
     },
     VariantField {
         dst: Reg,
@@ -142,11 +159,13 @@ pub enum IrOp {
         dst: Reg,
         function: HirId,
         args: Vec<Reg>,
+        span: Option<Span>,
     },
     CallMember {
         dst: Reg,
         member: MemberId,
         args: Vec<Reg>,
+        span: Option<Span>,
     },
     CallBound {
         dst: Reg,
@@ -170,11 +189,13 @@ pub enum IrOp {
         condition: Reg,
         then_block: BlockId,
         else_block: BlockId,
+        span: Option<Span>,
     },
     MatchVariant {
         scrutinee: Reg,
         arms: Vec<VariantArm>,
         else_block: Option<BlockId>,
+        span: Option<Span>,
     },
     FiniteForInit {
         iterator: Reg,
@@ -197,10 +218,12 @@ pub enum IrOp {
     Spawn {
         dst: Reg,
         callable: Reg,
+        span: Option<Span>,
     },
     TaskJoin {
         dst: Reg,
         task: Reg,
+        span: Option<Span>,
     },
     StringBuild {
         dst: Reg,

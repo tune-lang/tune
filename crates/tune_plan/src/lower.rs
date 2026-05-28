@@ -140,6 +140,7 @@ impl LowerContext<'_> {
                         item,
                         state: self.struct_state,
                         fields: ordered.into_iter().map(|(field, _)| field).collect(),
+                        span: expr.span,
                     });
                 }
             }
@@ -152,6 +153,7 @@ impl LowerContext<'_> {
                 ops.push(PlanOp::FieldGet {
                     member: self.field_member(base, &field),
                     field,
+                    span: expr.span,
                 });
             }
             ExprKind::Index { base, index } => {
@@ -192,7 +194,10 @@ impl LowerContext<'_> {
             ExprKind::Binary { op, lhs, rhs } => {
                 self.lower_expr(lhs, ops);
                 self.lower_expr(rhs, ops);
-                ops.push(PlanOp::BinaryOp { op: *op });
+                ops.push(PlanOp::BinaryOp {
+                    op: *op,
+                    span: expr.span,
+                });
             }
             ExprKind::Spawn(inner) => {
                 self.with_struct_state(StructStatePlan::SHARED)
@@ -324,6 +329,7 @@ impl LowerContext<'_> {
                     member: self.field_member(base, &field),
                     field,
                     base: self.field_base_target(base),
+                    span: target.span,
                 });
             }
             ExprKind::Index { base, index } => {

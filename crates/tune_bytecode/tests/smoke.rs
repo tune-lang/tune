@@ -104,6 +104,7 @@ fn lowers_integer_add_ir_to_bytecode() -> Result<(), &'static str> {
                     dst: tune_ir::Reg(2),
                     a: tune_ir::Reg(0),
                     b: tune_ir::Reg(1),
+                    span: None,
                 },
                 tune_ir::IrOp::Return {
                     value: Some(tune_ir::Reg(2)),
@@ -162,6 +163,7 @@ fn lowers_struct_construct_with_explicit_local_state_plan() -> Result<(), &'stat
                         field: tune_ir::FieldId(0),
                         value: tune_ir::Reg(0),
                     }],
+                    span: None,
                 },
                 tune_ir::IrOp::Return {
                     value: Some(tune_ir::Reg(1)),
@@ -185,6 +187,11 @@ fn lowers_struct_construct_with_explicit_local_state_plan() -> Result<(), &'stat
 
 #[test]
 fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
+    let call_span = tune_diagnostics::Span::new(
+        tune_diagnostics::FileId(2),
+        tune_diagnostics::ByteOffset::new(12),
+        tune_diagnostics::ByteOffset::new(18),
+    );
     let entry = tune_ir::IrFunction {
         params: 0,
         owner: None,
@@ -206,6 +213,7 @@ fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
                     dst: tune_ir::Reg(1),
                     function: tune_hir::HirId(1),
                     args: vec![tune_ir::Reg(0)],
+                    span: Some(call_span),
                 },
                 tune_ir::IrOp::Return {
                     value: Some(tune_ir::Reg(1)),
@@ -247,6 +255,7 @@ fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
         artifact.functions[0].instructions[1].opcode,
         tune_bytecode::Opcode::CallDirect
     );
+    assert_eq!(artifact.instruction_span(0, 1), Some(call_span));
 
     Ok(())
 }

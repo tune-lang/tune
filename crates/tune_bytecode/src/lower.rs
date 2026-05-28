@@ -129,7 +129,7 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(())
             }
-            IrOp::AddInt { dst, a, b } => {
+            IrOp::AddInt { dst, a, b, .. } => {
                 self.instructions.push(Instruction {
                     opcode: Opcode::AddInt,
                     a: dst.0,
@@ -138,7 +138,7 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(())
             }
-            IrOp::GreaterInt { dst, a, b } => {
+            IrOp::GreaterInt { dst, a, b, .. } => {
                 self.instructions.push(Instruction {
                     opcode: Opcode::GreaterInt,
                     a: dst.0,
@@ -174,7 +174,9 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(())
             }
-            IrOp::GetField { dst, base, field } => {
+            IrOp::GetField {
+                dst, base, field, ..
+            } => {
                 self.instructions.push(Instruction {
                     opcode: Opcode::FieldGet,
                     a: dst.0,
@@ -183,7 +185,9 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(())
             }
-            IrOp::SetField { base, field, value } => {
+            IrOp::SetField {
+                base, field, value, ..
+            } => {
                 self.instructions.push(Instruction {
                     opcode: Opcode::FieldSet,
                     a: base.0,
@@ -196,6 +200,7 @@ impl FunctionLowerer<'_> {
                 dst,
                 function,
                 args,
+                ..
             } => {
                 let function = *self
                     .function_indices
@@ -215,7 +220,9 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(())
             }
-            IrOp::CallMember { dst, member, args } => {
+            IrOp::CallMember {
+                dst, member, args, ..
+            } => {
                 let function = *self
                     .member_indices
                     .get(member)
@@ -234,7 +241,9 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(())
             }
-            IrOp::VariantConstruct { dst, variant, args } => {
+            IrOp::VariantConstruct {
+                dst, variant, args, ..
+            } => {
                 let variant_site = u32::try_from(self.variant_sites.len())
                     .map_err(|_| BytecodeLowerError::ConstantLimit)?;
                 self.variant_sites.push(BytecodeVariantSite {
@@ -254,6 +263,7 @@ impl FunctionLowerer<'_> {
                 item,
                 state,
                 fields,
+                ..
             } => {
                 let site = u32::try_from(self.struct_sites.len())
                     .map_err(|_| BytecodeLowerError::ConstantLimit)?;
@@ -294,11 +304,11 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(())
             }
-            IrOp::Spawn { dst, callable } => {
+            IrOp::Spawn { dst, callable, .. } => {
                 self.lower_spawn(*dst, *callable);
                 Ok(())
             }
-            IrOp::TaskJoin { dst, task } => {
+            IrOp::TaskJoin { dst, task, .. } => {
                 self.lower_task_join(*dst, *task);
                 Ok(())
             }
@@ -319,6 +329,7 @@ impl FunctionLowerer<'_> {
                 condition,
                 then_block,
                 else_block,
+                ..
             } => {
                 let then_block = *self
                     .block_offsets
@@ -346,6 +357,7 @@ impl FunctionLowerer<'_> {
                 scrutinee,
                 arms,
                 else_block,
+                ..
             } => {
                 let match_site = u32::try_from(self.match_sites.len())
                     .map_err(|_| BytecodeLowerError::ConstantLimit)?;

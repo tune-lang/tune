@@ -35,14 +35,14 @@ let run(input) = helper(input)
     assert!(report.check.diagnostics.is_empty());
     assert_eq!(report.functions.len(), 2);
     assert!(report.module_plan.entry.is_none());
-    assert!(
-        report.functions[1]
-            .ops
-            .contains(&tune_plan::PlanOp::DirectCall {
-                target: tune_hir::HirId(0),
-                arg_count: 1,
-            })
-    );
+    assert!(report.functions[1].ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::DirectCall {
+            target: tune_hir::HirId(0),
+            arg_count: 1,
+            span: Some(_),
+        }
+    )));
 
     Ok(())
 }

@@ -1,5 +1,7 @@
 use tune_hir::{HirId, MemberId};
 
+use tune_diagnostics::Span;
+
 use crate::IrOp;
 use crate::lower::{IrLowerError, Lowerer};
 
@@ -8,6 +10,7 @@ impl Lowerer {
         &mut self,
         target: HirId,
         arg_count: usize,
+        span: Option<Span>,
     ) -> Result<(), IrLowerError> {
         let mut args = Vec::with_capacity(arg_count);
         for _ in 0..arg_count {
@@ -19,6 +22,7 @@ impl Lowerer {
             dst,
             function: target,
             args,
+            span,
         });
         self.stack.push(dst);
         Ok(())
@@ -28,6 +32,7 @@ impl Lowerer {
         &mut self,
         member: MemberId,
         arg_count: usize,
+        span: Option<Span>,
     ) -> Result<(), IrLowerError> {
         let mut args = Vec::with_capacity(arg_count.saturating_add(1));
         for _ in 0..arg_count {
@@ -37,7 +42,12 @@ impl Lowerer {
         args.push(receiver);
         args.reverse();
         let dst = self.alloc_reg()?;
-        self.push_op(IrOp::CallMember { dst, member, args });
+        self.push_op(IrOp::CallMember {
+            dst,
+            member,
+            args,
+            span,
+        });
         self.stack.push(dst);
         Ok(())
     }

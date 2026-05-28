@@ -18,6 +18,7 @@ fn ir_has_typed_slots_for_core_planned_operations() {
                 dst: tune_ir::Reg(1),
                 variant: tune_resolve::VariantId::Prelude(tune_resolve::PreludeVariant::Ok),
                 args: vec![tune_ir::Reg(0)],
+                span: None,
             },
             tune_ir::IrOp::ResultPropagate {
                 dst: tune_ir::Reg(2),
@@ -33,6 +34,7 @@ fn ir_has_typed_slots_for_core_planned_operations() {
             tune_ir::IrOp::Spawn {
                 dst: tune_ir::Reg(6),
                 callable: tune_ir::Reg(7),
+                span: None,
             },
             tune_ir::IrOp::Return {
                 value: Some(tune_ir::Reg(2)),
@@ -64,6 +66,11 @@ fn ir_has_typed_slots_for_core_planned_operations() {
 
 #[test]
 fn lowers_integer_add_plan_to_ir() -> Result<(), &'static str> {
+    let add_span = tune_diagnostics::Span::new(
+        tune_diagnostics::FileId(1),
+        tune_diagnostics::ByteOffset::new(4),
+        tune_diagnostics::ByteOffset::new(9),
+    );
     let plan = tune_plan::PlanFunction {
         name: "main".into(),
         span: None,
@@ -76,6 +83,7 @@ fn lowers_integer_add_plan_to_ir() -> Result<(), &'static str> {
             tune_plan::PlanOp::ConstInt { value: 2 },
             tune_plan::PlanOp::BinaryOp {
                 op: tune_hir::expr::BinaryOp::Add,
+                span: Some(add_span),
             },
             tune_plan::PlanOp::Return,
         ],
@@ -90,6 +98,7 @@ fn lowers_integer_add_plan_to_ir() -> Result<(), &'static str> {
         vec![tune_ir::IrConst::Int(1), tune_ir::IrConst::Int(2)]
     );
     assert!(matches!(ir.blocks[0].ops[2], tune_ir::IrOp::AddInt { .. }));
+    assert_eq!(ir.blocks[0].ops[2].provenance_span(), Some(add_span));
     assert!(matches!(
         ir.blocks[0].ops[3],
         tune_ir::IrOp::Return { value: Some(_) }
@@ -119,6 +128,7 @@ fn lowers_local_binding_plan_to_ir_loads_and_stores() -> Result<(), &'static str
             tune_plan::PlanOp::ConstInt { value: 2 },
             tune_plan::PlanOp::BinaryOp {
                 op: tune_hir::expr::BinaryOp::Add,
+                span: None,
             },
             tune_plan::PlanOp::Return,
         ],
@@ -165,6 +175,7 @@ fn lowers_struct_state_plan_to_ir() -> Result<(), &'static str> {
                 item: tune_hir::HirId(1),
                 state: tune_plan::StructStatePlan::LOCAL,
                 fields: vec![field],
+                span: None,
             },
             tune_plan::PlanOp::Return,
         ],
@@ -232,6 +243,7 @@ fn lowers_direct_call_plan_to_ir_with_param_slots() -> Result<(), &'static str> 
             tune_plan::PlanOp::DirectCall {
                 target: tune_hir::HirId(1),
                 arg_count: 1,
+                span: None,
             },
             tune_plan::PlanOp::Return,
         ],

@@ -85,7 +85,10 @@ impl Lowerer {
                 self.stack.push(dst);
                 Ok(())
             }
-            PlanOp::BinaryOp { op: BinaryOp::Add } => {
+            PlanOp::BinaryOp {
+                op: BinaryOp::Add,
+                span,
+            } => {
                 let rhs = self.pop("binary rhs")?;
                 let lhs = self.pop("binary lhs")?;
                 let dst = self.alloc_reg()?;
@@ -93,12 +96,14 @@ impl Lowerer {
                     dst,
                     a: lhs,
                     b: rhs,
+                    span: *span,
                 });
                 self.stack.push(dst);
                 Ok(())
             }
             PlanOp::BinaryOp {
                 op: BinaryOp::Greater,
+                span,
             } => {
                 let rhs = self.pop("binary rhs")?;
                 let lhs = self.pop("binary lhs")?;
@@ -107,6 +112,7 @@ impl Lowerer {
                     dst,
                     a: lhs,
                     b: rhs,
+                    span: *span,
                 });
                 self.stack.push(dst);
                 Ok(())
@@ -199,16 +205,25 @@ impl Lowerer {
                 self.push_op(IrOp::Return { value });
                 Ok(())
             }
-            PlanOp::DirectCall { target, arg_count } => self.lower_direct_call(*target, *arg_count),
+            PlanOp::DirectCall {
+                target,
+                arg_count,
+                span,
+            } => self.lower_direct_call(*target, *arg_count, *span),
             PlanOp::MemberCall {
                 member: Some(member),
                 arg_count,
+                span,
                 ..
-            } => self.lower_member_call(*member, *arg_count),
+            } => self.lower_member_call(*member, *arg_count, *span),
             PlanOp::MemberCall { member: None, .. } => {
                 Err(IrLowerError::UnsupportedOp("unresolved member call"))
             }
-            PlanOp::VariantConstruct { variant, arg_count } => {
+            PlanOp::VariantConstruct {
+                variant,
+                arg_count,
+                span,
+            } => {
                 let mut args = Vec::with_capacity(*arg_count);
                 for _ in 0..*arg_count {
                     args.push(self.pop("variant argument")?);
@@ -219,6 +234,7 @@ impl Lowerer {
                     dst,
                     variant: *variant,
                     args,
+                    span: *span,
                 });
                 self.stack.push(dst);
                 Ok(())
@@ -227,6 +243,7 @@ impl Lowerer {
                 item,
                 state,
                 fields,
+                span,
             } => {
                 let mut values = Vec::with_capacity(fields.len());
                 for field in fields.iter().rev() {
@@ -242,12 +259,14 @@ impl Lowerer {
                     item: *item,
                     state: crate::lower_state::lower_struct_state(*state),
                     fields: values,
+                    span: *span,
                 });
                 self.stack.push(dst);
                 Ok(())
             }
             PlanOp::FieldGet {
                 member: Some(member),
+                span,
                 ..
             } => {
                 let base = self.pop("field base")?;
@@ -256,6 +275,7 @@ impl Lowerer {
                     dst,
                     base,
                     field: FieldId(member.index),
+                    span: *span,
                 });
                 self.stack.push(dst);
                 Ok(())
@@ -263,6 +283,7 @@ impl Lowerer {
             PlanOp::FieldSet {
                 member: Some(member),
                 base: base_target,
+                span,
                 ..
             } => {
                 let value = self.pop("field value")?;
@@ -271,6 +292,7 @@ impl Lowerer {
                     base,
                     field: FieldId(member.index),
                     value,
+                    span: *span,
                 });
                 if let Some(target) = base_target {
                     self.store_binding_target(*target, base)?;
@@ -295,13 +317,17 @@ impl Lowerer {
                 self.stack.push(dst);
                 Ok(())
             }
-            PlanOp::Spawn { .. } => self.lower_spawn(),
-            PlanOp::TaskJoin => self.lower_task_join(),
+            PlanOp::Spawn { span, .. } => self.lower_spawn(*span),
+            PlanOp::TaskJoin { span } => self.lower_task_join(*span),
             PlanOp::If {
-                branches, else_ops, ..
+                branches,
+                else_ops,
+                span,
+                ..
             } => self.lower_if(
                 branches,
                 else_ops,
+                *span,
                 matches!(
                     op,
                     PlanOp::If {
@@ -313,8 +339,9 @@ impl Lowerer {
             PlanOp::Match {
                 arms,
                 produces_value,
+                span,
                 ..
-            } => self.lower_match(arms, *produces_value),
+            } => self.lower_match(arms, *produces_value, *span),
             PlanOp::BinaryOp { .. } => Err(IrLowerError::UnsupportedOp("binary op")),
             PlanOp::BindingGet { .. }
             | PlanOp::BoundCall

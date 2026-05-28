@@ -105,21 +105,25 @@ pub enum PlanOp {
     DirectCall {
         target: HirId,
         arg_count: usize,
+        span: Option<Span>,
     },
     VariantConstruct {
         variant: VariantId,
         arg_count: usize,
+        span: Option<Span>,
     },
     StructConstruct {
         item: HirId,
         state: StructStatePlan,
         fields: Vec<MemberId>,
+        span: Option<Span>,
     },
     BoundCall,
     MemberCall {
         member: Option<MemberId>,
         name: String,
         arg_count: usize,
+        span: Option<Span>,
     },
     CallableValue,
     WitnessCall,
@@ -144,15 +148,18 @@ pub enum PlanOp {
     },
     BinaryOp {
         op: BinaryOp,
+        span: Option<Span>,
     },
     FieldGet {
         field: String,
         member: Option<MemberId>,
+        span: Option<Span>,
     },
     FieldSet {
         field: String,
         member: Option<MemberId>,
         base: Option<NameTarget>,
+        span: Option<Span>,
     },
     SequenceGet {
         checked: bool,
@@ -215,7 +222,9 @@ pub enum PlanOp {
         body: ExprId,
         span: Option<Span>,
     },
-    TaskJoin,
+    TaskJoin {
+        span: Option<Span>,
+    },
     Panic,
     Meta {
         plan: MetaPlan,

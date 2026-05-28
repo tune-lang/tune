@@ -59,10 +59,14 @@ let ok(value) = Ok(value)
             },
             span: Some(_),
             ..
-        } if body_ops.contains(&tune_plan::PlanOp::DirectCall {
-            target: tune_hir::HirId(0),
-            arg_count: 1,
-        })
+        } if body_ops.iter().any(|body_op| matches!(
+            body_op,
+            tune_plan::PlanOp::DirectCall {
+                target: tune_hir::HirId(0),
+                arg_count: 1,
+                span: Some(_),
+            }
+        ))
     )));
 
     let values = tune_plan::lower_resolved_item_to_plan(&module.items[3], &resolved)
@@ -111,9 +115,13 @@ let ok(value) = Ok(value)
     assert!(ops.ops.contains(&tune_plan::PlanOp::UnaryOp {
         op: tune_hir::expr::UnaryOp::Not
     }));
-    assert!(ops.ops.contains(&tune_plan::PlanOp::BinaryOp {
-        op: tune_hir::expr::BinaryOp::IsNot
-    }));
+    assert!(ops.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::BinaryOp {
+            op: tune_hir::expr::BinaryOp::IsNot,
+            span: Some(_),
+        }
+    )));
 
     let branch = tune_plan::lower_resolved_item_to_plan(&module.items[7], &resolved)
         .ok_or("expected branch plan")?;
@@ -169,10 +177,14 @@ let ok(value) = Ok(value)
 
     let ok = tune_plan::lower_resolved_item_to_plan(&module.items[11], &resolved)
         .ok_or("expected ok plan")?;
-    assert!(ok.ops.contains(&tune_plan::PlanOp::VariantConstruct {
-        variant: tune_resolve::VariantId::Prelude(tune_resolve::PreludeVariant::Ok),
-        arg_count: 1,
-    }));
+    assert!(ok.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::VariantConstruct {
+            variant: tune_resolve::VariantId::Prelude(tune_resolve::PreludeVariant::Ok),
+            arg_count: 1,
+            span: Some(_),
+        }
+    )));
 
     Ok(())
 }
@@ -308,7 +320,7 @@ fn task_join_lowers_to_dedicated_plan_op() -> Result<(), &'static str> {
     assert!(
         plan.ops
             .iter()
-            .any(|op| matches!(op, tune_plan::PlanOp::TaskJoin))
+            .any(|op| matches!(op, tune_plan::PlanOp::TaskJoin { .. }))
     );
     assert!(!plan.ops.iter().any(|op| {
         matches!(
@@ -407,6 +419,7 @@ let member(items: Stack) = items.get(0)
         tune_plan::PlanOp::FieldGet {
             member: Some(_),
             field,
+            ..
         } if field == "value"
     )));
 

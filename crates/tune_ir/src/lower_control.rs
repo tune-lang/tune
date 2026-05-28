@@ -1,5 +1,7 @@
 use tune_plan::PlanOp;
 
+use tune_diagnostics::Span;
+
 use crate::lower::Lowerer;
 use crate::lower_slots::{local_offset, local_slot};
 use crate::{BlockId, IrBlock, IrLowerError, IrOp};
@@ -9,6 +11,7 @@ impl Lowerer {
         &mut self,
         branches: &[tune_plan::PlanIfBranch],
         else_ops: &[PlanOp],
+        span: Option<Span>,
         produces_value: bool,
     ) -> Result<(), IrLowerError> {
         let base_stack_len = self.stack.len();
@@ -36,6 +39,7 @@ impl Lowerer {
                 condition,
                 then_block,
                 else_block: false_block,
+                span,
             });
             self.switch_to_block(then_block);
             for op in &branch.body_ops {
@@ -80,6 +84,7 @@ impl Lowerer {
         &mut self,
         arms: &[tune_plan::PlanMatchArm],
         produces_value: bool,
+        span: Option<Span>,
     ) -> Result<(), IrLowerError> {
         let scrutinee = self.pop("match scrutinee")?;
         let base_stack_len = self.stack.len();
@@ -108,6 +113,7 @@ impl Lowerer {
             scrutinee,
             arms: variant_arms,
             else_block: fallback_block,
+            span,
         });
 
         for (block, arm) in arm_blocks {

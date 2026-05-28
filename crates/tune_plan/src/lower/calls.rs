@@ -9,7 +9,7 @@ impl LowerContext<'_> {
     pub(super) fn lower_call(&self, callee: &Expr, args: &[Expr], ops: &mut Vec<PlanOp>) {
         if let Some(base) = task_join_base(callee, args) {
             self.lower_expr(base, ops);
-            ops.push(PlanOp::TaskJoin);
+            ops.push(PlanOp::TaskJoin { span: callee.span });
             return;
         }
 
@@ -38,12 +38,21 @@ impl LowerContext<'_> {
                 member: self.callable_member(base, &name),
                 name,
                 arg_count,
+                span: callee.span,
             };
         }
 
         match self.name_target(callee.id) {
-            Some(NameTarget::TopLevel(target)) => PlanOp::DirectCall { target, arg_count },
-            Some(NameTarget::Variant(variant)) => PlanOp::VariantConstruct { variant, arg_count },
+            Some(NameTarget::TopLevel(target)) => PlanOp::DirectCall {
+                target,
+                arg_count,
+                span: callee.span,
+            },
+            Some(NameTarget::Variant(variant)) => PlanOp::VariantConstruct {
+                variant,
+                arg_count,
+                span: callee.span,
+            },
             _ => PlanOp::BoundCall,
         }
     }
