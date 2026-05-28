@@ -79,7 +79,7 @@ let first(items: Stack) = items[0]
 fn executable_lowering_failures_use_structured_diagnostics() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file("main.tn", "let value = while false { 1 }")
+        .add_file("main.tn", "let value = loop { break }")
         .ok_or("source should allocate")?;
 
     let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.executable_file(file) else {

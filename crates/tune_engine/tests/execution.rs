@@ -223,6 +223,35 @@ let value: Int = pick(false)
 }
 
 #[test]
+fn run_file_executes_while_local_mutation() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let result: Int = {
+  let i: Int = 0
+  while 3 > i {
+    i = i + 1
+  }
+  i
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        tune.run_file(file).map_err(|error| {
+            eprintln!("{error:?}");
+            "file entry should run"
+        })?,
+        tune_runtime::value::Value::Int(3)
+    );
+
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_result_propagation_ok_path() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

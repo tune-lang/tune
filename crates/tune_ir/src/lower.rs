@@ -342,6 +342,12 @@ impl Lowerer {
                 span,
                 ..
             } => self.lower_match(arms, *produces_value, *span),
+            PlanOp::While {
+                condition_ops,
+                body_ops,
+                span,
+                ..
+            } => self.lower_while(condition_ops, body_ops, *span),
             PlanOp::BinaryOp { .. } => Err(IrLowerError::UnsupportedOp("binary op")),
             PlanOp::BindingGet { .. }
             | PlanOp::BoundCall
@@ -357,7 +363,6 @@ impl Lowerer {
             | PlanOp::BindingSet { .. }
             | PlanOp::FiniteFor { .. }
             | PlanOp::StringBuild
-            | PlanOp::While { .. }
             | PlanOp::Loop { .. }
             | PlanOp::Break
             | PlanOp::Continue

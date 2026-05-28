@@ -162,6 +162,48 @@ impl Lowerer {
         Ok(())
     }
 
+    pub(super) fn lower_while(
+        &mut self,
+        condition_ops: &[PlanOp],
+        body_ops: &[PlanOp],
+        span: Option<Span>,
+    ) -> Result<(), IrLowerError> {
+        let base_stack_len = self.stack.len();
+        let condition_block = self.alloc_block();
+        let body_block = self.alloc_block();
+        let done_block = self.alloc_block();
+
+        self.push_op(IrOp::Jump {
+            target: condition_block,
+        });
+        self.switch_to_block(condition_block);
+        for op in condition_ops {
+            self.lower_op(op)?;
+        }
+        let condition = self.pop("while condition")?;
+        self.push_op(IrOp::Branch {
+            condition,
+            then_block: body_block,
+            else_block: done_block,
+            span,
+        });
+        self.stack.truncate(base_stack_len);
+
+        self.switch_to_block(body_block);
+        for op in body_ops {
+            self.lower_op(op)?;
+        }
+        if !self.current_block_returns() {
+            self.push_op(IrOp::Jump {
+                target: condition_block,
+            });
+        }
+        self.stack.truncate(base_stack_len);
+
+        self.switch_to_block(done_block);
+        Ok(())
+    }
+
     pub(super) fn push_op(&mut self, op: IrOp) {
         if let Some(block) = self
             .blocks
