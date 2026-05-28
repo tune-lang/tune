@@ -123,6 +123,32 @@ let result: Int = {
 }
 
 #[test]
+fn run_file_executes_finite_for_over_ranges() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let result: Int = {
+  let total: Int = 0
+  for item in 1..=4 {
+    total = total + item
+  }
+  for item in 4..6 {
+    total = total + item
+  }
+  total
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, tune_runtime::value::Value::Int(19));
+
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_sequence_get_and_set() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

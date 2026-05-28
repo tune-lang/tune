@@ -9,6 +9,7 @@ use tune_runtime::{
     value::{PropagationFrame, RuntimeVariant, Value},
 };
 
+use crate::execute_range::{range_item, range_len, value_range};
 use crate::{Vm, VmError, VmFault, VmLocation};
 
 impl Vm {
@@ -205,14 +206,7 @@ impl Vm {
         op: &Instruction,
     ) -> Result<(), VmFault> {
         let iterable = self.at(function, instruction, read_reg(registers, op.b))?;
-        let Value::Sequence(values) = iterable else {
-            return Err(self.fault_at(
-                function,
-                instruction,
-                VmError::UnsupportedOpcode(Opcode::FiniteForInit),
-            ));
-        };
-        let len = i64::try_from(values.len()).map_err(|_| {
+        let len = finite_iter_len(iterable).ok_or_else(|| {
             self.fault_at(
                 function,
                 instruction,
@@ -274,21 +268,7 @@ impl Vm {
             instruction_index,
             read_reg(registers, site.iterable),
         )?;
-        let Value::Sequence(values) = iterable else {
-            return Err(self.fault_at(
-                function_index,
-                instruction_index,
-                VmError::UnsupportedOpcode(Opcode::FiniteForNext),
-            ));
-        };
-        let index = usize::try_from(iterator).map_err(|_| {
-            self.fault_at(
-                function_index,
-                instruction_index,
-                VmError::UnsupportedOpcode(Opcode::FiniteForNext),
-            )
-        })?;
-        let item = values.get(index).cloned().ok_or_else(|| {
+        let item = finite_iter_item(iterable, iterator).ok_or_else(|| {
             self.fault_at(
                 function_index,
                 instruction_index,
@@ -341,6 +321,23 @@ impl Vm {
             instruction_index,
             VmError::Panic(TunePanic { message }),
         )
+    }
+}
+
+fn finite_iter_len(iterable: Value) -> Option<i64> {
+    match iterable {
+        Value::Sequence(values) => i64::try_from(values.len()).ok(),
+        value => value_range(value).and_then(range_len),
+    }
+}
+
+fn finite_iter_item(iterable: Value, iterator: i64) -> Option<Value> {
+    match iterable {
+        Value::Sequence(values) => {
+            let index = usize::try_from(iterator).ok()?;
+            values.get(index).cloned()
+        }
+        value => range_item(value_range(value)?, iterator).map(|item| item.value),
     }
 }
 

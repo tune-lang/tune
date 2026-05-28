@@ -215,6 +215,7 @@ impl<'src> Lexer<'src> {
             Some('>') => single(TokenKind::Greater),
             Some(':') if self.starts_with("::") => double(TokenKind::ColonColon),
             Some(':') => single(TokenKind::Colon),
+            Some('.') if self.starts_with("..=") => TokenKind::DotDotEqual,
             Some('.') if self.starts_with("..") => double(TokenKind::DotDot),
             Some('.') => single(TokenKind::Dot),
             Some(',') => single(TokenKind::Comma),
@@ -338,6 +339,7 @@ const fn token_width(kind: TokenKind) -> usize {
         | TokenKind::ShiftRight
         | TokenKind::ColonColon
         | TokenKind::DotDot => 2,
+        TokenKind::DotDotEqual => 3,
         _ => 1,
     }
 }

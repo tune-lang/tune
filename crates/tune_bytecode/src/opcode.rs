@@ -44,6 +44,8 @@ pub enum Opcode {
     GreaterEqualInt = 40,
     NegInt = 41,
     NotBool = 42,
+    RangeExclusiveInt = 43,
+    RangeInclusiveInt = 44,
 }
 
 impl Opcode {
@@ -91,5 +93,7 @@ impl Opcode {
         Self::GreaterEqualInt,
         Self::NegInt,
         Self::NotBool,
+        Self::RangeExclusiveInt,
+        Self::RangeInclusiveInt,
     ];
 }

@@ -179,6 +179,7 @@ struct Bag {}
 let stack: Stack = [1, 2]
 let bag: Bag = [1, 2]
 let each(items: Stack) = for item in items { item }
+let ranged() = for item in 0..=2 { item }
 let broken(value: Int) = for item in value { item }
 "#;
     let parsed = tune_syntax::parse(source);
@@ -207,7 +208,15 @@ let broken(value: Int) = for item in value { item }
             .any(|finite| finite.len_member.is_some() && finite.index_member.is_some())
     );
 
-    let broken = tune_shape::analyze_item(&module, &resolved, &module.items[5]);
+    let ranged = tune_shape::analyze_item(&module, &resolved, &module.items[5]);
+    assert!(ranged.finite_for.iter().any(|finite| {
+        finite.len_member.is_none()
+            && finite.index_member.is_none()
+            && finite.iterable.0 != u64::MAX
+    }));
+    assert!(ranged.diagnostics.is_empty());
+
+    let broken = tune_shape::analyze_item(&module, &resolved, &module.items[6]);
     assert!(
         broken.diagnostics.iter().any(|diagnostic| {
             diagnostic.code == tune_diagnostics::codes::ITERATION_LEN_MISSING

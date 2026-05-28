@@ -163,6 +163,7 @@ let numbers = [1, 2, 3]
 let callable = _(x: Int): Int = x
 let block = { let x = 1; x = x; return x }
 let grouped = (1 + 2)
+let range = 0..=10
 let ops = (not value and other) or (other is not none)
 let branched = if ready { Ok(value) } elif waiting { Error("wait") } else { panic("bad") }
 let matched = match result { Ok(value) => value; Error(err) => panic(err); else => none }
@@ -234,13 +235,22 @@ let forever = loop { break }
         }
     ));
 
-    let ops = module.items[7].body.as_ref().ok_or("expected ops body")?;
+    let range = module.items[7].body.as_ref().ok_or("expected range body")?;
+    assert!(matches!(
+        range.kind,
+        tune_hir::expr::ExprKind::Binary {
+            op: tune_hir::expr::BinaryOp::RangeInclusive,
+            ..
+        }
+    ));
+
+    let ops = module.items[8].body.as_ref().ok_or("expected ops body")?;
     let tune_hir::expr::ExprKind::Binary { op, .. } = &ops.kind else {
         return Err("expected binary expression");
     };
     assert_eq!(*op, tune_hir::expr::BinaryOp::Or);
 
-    let branched = module.items[8]
+    let branched = module.items[9]
         .body
         .as_ref()
         .ok_or("expected branched body")?;
@@ -254,7 +264,7 @@ let forever = loop { break }
     assert_eq!(branches.len(), 2);
     assert!(else_branch.is_some());
 
-    let matched = module.items[9]
+    let matched = module.items[10]
         .body
         .as_ref()
         .ok_or("expected matched body")?;
@@ -277,7 +287,7 @@ let forever = loop { break }
         tune_hir::pattern::PatternKind::Else
     ));
 
-    let repeated = module.items[10]
+    let repeated = module.items[11]
         .body
         .as_ref()
         .ok_or("expected repeated body")?;
@@ -286,7 +296,7 @@ let forever = loop { break }
         tune_hir::expr::ExprKind::While { .. }
     ));
 
-    let forever = module.items[11]
+    let forever = module.items[12]
         .body
         .as_ref()
         .ok_or("expected forever body")?;

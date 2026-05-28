@@ -299,6 +299,8 @@ fn binary_op(node: &CstNode) -> Option<BinaryOp> {
             TokenKind::Amp => simple_op = Some(BinaryOp::BitAnd),
             TokenKind::ShiftLeft => simple_op = Some(BinaryOp::ShiftLeft),
             TokenKind::ShiftRight => simple_op = Some(BinaryOp::ShiftRight),
+            TokenKind::DotDot => simple_op = Some(BinaryOp::RangeExclusive),
+            TokenKind::DotDotEqual => simple_op = Some(BinaryOp::RangeInclusive),
             TokenKind::Plus => simple_op = Some(BinaryOp::Add),
             TokenKind::Minus => simple_op = Some(BinaryOp::Sub),
             TokenKind::Star => simple_op = Some(BinaryOp::Mul),

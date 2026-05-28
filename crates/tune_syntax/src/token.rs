@@ -67,6 +67,7 @@ pub enum TokenKind {
     ColonColon,
     Dot,
     DotDot,
+    DotDotEqual,
     Comma,
     Semicolon,
     LeftParen,

@@ -70,6 +70,7 @@ pub enum Shape {
     Literal(crate::literal::LiteralFact),
     Param(String),
     Sequence(Box<Shape>),
+    Range(Box<Shape>),
     Tuple(Vec<Shape>),
     Union(Vec<Shape>),
     Optional(Box<Shape>),
@@ -94,6 +95,7 @@ impl Shape {
             (Self::Optional(inner), Self::Optional(actual)) => inner.accepts(actual),
             (Self::Optional(_), Self::Literal(crate::literal::LiteralFact::None)) => true,
             (Self::Sequence(expected), Self::Sequence(actual)) => expected.accepts(actual),
+            (Self::Range(expected), Self::Range(actual)) => expected.accepts(actual),
             (Self::Tuple(expected), Self::Tuple(actual)) if expected.len() == actual.len() => {
                 expected
                     .iter()

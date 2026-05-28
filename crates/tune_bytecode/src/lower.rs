@@ -125,6 +125,21 @@ impl FunctionLowerer<'_> {
                 self.push_instruction(Opcode::AddInt, dst.0, a.0, b.0);
                 Ok(())
             }
+            IrOp::RangeInt {
+                dst,
+                start,
+                end,
+                inclusive,
+                ..
+            } => {
+                let opcode = if *inclusive {
+                    Opcode::RangeInclusiveInt
+                } else {
+                    Opcode::RangeExclusiveInt
+                };
+                self.push_instruction(opcode, dst.0, start.0, end.0);
+                Ok(())
+            }
             IrOp::SeqBuild { dst, .. } => {
                 self.push_instruction(Opcode::SeqBuild, dst.0, 0, 0);
                 Ok(())

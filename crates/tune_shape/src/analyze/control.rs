@@ -44,7 +44,7 @@ impl Analyzer<'_> {
         self.check_iteration_source_mutation(iterable, body, expr.span);
         let entry = self.frame.clone();
         self.frame = entry.clone();
-        self.bind_pattern(pattern, Shape::Hole);
+        self.bind_pattern(pattern, iteration_item_shape(&iterable_shape));
         self.analyze_expr(body);
         let body_frame = self.frame.clone();
         self.frame = entry;
@@ -106,5 +106,12 @@ impl Analyzer<'_> {
             let _ = joined.join_from(frame);
         }
         self.frame = joined;
+    }
+}
+
+fn iteration_item_shape(iterable: &Shape) -> Shape {
+    match iterable {
+        Shape::Sequence(item) | Shape::Range(item) => item.as_ref().clone(),
+        _ => Shape::Hole,
     }
 }

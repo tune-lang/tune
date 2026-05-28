@@ -150,6 +150,8 @@ fn validate_instruction(
             register(function_id, function, instruction.b)?;
         }
         Opcode::AddInt
+        | Opcode::RangeExclusiveInt
+        | Opcode::RangeInclusiveInt
         | Opcode::GreaterInt
         | Opcode::EqualInt
         | Opcode::NotEqualInt

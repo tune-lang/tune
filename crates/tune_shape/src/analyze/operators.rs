@@ -37,6 +37,16 @@ impl Analyzer<'_> {
             {
                 Shape::Int
             }
+            BinaryOp::RangeExclusive | BinaryOp::RangeInclusive
+                if Shape::Int.accepts(&lhs) && Shape::Int.accepts(&rhs) =>
+            {
+                Shape::Range(Box::new(Shape::Int))
+            }
+            BinaryOp::RangeExclusive | BinaryOp::RangeInclusive
+                if Shape::Size.accepts(&lhs) && Shape::Size.accepts(&rhs) =>
+            {
+                Shape::Range(Box::new(Shape::Size))
+            }
             BinaryOp::Is
             | BinaryOp::IsNot
             | BinaryOp::Equal
@@ -56,7 +66,9 @@ impl Analyzer<'_> {
             | BinaryOp::BitXor
             | BinaryOp::BitAnd
             | BinaryOp::ShiftLeft
-            | BinaryOp::ShiftRight => Shape::Hole,
+            | BinaryOp::ShiftRight
+            | BinaryOp::RangeExclusive
+            | BinaryOp::RangeInclusive => Shape::Hole,
         }
     }
 }

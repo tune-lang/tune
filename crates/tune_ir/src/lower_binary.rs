@@ -12,6 +12,8 @@ impl Lowerer {
     ) -> Result<(), IrLowerError> {
         match op {
             BinaryOp::Add => self.lower_add_int(span),
+            BinaryOp::RangeExclusive => self.lower_range_int(false, span),
+            BinaryOp::RangeInclusive => self.lower_range_int(true, span),
             BinaryOp::Greater => self.lower_greater_int(span),
             BinaryOp::Equal => self.lower_compare_int(IrIntComparison::Equal, span),
             BinaryOp::NotEqual => self.lower_compare_int(IrIntComparison::NotEqual, span),
@@ -44,6 +46,21 @@ impl Lowerer {
             dst,
             a: lhs,
             b: rhs,
+            span,
+        });
+        self.stack.push(dst);
+        Ok(())
+    }
+
+    fn lower_range_int(&mut self, inclusive: bool, span: Option<Span>) -> Result<(), IrLowerError> {
+        let end = self.pop("range end")?;
+        let start = self.pop("range start")?;
+        let dst = self.alloc_reg()?;
+        self.push_op(IrOp::RangeInt {
+            dst,
+            start,
+            end,
+            inclusive,
             span,
         });
         self.stack.push(dst);

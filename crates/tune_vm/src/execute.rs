@@ -1,7 +1,7 @@
 use tune_bytecode::{Opcode, artifact::BytecodeConst};
 use tune_runtime::{
     task::TaskJoinOutcome,
-    value::{StructFields, Value},
+    value::{RangeItemKind, RangeValue, StructFields, Value},
 };
 
 use crate::execute_support::{read_reg, runtime_variant, write_reg};
@@ -167,6 +167,31 @@ impl Vm {
                         function_index,
                         ip,
                         write_reg(&mut registers, instruction.a, Value::Int(left + right)),
+                    )?;
+                }
+                Opcode::RangeExclusiveInt | Opcode::RangeInclusiveInt => {
+                    let start = self.at(function_index, ip, read_reg(&registers, instruction.b))?;
+                    let end = self.at(function_index, ip, read_reg(&registers, instruction.c))?;
+                    let Some((start, end, item)) = range_parts(start, end) else {
+                        return Err(self.fault_at(
+                            function_index,
+                            ip,
+                            VmError::UnsupportedOpcode(instruction.opcode),
+                        ));
+                    };
+                    self.at(
+                        function_index,
+                        ip,
+                        write_reg(
+                            &mut registers,
+                            instruction.a,
+                            Value::Range(RangeValue {
+                                start,
+                                end,
+                                inclusive: instruction.opcode == Opcode::RangeInclusiveInt,
+                                item,
+                            }),
+                        ),
                     )?;
                 }
                 Opcode::NegInt | Opcode::NotBool => {
@@ -404,5 +429,17 @@ impl Vm {
             ip += 1;
         }
         Ok(Value::Unit)
+    }
+}
+
+fn range_parts(start: Value, end: Value) -> Option<(i128, i128, RangeItemKind)> {
+    match (start, end) {
+        (Value::Int(start), Value::Int(end)) => {
+            Some((i128::from(start), i128::from(end), RangeItemKind::Int))
+        }
+        (Value::Size(start), Value::Size(end)) => {
+            Some((i128::from(start), i128::from(end), RangeItemKind::Size))
+        }
+        _ => None,
     }
 }

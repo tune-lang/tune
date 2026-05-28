@@ -43,6 +43,25 @@ fn lexes_is_not_as_parser_level_operator_phrase() {
 }
 
 #[test]
+fn lexes_exclusive_and_inclusive_ranges() {
+    let lexed = lex_with_file(tune_diagnostics::FileId(0), "0..10 0..=10");
+    let kinds = significant_kinds(&lexed);
+
+    assert_eq!(
+        kinds,
+        [
+            TokenKind::IntLiteral,
+            TokenKind::DotDot,
+            TokenKind::IntLiteral,
+            TokenKind::IntLiteral,
+            TokenKind::DotDotEqual,
+            TokenKind::IntLiteral,
+            TokenKind::Eof,
+        ]
+    );
+}
+
+#[test]
 fn preserves_comments_and_whitespace_as_tokens() {
     let lexed = lex_with_file(
         tune_diagnostics::FileId(0),

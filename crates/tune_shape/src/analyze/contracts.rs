@@ -96,6 +96,7 @@ impl Analyzer<'_> {
         match shape {
             Shape::Hole => (None, None),
             Shape::Sequence(_) => (None, None),
+            Shape::Range(_) => (None, None),
             Shape::Literal(LiteralFact::Sequence { .. }) => (None, None),
             Shape::Struct(name) | Shape::Apply { name, .. } => {
                 let len = self.callable_member(name, "len");

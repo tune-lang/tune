@@ -15,6 +15,7 @@ pub enum Value {
     Bool(bool),
     String(String),
     Sequence(Vec<Value>),
+    Range(RangeValue),
     Struct {
         owner: u32,
         state: StateHandle,
@@ -41,6 +42,7 @@ impl PartialEq for Value {
             (Self::Bool(left), Self::Bool(right)) => left == right,
             (Self::String(left), Self::String(right)) => left == right,
             (Self::Sequence(left), Self::Sequence(right)) => left == right,
+            (Self::Range(left), Self::Range(right)) => left == right,
             (
                 Self::Struct {
                     owner: left_owner,
@@ -79,6 +81,20 @@ impl PartialEq for Value {
             _ => false,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RangeValue {
+    pub start: i128,
+    pub end: i128,
+    pub inclusive: bool,
+    pub item: RangeItemKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RangeItemKind {
+    Int,
+    Size,
 }
 
 #[derive(Debug, Clone)]

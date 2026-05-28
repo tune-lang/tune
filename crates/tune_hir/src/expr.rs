@@ -139,6 +139,8 @@ pub enum BinaryOp {
     BitAnd,
     ShiftLeft,
     ShiftRight,
+    RangeExclusive,
+    RangeInclusive,
     Add,
     Sub,
     Mul,
