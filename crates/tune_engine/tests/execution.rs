@@ -167,6 +167,30 @@ fn run_file_executes_comparison_fed_if_expression() -> Result<(), &'static str> 
 }
 
 #[test]
+fn run_file_executes_elif_expression_value() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let pick(value: Int): Int = if value > 10 { 1 } elif value > 5 { 2 } else { 3 }
+let result: Int = pick(7)
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        tune.run_file(file).map_err(|error| {
+            eprintln!("{error:?}");
+            "file entry should run"
+        })?,
+        tune_runtime::value::Value::Int(2)
+    );
+
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_branch_local_assignment() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

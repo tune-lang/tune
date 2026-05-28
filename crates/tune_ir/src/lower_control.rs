@@ -15,8 +15,13 @@ impl Lowerer {
         let result = produces_value.then(|| self.alloc_reg()).transpose()?;
         let join = self.alloc_block();
         let else_block = self.alloc_block();
-        let branch_blocks = branches
+        let body_blocks = branches
             .iter()
+            .map(|_| self.alloc_block())
+            .collect::<Vec<_>>();
+        let condition_blocks = branches
+            .iter()
+            .skip(1)
             .map(|_| self.alloc_block())
             .collect::<Vec<_>>();
 
@@ -25,8 +30,8 @@ impl Lowerer {
                 self.lower_op(op)?;
             }
             let condition = self.pop("if condition")?;
-            let then_block = branch_blocks[index];
-            let false_block = branch_blocks.get(index + 1).copied().unwrap_or(else_block);
+            let then_block = body_blocks[index];
+            let false_block = condition_blocks.get(index).copied().unwrap_or(else_block);
             self.push_op(IrOp::Branch {
                 condition,
                 then_block,
