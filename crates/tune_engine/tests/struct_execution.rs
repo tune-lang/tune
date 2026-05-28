@@ -143,6 +143,32 @@ let result: Int = speak(duck)
 }
 
 #[test]
+fn run_file_executes_structural_match_field_witness() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+struct Duck {
+  sound: Int
+}
+let speak(duck) = match duck {
+  { sound: Int } => sound
+  else 0
+}
+let duck: Duck = Duck {
+  sound = 9
+}
+let result: Int = speak(duck)
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, Value::Int(9));
+    Ok(())
+}
+
+#[test]
 fn run_file_preserves_member_receiver_mutation_for_caller() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

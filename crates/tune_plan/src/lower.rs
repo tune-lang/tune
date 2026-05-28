@@ -4,6 +4,7 @@ mod calls;
 mod members;
 mod module;
 mod patterns;
+mod specialize;
 mod structural;
 mod values;
 
