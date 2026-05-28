@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::expr::{Expr, ExprKind};
 use tune_hir::item::Item;
-use tune_hir::pattern::{Pattern, PatternKind};
+use tune_hir::pattern::{Pattern, PatternKind, StructuralRequirementKind};
 use tune_hir::shape::ShapeExpr;
 use tune_hir::{HirId, MemberId};
 
@@ -256,10 +256,21 @@ impl<'resolved> BodyResolver<'resolved> {
                     self.bind_pattern_names_with_expected(pattern, None);
                 }
             }
-            PatternKind::Hole
-            | PatternKind::Unit
-            | PatternKind::StructuralShape
-            | PatternKind::Else => {}
+            PatternKind::StructuralShape(requirements) => {
+                for requirement in requirements {
+                    let name = match &requirement.kind {
+                        StructuralRequirementKind::Callable { name, .. }
+                        | StructuralRequirementKind::Field { name, .. } => name,
+                    };
+                    self.bind_local(
+                        name,
+                        LocalKind::Pattern,
+                        Some(requirement.id),
+                        requirement.span,
+                    );
+                }
+            }
+            PatternKind::Hole | PatternKind::Unit | PatternKind::Else => {}
         }
     }
 

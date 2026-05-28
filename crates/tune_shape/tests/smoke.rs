@@ -85,6 +85,31 @@ let int_symbols: Int = 1 | 2
 }
 
 #[test]
+fn structural_match_pattern_binds_required_callable() -> Result<(), &'static str> {
+    let source = r#"
+let maybe_quack(duck) = match duck {
+  { quack(): String } => quack()
+  else none
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    assert!(parsed.diagnostics.is_empty());
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    assert!(resolved.diagnostics.is_empty());
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert!(analysis.diagnostics.is_empty());
+    assert!(analysis.calls.iter().any(|call| {
+        call.params.is_empty()
+            && call.ret == tune_shape::Shape::String
+            && call.target == tune_shape::CallTarget::Bound
+    }));
+
+    Ok(())
+}
+
+#[test]
 fn result_constructor_facts_union_variant_payloads_from_value_flow() -> Result<(), &'static str> {
     let source = r#"
 let choose(ready, waiting, value) = if ready { Ok(value) } elif waiting { Error("wait") } else { Error(1) }

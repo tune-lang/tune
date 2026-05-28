@@ -18,6 +18,7 @@ impl Analyzer<'_> {
         let mut shapes = Vec::new();
         for arm in arms {
             self.frame = entry.clone();
+            self.apply_structural_pattern(scrutinee, &arm.pattern, &scrutinee_shape);
             self.bind_pattern(&arm.pattern, Shape::Hole);
             shapes.push(self.analyze_expr(&arm.body));
             frames.push(self.frame.clone());

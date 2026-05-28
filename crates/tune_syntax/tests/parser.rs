@@ -297,6 +297,7 @@ let inline_branch = if count == 1 => "item" else "items"
 let branched = if ready { Ok(value) } elif waiting { Error("wait") } else { panic("bad") }
 let matched = match result { Ok(value) => value; Error(err) => panic(err); else none }
 let matched_block = match result { Ok(value) { value } else { none } }
+let matched_shape = match duck { { quack(): String } => quack(); else none }
 let repeated = while ready { continue }
 let forever = loop { break }
 "#,
@@ -321,6 +322,8 @@ let forever = loop { break }
     assert!(kinds.contains(&SyntaxKind::MatchExpr));
     assert!(kinds.contains(&SyntaxKind::MatchArm));
     assert!(kinds.contains(&SyntaxKind::PatternList));
+    assert!(kinds.contains(&SyntaxKind::StructuralPattern));
+    assert!(kinds.contains(&SyntaxKind::StructuralRequirement));
     assert!(kinds.contains(&SyntaxKind::WhileExpr));
     assert!(kinds.contains(&SyntaxKind::LoopExpr));
     assert!(kinds.contains(&SyntaxKind::BreakExpr));

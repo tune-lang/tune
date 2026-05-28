@@ -168,6 +168,7 @@ let ops = (not value and other) or (other is not none)
 let inline_branch = if count == 1 => "item" else "items"
 let branched = if ready { Ok(value) } elif waiting { Error("wait") } else { panic("bad") }
 let matched = match result { Ok(value) => value; Error(err) => panic(err); else none }
+let matched_shape = match duck { { quack(): String } => quack(); else none }
 let repeated = while ready { continue }
 let forever = loop { break }
 "#;
@@ -297,7 +298,20 @@ let forever = loop { break }
         tune_hir::pattern::PatternKind::Else
     ));
 
-    let repeated = module.items[12]
+    let matched_shape = module.items[12]
+        .body
+        .as_ref()
+        .ok_or("expected structural match body")?;
+    let tune_hir::expr::ExprKind::Match { arms, .. } = &matched_shape.kind else {
+        return Err("expected structural match expression");
+    };
+    assert!(matches!(
+        &arms[0].pattern.kind,
+        tune_hir::pattern::PatternKind::StructuralShape(requirements)
+            if requirements.len() == 1
+    ));
+
+    let repeated = module.items[13]
         .body
         .as_ref()
         .ok_or("expected repeated body")?;
@@ -306,7 +320,7 @@ let forever = loop { break }
         tune_hir::expr::ExprKind::While { .. }
     ));
 
-    let forever = module.items[13]
+    let forever = module.items[14]
         .body
         .as_ref()
         .ok_or("expected forever body")?;

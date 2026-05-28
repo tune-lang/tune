@@ -138,8 +138,53 @@ impl Parser<'_> {
                     self.parse_pattern_list();
                 }
             }
+            Some(TokenKind::LeftBrace) => self.parse_structural_pattern(),
             Some(TokenKind::LeftParen) => self.parse_pattern_list(),
             Some(_) | None => self.error_at_current("expected pattern"),
+        }
+        self.finish_node();
+    }
+
+    fn parse_structural_pattern(&mut self) {
+        self.start_node(SyntaxKind::StructuralPattern);
+        self.expect(TokenKind::LeftBrace, "expected `{`");
+        self.skip_trivia();
+
+        while !self.at(TokenKind::Eof) && !self.at(TokenKind::RightBrace) {
+            self.parse_structural_requirement();
+            self.skip_trivia();
+            if self.at(TokenKind::Comma) || self.at(TokenKind::Semicolon) {
+                self.bump();
+                self.skip_trivia();
+            } else if !self.at(TokenKind::RightBrace) {
+                self.error_at_current("expected `,` between structural requirements");
+                break;
+            }
+        }
+
+        self.expect(TokenKind::RightBrace, "expected `}`");
+        self.finish_node();
+    }
+
+    fn parse_structural_requirement(&mut self) {
+        self.start_node(SyntaxKind::StructuralRequirement);
+        self.expect(TokenKind::Ident, "expected structural requirement name");
+        self.skip_whitespace();
+
+        if self.at(TokenKind::LeftParen) {
+            self.bump();
+            self.skip_whitespace();
+            if !self.at(TokenKind::RightParen) {
+                self.parse_shape_list(TokenKind::RightParen);
+            }
+            self.expect(TokenKind::RightParen, "expected `)`");
+            self.skip_whitespace();
+        }
+
+        if self.at(TokenKind::Colon) {
+            self.bump();
+            self.skip_whitespace();
+            self.parse_shape();
         }
         self.finish_node();
     }

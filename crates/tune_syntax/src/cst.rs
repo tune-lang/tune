@@ -60,6 +60,8 @@ pub enum SyntaxKind {
     BreakExpr,
     ContinueExpr,
     Pattern,
+    StructuralPattern,
+    StructuralRequirement,
     PatternList,
     Error,
 }

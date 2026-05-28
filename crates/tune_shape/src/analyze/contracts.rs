@@ -1,13 +1,14 @@
 use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::expr::Expr;
 use tune_hir::item::{Item, ItemKind, StructMember};
-use tune_hir::pattern::{Pattern, PatternKind};
+use tune_hir::pattern::{Pattern, PatternKind, StructuralRequirementKind};
 use tune_hir::{ExprId, MemberId};
 use tune_resolve::{LocalId, NameTarget};
 
 use super::{Analyzer, ExprShape, MaterializerCheck};
 use crate::{BindingKey, BindingState, LiteralFact, Shape, expr_shape_fact};
 mod effects;
+mod structural;
 
 use effects::{expr_assigns_binding, expr_has_materializer_effect};
 
@@ -155,10 +156,35 @@ impl Analyzer<'_> {
                     self.bind_pattern(arg, Shape::Hole);
                 }
             }
-            PatternKind::Hole
-            | PatternKind::Unit
-            | PatternKind::StructuralShape
-            | PatternKind::Else => {}
+            PatternKind::StructuralShape(requirements) => {
+                for requirement in requirements {
+                    let (name, shape) = match &requirement.kind {
+                        StructuralRequirementKind::Field { name, shape } => (
+                            name,
+                            shape
+                                .as_ref()
+                                .map(|shape| self.lower_structural_shape(shape))
+                                .unwrap_or(Shape::Hole),
+                        ),
+                        StructuralRequirementKind::Callable { name, params, ret } => (
+                            name,
+                            Shape::Callable {
+                                params: params
+                                    .iter()
+                                    .map(|shape| self.lower_structural_shape(shape))
+                                    .collect(),
+                                ret: Box::new(
+                                    ret.as_ref()
+                                        .map(|shape| self.lower_structural_shape(shape))
+                                        .unwrap_or(Shape::Hole),
+                                ),
+                            },
+                        ),
+                    };
+                    self.bind_named_pattern_id(name, requirement.id, requirement.span, shape);
+                }
+            }
+            PatternKind::Hole | PatternKind::Unit | PatternKind::Else => {}
         }
     }
 
@@ -233,18 +259,28 @@ impl Analyzer<'_> {
     }
 
     fn bind_named_pattern(&mut self, name: &str, pattern: &Pattern, shape: Shape) {
+        self.bind_named_pattern_id(name, pattern.id, pattern.span, shape);
+    }
+
+    fn bind_named_pattern_id(
+        &mut self,
+        name: &str,
+        expr: ExprId,
+        span: Option<Span>,
+        shape: Shape,
+    ) {
         if let Some(local) = self
             .resolved
             .locals
             .iter()
-            .find(|local| local.name == name && local.span == pattern.span)
+            .find(|local| local.name == name && local.expr == Some(expr) && local.span == span)
         {
             self.frame.define(BindingState::new(
                 BindingKey::Local(local.id),
                 Some(name.to_owned()),
                 shape.clone(),
                 shape,
-                pattern.span,
+                span,
             ));
         }
     }

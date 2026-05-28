@@ -1,15 +1,15 @@
 use tune_ast::AstNode;
 use tune_ast::nodes::{CallableParam, Expr as AstExpr, LiteralExpr, ParamList, Shape as AstShape};
-use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
+use tune_syntax::{CstElement, CstNode, TokenKind};
 
 use crate::ExprId;
 mod flow;
+mod patterns;
 mod structs;
 
-use crate::expr::{BinaryOp, Expr, ExprKind, ExprParam, LiteralKind, UnaryOp};
-use crate::pattern::{Pattern, PatternKind};
-
 use super::shapes::lower_shape;
+use crate::expr::{BinaryOp, Expr, ExprKind, ExprParam, LiteralKind, UnaryOp};
+use patterns::lower_pattern;
 
 #[derive(Default)]
 pub(super) struct ExprLowerer {
@@ -317,84 +317,4 @@ fn binary_op(node: &CstNode) -> Option<BinaryOp> {
     } else {
         simple_op
     }
-}
-
-fn lower_pattern(source: &str, node: &CstNode, lowerer: &mut ExprLowerer) -> Pattern {
-    let Some(pattern) = node.children.iter().find_map(|child| match child {
-        CstElement::Node(node) if node.kind == SyntaxKind::Pattern => Some(node),
-        CstElement::Node(_) | CstElement::Token(_) => None,
-    }) else {
-        return Pattern {
-            id: lowerer.alloc_id(),
-            span: node.span,
-            kind: PatternKind::Hole,
-        };
-    };
-
-    lower_pattern_node(source, pattern, lowerer)
-}
-
-fn lower_pattern_node(source: &str, pattern: &CstNode, lowerer: &mut ExprLowerer) -> Pattern {
-    let name = pattern_name(source, pattern);
-    let args = pattern_list(source, pattern, lowerer);
-
-    let kind = match (name, args) {
-        (Some("else"), None) => PatternKind::Else,
-        (Some("_"), None) => PatternKind::Hole,
-        (Some(name), Some(args)) => PatternKind::Variant {
-            name: name.to_owned(),
-            args,
-        },
-        (Some(name), None) => PatternKind::Binding(name.to_owned()),
-        (None, Some(args)) if args.is_empty() => PatternKind::Unit,
-        (None, Some(args)) => PatternKind::Tuple(args),
-        (None, None) => PatternKind::Hole,
-    };
-
-    Pattern {
-        id: lowerer.alloc_id(),
-        span: pattern.span,
-        kind,
-    }
-}
-
-fn pattern_name<'src>(source: &'src str, pattern: &CstNode) -> Option<&'src str> {
-    pattern.children.iter().find_map(|child| match child {
-        CstElement::Token(token)
-            if matches!(
-                token.kind,
-                TokenKind::Ident
-                    | TokenKind::KeywordSelf
-                    | TokenKind::KeywordOk
-                    | TokenKind::KeywordError
-                    | TokenKind::KeywordElse
-            ) =>
-        {
-            let start = token.span.start.get() as usize;
-            let end = token.span.end.get() as usize;
-            source.get(start..end)
-        }
-        CstElement::Node(_) | CstElement::Token(_) => None,
-    })
-}
-
-fn pattern_list(
-    source: &str,
-    pattern: &CstNode,
-    lowerer: &mut ExprLowerer,
-) -> Option<Vec<Pattern>> {
-    pattern.children.iter().find_map(|child| match child {
-        CstElement::Node(node) if node.kind == SyntaxKind::PatternList => Some(
-            node.children
-                .iter()
-                .filter_map(|child| match child {
-                    CstElement::Node(node) if node.kind == SyntaxKind::Pattern => {
-                        Some(lower_pattern_node(source, node, lowerer))
-                    }
-                    CstElement::Node(_) | CstElement::Token(_) => None,
-                })
-                .collect(),
-        ),
-        CstElement::Node(_) | CstElement::Token(_) => None,
-    })
 }

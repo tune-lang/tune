@@ -20,5 +20,5 @@ pub use hir::{
 };
 pub use literal::LiteralFact;
 pub use materialize::{Commitment, MaterializationPlan, can_materialize};
-pub use shape::{Shape, ShapeFact, ShapeId, ShapeOrigin, ShapeStore};
+pub use shape::{MemberRequirement, Shape, ShapeFact, ShapeId, ShapeOrigin, ShapeStore};
 pub use state::{BindingKey, BindingState, StateFrame, StateJoinError};

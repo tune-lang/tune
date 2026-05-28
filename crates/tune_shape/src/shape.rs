@@ -133,6 +133,7 @@ impl Shape {
                 .iter()
                 .zip(actual_args)
                 .all(|(expected, actual)| expected.accepts(actual)),
+            (Self::Structural(requirements), actual) => actual.satisfies_requirements(requirements),
             (expected, Self::Literal(literal)) => crate::can_materialize(literal, expected),
             _ => false,
         }
@@ -177,6 +178,16 @@ impl Shape {
             _ => Self::Union(unique),
         }
     }
+
+    fn satisfies_requirements(&self, requirements: &[MemberRequirement]) -> bool {
+        let Self::Structural(actual) = self else {
+            return matches!(self, Self::Hole);
+        };
+
+        requirements
+            .iter()
+            .all(|requirement| requirement_satisfied(requirement, actual))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -190,4 +201,44 @@ pub enum MemberRequirement {
         params: Vec<Shape>,
         ret: Option<Shape>,
     },
+}
+
+fn requirement_satisfied(expected: &MemberRequirement, actual: &[MemberRequirement]) -> bool {
+    actual
+        .iter()
+        .any(|actual| member_requirement_accepts(expected, actual))
+}
+
+fn member_requirement_accepts(expected: &MemberRequirement, actual: &MemberRequirement) -> bool {
+    match (expected, actual) {
+        (
+            MemberRequirement::Field { name, shape },
+            MemberRequirement::Field {
+                name: actual_name,
+                shape: actual_shape,
+            },
+        ) if name == actual_name => optional_shape_accepts(shape.as_ref(), actual_shape.as_ref()),
+        (
+            MemberRequirement::Callable { name, params, ret },
+            MemberRequirement::Callable {
+                name: actual_name,
+                params: actual_params,
+                ret: actual_ret,
+            },
+        ) if name == actual_name && params.len() == actual_params.len() => {
+            params
+                .iter()
+                .zip(actual_params)
+                .all(|(expected, actual)| expected.accepts(actual))
+                && optional_shape_accepts(ret.as_ref(), actual_ret.as_ref())
+        }
+        _ => false,
+    }
+}
+
+fn optional_shape_accepts(expected: Option<&Shape>, actual: Option<&Shape>) -> bool {
+    match (expected, actual) {
+        (None, _) | (_, None) => true,
+        (Some(expected), Some(actual)) => expected.accepts(actual),
+    }
 }
