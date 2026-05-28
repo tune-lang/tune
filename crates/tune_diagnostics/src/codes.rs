@@ -37,6 +37,7 @@ pub const ITERATION_SOURCE_MUTATED: DiagnosticCode = DiagnosticCode::new("T0705"
 pub const MATCH_NOT_EXHAUSTIVE: DiagnosticCode = DiagnosticCode::new("T0803");
 pub const MATCH_HOLE_FALLBACK: DiagnosticCode = DiagnosticCode::new("T0804");
 pub const RESULT_PROPAGATION_ERROR: DiagnosticCode = DiagnosticCode::new("T0901");
+pub const RUNTIME_ERROR: DiagnosticCode = DiagnosticCode::new("T0903");
 pub const SPAWN_TASK_ERROR: DiagnosticCode = DiagnosticCode::new("T1001");
 pub const PUBLIC_API_INFERENCE: DiagnosticCode = DiagnosticCode::new("T1101");
 pub const COMPILER_RESERVED_NAME: DiagnosticCode = DiagnosticCode::new("T1201");

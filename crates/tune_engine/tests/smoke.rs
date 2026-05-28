@@ -95,3 +95,32 @@ fn registers_host_modules_and_project_manifests() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+#[test]
+fn vm_faults_convert_to_structured_diagnostics() {
+    let span = tune_diagnostics::Span::new(
+        tune_diagnostics::FileId(3),
+        tune_diagnostics::ByteOffset::new(8),
+        tune_diagnostics::ByteOffset::new(13),
+    );
+    let fault = tune_vm::VmFault::new(
+        tune_vm::VmError::UnsupportedOpcode(tune_bytecode::Opcode::AddInt),
+        Some(tune_vm::VmLocation {
+            function: 2,
+            instruction: Some(5),
+            span: Some(span),
+        }),
+    );
+
+    let diagnostic = tune_engine::diagnostic_from_vm_fault(&fault);
+
+    assert_eq!(diagnostic.code, tune_diagnostics::codes::RUNTIME_ERROR);
+    assert_eq!(diagnostic.primary.span, span);
+    assert!(
+        diagnostic
+            .facts
+            .iter()
+            .flat_map(|fact| &fact.entries)
+            .any(|entry| entry.message == "bytecode instruction: 5")
+    );
+}

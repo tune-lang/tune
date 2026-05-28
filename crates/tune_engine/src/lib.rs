@@ -1,5 +1,5 @@
 use tune_db::{FileId, ModuleAnalysis, TuneDb};
-use tune_diagnostics::Diagnostic;
+use tune_diagnostics::{Diagnostic, FactEntry, Span};
 use tune_host::module::HostModule;
 use tune_runtime::value::Value;
 
@@ -50,7 +50,6 @@ pub enum EngineError {
     Diagnostics(Vec<Diagnostic>),
     IrLower(String),
     BytecodeLower(String),
-    Vm(String),
     MissingEntry,
     NotImplemented(&'static str),
 }
@@ -114,7 +113,7 @@ impl Tune {
         let executable = self.executable_entry(entry)?;
         let mut vm = tune_vm::Vm::new(executable.bytecode);
         vm.run_entry()
-            .map_err(|error| EngineError::Vm(format!("{error:?}")))
+            .map_err(|fault| EngineError::Diagnostics(vec![diagnostic_from_vm_fault(&fault)]))
     }
 
     pub fn executable_file(&self, file: FileId) -> Result<ExecutableReport, EngineError> {
@@ -186,6 +185,41 @@ impl Tune {
     pub const fn db_mut(&mut self) -> &mut TuneDb {
         &mut self.db
     }
+}
+
+#[must_use]
+pub fn diagnostic_from_vm_fault(fault: &tune_vm::VmFault) -> Diagnostic {
+    let span = fault
+        .location
+        .and_then(|location| location.span)
+        .unwrap_or_else(Span::synthetic);
+    let mut facts = vec![FactEntry::new(format!("VM error: {:?}", fault.error))];
+    if let Some(location) = fault.location {
+        facts.push(FactEntry::new(format!(
+            "bytecode function: {}",
+            location.function
+        )));
+        if let Some(instruction) = location.instruction {
+            facts.push(FactEntry::new(format!(
+                "bytecode instruction: {instruction}"
+            )));
+        }
+        if let Some(span) = location.span {
+            facts.push(FactEntry::spanned(
+                span,
+                "source location from bytecode provenance",
+            ));
+        }
+    }
+    Diagnostic::error(
+        tune_diagnostics::codes::RUNTIME_ERROR,
+        "runtime execution failed",
+        span,
+        "execution failed here",
+    )
+    .with_fact_entries("runtime provenance", facts)
+    .with_note("this diagnostic was produced from a VM fault")
+    .build()
 }
 
 fn report_from_analysis(file: FileId, analysis: ModuleAnalysis) -> CheckReport {
