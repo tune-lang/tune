@@ -7,7 +7,7 @@ pub use lower::{
     lower_resolved_module_to_plan, lower_to_plan,
 };
 pub use plan::{
-    FiniteForContract, PlanFunction, PlanIfBranch, PlanMatchArm, PlanModule, PlanOp,
-    PlanPatternBinding, StructEscapeReason, StructOwnershipPlan, StructStateDecision,
+    FiniteForContract, FiniteForContractKind, PlanFunction, PlanIfBranch, PlanMatchArm, PlanModule,
+    PlanOp, PlanPatternBinding, StructEscapeReason, StructOwnershipPlan, StructStateDecision,
     StructStatePlan, StructStateRepr,
 };

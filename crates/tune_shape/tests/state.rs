@@ -202,15 +202,15 @@ let broken(value: Int) = for item in value { item }
     );
 
     let each = tune_shape::analyze_item(&module, &resolved, &module.items[4]);
-    assert!(
-        each.finite_for
-            .iter()
-            .any(|finite| finite.len_member.is_some() && finite.index_member.is_some())
-    );
+    assert!(each.finite_for.iter().any(|finite| finite.contract
+        == tune_shape::FiniteForContractKind::MemberAccess
+        && finite.len_member.is_some()
+        && finite.index_member.is_some()));
 
     let ranged = tune_shape::analyze_item(&module, &resolved, &module.items[5]);
     assert!(ranged.finite_for.iter().any(|finite| {
-        finite.len_member.is_none()
+        finite.contract == tune_shape::FiniteForContractKind::Range
+            && finite.len_member.is_none()
             && finite.index_member.is_none()
             && finite.iterable.0 != u64::MAX
     }));

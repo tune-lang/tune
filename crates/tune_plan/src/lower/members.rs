@@ -5,7 +5,7 @@ use tune_hir::pattern::{Pattern, PatternKind, StructuralRequirement, StructuralR
 use tune_resolve::NameTarget;
 use tune_shape::{Shape, lower_resolved_hir_shape};
 
-use super::{LowerContext, StructuralWitness, StructuralWitnessKind};
+use super::{FiniteForContractKind, LowerContext, StructuralWitness, StructuralWitnessKind};
 
 impl LowerContext<'_> {
     pub(super) fn struct_item_id(&self, name: &str) -> Option<tune_hir::HirId> {
@@ -81,6 +81,18 @@ impl LowerContext<'_> {
                 StructMember::IndexAccess(member) => Some(member.id),
                 _ => None,
             })
+    }
+
+    pub(super) fn finite_for_contract_kind(&self, base: &Expr) -> FiniteForContractKind {
+        match self.expr_shape(base) {
+            Some(Shape::Range(_)) => FiniteForContractKind::Range,
+            Some(Shape::Sequence(_))
+            | Some(Shape::Literal(tune_shape::LiteralFact::Sequence { .. })) => {
+                FiniteForContractKind::Sequence
+            }
+            Some(Shape::Struct(_) | Shape::Apply { .. }) => FiniteForContractKind::MemberAccess,
+            _ => FiniteForContractKind::Unknown,
+        }
     }
 
     pub(super) fn callable_member(&self, base: &Expr, member_name: &str) -> Option<MemberId> {

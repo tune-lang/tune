@@ -35,9 +35,11 @@ impl Analyzer<'_> {
         body: &Expr,
     ) -> Shape {
         let iterable_shape = self.analyze_expr(iterable);
-        let (len_member, index_member) = self.iteration_contract(&iterable_shape, expr.span);
+        let (contract, len_member, index_member) =
+            self.iteration_contract(&iterable_shape, expr.span);
         self.finite_for.push(FiniteForCheck {
             iterable: iterable.id,
+            contract,
             len_member,
             index_member,
             span: expr.span,

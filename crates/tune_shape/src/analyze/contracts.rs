@@ -5,7 +5,7 @@ use tune_hir::pattern::{Pattern, PatternKind, StructuralRequirementKind};
 use tune_hir::{ExprId, MemberId};
 use tune_resolve::{LocalId, NameTarget};
 
-use super::{Analyzer, ExprShape, MaterializerCheck};
+use super::{Analyzer, ExprShape, FiniteForContractKind, MaterializerCheck};
 use crate::{BindingKey, BindingState, LiteralFact, Shape, expr_shape_fact};
 mod effects;
 mod structural;
@@ -93,12 +93,13 @@ impl Analyzer<'_> {
         &mut self,
         shape: &Shape,
         span: Option<Span>,
-    ) -> (Option<MemberId>, Option<MemberId>) {
+    ) -> (FiniteForContractKind, Option<MemberId>, Option<MemberId>) {
         match shape {
-            Shape::Hole => (None, None),
-            Shape::Sequence(_) => (None, None),
-            Shape::Range(_) => (None, None),
-            Shape::Literal(LiteralFact::Sequence { .. }) => (None, None),
+            Shape::Hole => (FiniteForContractKind::Unknown, None, None),
+            Shape::Sequence(_) | Shape::Literal(LiteralFact::Sequence { .. }) => {
+                (FiniteForContractKind::Sequence, None, None)
+            }
+            Shape::Range(_) => (FiniteForContractKind::Range, None, None),
             Shape::Struct(name) | Shape::Apply { name, .. } => {
                 let len = self.callable_member(name, "len");
                 let index = self.index_member(name);
@@ -116,7 +117,7 @@ impl Analyzer<'_> {
                         span,
                     ));
                 }
-                (len, index)
+                (FiniteForContractKind::MemberAccess, len, index)
             }
             _ => {
                 self.diagnostics.push(iter_diag(
@@ -129,7 +130,7 @@ impl Analyzer<'_> {
                     "finite `for` source has no indexed access contract",
                     span,
                 ));
-                (None, None)
+                (FiniteForContractKind::Unknown, None, None)
             }
         }
     }

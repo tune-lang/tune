@@ -19,7 +19,8 @@ use tune_shape::MaterializationPlan;
 pub use module::lower_resolved_module_to_plan;
 
 use crate::plan::{
-    FiniteForContract, PlanFunction, PlanIfBranch, PlanMatchArm, PlanOp, StructEscapeReason,
+    FiniteForContract, FiniteForContractKind, PlanFunction, PlanIfBranch, PlanMatchArm, PlanOp,
+    StructEscapeReason,
 };
 
 use self::values::{expr_produces_value, falls_through, if_produces_value};
@@ -382,6 +383,7 @@ impl LowerContext<'_> {
                     body_ops: self.lower_expr_to_ops(body),
                     contract: FiniteForContract {
                         source: iterable.id,
+                        kind: self.finite_for_contract_kind(iterable),
                         len_member: self.len_member(iterable),
                         index_member: self.index_member(iterable),
                         source_evaluated_once: true,

@@ -52,10 +52,19 @@ pub struct PlanPatternBinding {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FiniteForContract {
     pub source: ExprId,
+    pub kind: FiniteForContractKind,
     pub len_member: Option<MemberId>,
     pub index_member: Option<MemberId>,
     pub source_evaluated_once: bool,
     pub length_evaluated_once: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FiniteForContractKind {
+    Sequence,
+    Range,
+    MemberAccess,
+    Unknown,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

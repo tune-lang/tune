@@ -34,9 +34,18 @@ pub struct AssignmentCheck {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FiniteForCheck {
     pub iterable: ExprId,
+    pub contract: FiniteForContractKind,
     pub len_member: Option<MemberId>,
     pub index_member: Option<MemberId>,
     pub span: Option<Span>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FiniteForContractKind {
+    Sequence,
+    Range,
+    MemberAccess,
+    Unknown,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

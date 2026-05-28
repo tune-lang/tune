@@ -99,3 +99,37 @@ let make(seed: Int) = {
 
     Ok(())
 }
+
+#[test]
+fn range_for_records_range_contract_kind() -> Result<(), &'static str> {
+    let source = r#"
+let sum(): Int = {
+  let total: Int = 0
+  for item in 0..=3 {
+    total = total + item
+  }
+  total
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    let plan = tune_plan::lower_resolved_module_item_to_plan(&module, &module.items[0], &resolved)
+        .ok_or("callable should lower")?;
+
+    assert!(plan.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::FiniteFor {
+            contract: tune_plan::FiniteForContract {
+                kind: tune_plan::FiniteForContractKind::Range,
+                len_member: None,
+                index_member: None,
+                ..
+            },
+            ..
+        }
+    )));
+
+    Ok(())
+}
