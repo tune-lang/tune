@@ -84,6 +84,17 @@ impl Lowerer {
                 self.stack.push(dst);
                 Ok(())
             }
+            PlanOp::ConstString { value } => {
+                let dst = self.alloc_reg()?;
+                let constant = self.push_const(IrConst::String(value.clone()))?;
+                self.push_op(IrOp::LoadConst {
+                    dst,
+                    constant,
+                    shape: Shape::String,
+                });
+                self.stack.push(dst);
+                Ok(())
+            }
             PlanOp::BinaryOp { op, span } => self.lower_binary(*op, *span),
             PlanOp::UnaryOp { op } => self.lower_unary(*op),
             PlanOp::SequenceBuild { element_count } => self.lower_sequence_build(*element_count),
@@ -190,6 +201,7 @@ impl Lowerer {
                 span,
                 ..
             } => self.lower_finite_for(*binding, iterable_ops, body_ops, *span),
+            PlanOp::Panic { arg_count } => self.lower_panic(*arg_count),
             PlanOp::BindingGet { .. }
             | PlanOp::BoundCall
             | PlanOp::CallableValue
@@ -198,7 +210,6 @@ impl Lowerer {
             | PlanOp::Assign
             | PlanOp::Materialize { .. }
             | PlanOp::StringBuild
-            | PlanOp::Panic
             | PlanOp::Meta { .. } => Err(IrLowerError::UnsupportedOp("plan op")),
         }
     }
@@ -229,5 +240,17 @@ impl Lowerer {
         self.stack
             .pop()
             .ok_or(IrLowerError::StackUnderflow(context))
+    }
+
+    fn lower_panic(&mut self, arg_count: usize) -> Result<(), IrLowerError> {
+        let mut args = Vec::with_capacity(arg_count);
+        for _ in 0..arg_count {
+            args.push(self.pop("panic argument")?);
+        }
+        args.reverse();
+        self.push_op(IrOp::Panic { args, span: None });
+        let never = self.alloc_reg()?;
+        self.stack.push(never);
+        Ok(())
     }
 }

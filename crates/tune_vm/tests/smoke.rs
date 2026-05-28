@@ -24,6 +24,7 @@ fn vm_executes_integer_add_bytecode_entry() -> Result<(), &'static str> {
                 variant_sites: Vec::new(),
                 match_sites: Vec::new(),
                 for_sites: Vec::new(),
+                panic_sites: Vec::new(),
                 instructions: Vec::new(),
             },
             tune_bytecode::function::BytecodeFunction {
@@ -37,6 +38,7 @@ fn vm_executes_integer_add_bytecode_entry() -> Result<(), &'static str> {
                 variant_sites: Vec::new(),
                 match_sites: Vec::new(),
                 for_sites: Vec::new(),
+                panic_sites: Vec::new(),
                 instructions: vec![
                     tune_bytecode::function::Instruction {
                         opcode: tune_bytecode::Opcode::LoadConst,
@@ -99,6 +101,7 @@ fn vm_executes_direct_call_with_arguments() -> Result<(), &'static str> {
                 variant_sites: Vec::new(),
                 match_sites: Vec::new(),
                 for_sites: Vec::new(),
+                panic_sites: Vec::new(),
                 instructions: vec![
                     tune_bytecode::function::Instruction {
                         opcode: tune_bytecode::Opcode::LoadConst,
@@ -137,6 +140,7 @@ fn vm_executes_direct_call_with_arguments() -> Result<(), &'static str> {
                 variant_sites: Vec::new(),
                 match_sites: Vec::new(),
                 for_sites: Vec::new(),
+                panic_sites: Vec::new(),
                 instructions: vec![
                     tune_bytecode::function::Instruction {
                         opcode: tune_bytecode::Opcode::LoadLocal,
@@ -196,6 +200,7 @@ fn vm_rejects_too_few_call_arguments() {
                 variant_sites: Vec::new(),
                 match_sites: Vec::new(),
                 for_sites: Vec::new(),
+                panic_sites: Vec::new(),
                 instructions: vec![tune_bytecode::function::Instruction {
                     opcode: tune_bytecode::Opcode::CallDirect,
                     a: 0,
@@ -214,6 +219,7 @@ fn vm_rejects_too_few_call_arguments() {
                 variant_sites: Vec::new(),
                 match_sites: Vec::new(),
                 for_sites: Vec::new(),
+                panic_sites: Vec::new(),
                 instructions: vec![tune_bytecode::function::Instruction {
                     opcode: tune_bytecode::Opcode::Return,
                     a: 0,
@@ -264,6 +270,7 @@ fn vm_rejects_unsupported_struct_state_plan() {
             variant_sites: Vec::new(),
             match_sites: Vec::new(),
             for_sites: Vec::new(),
+            panic_sites: Vec::new(),
             instructions: vec![tune_bytecode::function::Instruction {
                 opcode: tune_bytecode::Opcode::StructConstruct,
                 a: 0,
@@ -315,6 +322,7 @@ fn vm_faults_carry_instruction_span_when_available() {
             variant_sites: Vec::new(),
             match_sites: Vec::new(),
             for_sites: Vec::new(),
+            panic_sites: Vec::new(),
             instructions: vec![
                 tune_bytecode::function::Instruction {
                     opcode: tune_bytecode::Opcode::LoadConst,

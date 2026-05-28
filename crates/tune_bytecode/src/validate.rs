@@ -43,6 +43,10 @@ pub enum BytecodeValidationError {
         function: u32,
         site: u32,
     },
+    PanicSiteOutOfBounds {
+        function: u32,
+        site: u32,
+    },
     JumpOutOfBounds {
         function: u32,
         target: u32,
@@ -183,6 +187,7 @@ fn validate_instruction(
             register(function_id, function, instruction.c)?;
         }
         Opcode::FiniteForNext => validate_finite_for(function_id, function, instruction)?,
+        Opcode::Panic => validate_panic(function_id, function, instruction)?,
         Opcode::Return if instruction.b != 0 => {
             register(function_id, function, instruction.a)?;
         }
@@ -285,6 +290,23 @@ fn validate_match(
     }
     if instruction.c != u32::MAX {
         jump(function_id, function, instruction.c)?;
+    }
+    Ok(())
+}
+
+fn validate_panic(
+    function_id: u32,
+    function: &BytecodeFunction,
+    instruction: &Instruction,
+) -> Result<(), BytecodeValidationError> {
+    let site = function.panic_sites.get(instruction.a as usize).ok_or(
+        BytecodeValidationError::PanicSiteOutOfBounds {
+            function: function_id,
+            site: instruction.a,
+        },
+    )?;
+    for arg in &site.args {
+        register(function_id, function, *arg)?;
     }
     Ok(())
 }

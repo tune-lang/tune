@@ -28,4 +28,5 @@ impl BytecodeArtifact {
 pub enum BytecodeConst {
     Int(i64),
     Bool(bool),
+    String(String),
 }

@@ -143,6 +143,29 @@ let result: Int = {
     Ok(())
 }
 
+#[test]
+fn run_file_reports_panic_with_message() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file("app.tn", r#"let result: Int = panic("bad")"#)
+        .ok_or("file should allocate")?;
+
+    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_file(file) else {
+        return Err("panic should report a runtime diagnostic");
+    };
+
+    assert_eq!(diagnostics.len(), 1);
+    assert!(
+        diagnostics[0]
+            .facts
+            .iter()
+            .flat_map(|fact| &fact.entries)
+            .any(|entry| entry.message.contains("bad"))
+    );
+
+    Ok(())
+}
+
 fn run_file(
     tune: &tune_engine::Tune,
     file: tune_db::FileId,

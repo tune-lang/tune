@@ -102,6 +102,9 @@ pub enum PlanOp {
     ConstBool {
         value: bool,
     },
+    ConstString {
+        value: String,
+    },
     DirectCall {
         target: HirId,
         arg_count: usize,
@@ -230,7 +233,9 @@ pub enum PlanOp {
     TaskJoin {
         span: Option<Span>,
     },
-    Panic,
+    Panic {
+        arg_count: usize,
+    },
     Meta {
         plan: MetaPlan,
     },

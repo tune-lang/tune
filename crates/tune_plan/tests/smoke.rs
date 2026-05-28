@@ -143,7 +143,10 @@ let ok(value) = Ok(value)
         tune_plan::PlanOp::If { branches, .. }
             if branches
                 .iter()
-                .any(|branch| branch.body_ops.contains(&tune_plan::PlanOp::Panic))
+                .any(|branch| branch.body_ops.iter().any(|op| matches!(
+                    op,
+                    tune_plan::PlanOp::Panic { .. }
+                )))
     )));
 
     let select = tune_plan::lower_resolved_item_to_plan(&module.items[8], &resolved)

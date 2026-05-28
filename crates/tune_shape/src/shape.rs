@@ -87,6 +87,7 @@ impl Shape {
     pub fn accepts(&self, value: &Self) -> bool {
         match (self, value) {
             (Self::Hole, _) | (_, Self::Hole) => true,
+            (_, Self::Never) => true,
             (expected, actual) if expected == actual => true,
             (Self::Union(items), actual) => items.iter().any(|item| item.accepts(actual)),
             (expected, Self::Union(items)) => items.iter().all(|item| expected.accepts(item)),

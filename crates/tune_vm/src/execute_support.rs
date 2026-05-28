@@ -3,6 +3,7 @@ use tune_bytecode::function::{
     BytecodeOwnershipPlan, BytecodeStateRepr, BytecodeStructState, BytecodeVariant, Instruction,
 };
 use tune_runtime::{
+    TunePanic,
     state::{StateHandle, StateId},
     task::{Task, TaskJoinOutcome},
     value::{PropagationFrame, RuntimeVariant, Value},
@@ -310,6 +311,49 @@ impl Vm {
             write_reg(registers, op.a, Value::Int(iterator + 1)),
         )?;
         Ok(site.body as usize)
+    }
+
+    pub(crate) fn execute_panic(
+        &self,
+        function_index: usize,
+        instruction_index: usize,
+        function: &tune_bytecode::function::BytecodeFunction,
+        registers: &[Value],
+        op: &Instruction,
+    ) -> VmFault {
+        let Some(site) = function.panic_sites.get(op.a as usize) else {
+            return self.fault_at(
+                function_index,
+                instruction_index,
+                VmError::PanicSiteOutOfBounds,
+            );
+        };
+        let message = if let Some(arg) = site.args.first() {
+            read_reg(registers, *arg).map_or_else(
+                |_| format!("panic({} arg(s))", site.args.len()),
+                panic_message,
+            )
+        } else {
+            "panic".to_owned()
+        };
+        self.fault_at(
+            function_index,
+            instruction_index,
+            VmError::Panic(TunePanic { message }),
+        )
+    }
+}
+
+fn panic_message(value: Value) -> String {
+    match value {
+        Value::String(message) => message,
+        Value::Int(value) => value.to_string(),
+        Value::Bool(value) => value.to_string(),
+        Value::Size(value) => value.to_string(),
+        Value::Byte(value) => value.to_string(),
+        Value::Float(value) => value.to_string(),
+        Value::Unit => "unit".to_owned(),
+        _ => format!("{value:?}"),
     }
 }
 

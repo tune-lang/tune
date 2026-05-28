@@ -119,6 +119,11 @@ impl LowerContext<'_> {
             ExprKind::Literal(LiteralKind::Bool(value)) => {
                 ops.push(PlanOp::ConstBool { value: *value });
             }
+            ExprKind::Literal(LiteralKind::String(value)) => {
+                ops.push(PlanOp::ConstString {
+                    value: value.clone(),
+                });
+            }
             ExprKind::Literal(_) => {}
             ExprKind::CallableValue { params: _, body } => {
                 self.lower_expr(body, ops);
@@ -285,7 +290,9 @@ impl LowerContext<'_> {
                 for arg in args {
                     self.lower_expr(arg, ops);
                 }
-                ops.push(PlanOp::Panic);
+                ops.push(PlanOp::Panic {
+                    arg_count: args.len(),
+                });
             }
             ExprKind::For {
                 pattern,

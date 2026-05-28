@@ -50,6 +50,7 @@ impl IrOp {
             | Self::MatchVariant { span, .. }
             | Self::ResultPropagate { span, .. } => *span,
             Self::Spawn { span, .. } | Self::TaskJoin { span, .. } => *span,
+            Self::Panic { span, .. } => *span,
             _ => None,
         }
     }
@@ -59,6 +60,7 @@ impl IrOp {
 pub enum IrConst {
     Int(i64),
     Bool(bool),
+    String(String),
 }
 
 #[derive(Debug, Clone)]
@@ -253,6 +255,7 @@ pub enum IrOp {
     },
     Panic {
         args: Vec<Reg>,
+        span: Option<Span>,
     },
     Return {
         value: Option<Reg>,

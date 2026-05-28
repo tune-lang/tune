@@ -1,5 +1,6 @@
 use tune_bytecode::{BytecodeValidationError, Opcode};
 use tune_diagnostics::Span;
+use tune_runtime::TunePanic;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VmLocation {
@@ -31,8 +32,10 @@ pub enum VmError {
     CallSiteOutOfBounds,
     StructSiteOutOfBounds,
     ForSiteOutOfBounds,
+    PanicSiteOutOfBounds,
     ArityMismatch,
     UnsupportedStructState,
+    Panic(TunePanic),
     InvalidBytecode(BytecodeValidationError),
     UnsupportedOpcode(Opcode),
 }

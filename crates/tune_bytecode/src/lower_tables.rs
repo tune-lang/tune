@@ -26,6 +26,7 @@ pub(super) fn push_artifact_const(
     match constant {
         IrConst::Int(value) => constants.push(BytecodeConst::Int(*value)),
         IrConst::Bool(value) => constants.push(BytecodeConst::Bool(*value)),
+        IrConst::String(value) => constants.push(BytecodeConst::String(value.clone())),
     }
     Ok(index)
 }

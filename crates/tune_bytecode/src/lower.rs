@@ -8,7 +8,7 @@ mod error;
 use crate::Opcode;
 use crate::artifact::{BytecodeArtifact, BytecodeConst};
 use crate::function::{
-    BytecodeCallSite, BytecodeFunction, BytecodeStructField, BytecodeStructSite,
+    BytecodeCallSite, BytecodeFunction, BytecodePanicSite, BytecodeStructField, BytecodeStructSite,
     BytecodeVariantSite, Instruction,
 };
 use crate::lower_tables::{
@@ -72,6 +72,7 @@ fn lower_ir_function_with_constants(
         variant_sites: Vec::new(),
         match_sites: Vec::new(),
         for_sites: Vec::new(),
+        panic_sites: Vec::new(),
         instructions: Vec::new(),
         instruction_spans: Vec::new(),
     };
@@ -97,6 +98,7 @@ fn lower_ir_function_with_constants(
         variant_sites: lowerer.variant_sites,
         match_sites: lowerer.match_sites,
         for_sites: lowerer.for_sites,
+        panic_sites: lowerer.panic_sites,
         instructions: lowerer.instructions,
     })
 }
@@ -338,6 +340,15 @@ impl FunctionLowerer<'_> {
             }
             IrOp::TaskJoin { dst, task, .. } => {
                 self.lower_task_join(*dst, *task);
+                Ok(())
+            }
+            IrOp::Panic { args, .. } => {
+                let site = u32::try_from(self.panic_sites.len())
+                    .map_err(|_| BytecodeLowerError::ConstantLimit)?;
+                self.panic_sites.push(BytecodePanicSite {
+                    args: args.iter().map(|arg| arg.0).collect(),
+                });
+                self.push_instruction(Opcode::Panic, site, 0, 0);
                 Ok(())
             }
             IrOp::Jump { target } => {

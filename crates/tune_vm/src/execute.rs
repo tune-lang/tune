@@ -41,6 +41,7 @@ impl Vm {
                         })? {
                         BytecodeConst::Int(value) => Value::Int(*value),
                         BytecodeConst::Bool(value) => Value::Bool(*value),
+                        BytecodeConst::String(value) => Value::String(value.clone()),
                     };
                     self.at(
                         function_index,
@@ -375,6 +376,15 @@ impl Vm {
                         instruction,
                     )?;
                     continue;
+                }
+                Opcode::Panic => {
+                    return Err(self.execute_panic(
+                        function_index,
+                        ip,
+                        function,
+                        &registers,
+                        instruction,
+                    ));
                 }
                 Opcode::Return => {
                     if instruction.b == 0 {
