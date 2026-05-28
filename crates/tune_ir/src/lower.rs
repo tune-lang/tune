@@ -28,6 +28,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
         current_block: BlockId(0),
         next_block: 1,
         stack: Vec::new(),
+        loop_targets: Vec::new(),
     };
 
     for op in &plan.ops {
@@ -57,6 +58,7 @@ pub(super) struct Lowerer {
     pub(super) current_block: BlockId,
     pub(super) next_block: u32,
     pub(super) stack: Vec<Reg>,
+    pub(super) loop_targets: Vec<(BlockId, BlockId)>,
 }
 
 impl Lowerer {
@@ -316,6 +318,9 @@ impl Lowerer {
                 span,
                 ..
             } => self.lower_while(condition_ops, body_ops, *span),
+            PlanOp::Loop { body_ops, .. } => self.lower_loop(body_ops),
+            PlanOp::Break => self.lower_break(),
+            PlanOp::Continue => self.lower_continue(),
             PlanOp::BindingGet { .. }
             | PlanOp::BoundCall
             | PlanOp::CallableValue
@@ -330,9 +335,6 @@ impl Lowerer {
             | PlanOp::BindingSet { .. }
             | PlanOp::FiniteFor { .. }
             | PlanOp::StringBuild
-            | PlanOp::Loop { .. }
-            | PlanOp::Break
-            | PlanOp::Continue
             | PlanOp::Panic
             | PlanOp::Meta { .. } => Err(IrLowerError::UnsupportedOp("plan op")),
         }

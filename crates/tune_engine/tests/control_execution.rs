@@ -42,6 +42,37 @@ let result: Int = eq + ne + le + ge
     Ok(())
 }
 
+#[test]
+fn run_file_executes_loop_break_and_continue() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let result: Int = {
+  let i: Int = 0
+  let total: Int = 0
+  loop {
+    i = i + 1
+    if i < 3 {
+      continue
+    }
+    total = total + i
+    if i >= 5 {
+      break
+    }
+  }
+  total
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, tune_runtime::value::Value::Int(12));
+
+    Ok(())
+}
+
 fn run_file(
     tune: &tune_engine::Tune,
     file: tune_db::FileId,

@@ -45,7 +45,7 @@ impl Lowerer {
             for op in &branch.body_ops {
                 self.lower_op(op)?;
             }
-            if !self.current_block_returns() {
+            if !self.current_block_terminates() {
                 if let Some(result) = result {
                     let value = self.pop("if branch value")?;
                     self.push_op(IrOp::Move {
@@ -62,7 +62,7 @@ impl Lowerer {
         for op in else_ops {
             self.lower_op(op)?;
         }
-        if !self.current_block_returns() {
+        if !self.current_block_terminates() {
             if let Some(result) = result {
                 let value = self.pop("if else value")?;
                 self.push_op(IrOp::Move {
@@ -136,7 +136,7 @@ impl Lowerer {
             for op in &arm.body_ops {
                 self.lower_op(op)?;
             }
-            if !self.current_block_returns() {
+            if !self.current_block_terminates() {
                 if let Some(result) = result {
                     let value = self.pop("match arm value")?;
                     self.push_op(IrOp::Move {
@@ -190,10 +190,12 @@ impl Lowerer {
         self.stack.truncate(base_stack_len);
 
         self.switch_to_block(body_block);
+        self.loop_targets.push((condition_block, done_block));
         for op in body_ops {
             self.lower_op(op)?;
         }
-        if !self.current_block_returns() {
+        self.loop_targets.pop();
+        if !self.current_block_terminates() {
             self.push_op(IrOp::Jump {
                 target: condition_block,
             });
@@ -201,6 +203,46 @@ impl Lowerer {
         self.stack.truncate(base_stack_len);
 
         self.switch_to_block(done_block);
+        Ok(())
+    }
+
+    pub(super) fn lower_loop(&mut self, body_ops: &[PlanOp]) -> Result<(), IrLowerError> {
+        let base_stack_len = self.stack.len();
+        let body_block = self.alloc_block();
+        let done_block = self.alloc_block();
+
+        self.push_op(IrOp::Jump { target: body_block });
+        self.switch_to_block(body_block);
+        self.loop_targets.push((body_block, done_block));
+        for op in body_ops {
+            self.lower_op(op)?;
+        }
+        self.loop_targets.pop();
+        if !self.current_block_terminates() {
+            self.push_op(IrOp::Jump { target: body_block });
+        }
+        self.stack.truncate(base_stack_len);
+        self.switch_to_block(done_block);
+        Ok(())
+    }
+
+    pub(super) fn lower_break(&mut self) -> Result<(), IrLowerError> {
+        let Some((_, break_block)) = self.loop_targets.last().copied() else {
+            return Err(IrLowerError::UnsupportedOp("break outside loop"));
+        };
+        self.push_op(IrOp::Jump {
+            target: break_block,
+        });
+        Ok(())
+    }
+
+    pub(super) fn lower_continue(&mut self) -> Result<(), IrLowerError> {
+        let Some((continue_block, _)) = self.loop_targets.last().copied() else {
+            return Err(IrLowerError::UnsupportedOp("continue outside loop"));
+        };
+        self.push_op(IrOp::Jump {
+            target: continue_block,
+        });
         Ok(())
     }
 
@@ -228,12 +270,20 @@ impl Lowerer {
         self.current_block = block;
     }
 
-    fn current_block_returns(&self) -> bool {
+    fn current_block_terminates(&self) -> bool {
         self.blocks
             .iter()
             .find(|block| block.id == self.current_block)
             .and_then(|block| block.ops.last())
-            .is_some_and(|op| matches!(op, IrOp::Return { .. }))
+            .is_some_and(|op| {
+                matches!(
+                    op,
+                    IrOp::Return { .. }
+                        | IrOp::Jump { .. }
+                        | IrOp::Branch { .. }
+                        | IrOp::MatchVariant { .. }
+                )
+            })
     }
 
     fn current_block_empty(&self) -> bool {
