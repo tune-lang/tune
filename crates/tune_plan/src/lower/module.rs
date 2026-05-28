@@ -127,7 +127,7 @@ fn lower_module_callable(
         structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
     };
-    context.lower_expr(body, &mut plan.ops);
+    context.lower_return_expr(body, &mut plan.ops);
     if super::falls_through(body) {
         plan.ops.push(PlanOp::Return);
     }
@@ -191,7 +191,7 @@ fn lower_callable_member(
         structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
     };
-    context.lower_expr(body, &mut plan.ops);
+    context.lower_return_expr(body, &mut plan.ops);
     if super::falls_through(body) {
         plan.ops.push(PlanOp::Return);
     }
@@ -225,7 +225,7 @@ fn lower_index_access_member(
         structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
     };
-    context.lower_expr(body, &mut plan.ops);
+    context.lower_return_expr(body, &mut plan.ops);
     if super::falls_through(body) {
         plan.ops.push(PlanOp::Return);
     }

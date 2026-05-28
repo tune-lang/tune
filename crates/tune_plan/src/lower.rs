@@ -4,6 +4,7 @@ mod calls;
 mod members;
 mod module;
 mod patterns;
+mod returns;
 mod specialize;
 mod structural;
 mod values;
@@ -84,7 +85,11 @@ fn lower_item_with_context(
         structural_witnesses: Vec::new(),
         param_shapes: Vec::new(),
     };
-    context.lower_expr(body, &mut plan.ops);
+    if item.kind == tune_hir::item::ItemKind::CallableDecl {
+        context.lower_return_expr(body, &mut plan.ops);
+    } else {
+        context.lower_expr(body, &mut plan.ops);
+    }
     if matches!(body.kind, ExprKind::Sequence(_))
         && let Some(target) = context.lower_shape(item.shape.as_ref())
     {
@@ -334,7 +339,8 @@ impl LowerContext<'_> {
             ExprKind::Continue => ops.push(PlanOp::Continue),
             ExprKind::Return(inner) => {
                 if let Some(inner) = inner {
-                    self.lower_expr(inner, ops);
+                    self.with_struct_escape(StructEscapeReason::Returned)
+                        .lower_expr(inner, ops);
                 }
                 ops.push(PlanOp::Return);
             }
@@ -376,7 +382,7 @@ impl LowerContext<'_> {
         }
     }
 
-    fn lower_expr_to_ops(&self, expr: &Expr) -> Vec<PlanOp> {
+    pub(super) fn lower_expr_to_ops(&self, expr: &Expr) -> Vec<PlanOp> {
         let mut ops = Vec::new();
         self.lower_expr(expr, &mut ops);
         ops

@@ -91,6 +91,51 @@ impl LowerContext<'_> {
         false
     }
 
+    pub(super) fn lower_structural_return_match(
+        &self,
+        scrutinee: &Expr,
+        arms: &[tune_hir::expr::MatchArm],
+        ops: &mut Vec<PlanOp>,
+    ) -> bool {
+        if !arms
+            .iter()
+            .any(|arm| matches!(arm.pattern.kind, PatternKind::StructuralShape(_)))
+        {
+            return false;
+        }
+        let Some(source) = self.scrutinee_source(scrutinee) else {
+            return false;
+        };
+        let Some(struct_name) = self
+            .expr_shape(scrutinee)
+            .and_then(|shape| self.struct_shape_name(&shape).map(str::to_owned))
+        else {
+            return false;
+        };
+
+        for arm in arms {
+            match &arm.pattern.kind {
+                PatternKind::StructuralShape(requirements)
+                    if self.struct_satisfies_requirements(&struct_name, requirements) =>
+                {
+                    let witnesses =
+                        self.structural_witnesses_for(source, &struct_name, &arm.pattern);
+                    let context = self.with_structural_witnesses(witnesses);
+                    context.lower_return_expr(&arm.body, ops);
+                    return true;
+                }
+                PatternKind::StructuralShape(_) => {}
+                PatternKind::Else => {
+                    self.lower_return_expr(&arm.body, ops);
+                    return true;
+                }
+                _ => return false,
+            }
+        }
+
+        false
+    }
+
     fn with_structural_witnesses(&self, structural_witnesses: Vec<StructuralWitness>) -> Self {
         let mut combined = self.structural_witnesses.clone();
         combined.extend(structural_witnesses);
