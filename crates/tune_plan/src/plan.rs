@@ -14,6 +14,7 @@ pub struct PlanFunction {
     pub owner: Option<HirId>,
     pub member: Option<MemberId>,
     pub name: String,
+    pub span: Option<Span>,
     pub params: Vec<MemberId>,
     pub module_bindings: Vec<HirId>,
     pub ops: Vec<PlanOp>,

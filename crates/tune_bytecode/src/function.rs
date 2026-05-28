@@ -1,4 +1,5 @@
 use crate::Opcode;
+use crate::provenance::BytecodeFunctionProvenance;
 
 #[derive(Debug, Clone)]
 pub struct Instruction {
@@ -85,6 +86,7 @@ pub enum BytecodeVariant {
 #[derive(Debug, Clone)]
 pub struct BytecodeFunction {
     pub name: String,
+    pub provenance: BytecodeFunctionProvenance,
     pub param_count: u32,
     pub register_count: u32,
     pub local_count: u32,

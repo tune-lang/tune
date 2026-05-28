@@ -43,6 +43,11 @@ pub enum BytecodeValidationError {
         function: u32,
         target: u32,
     },
+    ProvenanceLengthMismatch {
+        function: u32,
+        instructions: u32,
+        spans: u32,
+    },
     CallArityMismatch {
         function: u32,
         target: u32,
@@ -73,6 +78,15 @@ fn validate_function(
     if function.param_count > function.local_count {
         return Err(BytecodeValidationError::ParamCountExceedsLocals {
             function: function_id,
+        });
+    }
+    let spans = checked_index(function.provenance.instruction_spans.len())?;
+    let instructions = checked_index(function.instructions.len())?;
+    if spans != 0 && spans != instructions {
+        return Err(BytecodeValidationError::ProvenanceLengthMismatch {
+            function: function_id,
+            instructions,
+            spans,
         });
     }
     for instruction in &function.instructions {

@@ -25,6 +25,7 @@ pub fn lower_to_plan(name: &str) -> PlanFunction {
         owner: None,
         member: None,
         name: name.into(),
+        span: None,
         params: Vec::new(),
         module_bindings: Vec::new(),
         ops: Vec::new(),
@@ -63,6 +64,7 @@ fn lower_item_with_context(
             .name
             .clone()
             .unwrap_or_else(|| "<anonymous>".to_owned()),
+        span: item.span,
         params: item.params.iter().map(|param| param.id).collect(),
         module_bindings: Vec::new(),
         ops: Vec::new(),

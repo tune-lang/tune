@@ -11,6 +11,7 @@ fn optimizer_runs_ordered_semantic_passes_over_ir() {
         owner: None,
         member: None,
         name: "run".into(),
+        span: None,
         regs: 0,
         locals: 0,
         constants: Vec::new(),

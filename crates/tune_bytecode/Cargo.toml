@@ -10,6 +10,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+tune_diagnostics = { path = "../tune_diagnostics" }
 tune_hir = { path = "../tune_hir" }
 tune_ir = { path = "../tune_ir" }
 tune_resolve = { path = "../tune_resolve" }

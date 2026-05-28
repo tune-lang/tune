@@ -20,6 +20,7 @@ pub fn lower_resolved_module_to_plan(module: &Module, resolved: &ResolvedModule)
             owner: None,
             member: None,
             name: "<entry>".to_owned(),
+            span: module.items.first().and_then(|item| item.span),
             params: Vec::new(),
             module_bindings: module_bindings.clone(),
             ops: Vec::new(),
@@ -115,6 +116,7 @@ fn lower_callable_member(
             owner.name.as_deref().unwrap_or("<anonymous>"),
             callable.name.as_deref().unwrap_or("<anonymous>")
         ),
+        span: callable.span,
         params: std::iter::once(callable.id)
             .chain(callable.params.iter().map(|param| param.id))
             .collect(),

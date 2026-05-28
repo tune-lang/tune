@@ -23,11 +23,22 @@ pub struct IrFunction {
     pub owner: Option<HirId>,
     pub member: Option<MemberId>,
     pub name: String,
+    pub span: Option<Span>,
     pub params: u32,
     pub regs: u32,
     pub locals: u32,
     pub constants: Vec<IrConst>,
     pub blocks: Vec<IrBlock>,
+}
+
+impl IrOp {
+    #[must_use]
+    pub const fn provenance_span(&self) -> Option<Span> {
+        match self {
+            Self::ResultPropagate { span, .. } => *span,
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

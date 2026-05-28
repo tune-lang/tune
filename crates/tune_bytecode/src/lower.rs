@@ -9,6 +9,7 @@ use crate::function::{
 use crate::lower_tables::{
     block_offsets, function_indices, lower_variant, member_function_indices, push_artifact_const,
 };
+use crate::provenance::BytecodeFunctionProvenance;
 use tune_hir::{HirId, MemberId};
 use tune_ir::{BlockId, IrFunction, IrOp};
 
@@ -69,14 +70,22 @@ fn lower_ir_function_with_constants(
         variant_sites: Vec::new(),
         match_sites: Vec::new(),
         instructions: Vec::new(),
+        instruction_spans: Vec::new(),
     };
     for block in &function.blocks {
         for op in &block.ops {
             lowerer.lower_op(op)?;
+            lowerer
+                .instruction_spans
+                .resize(lowerer.instructions.len(), op.provenance_span());
         }
     }
     Ok(BytecodeFunction {
         name: function.name.clone(),
+        provenance: BytecodeFunctionProvenance {
+            span: function.span,
+            instruction_spans: lowerer.instruction_spans,
+        },
         param_count: function.params,
         register_count: function.regs,
         local_count: function.locals,
@@ -99,6 +108,7 @@ pub(super) struct FunctionLowerer<'a> {
     variant_sites: Vec<BytecodeVariantSite>,
     match_sites: Vec<BytecodeMatchSite>,
     pub(super) instructions: Vec<Instruction>,
+    instruction_spans: Vec<Option<tune_diagnostics::Span>>,
 }
 
 impl FunctionLowerer<'_> {

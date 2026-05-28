@@ -32,6 +32,7 @@ fn lowers_typed_local_ir_to_bytecode() -> Result<(), &'static str> {
         owner: None,
         member: None,
         name: "entry".into(),
+        span: None,
         regs: 2,
         locals: 1,
         constants: vec![tune_ir::IrConst::Int(1)],
@@ -82,6 +83,7 @@ fn lowers_integer_add_ir_to_bytecode() -> Result<(), &'static str> {
         owner: None,
         member: None,
         name: "main".into(),
+        span: None,
         regs: 3,
         locals: 0,
         constants: vec![tune_ir::IrConst::Int(1), tune_ir::IrConst::Int(2)],
@@ -137,6 +139,7 @@ fn lowers_struct_construct_with_explicit_local_state_plan() -> Result<(), &'stat
         owner: None,
         member: None,
         name: "entry".into(),
+        span: None,
         regs: 2,
         locals: 0,
         constants: vec![tune_ir::IrConst::Int(1)],
@@ -187,6 +190,7 @@ fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
         owner: None,
         member: None,
         name: "<entry>".into(),
+        span: None,
         regs: 2,
         locals: 0,
         constants: vec![tune_ir::IrConst::Int(7)],
@@ -214,6 +218,7 @@ fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
         owner: Some(tune_hir::HirId(1)),
         member: None,
         name: "id".into(),
+        span: None,
         regs: 1,
         locals: 1,
         constants: Vec::new(),
@@ -255,6 +260,7 @@ fn validation_rejects_call_arity_mismatch() {
             tune_bytecode::function::BytecodeFunction {
                 param_count: 0,
                 name: "<entry>".into(),
+                provenance: tune_bytecode::BytecodeFunctionProvenance::default(),
                 register_count: 1,
                 local_count: 0,
                 call_sites: vec![tune_bytecode::function::BytecodeCallSite {
@@ -274,6 +280,7 @@ fn validation_rejects_call_arity_mismatch() {
             tune_bytecode::function::BytecodeFunction {
                 param_count: 1,
                 name: "id".into(),
+                provenance: tune_bytecode::BytecodeFunctionProvenance::default(),
                 register_count: 1,
                 local_count: 1,
                 call_sites: Vec::new(),
@@ -309,6 +316,7 @@ fn validation_rejects_register_out_of_bounds() {
         functions: vec![tune_bytecode::function::BytecodeFunction {
             param_count: 0,
             name: "<entry>".into(),
+            provenance: tune_bytecode::BytecodeFunctionProvenance::default(),
             register_count: 1,
             local_count: 0,
             call_sites: Vec::new(),
@@ -333,4 +341,52 @@ fn validation_rejects_register_out_of_bounds() {
             }
         )
     );
+}
+
+#[test]
+fn lowering_preserves_function_and_instruction_provenance() -> Result<(), &'static str> {
+    let function_span = tune_diagnostics::Span::new(
+        tune_diagnostics::FileId(1),
+        tune_diagnostics::ByteOffset::new(10),
+        tune_diagnostics::ByteOffset::new(30),
+    );
+    let propagate_span = tune_diagnostics::Span::new(
+        tune_diagnostics::FileId(1),
+        tune_diagnostics::ByteOffset::new(20),
+        tune_diagnostics::ByteOffset::new(21),
+    );
+    let ir = tune_ir::IrFunction {
+        params: 0,
+        owner: None,
+        member: None,
+        name: "entry".into(),
+        span: Some(function_span),
+        regs: 2,
+        locals: 0,
+        constants: Vec::new(),
+        blocks: vec![tune_ir::IrBlock {
+            id: tune_ir::BlockId(0),
+            ops: vec![
+                tune_ir::IrOp::ResultPropagate {
+                    dst: tune_ir::Reg(1),
+                    result: tune_ir::Reg(0),
+                    expr: tune_hir::ExprId(7),
+                    span: Some(propagate_span),
+                },
+                tune_ir::IrOp::Return {
+                    value: Some(tune_ir::Reg(1)),
+                },
+            ],
+        }],
+    };
+
+    let artifact =
+        tune_bytecode::lower_ir_functions(&[ir]).map_err(|_| "ir should lower to bytecode")?;
+    tune_bytecode::validate_artifact(&artifact).map_err(|_| "bytecode should validate")?;
+
+    assert_eq!(artifact.function_span(0), Some(function_span));
+    assert_eq!(artifact.instruction_span(0, 0), Some(propagate_span));
+    assert_eq!(artifact.instruction_span(0, 1), Some(function_span));
+
+    Ok(())
 }

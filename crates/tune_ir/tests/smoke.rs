@@ -44,6 +44,7 @@ fn ir_has_typed_slots_for_core_planned_operations() {
         owner: None,
         member: None,
         name: "run".into(),
+        span: None,
         regs: 8,
         locals: 0,
         constants: vec![tune_ir::IrConst::Int(1)],
@@ -65,6 +66,7 @@ fn ir_has_typed_slots_for_core_planned_operations() {
 fn lowers_integer_add_plan_to_ir() -> Result<(), &'static str> {
     let plan = tune_plan::PlanFunction {
         name: "main".into(),
+        span: None,
         owner: None,
         member: None,
         params: Vec::new(),
@@ -102,6 +104,7 @@ fn lowers_local_binding_plan_to_ir_loads_and_stores() -> Result<(), &'static str
         owner: None,
         member: None,
         name: "entry".into(),
+        span: None,
         params: Vec::new(),
         module_bindings: Vec::new(),
         ops: vec![
@@ -153,6 +156,7 @@ fn lowers_struct_state_plan_to_ir() -> Result<(), &'static str> {
         owner: None,
         member: None,
         name: "entry".into(),
+        span: None,
         params: Vec::new(),
         module_bindings: Vec::new(),
         ops: vec![
@@ -193,6 +197,7 @@ fn lowers_direct_call_plan_to_ir_with_param_slots() -> Result<(), &'static str> 
         owner: Some(tune_hir::HirId(1)),
         member: None,
         name: "id".into(),
+        span: None,
         params: vec![param],
         module_bindings: Vec::new(),
         ops: vec![
@@ -219,6 +224,7 @@ fn lowers_direct_call_plan_to_ir_with_param_slots() -> Result<(), &'static str> 
         owner: None,
         member: None,
         name: "<entry>".into(),
+        span: None,
         params: Vec::new(),
         module_bindings: Vec::new(),
         ops: vec![

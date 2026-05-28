@@ -16,6 +16,7 @@ fn vm_executes_integer_add_bytecode_entry() -> Result<(), &'static str> {
             tune_bytecode::function::BytecodeFunction {
                 param_count: 0,
                 name: "main".into(),
+                provenance: tune_bytecode::BytecodeFunctionProvenance::default(),
                 register_count: 0,
                 local_count: 0,
                 call_sites: Vec::new(),
@@ -27,6 +28,7 @@ fn vm_executes_integer_add_bytecode_entry() -> Result<(), &'static str> {
             tune_bytecode::function::BytecodeFunction {
                 param_count: 0,
                 name: "<entry>".into(),
+                provenance: tune_bytecode::BytecodeFunctionProvenance::default(),
                 register_count: 3,
                 local_count: 0,
                 call_sites: Vec::new(),
@@ -84,6 +86,7 @@ fn vm_executes_direct_call_with_arguments() -> Result<(), &'static str> {
             tune_bytecode::function::BytecodeFunction {
                 param_count: 0,
                 name: "<entry>".into(),
+                provenance: tune_bytecode::BytecodeFunctionProvenance::default(),
                 register_count: 3,
                 local_count: 0,
                 call_sites: vec![tune_bytecode::function::BytecodeCallSite {
@@ -123,6 +126,7 @@ fn vm_executes_direct_call_with_arguments() -> Result<(), &'static str> {
             tune_bytecode::function::BytecodeFunction {
                 param_count: 2,
                 name: "add".into(),
+                provenance: tune_bytecode::BytecodeFunctionProvenance::default(),
                 register_count: 3,
                 local_count: 2,
                 call_sites: Vec::new(),
@@ -177,6 +181,7 @@ fn vm_rejects_too_few_call_arguments() {
             tune_bytecode::function::BytecodeFunction {
                 param_count: 0,
                 name: "<entry>".into(),
+                provenance: tune_bytecode::BytecodeFunctionProvenance::default(),
                 register_count: 1,
                 local_count: 0,
                 call_sites: vec![tune_bytecode::function::BytecodeCallSite {
@@ -196,6 +201,7 @@ fn vm_rejects_too_few_call_arguments() {
             tune_bytecode::function::BytecodeFunction {
                 param_count: 1,
                 name: "id".into(),
+                provenance: tune_bytecode::BytecodeFunctionProvenance::default(),
                 register_count: 1,
                 local_count: 1,
                 call_sites: Vec::new(),
@@ -234,6 +240,7 @@ fn vm_rejects_unsupported_struct_state_plan() {
         functions: vec![tune_bytecode::function::BytecodeFunction {
             param_count: 0,
             name: "<entry>".into(),
+            provenance: tune_bytecode::BytecodeFunctionProvenance::default(),
             register_count: 1,
             local_count: 0,
             call_sites: Vec::new(),
