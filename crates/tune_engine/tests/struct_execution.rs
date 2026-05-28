@@ -74,6 +74,51 @@ let result: Int = counter.next()
 }
 
 #[test]
+fn run_file_executes_structural_match_member_witness() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+struct Duck {
+  quack(): Int = 7
+}
+let duck: Duck = Duck {}
+let result: Int = match duck {
+  { quack(): Int } => quack()
+  else 0
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, Value::Int(7));
+    Ok(())
+}
+
+#[test]
+fn run_file_executes_structural_match_fallback_when_shape_does_not_match()
+-> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+struct Rock {}
+let rock: Rock = Rock {}
+let result: Int = match rock {
+  { quack(): Int } => quack()
+  else 0
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, Value::Int(0));
+    Ok(())
+}
+
+#[test]
 fn run_file_preserves_member_receiver_mutation_for_caller() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

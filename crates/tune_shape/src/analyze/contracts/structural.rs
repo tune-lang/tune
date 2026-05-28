@@ -1,4 +1,3 @@
-use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::expr::Expr;
 use tune_hir::item::StructMember;
 use tune_hir::pattern::{Pattern, PatternKind, StructuralRequirementKind};
@@ -40,7 +39,9 @@ impl Analyzer<'_> {
                 })
                 .collect(),
         );
-        self.check_structural_pattern(scrutinee_shape, &structural, pattern.span);
+        if !self.structural_pattern_can_match(scrutinee_shape, &structural) {
+            return;
+        }
         if let Some(key) = self.binding_key(scrutinee)
             && let Some(binding) = self.frame.get_mut(key)
         {
@@ -54,28 +55,14 @@ impl Analyzer<'_> {
         lowered.shape
     }
 
-    fn check_structural_pattern(
+    fn structural_pattern_can_match(
         &mut self,
         scrutinee_shape: &Shape,
         structural: &Shape,
-        span: Option<Span>,
-    ) {
-        if matches!(scrutinee_shape, Shape::Hole)
+    ) -> bool {
+        matches!(scrutinee_shape, Shape::Hole)
             || structural.accepts(scrutinee_shape)
             || self.struct_satisfies_structural(scrutinee_shape, structural)
-        {
-            return;
-        }
-
-        self.diagnostics.push(
-            Diagnostic::error(
-                codes::SHAPE_MISMATCH,
-                "value does not satisfy structural pattern",
-                span.unwrap_or_else(Span::synthetic),
-                format!("expected `{structural:?}`, got `{scrutinee_shape:?}`"),
-            )
-            .build(),
-        );
     }
 
     fn struct_satisfies_structural(&mut self, scrutinee_shape: &Shape, structural: &Shape) -> bool {

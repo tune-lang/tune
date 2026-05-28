@@ -102,6 +102,9 @@ impl Lowerer {
             let block = if matches!(arm.pattern.kind, tune_hir::pattern::PatternKind::Else) {
                 fallback_block.ok_or(IrLowerError::UnsupportedOp("match fallback"))?
             } else {
+                if arm.variant.is_none() {
+                    return Err(IrLowerError::UnsupportedOp("non-variant match arm"));
+                }
                 self.alloc_block()
             };
             arm_blocks.push((block, arm));

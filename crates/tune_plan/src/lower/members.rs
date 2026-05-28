@@ -1,10 +1,11 @@
 use tune_hir::MemberId;
 use tune_hir::expr::{Expr, ExprKind};
 use tune_hir::item::{Item, StructMember};
+use tune_hir::pattern::{Pattern, PatternKind, StructuralRequirement, StructuralRequirementKind};
 use tune_resolve::NameTarget;
 use tune_shape::{Shape, lower_resolved_hir_shape};
 
-use super::LowerContext;
+use super::{LowerContext, StructuralWitness, StructuralWitnessKind};
 
 impl LowerContext<'_> {
     pub(super) fn struct_item_id(&self, name: &str) -> Option<tune_hir::HirId> {
@@ -96,12 +97,55 @@ impl LowerContext<'_> {
             })
     }
 
+    pub(super) fn struct_satisfies_requirements(
+        &self,
+        struct_name: &str,
+        requirements: &[StructuralRequirement],
+    ) -> bool {
+        requirements.iter().all(|requirement| {
+            self.struct_member_for_requirement(struct_name, requirement)
+                .is_some()
+        })
+    }
+
+    pub(super) fn structural_witnesses_for(
+        &self,
+        source: NameTarget,
+        struct_name: &str,
+        pattern: &Pattern,
+    ) -> Vec<StructuralWitness> {
+        let PatternKind::StructuralShape(requirements) = &pattern.kind else {
+            return Vec::new();
+        };
+        requirements
+            .iter()
+            .filter_map(|requirement| {
+                let local = self.local_for_expr(requirement.id)?;
+                let (name, kind) = match &requirement.kind {
+                    StructuralRequirementKind::Field { name, .. } => {
+                        (name.clone(), StructuralWitnessKind::Field)
+                    }
+                    StructuralRequirementKind::Callable { name, .. } => {
+                        (name.clone(), StructuralWitnessKind::Callable)
+                    }
+                };
+                Some(StructuralWitness {
+                    local,
+                    source,
+                    member: self.struct_member_for_requirement(struct_name, requirement)?,
+                    name,
+                    kind,
+                })
+            })
+            .collect()
+    }
+
     pub(super) fn lower_shape(&self, shape: Option<&tune_hir::shape::ShapeExpr>) -> Option<Shape> {
         let resolved = self.resolved?;
         Some(lower_resolved_hir_shape(shape?, &resolved.scope).shape)
     }
 
-    fn expr_shape(&self, expr: &Expr) -> Option<Shape> {
+    pub(super) fn expr_shape(&self, expr: &Expr) -> Option<Shape> {
         if let Some(shape) = self.analysis_expr_shape(expr)
             && shape != Shape::Hole
         {
@@ -148,16 +192,42 @@ impl LowerContext<'_> {
             .map(|shape| shape.shape.clone())
     }
 
-    fn struct_shape_name<'shape>(&self, shape: &'shape Shape) -> Option<&'shape str> {
+    pub(super) fn struct_shape_name<'shape>(&self, shape: &'shape Shape) -> Option<&'shape str> {
         match shape {
             Shape::Struct(name) | Shape::Apply { name, .. } => Some(name),
             _ => None,
         }
     }
 
-    fn struct_item(&self, name: &str) -> Option<&Item> {
+    pub(super) fn struct_item(&self, name: &str) -> Option<&Item> {
         self.module?.items.iter().find(|item| {
             item.kind == tune_hir::item::ItemKind::Struct && item.name.as_deref() == Some(name)
         })
+    }
+
+    fn struct_member_for_requirement(
+        &self,
+        struct_name: &str,
+        requirement: &StructuralRequirement,
+    ) -> Option<MemberId> {
+        let item = self.struct_item(struct_name)?;
+        item.struct_members
+            .iter()
+            .find_map(|member| match (&requirement.kind, member) {
+                (StructuralRequirementKind::Field { name, .. }, StructMember::Field(field))
+                    if field.name.as_deref() == Some(name.as_str()) =>
+                {
+                    Some(field.id)
+                }
+                (
+                    StructuralRequirementKind::Callable { name, params, .. },
+                    StructMember::Callable(callable),
+                ) if callable.name.as_deref() == Some(name.as_str())
+                    && callable.params.len() == params.len() =>
+                {
+                    Some(callable.id)
+                }
+                _ => None,
+            })
     }
 }

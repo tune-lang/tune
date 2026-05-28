@@ -63,6 +63,7 @@ fn lower_module_item_into_entry(
         analysis: Some(&analysis),
         self_shape: None,
         struct_state: crate::StructStatePlan::LOCAL,
+        structural_witnesses: Vec::new(),
     };
     context.lower_expr(body, ops);
     if matches!(body.kind, tune_hir::expr::ExprKind::Sequence(_))
@@ -134,6 +135,7 @@ fn lower_callable_member(
         analysis: Some(&analysis),
         self_shape: owner.name.as_ref().map(|name| Shape::Struct(name.clone())),
         struct_state: crate::StructStatePlan::LOCAL,
+        structural_witnesses: Vec::new(),
     };
     context.lower_expr(body, &mut plan.ops);
     if super::falls_through(body) {
@@ -165,6 +167,7 @@ fn lower_index_access_member(
         analysis: Some(&analysis),
         self_shape: owner.name.as_ref().map(|name| Shape::Struct(name.clone())),
         struct_state: crate::StructStatePlan::LOCAL,
+        structural_witnesses: Vec::new(),
     };
     context.lower_expr(body, &mut plan.ops);
     if super::falls_through(body) {

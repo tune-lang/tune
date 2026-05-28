@@ -1,8 +1,10 @@
 use tune_hir::expr::{Expr, ExprKind, LiteralKind};
+mod assign;
 mod calls;
 mod members;
 mod module;
 mod patterns;
+mod structural;
 mod values;
 
 use tune_hir::ExprId;
@@ -78,6 +80,7 @@ fn lower_item_with_context(
         analysis: analysis.as_ref(),
         self_shape: None,
         struct_state: StructStatePlan::LOCAL,
+        structural_witnesses: Vec::new(),
     };
     context.lower_expr(body, &mut plan.ops);
     if matches!(body.kind, ExprKind::Sequence(_))
@@ -102,15 +105,36 @@ pub(super) struct LowerContext<'a> {
     pub(super) analysis: Option<&'a tune_shape::ShapeAnalysis>,
     pub(super) self_shape: Option<tune_shape::Shape>,
     pub(super) struct_state: StructStatePlan,
+    pub(super) structural_witnesses: Vec<StructuralWitness>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct StructuralWitness {
+    pub(super) local: LocalId,
+    pub(super) source: NameTarget,
+    pub(super) member: tune_hir::MemberId,
+    pub(super) name: String,
+    pub(super) kind: StructuralWitnessKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum StructuralWitnessKind {
+    Field,
+    Callable,
 }
 
 impl LowerContext<'_> {
     pub(super) fn lower_expr(&self, expr: &Expr, ops: &mut Vec<PlanOp>) {
         match &expr.kind {
             ExprKind::Missing => {}
-            ExprKind::Name(_) => ops.push(PlanOp::BindingGet {
-                source: self.name_target(expr.id),
-            }),
+            ExprKind::Name(_) => {
+                if self.lower_structural_witness_get(expr, ops) {
+                    return;
+                }
+                ops.push(PlanOp::BindingGet {
+                    source: self.name_target(expr.id),
+                });
+            }
             ExprKind::Literal(LiteralKind::Int(text)) => {
                 if let Ok(value) = text.parse::<i64>() {
                     ops.push(PlanOp::ConstInt { value });
@@ -266,6 +290,9 @@ impl LowerContext<'_> {
                 });
             }
             ExprKind::Match { scrutinee, arms } => {
+                if self.lower_structural_match(scrutinee, arms, ops) {
+                    return;
+                }
                 self.lower_expr(scrutinee, ops);
                 ops.push(PlanOp::Match {
                     scrutinee: scrutinee.id,
@@ -345,60 +372,13 @@ impl LowerContext<'_> {
         }
     }
 
-    fn lower_assignment(&self, target: &Expr, value: &Expr, ops: &mut Vec<PlanOp>) {
-        match &target.kind {
-            ExprKind::Name(_) => {
-                self.lower_expr(value, ops);
-                ops.push(PlanOp::BindingSet {
-                    target: self.name_target(target.id),
-                });
-            }
-            ExprKind::Field { base, name } => {
-                self.lower_expr(base, ops);
-                self.lower_expr(value, ops);
-                let field = name.clone().unwrap_or_default();
-                ops.push(PlanOp::FieldSet {
-                    member: self.field_member(base, &field),
-                    field,
-                    base: self.field_base_target(base),
-                    span: target.span,
-                });
-            }
-            ExprKind::Index { base, index } => {
-                self.lower_expr(base, ops);
-                self.lower_expr(index, ops);
-                self.lower_expr(value, ops);
-                ops.push(PlanOp::SequenceSet {
-                    checked: true,
-                    index_member: self.index_member(base),
-                    base: self.field_base_target(base),
-                });
-            }
-            _ => {
-                self.lower_expr(target, ops);
-                self.lower_expr(value, ops);
-                ops.push(PlanOp::Assign);
-            }
-        }
-    }
-
     fn lower_expr_to_ops(&self, expr: &Expr) -> Vec<PlanOp> {
         let mut ops = Vec::new();
         self.lower_expr(expr, &mut ops);
         ops
     }
 
-    fn with_struct_state(&self, struct_state: StructStatePlan) -> Self {
-        Self {
-            resolved: self.resolved,
-            module: self.module,
-            analysis: self.analysis,
-            self_shape: self.self_shape.clone(),
-            struct_state,
-        }
-    }
-
-    fn name_target(&self, expr: ExprId) -> Option<NameTarget> {
+    pub(super) fn name_target(&self, expr: ExprId) -> Option<NameTarget> {
         self.resolved?
             .name_refs
             .iter()

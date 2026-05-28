@@ -228,6 +228,70 @@ fn explicit_return_body_does_not_get_extra_implicit_return() -> Result<(), &'sta
 }
 
 #[test]
+fn structural_match_lowers_to_known_member_witness() -> Result<(), &'static str> {
+    let source = r#"
+struct Duck {
+  quack(): Int = 7
+}
+let duck: Duck = Duck {}
+let result: Int = match duck {
+  { quack(): Int } => quack()
+  else 0
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let plan = tune_plan::lower_resolved_module_to_plan(&module, &resolved);
+    let entry = plan.entry.ok_or("entry should lower")?;
+
+    assert!(!plan_ops_contain_match(&entry.ops));
+    assert!(entry.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::MemberCall {
+            member: Some(_),
+            name,
+            arg_count: 0,
+            ..
+        } if name == "quack"
+    )));
+
+    Ok(())
+}
+
+fn plan_ops_contain_match(ops: &[tune_plan::PlanOp]) -> bool {
+    ops.iter().any(|op| match op {
+        tune_plan::PlanOp::Match { .. } => true,
+        tune_plan::PlanOp::If {
+            branches, else_ops, ..
+        } => {
+            branches.iter().any(|branch| {
+                plan_ops_contain_match(&branch.condition_ops)
+                    || plan_ops_contain_match(&branch.body_ops)
+            }) || plan_ops_contain_match(else_ops)
+        }
+        tune_plan::PlanOp::FiniteFor {
+            iterable_ops,
+            body_ops,
+            ..
+        }
+        | tune_plan::PlanOp::While {
+            condition_ops: iterable_ops,
+            body_ops,
+            ..
+        } => plan_ops_contain_match(iterable_ops) || plan_ops_contain_match(body_ops),
+        tune_plan::PlanOp::Loop { body_ops, .. } => plan_ops_contain_match(body_ops),
+        tune_plan::PlanOp::BoolAnd {
+            lhs_ops, rhs_ops, ..
+        }
+        | tune_plan::PlanOp::BoolOr {
+            lhs_ops, rhs_ops, ..
+        } => plan_ops_contain_match(lhs_ops) || plan_ops_contain_match(rhs_ops),
+        _ => false,
+    })
+}
+
+#[test]
 fn struct_construct_plan_carries_local_state_plan() -> Result<(), &'static str> {
     let source = r#"
 struct Counter {
