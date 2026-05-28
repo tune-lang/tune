@@ -21,9 +21,21 @@ fn main() {
     };
 
     match tune.run_file(file) {
-        Ok(value) => println!("{value:?}"),
+        Ok(value) => {
+            let diagnostics = dyno_cli::render_runtime_boundary(&value);
+            if diagnostics.is_empty() {
+                println!("{value:?}");
+            } else {
+                for diagnostic in diagnostics {
+                    eprintln!("{diagnostic}");
+                }
+                std::process::exit(1);
+            }
+        }
         Err(error) => {
-            eprintln!("execution failed: {error:?}");
+            for diagnostic in dyno_cli::render_engine_error(&error) {
+                eprintln!("{diagnostic}");
+            }
             std::process::exit(1);
         }
     }

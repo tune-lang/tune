@@ -13,6 +13,7 @@ workspace = true
 dyno_project = { path = "../dyno_project" }
 dyno_pkg = { path = "../dyno_pkg" }
 tune_engine = { path = "../tune_engine" }
+tune_runtime = { path = "../tune_runtime" }
 tune_vm = { path = "../tune_vm" }
 tune_host = { path = "../tune_host" }
 tune_std = { path = "../tune_std" }

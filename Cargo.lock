@@ -12,6 +12,7 @@ dependencies = [
  "tune_engine",
  "tune_host",
  "tune_lsp",
+ "tune_runtime",
  "tune_std",
  "tune_vm",
 ]
