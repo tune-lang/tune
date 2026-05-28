@@ -221,13 +221,16 @@ fn vm_rejects_too_few_call_arguments() {
     let mut vm = tune_vm::Vm::new(artifact);
     assert_eq!(
         vm.run_entry(),
-        Err(tune_vm::VmError::InvalidBytecode(
-            tune_bytecode::BytecodeValidationError::CallArityMismatch {
-                function: 0,
-                target: 1,
-                expected: 1,
-                actual: 0,
-            }
+        Err(tune_vm::VmFault::new(
+            tune_vm::VmError::InvalidBytecode(
+                tune_bytecode::BytecodeValidationError::CallArityMismatch {
+                    function: 0,
+                    target: 1,
+                    expected: 1,
+                    actual: 0,
+                }
+            ),
+            None,
         ))
     );
 }
@@ -266,6 +269,76 @@ fn vm_rejects_unsupported_struct_state_plan() {
     let mut vm = tune_vm::Vm::new(artifact);
     assert_eq!(
         vm.run_entry(),
-        Err(tune_vm::VmError::UnsupportedStructState)
+        Err(tune_vm::VmFault::new(
+            tune_vm::VmError::UnsupportedStructState,
+            Some(tune_vm::VmLocation {
+                function: 0,
+                instruction: Some(0),
+                span: None,
+            }),
+        ))
+    );
+}
+
+#[test]
+fn vm_faults_carry_instruction_span_when_available() {
+    let span = tune_diagnostics::Span::new(
+        tune_diagnostics::FileId(1),
+        tune_diagnostics::ByteOffset::new(4),
+        tune_diagnostics::ByteOffset::new(9),
+    );
+    let artifact = tune_bytecode::artifact::BytecodeArtifact {
+        entry_function: Some(0),
+        constants: vec![
+            tune_bytecode::artifact::BytecodeConst::Bool(true),
+            tune_bytecode::artifact::BytecodeConst::Bool(false),
+        ],
+        functions: vec![tune_bytecode::function::BytecodeFunction {
+            param_count: 0,
+            name: "<entry>".into(),
+            provenance: tune_bytecode::BytecodeFunctionProvenance {
+                span: None,
+                instruction_spans: vec![None, None, Some(span)],
+            },
+            register_count: 3,
+            local_count: 0,
+            call_sites: Vec::new(),
+            struct_sites: Vec::new(),
+            variant_sites: Vec::new(),
+            match_sites: Vec::new(),
+            instructions: vec![
+                tune_bytecode::function::Instruction {
+                    opcode: tune_bytecode::Opcode::LoadConst,
+                    a: 0,
+                    b: 0,
+                    c: 0,
+                },
+                tune_bytecode::function::Instruction {
+                    opcode: tune_bytecode::Opcode::LoadConst,
+                    a: 1,
+                    b: 1,
+                    c: 0,
+                },
+                tune_bytecode::function::Instruction {
+                    opcode: tune_bytecode::Opcode::AddInt,
+                    a: 2,
+                    b: 0,
+                    c: 1,
+                },
+            ],
+        }],
+    };
+
+    let mut vm = tune_vm::Vm::new(artifact);
+    assert_eq!(
+        vm.run_entry(),
+        Err(tune_vm::VmFault::new(
+            tune_vm::VmError::UnsupportedOpcode(tune_bytecode::Opcode::AddInt),
+            Some(tune_vm::VmLocation {
+                function: 0,
+                instruction: Some(2),
+                span: Some(span),
+            }),
+        ))
     );
 }
