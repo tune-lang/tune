@@ -217,7 +217,7 @@ impl Lowerer {
             PlanOp::Panic { arg_count } => self.lower_panic(*arg_count),
             PlanOp::BindingGet { .. }
             | PlanOp::BoundCall
-            | PlanOp::CallableValue
+            | PlanOp::CallableValue { .. }
             | PlanOp::WitnessCall
             | PlanOp::HostCall { .. }
             | PlanOp::Assign

@@ -5,6 +5,19 @@ use tune_resolve::NameTarget;
 use super::{LowerContext, PlanOp, StructEscapeReason, StructuralWitness, StructuralWitnessKind};
 
 impl LowerContext<'_> {
+    pub(super) fn clone_context(&self) -> Self {
+        Self {
+            resolved: self.resolved,
+            module: self.module,
+            analysis: self.analysis,
+            self_shape: self.self_shape.clone(),
+            struct_escape: self.struct_escape,
+            structural_witnesses: self.structural_witnesses.clone(),
+            param_shapes: self.param_shapes.clone(),
+            captured_locals: self.captured_locals.clone(),
+        }
+    }
+
     pub(super) fn with_struct_escape(&self, struct_escape: StructEscapeReason) -> Self {
         Self {
             resolved: self.resolved,
@@ -14,6 +27,7 @@ impl LowerContext<'_> {
             struct_escape,
             structural_witnesses: self.structural_witnesses.clone(),
             param_shapes: self.param_shapes.clone(),
+            captured_locals: self.captured_locals.clone(),
         }
     }
 
@@ -140,13 +154,8 @@ impl LowerContext<'_> {
         let mut combined = self.structural_witnesses.clone();
         combined.extend(structural_witnesses);
         Self {
-            resolved: self.resolved,
-            module: self.module,
-            analysis: self.analysis,
-            self_shape: self.self_shape.clone(),
-            struct_escape: self.struct_escape,
             structural_witnesses: combined,
-            param_shapes: self.param_shapes.clone(),
+            ..self.clone_context()
         }
     }
 

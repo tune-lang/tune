@@ -1,6 +1,7 @@
 use tune_hir::expr::{Expr, ExprKind, LiteralKind};
 mod assign;
 mod calls;
+mod captures;
 mod members;
 mod module;
 mod patterns;
@@ -76,7 +77,7 @@ fn lower_item_with_context(
     let analysis = module
         .zip(resolved)
         .map(|(module, resolved)| tune_shape::analyze_item(module, resolved, item));
-    let context = LowerContext {
+    let mut context = LowerContext {
         resolved,
         module,
         analysis: analysis.as_ref(),
@@ -84,7 +85,11 @@ fn lower_item_with_context(
         struct_escape: StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
         param_shapes: Vec::new(),
+        captured_locals: Vec::new(),
     };
+    if resolved.is_some() {
+        context.captured_locals = context.captured_locals_in_callable_values(body);
+    }
     if item.kind == tune_hir::item::ItemKind::CallableDecl {
         context.lower_return_expr(body, &mut plan.ops);
     } else {
@@ -114,6 +119,7 @@ pub(super) struct LowerContext<'a> {
     pub(super) struct_escape: StructEscapeReason,
     pub(super) structural_witnesses: Vec<StructuralWitness>,
     pub(super) param_shapes: Vec<(tune_hir::MemberId, tune_shape::Shape)>,
+    pub(super) captured_locals: Vec<LocalId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -159,7 +165,9 @@ impl LowerContext<'_> {
             ExprKind::Literal(_) => {}
             ExprKind::CallableValue { params: _, body } => {
                 self.lower_expr(body, ops);
-                ops.push(PlanOp::CallableValue);
+                ops.push(PlanOp::CallableValue {
+                    captures: self.callable_value_captures(body),
+                });
             }
             ExprKind::Sequence(elements) => {
                 ops.push(PlanOp::SequenceBuild {
@@ -208,9 +216,17 @@ impl LowerContext<'_> {
             ExprKind::Let { shape, value, .. } => {
                 let initialized = value.is_some();
                 if let Some(value) = value {
-                    self.lower_expr(value, ops);
+                    let context = if self
+                        .local_for_expr(expr.id)
+                        .is_some_and(|local| self.captured_locals.contains(&local))
+                    {
+                        self.with_struct_escape(StructEscapeReason::Captured)
+                    } else {
+                        self.clone_context()
+                    };
+                    context.lower_expr(value, ops);
                     if matches!(value.kind, ExprKind::Sequence(_))
-                        && let Some(target) = self.lower_shape(shape.as_ref())
+                        && let Some(target) = context.lower_shape(shape.as_ref())
                     {
                         ops.push(PlanOp::Materialize {
                             plan: MaterializationPlan {
@@ -402,5 +418,13 @@ impl LowerContext<'_> {
             .iter()
             .find(|local| local.expr == Some(expr))
             .map(|local| local.id)
+    }
+
+    pub(super) fn local_kind(&self, local: LocalId) -> Option<tune_resolve::LocalKind> {
+        self.resolved?
+            .locals
+            .iter()
+            .find(|binding| binding.id == local)
+            .map(|binding| binding.kind)
     }
 }

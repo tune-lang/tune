@@ -64,3 +64,38 @@ let make(): Counter = return Counter {
 
     Ok(())
 }
+
+#[test]
+fn callable_value_captures_mark_struct_binding_escape() -> Result<(), &'static str> {
+    let plan = lower_callable(
+        r#"
+struct Counter {
+  value: Int
+}
+let make(seed: Int) = {
+  let counter: Counter = Counter {
+    value = seed
+  }
+  _(amount: Int) = {
+    counter.value = counter.value + amount
+    counter.value
+  }
+}
+"#,
+    )?;
+
+    assert!(plan.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::StructConstruct {
+            escape: tune_plan::StructEscapeReason::Captured,
+            state: tune_plan::StructStatePlan::LOCAL,
+            ..
+        }
+    )));
+    assert!(plan.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::CallableValue { captures } if !captures.is_empty()
+    )));
+
+    Ok(())
+}

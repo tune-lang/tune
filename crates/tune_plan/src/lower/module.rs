@@ -79,6 +79,7 @@ fn lower_module_item_into_entry(
         struct_escape: crate::StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
+        captured_locals: captured_locals_for_body(resolved, body),
     };
     context.lower_expr(body, ops);
     if matches!(body.kind, tune_hir::expr::ExprKind::Sequence(_))
@@ -126,6 +127,7 @@ fn lower_module_callable(
         struct_escape: crate::StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
+        captured_locals: captured_locals_for_body(resolved, body),
     };
     context.lower_return_expr(body, &mut plan.ops);
     if super::falls_through(body) {
@@ -190,6 +192,7 @@ fn lower_callable_member(
         struct_escape: crate::StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
+        captured_locals: captured_locals_for_body(resolved, body),
     };
     context.lower_return_expr(body, &mut plan.ops);
     if super::falls_through(body) {
@@ -224,10 +227,28 @@ fn lower_index_access_member(
         struct_escape: crate::StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
+        captured_locals: captured_locals_for_body(resolved, body),
     };
     context.lower_return_expr(body, &mut plan.ops);
     if super::falls_through(body) {
         plan.ops.push(PlanOp::Return);
     }
     Some(plan)
+}
+
+fn captured_locals_for_body(
+    resolved: &ResolvedModule,
+    body: &tune_hir::expr::Expr,
+) -> Vec<tune_resolve::LocalId> {
+    let context = LowerContext {
+        resolved: Some(resolved),
+        module: None,
+        analysis: None,
+        self_shape: None,
+        struct_escape: crate::StructEscapeReason::Local,
+        structural_witnesses: Vec::new(),
+        param_shapes: Vec::new(),
+        captured_locals: Vec::new(),
+    };
+    context.captured_locals_in_callable_values(body)
 }

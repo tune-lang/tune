@@ -167,7 +167,9 @@ pub enum PlanOp {
         arg_count: usize,
         span: Option<Span>,
     },
-    CallableValue,
+    CallableValue {
+        captures: Vec<LocalId>,
+    },
     WitnessCall,
     HostCall {
         symbol: String,

@@ -82,7 +82,12 @@ let ok(value) = Ok(value)
 
     let scoped = tune_plan::lower_resolved_item_to_plan(&module.items[4], &resolved)
         .ok_or("expected scoped plan")?;
-    assert!(scoped.ops.contains(&tune_plan::PlanOp::CallableValue));
+    assert!(
+        scoped
+            .ops
+            .iter()
+            .any(|op| matches!(op, tune_plan::PlanOp::CallableValue { .. }))
+    );
     assert!(scoped.ops.iter().any(|op| matches!(
         op,
         tune_plan::PlanOp::LocalLet {
