@@ -2,8 +2,6 @@ mod resolver;
 
 use tune_hir::item::{Item, StructMember};
 
-use crate::locals::LocalKind;
-
 use self::resolver::BodyResolver;
 use super::ResolvedModule;
 
@@ -59,7 +57,7 @@ fn resolve_struct_member_body(
             };
             let mut resolver = BodyResolver::new(resolved, items, item.id);
             if let Some(name) = &materializer.param_name {
-                resolver.bind_local(name, LocalKind::Pattern, None, materializer.span);
+                resolver.bind_param(name, materializer.id);
             }
             resolver.resolve_expr_names(body);
         }

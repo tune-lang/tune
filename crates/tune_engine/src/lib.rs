@@ -265,6 +265,10 @@ fn direct_call_targets_in_op(op: &tune_plan::PlanOp) -> Vec<FunctionTarget> {
             member: Some(member),
             ..
         } => Some(FunctionTarget::Member(*member)),
+        tune_plan::PlanOp::Materialize {
+            materializer: Some(member),
+            ..
+        } => Some(FunctionTarget::Member(*member)),
         _ => None,
     }
     .into_iter()

@@ -141,6 +141,13 @@ impl Lowerer {
             PlanOp::MemberCall { member: None, .. } => {
                 Err(IrLowerError::UnsupportedOp("unresolved member call"))
             }
+            PlanOp::Materialize {
+                materializer: Some(member),
+                ..
+            } => self.lower_materialize(*member),
+            PlanOp::Materialize {
+                materializer: None, ..
+            } => Ok(()),
             PlanOp::VariantConstruct {
                 variant,
                 arg_count,
@@ -221,7 +228,6 @@ impl Lowerer {
             | PlanOp::WitnessCall
             | PlanOp::HostCall { .. }
             | PlanOp::Assign
-            | PlanOp::Materialize { .. }
             | PlanOp::StringBuild
             | PlanOp::Meta { .. } => Err(IrLowerError::UnsupportedOp("plan op")),
         }

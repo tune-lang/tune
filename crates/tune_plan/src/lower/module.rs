@@ -1,4 +1,6 @@
-use tune_hir::item::{CallableMember, IndexAccess, Item, ItemKind, StructMember};
+use tune_hir::item::{
+    CallableMember, IndexAccess, Item, ItemKind, SequenceMaterializer, StructMember,
+};
 use tune_hir::module::Module;
 use tune_resolve::ResolvedModule;
 use tune_shape::{MaterializationPlan, Shape};
@@ -157,7 +159,16 @@ fn lower_struct_member_functions<'a>(
                     StructMember::IndexAccess(access) => {
                         lower_index_access_member(module, resolved, item, access, param_shapes)
                     }
-                    StructMember::Field(_) | StructMember::SequenceMaterializer(_) => None,
+                    StructMember::SequenceMaterializer(materializer) => {
+                        lower_sequence_materializer_member(
+                            module,
+                            resolved,
+                            item,
+                            materializer,
+                            param_shapes,
+                        )
+                    }
+                    StructMember::Field(_) => None,
                 })
         })
 }
@@ -183,6 +194,41 @@ fn lower_callable_member(
         params: std::iter::once(callable.id)
             .chain(callable.params.iter().map(|param| param.id))
             .collect(),
+        module_bindings: Vec::new(),
+        ops: Vec::new(),
+    };
+    let context = LowerContext {
+        resolved: Some(resolved),
+        module: Some(module),
+        analysis: Some(&analysis),
+        self_shape: owner.name.as_ref().map(|name| Shape::Struct(name.clone())),
+        struct_escape: crate::StructEscapeReason::Local,
+        structural_witnesses: Vec::new(),
+        param_shapes: param_shapes.to_vec(),
+        captured_locals: captured_locals_for_body(resolved, body),
+    };
+    context.lower_return_expr(body, &mut plan.ops);
+    if super::falls_through(body) {
+        plan.ops.push(PlanOp::Return);
+    }
+    Some(plan)
+}
+
+fn lower_sequence_materializer_member(
+    module: &Module,
+    resolved: &ResolvedModule,
+    owner: &Item,
+    materializer: &SequenceMaterializer,
+    param_shapes: &[(tune_hir::MemberId, Shape)],
+) -> Option<PlanFunction> {
+    let body = materializer.body.as_ref()?;
+    let analysis = tune_shape::analyze_item(module, resolved, owner);
+    let mut plan = PlanFunction {
+        owner: Some(owner.id),
+        member: Some(materializer.id),
+        name: format!("{}.[items]", owner.name.as_deref().unwrap_or("<anonymous>")),
+        span: materializer.span,
+        params: vec![materializer.id],
         module_bindings: Vec::new(),
         ops: Vec::new(),
     };

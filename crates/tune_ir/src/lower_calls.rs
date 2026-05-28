@@ -51,4 +51,17 @@ impl Lowerer {
         self.stack.push(dst);
         Ok(())
     }
+
+    pub(super) fn lower_materialize(&mut self, member: MemberId) -> Result<(), IrLowerError> {
+        let input = self.pop("materialization input")?;
+        let dst = self.alloc_reg()?;
+        self.push_op(IrOp::CallMember {
+            dst,
+            member,
+            args: vec![input],
+            span: None,
+        });
+        self.stack.push(dst);
+        Ok(())
+    }
 }

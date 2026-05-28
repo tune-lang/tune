@@ -254,6 +254,29 @@ let result: Counter = task.join()
     Ok(())
 }
 
+#[test]
+fn run_file_executes_sequence_materializer() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+struct Stack {
+  value: Int
+  [items] = Stack {
+    value = items[0]
+  }
+}
+let stack: Stack = [4, 5]
+let result: Int = stack.value
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, Value::Int(4));
+    Ok(())
+}
+
 fn run_file(tune: &tune_engine::Tune, file: tune_db::FileId) -> Result<Value, &'static str> {
     tune.run_file(file).map_err(|error| {
         eprintln!("{error:?}");

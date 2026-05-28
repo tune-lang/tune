@@ -87,6 +87,10 @@ let member(items: Stack) = items.get(0)
             ..
         }
     )));
+    let module_plan = tune_plan::lower_resolved_module_to_plan(&module, &resolved);
+    assert!(module_plan.functions.iter().any(|function| {
+        function.member.is_some() && function.name == "Stack.[items]" && function.params.len() == 1
+    }));
 
     let first = tune_plan::lower_resolved_module_item_to_plan(&module, &module.items[2], &resolved)
         .ok_or("first plan should lower")?;
