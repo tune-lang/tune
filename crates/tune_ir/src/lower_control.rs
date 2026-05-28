@@ -1,10 +1,11 @@
 use tune_plan::PlanOp;
 
 use tune_diagnostics::Span;
+use tune_resolve::LocalId;
 
 use crate::lower::Lowerer;
 use crate::lower_slots::{local_offset, local_slot};
-use crate::{BlockId, IrBlock, IrLowerError, IrOp};
+use crate::{BlockId, IrBlock, IrLowerError, IrOp, Reg};
 
 impl Lowerer {
     pub(super) fn lower_if(
@@ -226,6 +227,61 @@ impl Lowerer {
         Ok(())
     }
 
+    pub(super) fn lower_finite_for(
+        &mut self,
+        binding: Option<LocalId>,
+        iterable_ops: &[PlanOp],
+        body_ops: &[PlanOp],
+        span: Option<Span>,
+    ) -> Result<(), IrLowerError> {
+        let base_stack_len = self.stack.len();
+        for op in iterable_ops {
+            self.lower_op(op)?;
+        }
+        let iterable = self.pop("for iterable")?;
+        let iterator = self.alloc_reg()?;
+        let len = self.alloc_reg()?;
+        let index = self.alloc_reg()?;
+        let item = self.alloc_reg()?;
+        let next_block = self.alloc_block();
+        let body_block = self.alloc_block();
+        let done_block = self.alloc_block();
+
+        self.push_op(IrOp::FiniteForInit {
+            iterator,
+            iterable,
+            len,
+        });
+        self.push_op(IrOp::Jump { target: next_block });
+
+        self.switch_to_block(next_block);
+        self.push_op(IrOp::FiniteForNext {
+            iterator,
+            iterable,
+            len,
+            index,
+            item,
+            body: body_block,
+            done: done_block,
+        });
+
+        self.switch_to_block(body_block);
+        self.store_for_binding(binding, item)?;
+        self.loop_targets.push((next_block, done_block));
+        for op in body_ops {
+            self.lower_op(op)?;
+        }
+        self.loop_targets.pop();
+        if !self.current_block_terminates() {
+            self.push_op(IrOp::Jump { target: next_block });
+        }
+        self.stack.truncate(base_stack_len);
+        self.switch_to_block(done_block);
+        self.stack.truncate(base_stack_len);
+        let _ = span;
+        Ok(())
+    }
+
     pub(super) fn lower_break(&mut self) -> Result<(), IrLowerError> {
         let Some((_, break_block)) = self.loop_targets.last().copied() else {
             return Err(IrLowerError::UnsupportedOp("break outside loop"));
@@ -268,6 +324,20 @@ impl Lowerer {
 
     fn switch_to_block(&mut self, block: BlockId) {
         self.current_block = block;
+    }
+
+    fn store_for_binding(
+        &mut self,
+        binding: Option<LocalId>,
+        item: Reg,
+    ) -> Result<(), IrLowerError> {
+        let Some(binding) = binding else {
+            return Ok(());
+        };
+        let local = local_slot(binding, local_offset(&self.module_bindings, &self.params))?;
+        self.track_local(local)?;
+        self.push_op(IrOp::StoreLocal { local, value: item });
+        Ok(())
     }
 
     fn current_block_terminates(&self) -> bool {

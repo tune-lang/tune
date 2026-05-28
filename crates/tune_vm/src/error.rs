@@ -30,6 +30,7 @@ pub enum VmError {
     FunctionOutOfBounds,
     CallSiteOutOfBounds,
     StructSiteOutOfBounds,
+    ForSiteOutOfBounds,
     ArityMismatch,
     UnsupportedStructState,
     InvalidBytecode(BytecodeValidationError),

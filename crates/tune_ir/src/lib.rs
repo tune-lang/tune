@@ -5,6 +5,7 @@ mod lower_binary;
 mod lower_bindings;
 mod lower_calls;
 mod lower_control;
+mod lower_sequence;
 mod lower_slots;
 mod lower_state;
 mod lower_tasks;

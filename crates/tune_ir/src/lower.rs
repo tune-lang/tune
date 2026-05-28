@@ -86,6 +86,8 @@ impl Lowerer {
             }
             PlanOp::BinaryOp { op, span } => self.lower_binary(*op, *span),
             PlanOp::UnaryOp { op } => self.lower_unary(*op),
+            PlanOp::SequenceBuild { element_count } => self.lower_sequence_build(*element_count),
+            PlanOp::SequencePush => self.lower_sequence_push(),
             PlanOp::BindingGet {
                 source: Some(source),
             } => self.lower_binding_get(*source),
@@ -179,6 +181,13 @@ impl Lowerer {
             PlanOp::Loop { body_ops, .. } => self.lower_loop(body_ops),
             PlanOp::Break => self.lower_break(),
             PlanOp::Continue => self.lower_continue(),
+            PlanOp::FiniteFor {
+                binding,
+                iterable_ops,
+                body_ops,
+                span,
+                ..
+            } => self.lower_finite_for(*binding, iterable_ops, body_ops, *span),
             PlanOp::BindingGet { .. }
             | PlanOp::BoundCall
             | PlanOp::CallableValue
@@ -187,9 +196,7 @@ impl Lowerer {
             | PlanOp::Assign
             | PlanOp::SequenceGet { .. }
             | PlanOp::SequenceSet { .. }
-            | PlanOp::SequencePush
             | PlanOp::Materialize { .. }
-            | PlanOp::FiniteFor { .. }
             | PlanOp::StringBuild
             | PlanOp::Panic
             | PlanOp::Meta { .. } => Err(IrLowerError::UnsupportedOp("plan op")),

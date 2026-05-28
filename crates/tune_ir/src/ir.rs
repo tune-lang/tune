@@ -224,6 +224,8 @@ pub enum IrOp {
     },
     FiniteForNext {
         iterator: Reg,
+        iterable: Reg,
+        len: Reg,
         index: Reg,
         item: Reg,
         body: BlockId,

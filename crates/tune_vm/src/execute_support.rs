@@ -195,6 +195,156 @@ impl Vm {
         })?;
         self.at(function, instruction, write_reg(registers, op.a, result))
     }
+
+    pub(crate) fn execute_sequence(
+        &self,
+        function: usize,
+        instruction: usize,
+        registers: &mut [Value],
+        op: &Instruction,
+    ) -> Result<(), VmFault> {
+        match op.opcode {
+            Opcode::SeqBuild => self.at(
+                function,
+                instruction,
+                write_reg(registers, op.a, Value::Sequence(Vec::new())),
+            ),
+            Opcode::SeqPush => {
+                let seq = self.at(function, instruction, read_reg(registers, op.a))?;
+                let value = self.at(function, instruction, read_reg(registers, op.b))?;
+                let Value::Sequence(mut values) = seq else {
+                    return Err(self.fault_at(
+                        function,
+                        instruction,
+                        VmError::UnsupportedOpcode(Opcode::SeqPush),
+                    ));
+                };
+                values.push(value);
+                self.at(
+                    function,
+                    instruction,
+                    write_reg(registers, op.a, Value::Sequence(values)),
+                )
+            }
+            _ => Err(self.fault_at(function, instruction, VmError::UnsupportedOpcode(op.opcode))),
+        }
+    }
+
+    pub(crate) fn execute_finite_for_init(
+        &self,
+        function: usize,
+        instruction: usize,
+        registers: &mut [Value],
+        op: &Instruction,
+    ) -> Result<(), VmFault> {
+        let iterable = self.at(function, instruction, read_reg(registers, op.b))?;
+        let Value::Sequence(values) = iterable else {
+            return Err(self.fault_at(
+                function,
+                instruction,
+                VmError::UnsupportedOpcode(Opcode::FiniteForInit),
+            ));
+        };
+        let len = i64::try_from(values.len()).map_err(|_| {
+            self.fault_at(
+                function,
+                instruction,
+                VmError::UnsupportedOpcode(Opcode::FiniteForInit),
+            )
+        })?;
+        self.at(
+            function,
+            instruction,
+            write_reg(registers, op.a, Value::Int(0)),
+        )?;
+        self.at(
+            function,
+            instruction,
+            write_reg(registers, op.c, Value::Int(len)),
+        )
+    }
+
+    pub(crate) fn execute_finite_for_next(
+        &self,
+        function_index: usize,
+        instruction_index: usize,
+        function: &tune_bytecode::function::BytecodeFunction,
+        registers: &mut [Value],
+        op: &Instruction,
+    ) -> Result<usize, VmFault> {
+        let site = function.for_sites.get(op.b as usize).ok_or_else(|| {
+            self.fault_at(
+                function_index,
+                instruction_index,
+                VmError::ForSiteOutOfBounds,
+            )
+        })?;
+        let iterator = self.at(function_index, instruction_index, read_reg(registers, op.a))?;
+        let Value::Int(iterator) = iterator else {
+            return Err(self.fault_at(
+                function_index,
+                instruction_index,
+                VmError::UnsupportedOpcode(Opcode::FiniteForNext),
+            ));
+        };
+        let len = self.at(
+            function_index,
+            instruction_index,
+            read_reg(registers, site.len),
+        )?;
+        let Value::Int(len) = len else {
+            return Err(self.fault_at(
+                function_index,
+                instruction_index,
+                VmError::UnsupportedOpcode(Opcode::FiniteForNext),
+            ));
+        };
+        if iterator >= len {
+            return Ok(site.done as usize);
+        }
+        let iterable = self.at(
+            function_index,
+            instruction_index,
+            read_reg(registers, site.iterable),
+        )?;
+        let Value::Sequence(values) = iterable else {
+            return Err(self.fault_at(
+                function_index,
+                instruction_index,
+                VmError::UnsupportedOpcode(Opcode::FiniteForNext),
+            ));
+        };
+        let index = usize::try_from(iterator).map_err(|_| {
+            self.fault_at(
+                function_index,
+                instruction_index,
+                VmError::UnsupportedOpcode(Opcode::FiniteForNext),
+            )
+        })?;
+        let item = values.get(index).cloned().ok_or_else(|| {
+            self.fault_at(
+                function_index,
+                instruction_index,
+                VmError::UnsupportedOpcode(Opcode::FiniteForNext),
+            )
+        })?;
+        self.at(
+            function_index,
+            instruction_index,
+            write_reg(registers, site.index, Value::Int(iterator)),
+        )?;
+        self.at(
+            function_index,
+            instruction_index,
+            write_reg(registers, site.item, item),
+        )?;
+        self.at(
+            function_index,
+            instruction_index,
+            write_reg(registers, op.a, Value::Int(iterator + 1)),
+        )?;
+        Ok(site.body as usize)
+    }
 }
 
 pub(crate) fn read_reg(registers: &[Value], reg: u32) -> Result<Value, VmError> {

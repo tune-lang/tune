@@ -286,6 +286,7 @@ fn validation_rejects_call_arity_mismatch() {
                 struct_sites: Vec::new(),
                 variant_sites: Vec::new(),
                 match_sites: Vec::new(),
+                for_sites: Vec::new(),
                 instructions: vec![tune_bytecode::function::Instruction {
                     opcode: tune_bytecode::Opcode::CallDirect,
                     a: 0,
@@ -303,6 +304,7 @@ fn validation_rejects_call_arity_mismatch() {
                 struct_sites: Vec::new(),
                 variant_sites: Vec::new(),
                 match_sites: Vec::new(),
+                for_sites: Vec::new(),
                 instructions: vec![tune_bytecode::function::Instruction {
                     opcode: tune_bytecode::Opcode::Return,
                     a: 0,
@@ -339,6 +341,7 @@ fn validation_rejects_register_out_of_bounds() {
             struct_sites: Vec::new(),
             variant_sites: Vec::new(),
             match_sites: Vec::new(),
+            for_sites: Vec::new(),
             instructions: vec![tune_bytecode::function::Instruction {
                 opcode: tune_bytecode::Opcode::LoadConst,
                 a: 1,

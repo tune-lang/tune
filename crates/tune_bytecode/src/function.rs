@@ -76,6 +76,16 @@ pub struct BytecodeMatchArm {
     pub target: u32,
 }
 
+#[derive(Debug, Clone)]
+pub struct BytecodeForSite {
+    pub iterable: u32,
+    pub len: u32,
+    pub index: u32,
+    pub item: u32,
+    pub body: u32,
+    pub done: u32,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BytecodeVariant {
     ResultOk,
@@ -94,5 +104,6 @@ pub struct BytecodeFunction {
     pub struct_sites: Vec<BytecodeStructSite>,
     pub variant_sites: Vec<BytecodeVariantSite>,
     pub match_sites: Vec<BytecodeMatchSite>,
+    pub for_sites: Vec<BytecodeForSite>,
     pub instructions: Vec<Instruction>,
 }

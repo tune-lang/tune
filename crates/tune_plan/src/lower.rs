@@ -125,6 +125,9 @@ impl LowerContext<'_> {
                 ops.push(PlanOp::CallableValue);
             }
             ExprKind::Sequence(elements) => {
+                ops.push(PlanOp::SequenceBuild {
+                    element_count: elements.len(),
+                });
                 for element in elements {
                     self.lower_expr(element, ops);
                     ops.push(PlanOp::SequencePush);
@@ -293,6 +296,7 @@ impl LowerContext<'_> {
                     pattern: pattern.clone(),
                     iterable: iterable.id,
                     body: body.id,
+                    binding: self.for_pattern_binding(pattern),
                     iterable_ops: self.lower_expr_to_ops(iterable),
                     body_ops: self.lower_expr_to_ops(body),
                     contract: FiniteForContract {

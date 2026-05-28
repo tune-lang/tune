@@ -6,7 +6,7 @@ use tune_hir::{ExprId, MemberId};
 use tune_resolve::{LocalId, NameTarget};
 
 use super::{Analyzer, ExprShape, MaterializerCheck};
-use crate::{BindingKey, BindingState, Shape, expr_shape_fact};
+use crate::{BindingKey, BindingState, LiteralFact, Shape, expr_shape_fact};
 mod effects;
 
 use effects::{expr_assigns_binding, expr_has_materializer_effect};
@@ -94,7 +94,9 @@ impl Analyzer<'_> {
         span: Option<Span>,
     ) -> (Option<MemberId>, Option<MemberId>) {
         match shape {
-            Shape::Hole | Shape::Sequence(_) => (None, None),
+            Shape::Hole => (None, None),
+            Shape::Sequence(_) => (None, None),
+            Shape::Literal(LiteralFact::Sequence { .. }) => (None, None),
             Shape::Struct(name) | Shape::Apply { name, .. } => {
                 let len = self.callable_member(name, "len");
                 let index = self.index_member(name);

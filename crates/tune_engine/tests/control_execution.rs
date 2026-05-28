@@ -92,6 +92,36 @@ let result: Int = gate + offset
     Ok(())
 }
 
+#[test]
+fn run_file_executes_finite_for_over_sequence() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let result: Int = {
+  let values = [1, 2, 3, 4]
+  let total: Int = 0
+  for item in values {
+    if item < 3 {
+      continue
+    }
+    total = total + item
+    if item >= 4 {
+      break
+    }
+  }
+  total
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, tune_runtime::value::Value::Int(7));
+
+    Ok(())
+}
+
 fn run_file(
     tune: &tune_engine::Tune,
     file: tune_db::FileId,

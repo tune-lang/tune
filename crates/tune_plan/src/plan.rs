@@ -170,6 +170,9 @@ pub enum PlanOp {
         index_member: Option<MemberId>,
     },
     SequencePush,
+    SequenceBuild {
+        element_count: usize,
+    },
     Materialize {
         plan: MaterializationPlan,
     },
@@ -180,6 +183,7 @@ pub enum PlanOp {
         pattern: Pattern,
         iterable: ExprId,
         body: ExprId,
+        binding: Option<LocalId>,
         iterable_ops: Vec<PlanOp>,
         body_ops: Vec<PlanOp>,
         contract: FiniteForContract,

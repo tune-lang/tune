@@ -72,6 +72,9 @@ impl Vm {
                         write_reg(&mut registers, instruction.a, value),
                     )?;
                 }
+                Opcode::SeqBuild | Opcode::SeqPush => {
+                    self.execute_sequence(function_index, ip, &mut registers, instruction)?;
+                }
                 Opcode::StructConstruct => {
                     let site = function
                         .struct_sites
@@ -353,6 +356,19 @@ impl Vm {
                         ));
                     }
                     ip = instruction.c as usize;
+                    continue;
+                }
+                Opcode::FiniteForInit => {
+                    self.execute_finite_for_init(function_index, ip, &mut registers, instruction)?;
+                }
+                Opcode::FiniteForNext => {
+                    ip = self.execute_finite_for_next(
+                        function_index,
+                        ip,
+                        function,
+                        &mut registers,
+                        instruction,
+                    )?;
                     continue;
                 }
                 Opcode::Return => {

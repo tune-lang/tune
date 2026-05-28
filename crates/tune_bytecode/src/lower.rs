@@ -2,13 +2,14 @@ use std::collections::HashMap;
 
 mod compare;
 mod context;
+mod control;
 mod error;
 
 use crate::Opcode;
 use crate::artifact::{BytecodeArtifact, BytecodeConst};
 use crate::function::{
-    BytecodeCallSite, BytecodeFunction, BytecodeMatchArm, BytecodeMatchSite, BytecodeStructField,
-    BytecodeStructSite, BytecodeVariantSite, Instruction,
+    BytecodeCallSite, BytecodeFunction, BytecodeStructField, BytecodeStructSite,
+    BytecodeVariantSite, Instruction,
 };
 use crate::lower_tables::{
     block_offsets, function_indices, lower_variant, member_function_indices, push_artifact_const,
@@ -19,6 +20,7 @@ use tune_ir::{IrFunction, IrOp};
 
 use self::compare::lower_int_comparison;
 pub(crate) use self::context::FunctionLowerer;
+use self::control::FiniteForNextLowering;
 pub use self::error::BytecodeLowerError;
 
 pub fn lower_ir_functions(
@@ -69,6 +71,7 @@ fn lower_ir_function_with_constants(
         struct_sites: Vec::new(),
         variant_sites: Vec::new(),
         match_sites: Vec::new(),
+        for_sites: Vec::new(),
         instructions: Vec::new(),
         instruction_spans: Vec::new(),
     };
@@ -93,6 +96,7 @@ fn lower_ir_function_with_constants(
         struct_sites: lowerer.struct_sites,
         variant_sites: lowerer.variant_sites,
         match_sites: lowerer.match_sites,
+        for_sites: lowerer.for_sites,
         instructions: lowerer.instructions,
     })
 }
@@ -117,6 +121,14 @@ impl FunctionLowerer<'_> {
             }
             IrOp::AddInt { dst, a, b, .. } => {
                 self.push_instruction(Opcode::AddInt, dst.0, a.0, b.0);
+                Ok(())
+            }
+            IrOp::SeqBuild { dst, .. } => {
+                self.push_instruction(Opcode::SeqBuild, dst.0, 0, 0);
+                Ok(())
+            }
+            IrOp::SeqPush { seq, value } => {
+                self.push_instruction(Opcode::SeqPush, seq.0, value.0, 0);
                 Ok(())
             }
             IrOp::NegInt { dst, value, .. } => {
@@ -301,16 +313,7 @@ impl FunctionLowerer<'_> {
                 Ok(())
             }
             IrOp::Jump { target } => {
-                let target = *self
-                    .block_offsets
-                    .get(target)
-                    .ok_or(BytecodeLowerError::UnknownBlock)?;
-                self.instructions.push(Instruction {
-                    opcode: Opcode::Jump,
-                    a: target,
-                    b: 0,
-                    c: 0,
-                });
+                self.lower_jump(*target)?;
                 Ok(())
             }
             IrOp::Branch {
@@ -319,26 +322,7 @@ impl FunctionLowerer<'_> {
                 else_block,
                 ..
             } => {
-                let then_block = *self
-                    .block_offsets
-                    .get(then_block)
-                    .ok_or(BytecodeLowerError::UnknownBlock)?;
-                let else_block = *self
-                    .block_offsets
-                    .get(else_block)
-                    .ok_or(BytecodeLowerError::UnknownBlock)?;
-                self.instructions.push(Instruction {
-                    opcode: Opcode::JumpIfFalse,
-                    a: condition.0,
-                    b: else_block,
-                    c: 0,
-                });
-                self.instructions.push(Instruction {
-                    opcode: Opcode::Jump,
-                    a: then_block,
-                    b: 0,
-                    c: 0,
-                });
+                self.lower_branch(*condition, *then_block, *else_block)?;
                 Ok(())
             }
             IrOp::MatchVariant {
@@ -347,35 +331,35 @@ impl FunctionLowerer<'_> {
                 else_block,
                 ..
             } => {
-                let match_site = u32::try_from(self.match_sites.len())
-                    .map_err(|_| BytecodeLowerError::ConstantLimit)?;
-                let arms = arms
-                    .iter()
-                    .map(|arm| {
-                        Ok(BytecodeMatchArm {
-                            variant: lower_variant(arm.variant),
-                            target: *self
-                                .block_offsets
-                                .get(&arm.block)
-                                .ok_or(BytecodeLowerError::UnknownBlock)?,
-                        })
-                    })
-                    .collect::<Result<Vec<_>, BytecodeLowerError>>()?;
-                let else_target = if let Some(else_block) = else_block {
-                    *self
-                        .block_offsets
-                        .get(else_block)
-                        .ok_or(BytecodeLowerError::UnknownBlock)?
-                } else {
-                    u32::MAX
-                };
-                self.match_sites.push(BytecodeMatchSite { arms });
-                self.instructions.push(Instruction {
-                    opcode: Opcode::MatchVariant,
-                    a: scrutinee.0,
-                    b: match_site,
-                    c: else_target,
-                });
+                self.lower_match_variant(*scrutinee, arms, *else_block)?;
+                Ok(())
+            }
+            IrOp::FiniteForInit {
+                iterator,
+                iterable,
+                len,
+            } => {
+                self.lower_finite_for_init(*iterator, *iterable, *len);
+                Ok(())
+            }
+            IrOp::FiniteForNext {
+                iterator,
+                iterable,
+                len,
+                index,
+                item,
+                body,
+                done,
+            } => {
+                self.lower_finite_for_next(FiniteForNextLowering {
+                    iterator: *iterator,
+                    iterable: *iterable,
+                    len: *len,
+                    index: *index,
+                    item: *item,
+                    body: *body,
+                    done: *done,
+                })?;
                 Ok(())
             }
             IrOp::Return { value: Some(value) } => {

@@ -39,6 +39,10 @@ pub enum BytecodeValidationError {
         function: u32,
         site: u32,
     },
+    ForSiteOutOfBounds {
+        function: u32,
+        site: u32,
+    },
     JumpOutOfBounds {
         function: u32,
         target: u32,
@@ -122,6 +126,13 @@ fn validate_instruction(
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
         }
+        Opcode::SeqBuild => {
+            register(function_id, function, instruction.a)?;
+        }
+        Opcode::SeqPush => {
+            register(function_id, function, instruction.a)?;
+            register(function_id, function, instruction.b)?;
+        }
         Opcode::NegInt | Opcode::NotBool => {
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
@@ -158,6 +169,12 @@ fn validate_instruction(
             jump(function_id, function, instruction.b)?;
         }
         Opcode::MatchVariant => validate_match(function_id, function, instruction)?,
+        Opcode::FiniteForInit => {
+            register(function_id, function, instruction.a)?;
+            register(function_id, function, instruction.b)?;
+            register(function_id, function, instruction.c)?;
+        }
+        Opcode::FiniteForNext => validate_finite_for(function_id, function, instruction)?,
         Opcode::Return if instruction.b != 0 => {
             register(function_id, function, instruction.a)?;
         }
@@ -261,6 +278,27 @@ fn validate_match(
     if instruction.c != u32::MAX {
         jump(function_id, function, instruction.c)?;
     }
+    Ok(())
+}
+
+fn validate_finite_for(
+    function_id: u32,
+    function: &BytecodeFunction,
+    instruction: &Instruction,
+) -> Result<(), BytecodeValidationError> {
+    register(function_id, function, instruction.a)?;
+    let site = function.for_sites.get(instruction.b as usize).ok_or(
+        BytecodeValidationError::ForSiteOutOfBounds {
+            function: function_id,
+            site: instruction.b,
+        },
+    )?;
+    register(function_id, function, site.iterable)?;
+    register(function_id, function, site.len)?;
+    register(function_id, function, site.index)?;
+    register(function_id, function, site.item)?;
+    jump(function_id, function, site.body)?;
+    jump(function_id, function, site.done)?;
     Ok(())
 }
 
