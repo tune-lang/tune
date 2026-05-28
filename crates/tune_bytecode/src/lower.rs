@@ -1,5 +1,8 @@
 use std::collections::HashMap;
 
+mod context;
+mod error;
+
 use crate::Opcode;
 use crate::artifact::{BytecodeArtifact, BytecodeConst};
 use crate::function::{
@@ -11,15 +14,10 @@ use crate::lower_tables::{
 };
 use crate::provenance::BytecodeFunctionProvenance;
 use tune_hir::{HirId, MemberId};
-use tune_ir::{BlockId, IrFunction, IrOp};
+use tune_ir::{IrFunction, IrOp};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BytecodeLowerError {
-    UnsupportedIr(&'static str),
-    UnknownFunction,
-    UnknownBlock,
-    ConstantLimit,
-}
+pub(crate) use self::context::FunctionLowerer;
+pub use self::error::BytecodeLowerError;
 
 pub fn lower_ir_functions(
     functions: &[IrFunction],
@@ -95,20 +93,6 @@ fn lower_ir_function_with_constants(
         match_sites: lowerer.match_sites,
         instructions: lowerer.instructions,
     })
-}
-
-pub(super) struct FunctionLowerer<'a> {
-    function: &'a IrFunction,
-    function_indices: &'a HashMap<HirId, u32>,
-    member_indices: &'a HashMap<MemberId, u32>,
-    block_offsets: HashMap<BlockId, u32>,
-    constants: &'a mut Vec<BytecodeConst>,
-    call_sites: Vec<BytecodeCallSite>,
-    struct_sites: Vec<BytecodeStructSite>,
-    variant_sites: Vec<BytecodeVariantSite>,
-    match_sites: Vec<BytecodeMatchSite>,
-    pub(super) instructions: Vec<Instruction>,
-    instruction_spans: Vec<Option<tune_diagnostics::Span>>,
 }
 
 impl FunctionLowerer<'_> {
