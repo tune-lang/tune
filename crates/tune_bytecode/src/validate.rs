@@ -122,7 +122,13 @@ fn validate_instruction(
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
         }
-        Opcode::AddInt | Opcode::GreaterInt => {
+        Opcode::AddInt
+        | Opcode::GreaterInt
+        | Opcode::EqualInt
+        | Opcode::NotEqualInt
+        | Opcode::LessInt
+        | Opcode::LessEqualInt
+        | Opcode::GreaterEqualInt => {
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
             register(function_id, function, instruction.c)?;

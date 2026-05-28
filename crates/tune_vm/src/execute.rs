@@ -160,21 +160,13 @@ impl Vm {
                         write_reg(&mut registers, instruction.a, Value::Int(left + right)),
                     )?;
                 }
-                Opcode::GreaterInt => {
-                    let left = self.at(function_index, ip, read_reg(&registers, instruction.b))?;
-                    let right = self.at(function_index, ip, read_reg(&registers, instruction.c))?;
-                    let (Value::Int(left), Value::Int(right)) = (left, right) else {
-                        return Err(self.fault_at(
-                            function_index,
-                            ip,
-                            VmError::UnsupportedOpcode(Opcode::GreaterInt),
-                        ));
-                    };
-                    self.at(
-                        function_index,
-                        ip,
-                        write_reg(&mut registers, instruction.a, Value::Bool(left > right)),
-                    )?;
+                Opcode::GreaterInt
+                | Opcode::EqualInt
+                | Opcode::NotEqualInt
+                | Opcode::LessInt
+                | Opcode::LessEqualInt
+                | Opcode::GreaterEqualInt => {
+                    self.execute_int_comparison(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::CallDirect => {
                     let call_site =

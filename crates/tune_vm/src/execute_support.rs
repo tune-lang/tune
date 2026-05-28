@@ -1,6 +1,6 @@
 use tune_bytecode::Opcode;
 use tune_bytecode::function::{
-    BytecodeOwnershipPlan, BytecodeStateRepr, BytecodeStructState, BytecodeVariant,
+    BytecodeOwnershipPlan, BytecodeStateRepr, BytecodeStructState, BytecodeVariant, Instruction,
 };
 use tune_runtime::{
     state::{StateHandle, StateId},
@@ -152,6 +152,30 @@ impl Vm {
             .get(function as usize)
             .map(|function| function.name.clone())
     }
+
+    pub(crate) fn execute_int_comparison(
+        &self,
+        function: usize,
+        instruction: usize,
+        registers: &mut [Value],
+        op: &Instruction,
+    ) -> Result<(), VmFault> {
+        let left = self.at(function, instruction, read_reg(registers, op.b))?;
+        let right = self.at(function, instruction, read_reg(registers, op.c))?;
+        let (Value::Int(left), Value::Int(right)) = (left, right) else {
+            return Err(self.fault_at(
+                function,
+                instruction,
+                VmError::UnsupportedOpcode(op.opcode),
+            ));
+        };
+        let result = self.at(function, instruction, compare_int(op.opcode, left, right))?;
+        self.at(
+            function,
+            instruction,
+            write_reg(registers, op.a, Value::Bool(result)),
+        )
+    }
 }
 
 pub(crate) fn read_reg(registers: &[Value], reg: u32) -> Result<Value, VmError> {
@@ -174,5 +198,17 @@ pub(crate) fn runtime_variant(variant: BytecodeVariant) -> RuntimeVariant {
         BytecodeVariant::ResultOk => RuntimeVariant::ResultOk,
         BytecodeVariant::ResultError => RuntimeVariant::ResultError,
         BytecodeVariant::Other { owner, index } => RuntimeVariant::Other { owner, index },
+    }
+}
+
+pub(crate) fn compare_int(opcode: Opcode, left: i64, right: i64) -> Result<bool, VmError> {
+    match opcode {
+        Opcode::GreaterInt => Ok(left > right),
+        Opcode::EqualInt => Ok(left == right),
+        Opcode::NotEqualInt => Ok(left != right),
+        Opcode::LessInt => Ok(left < right),
+        Opcode::LessEqualInt => Ok(left <= right),
+        Opcode::GreaterEqualInt => Ok(left >= right),
+        _ => Err(VmError::UnsupportedOpcode(opcode)),
     }
 }

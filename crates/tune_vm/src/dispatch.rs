@@ -8,6 +8,12 @@ pub fn execute_binary(op: Opcode, a: &Value, b: &Value) -> Option<Value> {
         (Opcode::AddByteWrap, Value::Byte(x), Value::Byte(y)) => {
             Some(Value::Byte(x.wrapping_add(*y)))
         }
+        (Opcode::GreaterInt, Value::Int(x), Value::Int(y)) => Some(Value::Bool(x > y)),
+        (Opcode::EqualInt, Value::Int(x), Value::Int(y)) => Some(Value::Bool(x == y)),
+        (Opcode::NotEqualInt, Value::Int(x), Value::Int(y)) => Some(Value::Bool(x != y)),
+        (Opcode::LessInt, Value::Int(x), Value::Int(y)) => Some(Value::Bool(x < y)),
+        (Opcode::LessEqualInt, Value::Int(x), Value::Int(y)) => Some(Value::Bool(x <= y)),
+        (Opcode::GreaterEqualInt, Value::Int(x), Value::Int(y)) => Some(Value::Bool(x >= y)),
         _ => None,
     }
 }

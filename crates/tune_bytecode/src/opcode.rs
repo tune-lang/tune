@@ -37,6 +37,11 @@ pub enum Opcode {
     Return = 33,
     GreaterInt = 34,
     VariantField = 35,
+    EqualInt = 36,
+    NotEqualInt = 37,
+    LessInt = 38,
+    LessEqualInt = 39,
+    GreaterEqualInt = 40,
 }
 
 impl Opcode {
@@ -77,5 +82,10 @@ impl Opcode {
         Self::Return,
         Self::GreaterInt,
         Self::VariantField,
+        Self::EqualInt,
+        Self::NotEqualInt,
+        Self::LessInt,
+        Self::LessEqualInt,
+        Self::GreaterEqualInt,
     ];
 }

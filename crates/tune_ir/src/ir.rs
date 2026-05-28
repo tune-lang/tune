@@ -37,6 +37,7 @@ impl IrOp {
         match self {
             Self::AddInt { span, .. }
             | Self::GreaterInt { span, .. }
+            | Self::CompareInt { span, .. }
             | Self::GetField { span, .. }
             | Self::SetField { span, .. }
             | Self::VariantConstruct { span, .. }
@@ -93,6 +94,13 @@ pub enum IrOp {
         dst: Reg,
         a: Reg,
         b: Reg,
+        span: Option<Span>,
+    },
+    CompareInt {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        op: IrIntComparison,
         span: Option<Span>,
     },
     AddFloat {
@@ -235,6 +243,15 @@ pub enum IrOp {
     Return {
         value: Option<Reg>,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrIntComparison {
+    Equal,
+    NotEqual,
+    Less,
+    LessEqual,
+    GreaterEqual,
 }
 
 #[derive(Debug, Clone)]

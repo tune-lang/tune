@@ -1,5 +1,4 @@
 use tune_hir::HirId;
-use tune_hir::expr::BinaryOp;
 use tune_plan::{PlanFunction, PlanOp};
 use tune_resolve::NameTarget;
 use tune_shape::Shape;
@@ -85,38 +84,7 @@ impl Lowerer {
                 self.stack.push(dst);
                 Ok(())
             }
-            PlanOp::BinaryOp {
-                op: BinaryOp::Add,
-                span,
-            } => {
-                let rhs = self.pop("binary rhs")?;
-                let lhs = self.pop("binary lhs")?;
-                let dst = self.alloc_reg()?;
-                self.push_op(IrOp::AddInt {
-                    dst,
-                    a: lhs,
-                    b: rhs,
-                    span: *span,
-                });
-                self.stack.push(dst);
-                Ok(())
-            }
-            PlanOp::BinaryOp {
-                op: BinaryOp::Greater,
-                span,
-            } => {
-                let rhs = self.pop("binary rhs")?;
-                let lhs = self.pop("binary lhs")?;
-                let dst = self.alloc_reg()?;
-                self.push_op(IrOp::GreaterInt {
-                    dst,
-                    a: lhs,
-                    b: rhs,
-                    span: *span,
-                });
-                self.stack.push(dst);
-                Ok(())
-            }
+            PlanOp::BinaryOp { op, span } => self.lower_binary(*op, *span),
             PlanOp::BindingGet {
                 source: Some(NameTarget::Local(local)),
             } => {
@@ -348,7 +316,6 @@ impl Lowerer {
                 span,
                 ..
             } => self.lower_while(condition_ops, body_ops, *span),
-            PlanOp::BinaryOp { .. } => Err(IrLowerError::UnsupportedOp("binary op")),
             PlanOp::BindingGet { .. }
             | PlanOp::BoundCall
             | PlanOp::CallableValue

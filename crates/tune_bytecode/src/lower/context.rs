@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use tune_hir::{HirId, MemberId};
 use tune_ir::{BlockId, IrFunction};
 
+use crate::Opcode;
 use crate::artifact::BytecodeConst;
 use crate::function::{
     BytecodeCallSite, BytecodeMatchSite, BytecodeStructSite, BytecodeVariantSite, Instruction,
@@ -20,4 +21,10 @@ pub(crate) struct FunctionLowerer<'a> {
     pub(super) match_sites: Vec<BytecodeMatchSite>,
     pub(crate) instructions: Vec<Instruction>,
     pub(super) instruction_spans: Vec<Option<tune_diagnostics::Span>>,
+}
+
+impl FunctionLowerer<'_> {
+    pub(super) fn push_instruction(&mut self, opcode: Opcode, a: u32, b: u32, c: u32) {
+        self.instructions.push(Instruction { opcode, a, b, c });
+    }
 }

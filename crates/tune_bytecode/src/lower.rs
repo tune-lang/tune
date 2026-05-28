@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+mod compare;
 mod context;
 mod error;
 
@@ -16,6 +17,7 @@ use crate::provenance::BytecodeFunctionProvenance;
 use tune_hir::{HirId, MemberId};
 use tune_ir::{IrFunction, IrOp};
 
+use self::compare::lower_int_comparison;
 pub(crate) use self::context::FunctionLowerer;
 pub use self::error::BytecodeLowerError;
 
@@ -114,21 +116,15 @@ impl FunctionLowerer<'_> {
                 Ok(())
             }
             IrOp::AddInt { dst, a, b, .. } => {
-                self.instructions.push(Instruction {
-                    opcode: Opcode::AddInt,
-                    a: dst.0,
-                    b: a.0,
-                    c: b.0,
-                });
+                self.push_instruction(Opcode::AddInt, dst.0, a.0, b.0);
                 Ok(())
             }
             IrOp::GreaterInt { dst, a, b, .. } => {
-                self.instructions.push(Instruction {
-                    opcode: Opcode::GreaterInt,
-                    a: dst.0,
-                    b: a.0,
-                    c: b.0,
-                });
+                self.push_instruction(Opcode::GreaterInt, dst.0, a.0, b.0);
+                Ok(())
+            }
+            IrOp::CompareInt { dst, a, b, op, .. } => {
+                self.push_instruction(lower_int_comparison(*op), dst.0, a.0, b.0);
                 Ok(())
             }
             IrOp::Move { dst, src } => {
@@ -375,21 +371,11 @@ impl FunctionLowerer<'_> {
                 Ok(())
             }
             IrOp::Return { value: Some(value) } => {
-                self.instructions.push(Instruction {
-                    opcode: Opcode::Return,
-                    a: value.0,
-                    b: 1,
-                    c: 0,
-                });
+                self.push_instruction(Opcode::Return, value.0, 1, 0);
                 Ok(())
             }
             IrOp::Return { value: None } => {
-                self.instructions.push(Instruction {
-                    opcode: Opcode::Return,
-                    a: 0,
-                    b: 0,
-                    c: 0,
-                });
+                self.push_instruction(Opcode::Return, 0, 0, 0);
                 Ok(())
             }
             _ => Err(BytecodeLowerError::UnsupportedIr("ir op")),
