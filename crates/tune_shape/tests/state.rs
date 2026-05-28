@@ -341,18 +341,42 @@ let run(): Int = Error("bad")!
 
 #[test]
 fn analyzer_warns_for_public_api_inference() -> Result<(), &'static str> {
-    let source = "pub let run(input) = input";
+    let source = "pub let run(input): Int = input";
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
     let resolved = tune_resolve::resolve_module(&module);
     let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
 
-    assert!(
-        analysis
-            .diagnostics
-            .iter()
-            .any(|diagnostic| { diagnostic.code == tune_diagnostics::codes::PUBLIC_API_INFERENCE })
+    let diagnostic = analysis
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == tune_diagnostics::codes::PUBLIC_API_INFERENCE)
+        .ok_or("public inference warning should be emitted")?;
+    assert_eq!(
+        diagnostic.title,
+        "public callable has inferred signature shape"
     );
+    assert!(diagnostic.facts.iter().any(|fact| {
+        fact.entries
+            .iter()
+            .any(|entry| entry.message == "parameter `input` shape is inferred")
+    }));
+
+    Ok(())
+}
+
+#[test]
+fn analyzer_warns_for_public_value_storage_inference() -> Result<(), &'static str> {
+    let source = "pub let value = 1";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert!(analysis.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::PUBLIC_API_INFERENCE
+            && diagnostic.title == "public value has inferred storage shape"
+    }));
 
     Ok(())
 }

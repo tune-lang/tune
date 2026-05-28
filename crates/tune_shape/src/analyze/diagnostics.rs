@@ -7,22 +7,43 @@ use crate::{Shape, expr_propagated_error_shape_fact};
 
 impl Analyzer<'_> {
     pub(super) fn check_public_api_shape(&mut self, item: &Item) {
-        if item.visibility != Visibility::Public || item.shape.is_some() {
+        if item.visibility != Visibility::Public {
             return;
         }
-        if !matches!(item.kind, ItemKind::Let | ItemKind::CallableDecl) {
-            return;
+
+        match item.kind {
+            ItemKind::Let if item.shape.is_none() => {
+                self.diagnostics.push(public_api_diag(
+                    item,
+                    "public value has inferred storage shape",
+                    "add an explicit storage shape to this public value",
+                    ["storage shape is inferred".to_owned()],
+                ));
+            }
+            ItemKind::CallableDecl => {
+                let mut inferred = Vec::new();
+                if item.shape.is_none() {
+                    inferred.push("return shape is inferred".to_owned());
+                }
+                inferred.extend(
+                    item.params
+                        .iter()
+                        .filter(|param| param.shape.is_none())
+                        .map(|param| {
+                            format!("parameter `{}` shape is inferred", param_name(param))
+                        }),
+                );
+                if !inferred.is_empty() {
+                    self.diagnostics.push(public_api_diag(
+                        item,
+                        "public callable has inferred signature shape",
+                        "add explicit parameter and return shapes to make this public callable stable",
+                        inferred,
+                    ));
+                }
+            }
+            _ => {}
         }
-        self.diagnostics.push(
-            Diagnostic::warning(
-                codes::PUBLIC_API_INFERENCE,
-                "public API relies on inferred shape",
-                item.span.unwrap_or_else(Span::synthetic),
-                "public items need an explicit shape for stable compiler facts",
-            )
-            .with_help("add an explicit return or storage shape to this public item")
-            .build(),
-        );
     }
 
     pub(super) fn check_result_propagation(&mut self, item: &Item, body: &Expr, expected: &Shape) {
@@ -66,6 +87,27 @@ impl Analyzer<'_> {
             );
         }
     }
+}
+
+fn public_api_diag(
+    item: &Item,
+    title: &'static str,
+    help: &'static str,
+    inferred: impl IntoIterator<Item = String>,
+) -> tune_diagnostics::Diagnostic {
+    Diagnostic::warning(
+        codes::PUBLIC_API_INFERENCE,
+        title,
+        item.span.unwrap_or_else(Span::synthetic),
+        "this public API surface depends on inference",
+    )
+    .with_fact("inferred public surface", inferred)
+    .with_help(help)
+    .build()
+}
+
+fn param_name(param: &tune_hir::item::Param) -> &str {
+    param.name.as_deref().unwrap_or("_")
 }
 
 fn result_propagation_diag(item: &Item, body: &Expr, error_shape: &Shape) -> Diagnostic {
