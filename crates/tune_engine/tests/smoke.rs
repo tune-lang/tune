@@ -76,6 +76,33 @@ let first(items: Stack) = items[0]
 }
 
 #[test]
+fn executable_lowering_failures_use_structured_diagnostics() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file("main.tn", "let value = while false { 1 }")
+        .ok_or("source should allocate")?;
+
+    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.executable_file(file) else {
+        return Err("unsupported executable lowering should report diagnostics");
+    };
+
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(
+        diagnostics[0].code,
+        tune_diagnostics::codes::EXECUTABLE_LOWERING_ERROR
+    );
+    assert!(
+        diagnostics[0]
+            .facts
+            .iter()
+            .flat_map(|fact| &fact.entries)
+            .any(|entry| entry.message.contains("UnsupportedOp"))
+    );
+
+    Ok(())
+}
+
+#[test]
 fn registers_host_modules_and_project_manifests() -> Result<(), &'static str> {
     struct EmptyHost;
 

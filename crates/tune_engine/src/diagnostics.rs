@@ -2,6 +2,51 @@ use tune_db::TuneDb;
 use tune_diagnostics::{Diagnostic, FactEntry, Span};
 use tune_runtime::value::{RuntimeVariant, Value};
 
+pub(crate) fn diagnostic_from_ir_lower_error(
+    function_name: &str,
+    function_span: Option<Span>,
+    error: &tune_ir::IrLowerError,
+) -> Diagnostic {
+    let span = function_span.unwrap_or_else(Span::synthetic);
+    Diagnostic::error(
+        tune_diagnostics::codes::EXECUTABLE_LOWERING_ERROR,
+        "executable lowering failed",
+        span,
+        "this planned function could not be lowered to IR",
+    )
+    .with_fact_entries(
+        "lowering context",
+        vec![
+            FactEntry::spanned(span, format!("function: `{function_name}`")),
+            FactEntry::new(format!("IR lowering error: {error:?}")),
+        ],
+    )
+    .with_note("the semantic plan reached the backend with an operation this executable slice does not yet support")
+    .build()
+}
+
+pub(crate) fn diagnostic_from_bytecode_lower_error(
+    error: &tune_bytecode::BytecodeLowerError,
+) -> Diagnostic {
+    let span = Span::synthetic();
+    Diagnostic::error(
+        tune_diagnostics::codes::EXECUTABLE_LOWERING_ERROR,
+        "bytecode lowering failed",
+        span,
+        "IR could not be lowered to typed bytecode",
+    )
+    .with_fact_entries(
+        "lowering context",
+        vec![FactEntry::new(format!(
+            "bytecode lowering error: {error:?}"
+        ))],
+    )
+    .with_note(
+        "bytecode lowering should preserve Tune meaning already made explicit by earlier phases",
+    )
+    .build()
+}
+
 #[must_use]
 pub fn diagnostic_from_vm_fault(fault: &tune_vm::VmFault) -> Diagnostic {
     vm_fault_diagnostic(fault, |_| None)

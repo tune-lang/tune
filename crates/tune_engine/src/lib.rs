@@ -1,5 +1,6 @@
 mod diagnostics;
 
+use diagnostics::{diagnostic_from_bytecode_lower_error, diagnostic_from_ir_lower_error};
 pub use diagnostics::{
     diagnostic_from_result_error, diagnostic_from_result_error_with_sources,
     diagnostic_from_vm_fault, diagnostic_from_vm_fault_with_sources,
@@ -146,14 +147,18 @@ impl Tune {
         let planned = core::iter::once(entry_plan)
             .chain(reachable.iter().map(|index| &compile.functions[*index]))
             .collect::<Vec<_>>();
-        let ir = planned
-            .iter()
-            .copied()
-            .map(tune_ir::lower_plan_function)
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|error| EngineError::IrLower(format!("{error:?}")))?;
-        let mut bytecode = tune_bytecode::lower_ir_functions(&ir)
-            .map_err(|error| EngineError::BytecodeLower(format!("{error:?}")))?;
+        let mut ir = Vec::new();
+        for plan in planned {
+            let function = tune_ir::lower_plan_function(plan).map_err(|error| {
+                EngineError::Diagnostics(vec![diagnostic_from_ir_lower_error(
+                    &plan.name, plan.span, &error,
+                )])
+            })?;
+            ir.push(function);
+        }
+        let mut bytecode = tune_bytecode::lower_ir_functions(&ir).map_err(|error| {
+            EngineError::Diagnostics(vec![diagnostic_from_bytecode_lower_error(&error)])
+        })?;
         bytecode.entry_function = Some(0);
         Ok(ExecutableReport {
             compile,

@@ -43,3 +43,4 @@ pub const PUBLIC_API_INFERENCE: DiagnosticCode = DiagnosticCode::new("T1101");
 pub const COMPILER_RESERVED_NAME: DiagnosticCode = DiagnosticCode::new("T1201");
 pub const TAG_FACT_MISSING: DiagnosticCode = DiagnosticCode::new("T1203");
 pub const HOST_AUTHORITY_DENIED: DiagnosticCode = DiagnosticCode::new("T1301");
+pub const EXECUTABLE_LOWERING_ERROR: DiagnosticCode = DiagnosticCode::new("T1401");
