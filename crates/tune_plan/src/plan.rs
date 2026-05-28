@@ -153,6 +153,16 @@ pub enum PlanOp {
         op: BinaryOp,
         span: Option<Span>,
     },
+    BoolAnd {
+        lhs_ops: Vec<PlanOp>,
+        rhs_ops: Vec<PlanOp>,
+        span: Option<Span>,
+    },
+    BoolOr {
+        lhs_ops: Vec<PlanOp>,
+        rhs_ops: Vec<PlanOp>,
+        span: Option<Span>,
+    },
     FieldGet {
         field: String,
         member: Option<MemberId>,

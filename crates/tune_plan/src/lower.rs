@@ -200,12 +200,33 @@ impl LowerContext<'_> {
                 ops.push(PlanOp::UnaryOp { op: *op });
             }
             ExprKind::Binary { op, lhs, rhs } => {
-                self.lower_expr(lhs, ops);
-                self.lower_expr(rhs, ops);
-                ops.push(PlanOp::BinaryOp {
-                    op: *op,
-                    span: expr.span,
-                });
+                if matches!(
+                    op,
+                    tune_hir::expr::BinaryOp::And | tune_hir::expr::BinaryOp::Or
+                ) {
+                    let lhs_ops = self.lower_expr_to_ops(lhs);
+                    let rhs_ops = self.lower_expr_to_ops(rhs);
+                    if matches!(op, tune_hir::expr::BinaryOp::And) {
+                        ops.push(PlanOp::BoolAnd {
+                            lhs_ops,
+                            rhs_ops,
+                            span: expr.span,
+                        });
+                    } else {
+                        ops.push(PlanOp::BoolOr {
+                            lhs_ops,
+                            rhs_ops,
+                            span: expr.span,
+                        });
+                    }
+                } else {
+                    self.lower_expr(lhs, ops);
+                    self.lower_expr(rhs, ops);
+                    ops.push(PlanOp::BinaryOp {
+                        op: *op,
+                        span: expr.span,
+                    });
+                }
             }
             ExprKind::Spawn(inner) => {
                 self.with_struct_state(StructStatePlan::SHARED)

@@ -93,6 +93,28 @@ let result: Int = gate + offset
 }
 
 #[test]
+fn run_file_executes_boolean_short_circuit_ops() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let fail(): Bool = panic("short circuit")
+let result: Int = {
+  let left: Int = if true or fail() { 10 } else { 0 }
+  let right: Int = if false and fail() { 0 } else { 5 }
+  left + right
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, tune_runtime::value::Value::Int(15));
+
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_finite_for_over_sequence() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

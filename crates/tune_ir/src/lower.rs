@@ -96,6 +96,16 @@ impl Lowerer {
                 Ok(())
             }
             PlanOp::BinaryOp { op, span } => self.lower_binary(*op, *span),
+            PlanOp::BoolAnd {
+                lhs_ops,
+                rhs_ops,
+                span,
+            } => self.lower_bool_and(lhs_ops, rhs_ops, *span),
+            PlanOp::BoolOr {
+                lhs_ops,
+                rhs_ops,
+                span,
+            } => self.lower_bool_or(lhs_ops, rhs_ops, *span),
             PlanOp::UnaryOp { op } => self.lower_unary(*op),
             PlanOp::SequenceBuild { element_count } => self.lower_sequence_build(*element_count),
             PlanOp::SequencePush => self.lower_sequence_push(),
@@ -223,7 +233,7 @@ impl Lowerer {
         Ok(reg)
     }
 
-    fn push_const(&mut self, value: IrConst) -> Result<ConstId, IrLowerError> {
+    pub(super) fn push_const(&mut self, value: IrConst) -> Result<ConstId, IrLowerError> {
         let index = u32::try_from(self.constants.len()).map_err(|_| IrLowerError::ConstantLimit)?;
         self.constants.push(value);
         Ok(ConstId(index))

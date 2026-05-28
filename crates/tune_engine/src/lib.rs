@@ -308,6 +308,16 @@ fn direct_call_targets_in_op(op: &tune_plan::PlanOp) -> Vec<FunctionTarget> {
             .iter()
             .flat_map(direct_call_targets_in_op)
             .collect(),
+        tune_plan::PlanOp::BoolAnd {
+            lhs_ops, rhs_ops, ..
+        }
+        | tune_plan::PlanOp::BoolOr {
+            lhs_ops, rhs_ops, ..
+        } => lhs_ops
+            .iter()
+            .chain(rhs_ops)
+            .flat_map(direct_call_targets_in_op)
+            .collect(),
         _ => Vec::new(),
     })
     .collect()

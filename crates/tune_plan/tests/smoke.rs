@@ -116,16 +116,7 @@ let ok(value) = Ok(value)
 
     let ops = tune_plan::lower_resolved_item_to_plan(&module.items[6], &resolved)
         .ok_or("expected ops plan")?;
-    assert!(ops.ops.contains(&tune_plan::PlanOp::UnaryOp {
-        op: tune_hir::expr::UnaryOp::Not
-    }));
-    assert!(ops.ops.iter().any(|op| matches!(
-        op,
-        tune_plan::PlanOp::BinaryOp {
-            op: tune_hir::expr::BinaryOp::IsNot,
-            span: Some(_),
-        }
-    )));
+    assert!(plan_ops_contain_bool_and(&ops.ops));
 
     let branch = tune_plan::lower_resolved_item_to_plan(&module.items[7], &resolved)
         .ok_or("expected branch plan")?;
@@ -194,6 +185,25 @@ let ok(value) = Ok(value)
     )));
 
     Ok(())
+}
+
+fn plan_ops_contain_bool_and(ops: &[tune_plan::PlanOp]) -> bool {
+    ops.iter().any(|op| match op {
+        tune_plan::PlanOp::BoolAnd {
+            lhs_ops,
+            rhs_ops,
+            span: Some(_),
+        } => {
+            lhs_ops.contains(&tune_plan::PlanOp::UnaryOp {
+                op: tune_hir::expr::UnaryOp::Not,
+            }) || plan_ops_contain_bool_and(rhs_ops)
+        }
+        tune_plan::PlanOp::BinaryOp {
+            op: tune_hir::expr::BinaryOp::IsNot,
+            ..
+        } => false,
+        _ => false,
+    })
 }
 
 #[test]
