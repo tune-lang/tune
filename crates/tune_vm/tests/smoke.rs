@@ -213,7 +213,17 @@ fn vm_rejects_too_few_call_arguments() {
     };
 
     let mut vm = tune_vm::Vm::new(artifact);
-    assert_eq!(vm.run_entry(), Err(tune_vm::VmError::ArityMismatch));
+    assert_eq!(
+        vm.run_entry(),
+        Err(tune_vm::VmError::InvalidBytecode(
+            tune_bytecode::BytecodeValidationError::CallArityMismatch {
+                function: 0,
+                target: 1,
+                expected: 1,
+                actual: 0,
+            }
+        ))
+    );
 }
 
 #[test]

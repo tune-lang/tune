@@ -4,6 +4,7 @@ use tune_bytecode::{
     Opcode,
     artifact::{BytecodeArtifact, BytecodeConst},
     function::{BytecodeOwnershipPlan, BytecodeStateRepr, BytecodeStructState, BytecodeVariant},
+    validate::{BytecodeValidationError, validate_artifact},
 };
 use tune_runtime::{
     state::{StateHandle, StateId},
@@ -27,6 +28,7 @@ pub enum VmError {
     StructSiteOutOfBounds,
     ArityMismatch,
     UnsupportedStructState,
+    InvalidBytecode(BytecodeValidationError),
     UnsupportedOpcode(Opcode),
 }
 
@@ -41,6 +43,7 @@ impl Vm {
 
     pub fn run_entry(&mut self) -> Result<Value, VmError> {
         // v0: dense Rust match dispatch. Optimized VM can add superinstructions later.
+        validate_artifact(&self.artifact).map_err(VmError::InvalidBytecode)?;
         let entry = self.artifact.entry_function.ok_or(VmError::MissingEntry)? as usize;
         self.execute_function(entry, Vec::new())
     }

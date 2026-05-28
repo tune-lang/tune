@@ -60,6 +60,7 @@ fn lowers_typed_local_ir_to_bytecode() -> Result<(), &'static str> {
 
     let artifact =
         tune_bytecode::lower_ir_functions(&[ir]).map_err(|_| "ir should lower to bytecode")?;
+    tune_bytecode::validate_artifact(&artifact).map_err(|_| "bytecode should validate")?;
 
     assert_eq!(artifact.functions[0].local_count, 1);
     assert_eq!(
@@ -111,6 +112,7 @@ fn lowers_integer_add_ir_to_bytecode() -> Result<(), &'static str> {
 
     let artifact =
         tune_bytecode::lower_ir_functions(&[ir]).map_err(|_| "ir should lower to bytecode")?;
+    tune_bytecode::validate_artifact(&artifact).map_err(|_| "bytecode should validate")?;
 
     assert_eq!(
         artifact.constants,
@@ -167,6 +169,7 @@ fn lowers_struct_construct_with_explicit_local_state_plan() -> Result<(), &'stat
 
     let artifact =
         tune_bytecode::lower_ir_functions(&[ir]).map_err(|_| "ir should lower to bytecode")?;
+    tune_bytecode::validate_artifact(&artifact).map_err(|_| "bytecode should validate")?;
     let site = &artifact.functions[0].struct_sites[0];
 
     assert_eq!(site.owner, 7);
@@ -230,6 +233,7 @@ fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
 
     let artifact = tune_bytecode::lower_ir_functions(&[entry, callee])
         .map_err(|_| "ir should lower to bytecode")?;
+    tune_bytecode::validate_artifact(&artifact).map_err(|_| "bytecode should validate")?;
 
     assert_eq!(artifact.functions[0].call_sites.len(), 1);
     assert_eq!(artifact.functions[0].call_sites[0].function, 1);
@@ -240,4 +244,93 @@ fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
     );
 
     Ok(())
+}
+
+#[test]
+fn validation_rejects_call_arity_mismatch() {
+    let artifact = tune_bytecode::artifact::BytecodeArtifact {
+        entry_function: Some(0),
+        constants: Vec::new(),
+        functions: vec![
+            tune_bytecode::function::BytecodeFunction {
+                param_count: 0,
+                name: "<entry>".into(),
+                register_count: 1,
+                local_count: 0,
+                call_sites: vec![tune_bytecode::function::BytecodeCallSite {
+                    function: 1,
+                    args: Vec::new(),
+                }],
+                struct_sites: Vec::new(),
+                variant_sites: Vec::new(),
+                match_sites: Vec::new(),
+                instructions: vec![tune_bytecode::function::Instruction {
+                    opcode: tune_bytecode::Opcode::CallDirect,
+                    a: 0,
+                    b: 0,
+                    c: 0,
+                }],
+            },
+            tune_bytecode::function::BytecodeFunction {
+                param_count: 1,
+                name: "id".into(),
+                register_count: 1,
+                local_count: 1,
+                call_sites: Vec::new(),
+                struct_sites: Vec::new(),
+                variant_sites: Vec::new(),
+                match_sites: Vec::new(),
+                instructions: vec![tune_bytecode::function::Instruction {
+                    opcode: tune_bytecode::Opcode::Return,
+                    a: 0,
+                    b: 1,
+                    c: 0,
+                }],
+            },
+        ],
+    };
+
+    assert_eq!(
+        tune_bytecode::validate_artifact(&artifact),
+        Err(tune_bytecode::BytecodeValidationError::CallArityMismatch {
+            function: 0,
+            target: 1,
+            expected: 1,
+            actual: 0,
+        })
+    );
+}
+
+#[test]
+fn validation_rejects_register_out_of_bounds() {
+    let artifact = tune_bytecode::artifact::BytecodeArtifact {
+        entry_function: Some(0),
+        constants: vec![tune_bytecode::artifact::BytecodeConst::Int(1)],
+        functions: vec![tune_bytecode::function::BytecodeFunction {
+            param_count: 0,
+            name: "<entry>".into(),
+            register_count: 1,
+            local_count: 0,
+            call_sites: Vec::new(),
+            struct_sites: Vec::new(),
+            variant_sites: Vec::new(),
+            match_sites: Vec::new(),
+            instructions: vec![tune_bytecode::function::Instruction {
+                opcode: tune_bytecode::Opcode::LoadConst,
+                a: 1,
+                b: 0,
+                c: 0,
+            }],
+        }],
+    };
+
+    assert_eq!(
+        tune_bytecode::validate_artifact(&artifact),
+        Err(
+            tune_bytecode::BytecodeValidationError::RegisterOutOfBounds {
+                function: 0,
+                register: 1,
+            }
+        )
+    );
 }
