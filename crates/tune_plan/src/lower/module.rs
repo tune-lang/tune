@@ -76,7 +76,7 @@ fn lower_module_item_into_entry(
         module: Some(module),
         analysis: Some(&analysis),
         self_shape: None,
-        struct_state: crate::StructStatePlan::LOCAL,
+        struct_escape: crate::StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
     };
@@ -123,7 +123,7 @@ fn lower_module_callable(
         module: Some(module),
         analysis: Some(&analysis),
         self_shape: None,
-        struct_state: crate::StructStatePlan::LOCAL,
+        struct_escape: crate::StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
     };
@@ -187,7 +187,7 @@ fn lower_callable_member(
         module: Some(module),
         analysis: Some(&analysis),
         self_shape: owner.name.as_ref().map(|name| Shape::Struct(name.clone())),
-        struct_state: crate::StructStatePlan::LOCAL,
+        struct_escape: crate::StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
     };
@@ -221,7 +221,7 @@ fn lower_index_access_member(
         module: Some(module),
         analysis: Some(&analysis),
         self_shape: owner.name.as_ref().map(|name| Shape::Struct(name.clone())),
-        struct_state: crate::StructStatePlan::LOCAL,
+        struct_escape: crate::StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
     };

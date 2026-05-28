@@ -21,7 +21,7 @@ pub(super) fn infer_direct_call_param_shapes(
             module: Some(module),
             analysis: Some(&analysis),
             self_shape: None,
-            struct_state: crate::StructStatePlan::LOCAL,
+            struct_escape: crate::StructEscapeReason::Local,
             structural_witnesses: Vec::new(),
             param_shapes: Vec::new(),
         };

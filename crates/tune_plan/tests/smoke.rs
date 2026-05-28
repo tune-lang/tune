@@ -311,12 +311,25 @@ let result: Counter = Counter {
     assert!(plan.ops.iter().any(|op| matches!(
         op,
         tune_plan::PlanOp::StructConstruct {
+            escape: tune_plan::StructEscapeReason::Local,
             state: tune_plan::StructStatePlan::LOCAL,
             ..
         }
     )));
 
     Ok(())
+}
+
+#[test]
+fn struct_state_decision_records_escape_reason() {
+    let local = tune_plan::StructStateDecision::for_escape(tune_plan::StructEscapeReason::Local);
+    assert_eq!(local.reason, tune_plan::StructEscapeReason::Local);
+    assert_eq!(local.plan, tune_plan::StructStatePlan::LOCAL);
+
+    let spawned =
+        tune_plan::StructStateDecision::for_escape(tune_plan::StructEscapeReason::SpawnBoundary);
+    assert_eq!(spawned.reason, tune_plan::StructEscapeReason::SpawnBoundary);
+    assert_eq!(spawned.plan, tune_plan::StructStatePlan::SHARED);
 }
 
 #[test]

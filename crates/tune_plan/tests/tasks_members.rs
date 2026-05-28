@@ -44,6 +44,7 @@ let run(): Task<Counter> = spawn Counter {
     assert!(plan.ops.iter().any(|op| matches!(
         op,
         tune_plan::PlanOp::StructConstruct {
+            escape: tune_plan::StructEscapeReason::SpawnBoundary,
             state: tune_plan::StructStatePlan::SHARED,
             ..
         }

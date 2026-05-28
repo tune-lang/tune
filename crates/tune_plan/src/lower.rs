@@ -17,7 +17,7 @@ use tune_shape::MaterializationPlan;
 pub use module::lower_resolved_module_to_plan;
 
 use crate::plan::{
-    FiniteForContract, PlanFunction, PlanIfBranch, PlanMatchArm, PlanOp, StructStatePlan,
+    FiniteForContract, PlanFunction, PlanIfBranch, PlanMatchArm, PlanOp, StructEscapeReason,
 };
 
 use self::values::{expr_produces_value, falls_through, if_produces_value};
@@ -80,7 +80,7 @@ fn lower_item_with_context(
         module,
         analysis: analysis.as_ref(),
         self_shape: None,
-        struct_state: StructStatePlan::LOCAL,
+        struct_escape: StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
         param_shapes: Vec::new(),
     };
@@ -106,7 +106,7 @@ pub(super) struct LowerContext<'a> {
     pub(super) module: Option<&'a Module>,
     pub(super) analysis: Option<&'a tune_shape::ShapeAnalysis>,
     pub(super) self_shape: Option<tune_shape::Shape>,
-    pub(super) struct_state: StructStatePlan,
+    pub(super) struct_escape: StructEscapeReason,
     pub(super) structural_witnesses: Vec<StructuralWitness>,
     pub(super) param_shapes: Vec<(tune_hir::MemberId, tune_shape::Shape)>,
 }
@@ -173,7 +173,8 @@ impl LowerContext<'_> {
                 if let Some(item) = self.struct_item_id(name) {
                     ops.push(PlanOp::StructConstruct {
                         item,
-                        state: self.struct_state,
+                        escape: self.struct_escape,
+                        state: crate::StructStatePlan::for_escape(self.struct_escape),
                         fields: ordered.into_iter().map(|(field, _)| field).collect(),
                         span: expr.span,
                     });
@@ -256,7 +257,7 @@ impl LowerContext<'_> {
                 }
             }
             ExprKind::Spawn(inner) => {
-                self.with_struct_state(StructStatePlan::SHARED)
+                self.with_struct_escape(StructEscapeReason::SpawnBoundary)
                     .lower_expr(inner, ops);
                 ops.push(PlanOp::Spawn {
                     body: inner.id,

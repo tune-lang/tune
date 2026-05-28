@@ -182,6 +182,7 @@ fn lowers_struct_state_plan_to_ir() -> Result<(), &'static str> {
             tune_plan::PlanOp::ConstInt { value: 1 },
             tune_plan::PlanOp::StructConstruct {
                 item: tune_hir::HirId(1),
+                escape: tune_plan::StructEscapeReason::Local,
                 state: tune_plan::StructStatePlan::LOCAL,
                 fields: vec![field],
                 span: None,

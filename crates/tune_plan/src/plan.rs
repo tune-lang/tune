@@ -64,6 +64,22 @@ pub struct StructStatePlan {
     pub ownership: StructOwnershipPlan,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StructEscapeReason {
+    Local,
+    Returned,
+    Captured,
+    SpawnBoundary,
+    HostRetained,
+    OpaqueBoundary,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StructStateDecision {
+    pub reason: StructEscapeReason,
+    pub plan: StructStatePlan,
+}
+
 impl StructStatePlan {
     pub const LOCAL: Self = Self {
         repr: StructStateRepr::LocalHandle,
@@ -74,6 +90,28 @@ impl StructStatePlan {
         repr: StructStateRepr::SharedHandle,
         ownership: StructOwnershipPlan::SharedAtomic,
     };
+
+    #[must_use]
+    pub const fn for_escape(reason: StructEscapeReason) -> Self {
+        match reason {
+            StructEscapeReason::Local
+            | StructEscapeReason::Returned
+            | StructEscapeReason::Captured => Self::LOCAL,
+            StructEscapeReason::SpawnBoundary
+            | StructEscapeReason::HostRetained
+            | StructEscapeReason::OpaqueBoundary => Self::SHARED,
+        }
+    }
+}
+
+impl StructStateDecision {
+    #[must_use]
+    pub const fn for_escape(reason: StructEscapeReason) -> Self {
+        Self {
+            reason,
+            plan: StructStatePlan::for_escape(reason),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -117,6 +155,7 @@ pub enum PlanOp {
     },
     StructConstruct {
         item: HirId,
+        escape: StructEscapeReason,
         state: StructStatePlan,
         fields: Vec<MemberId>,
         span: Option<Span>,

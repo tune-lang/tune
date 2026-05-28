@@ -148,6 +148,7 @@ impl Lowerer {
             } => self.lower_variant_construct(*variant, *arg_count, *span),
             PlanOp::StructConstruct {
                 item,
+                escape: _,
                 state,
                 fields,
                 span,
