@@ -1,9 +1,10 @@
 use tune_bytecode::{BytecodeValidationError, Opcode};
 use tune_diagnostics::Span;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VmLocation {
     pub function: u32,
+    pub function_name: Option<String>,
     pub instruction: Option<u32>,
     pub span: Option<Span>,
 }

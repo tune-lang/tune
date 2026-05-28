@@ -273,6 +273,7 @@ fn vm_rejects_unsupported_struct_state_plan() {
             tune_vm::VmError::UnsupportedStructState,
             Some(tune_vm::VmLocation {
                 function: 0,
+                function_name: Some("<entry>".to_owned()),
                 instruction: Some(0),
                 span: None,
             }),
@@ -336,6 +337,7 @@ fn vm_faults_carry_instruction_span_when_available() {
             tune_vm::VmError::UnsupportedOpcode(tune_bytecode::Opcode::AddInt),
             Some(tune_vm::VmLocation {
                 function: 0,
+                function_name: Some("<entry>".to_owned()),
                 instruction: Some(2),
                 span: Some(span),
             }),

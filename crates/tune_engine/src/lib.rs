@@ -2,8 +2,8 @@ mod diagnostics;
 
 pub use diagnostics::{
     diagnostic_from_result_error, diagnostic_from_result_error_with_sources,
-    diagnostic_from_vm_fault, diagnostics_from_runtime_value,
-    diagnostics_from_runtime_value_with_sources,
+    diagnostic_from_vm_fault, diagnostic_from_vm_fault_with_sources,
+    diagnostics_from_runtime_value, diagnostics_from_runtime_value_with_sources,
 };
 
 use tune_db::{FileId, ModuleAnalysis, TuneDb};
@@ -120,8 +120,11 @@ impl Tune {
     pub fn run_entry(&self, entry: EntryPoint) -> Result<Value, EngineError> {
         let executable = self.executable_entry(entry)?;
         let mut vm = tune_vm::Vm::new(executable.bytecode);
-        vm.run_entry()
-            .map_err(|fault| EngineError::Diagnostics(vec![diagnostic_from_vm_fault(&fault)]))
+        vm.run_entry().map_err(|fault| {
+            EngineError::Diagnostics(vec![diagnostic_from_vm_fault_with_sources(
+                &fault, &self.db,
+            )])
+        })
     }
 
     pub fn executable_file(&self, file: FileId) -> Result<ExecutableReport, EngineError> {

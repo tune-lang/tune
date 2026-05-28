@@ -4,12 +4,26 @@ use tune_runtime::value::{RuntimeVariant, Value};
 
 #[must_use]
 pub fn diagnostic_from_vm_fault(fault: &tune_vm::VmFault) -> Diagnostic {
+    vm_fault_diagnostic(fault, |_| None)
+}
+
+#[must_use]
+pub fn diagnostic_from_vm_fault_with_sources(fault: &tune_vm::VmFault, db: &TuneDb) -> Diagnostic {
+    vm_fault_diagnostic(fault, |span| source_summary(db, span))
+}
+
+fn vm_fault_diagnostic(
+    fault: &tune_vm::VmFault,
+    source_summary: impl Fn(Span) -> Option<String>,
+) -> Diagnostic {
     let span = fault
         .location
+        .as_ref()
         .and_then(|location| location.span)
         .unwrap_or_else(Span::synthetic);
     let mut facts = vec![FactEntry::new(format!("VM error: {:?}", fault.error))];
-    if let Some(location) = fault.location {
+    if let Some(location) = &fault.location {
+        facts.push(location_fact(location, &source_summary));
         facts.push(FactEntry::new(format!(
             "bytecode function: {}",
             location.function
@@ -18,12 +32,6 @@ pub fn diagnostic_from_vm_fault(fault: &tune_vm::VmFault) -> Diagnostic {
             facts.push(FactEntry::new(format!(
                 "bytecode instruction: {instruction}"
             )));
-        }
-        if let Some(span) = location.span {
-            facts.push(FactEntry::spanned(
-                span,
-                "source location from bytecode provenance",
-            ));
         }
     }
     Diagnostic::error(
@@ -35,6 +43,21 @@ pub fn diagnostic_from_vm_fault(fault: &tune_vm::VmFault) -> Diagnostic {
     .with_fact_entries("runtime provenance", facts)
     .with_note("this diagnostic was produced from a VM fault")
     .build()
+}
+
+fn location_fact(
+    location: &tune_vm::VmLocation,
+    source_summary: impl Fn(Span) -> Option<String>,
+) -> FactEntry {
+    let function = location.function_name.as_deref().unwrap_or("<unknown>");
+    let message = location.span.and_then(&source_summary).map_or_else(
+        || format!("fault in `{function}`"),
+        |summary| format!("fault in `{function}` at `{summary}`"),
+    );
+    match location.span {
+        Some(span) => FactEntry::spanned(span, message),
+        None => FactEntry::new(message),
+    }
 }
 
 #[must_use]

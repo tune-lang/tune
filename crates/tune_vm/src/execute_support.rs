@@ -28,6 +28,7 @@ impl Vm {
             error,
             Some(VmLocation {
                 function,
+                function_name: self.function_name(function),
                 instruction: None,
                 span: self.artifact.function_span(function),
             }),
@@ -43,6 +44,7 @@ impl Vm {
             error,
             Some(VmLocation {
                 function,
+                function_name: self.function_name(function),
                 instruction: Some(instruction),
                 span: self.artifact.instruction_span(function, instruction),
             }),
@@ -133,7 +135,7 @@ impl Vm {
     fn propagation_frame(&self, function: usize, instruction: usize) -> Option<PropagationFrame> {
         let function_index = u32::try_from(function).ok()?;
         let instruction_index = u32::try_from(instruction).ok()?;
-        let function_name = self.artifact.functions.get(function)?.name.clone();
+        let function_name = self.function_name(function_index)?;
         Some(PropagationFrame {
             function: function_index,
             instruction: instruction_index,
@@ -142,6 +144,13 @@ impl Vm {
                 .artifact
                 .instruction_span(function_index, instruction_index),
         })
+    }
+
+    fn function_name(&self, function: u32) -> Option<String> {
+        self.artifact
+            .functions
+            .get(function as usize)
+            .map(|function| function.name.clone())
     }
 }
 

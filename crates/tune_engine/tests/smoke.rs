@@ -107,6 +107,7 @@ fn vm_faults_convert_to_structured_diagnostics() {
         tune_vm::VmError::UnsupportedOpcode(tune_bytecode::Opcode::AddInt),
         Some(tune_vm::VmLocation {
             function: 2,
+            function_name: Some("add".to_owned()),
             instruction: Some(5),
             span: Some(span),
         }),
@@ -123,4 +124,45 @@ fn vm_faults_convert_to_structured_diagnostics() {
             .flat_map(|fact| &fact.entries)
             .any(|entry| entry.message == "bytecode instruction: 5")
     );
+    assert!(
+        diagnostic
+            .facts
+            .iter()
+            .flat_map(|fact| &fact.entries)
+            .any(|entry| entry.message == "fault in `add`")
+    );
+}
+
+#[test]
+fn vm_fault_diagnostics_can_include_source_summary() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file("main.tn", "let value = 1 + true")
+        .ok_or("source should allocate")?;
+    let span = tune_diagnostics::Span::new(
+        file,
+        tune_diagnostics::ByteOffset::new(12),
+        tune_diagnostics::ByteOffset::new(20),
+    );
+    let fault = tune_vm::VmFault::new(
+        tune_vm::VmError::UnsupportedOpcode(tune_bytecode::Opcode::AddInt),
+        Some(tune_vm::VmLocation {
+            function: 0,
+            function_name: Some("<entry>".to_owned()),
+            instruction: Some(3),
+            span: Some(span),
+        }),
+    );
+
+    let diagnostic = tune_engine::diagnostic_from_vm_fault_with_sources(&fault, tune.db());
+
+    assert!(
+        diagnostic
+            .facts
+            .iter()
+            .flat_map(|fact| &fact.entries)
+            .any(|entry| entry.message == "fault in `<entry>` at `1 + true`")
+    );
+
+    Ok(())
 }
