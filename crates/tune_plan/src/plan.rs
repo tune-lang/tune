@@ -239,6 +239,7 @@ pub enum PlanOp {
     },
     Materialize {
         plan: MaterializationPlan,
+        materializer: Option<MemberId>,
     },
     BindingSet {
         target: Option<NameTarget>,

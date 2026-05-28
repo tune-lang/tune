@@ -85,11 +85,13 @@ fn lower_module_item_into_entry(
     if matches!(body.kind, tune_hir::expr::ExprKind::Sequence(_))
         && let Some(target) = context.lower_shape(item.shape.as_ref())
     {
+        let materializer = context.sequence_materializer(&target);
         ops.push(PlanOp::Materialize {
             plan: MaterializationPlan {
-                target,
+                target: target.clone(),
                 commitment: tune_shape::Commitment::CommitBinding,
             },
+            materializer,
         });
     }
     ops.push(PlanOp::ModuleLet {

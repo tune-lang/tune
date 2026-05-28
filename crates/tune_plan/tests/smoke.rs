@@ -377,6 +377,7 @@ fn semantic_plan_has_typed_materialization_and_meta_slots() {
             target: tune_shape::Shape::Sequence(Box::new(tune_shape::Shape::Int)),
             commitment: tune_shape::Commitment::PerUse,
         },
+        materializer: None,
     };
     assert!(matches!(
         materialize,
@@ -384,7 +385,8 @@ fn semantic_plan_has_typed_materialization_and_meta_slots() {
             plan: tune_shape::MaterializationPlan {
                 commitment: tune_shape::Commitment::PerUse,
                 ..
-            }
+            },
+            materializer: None,
         }
     ));
 

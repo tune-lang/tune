@@ -99,11 +99,13 @@ fn lower_item_with_context(
     if matches!(body.kind, ExprKind::Sequence(_))
         && let Some(target) = context.lower_shape(item.shape.as_ref())
     {
+        let materializer = context.sequence_materializer(&target);
         plan.ops.push(PlanOp::Materialize {
             plan: MaterializationPlan {
-                target,
+                target: target.clone(),
                 commitment: tune_shape::Commitment::CommitBinding,
             },
+            materializer,
         });
     }
     if falls_through(body) {
@@ -229,11 +231,13 @@ impl LowerContext<'_> {
                     if matches!(value.kind, ExprKind::Sequence(_))
                         && let Some(target) = context.lower_shape(shape.as_ref())
                     {
+                        let materializer = context.sequence_materializer(&target);
                         ops.push(PlanOp::Materialize {
                             plan: MaterializationPlan {
-                                target,
+                                target: target.clone(),
                                 commitment: tune_shape::Commitment::CommitBinding,
                             },
+                            materializer,
                         });
                     }
                 }

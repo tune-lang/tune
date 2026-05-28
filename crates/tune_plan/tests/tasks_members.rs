@@ -80,12 +80,13 @@ let member(items: Stack) = items.get(0)
 
     let stack = tune_plan::lower_resolved_module_item_to_plan(&module, &module.items[1], &resolved)
         .ok_or("stack plan should lower")?;
-    assert!(
-        stack
-            .ops
-            .iter()
-            .any(|op| matches!(op, tune_plan::PlanOp::Materialize { .. }))
-    );
+    assert!(stack.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::Materialize {
+            materializer: Some(_),
+            ..
+        }
+    )));
 
     let first = tune_plan::lower_resolved_module_item_to_plan(&module, &module.items[2], &resolved)
         .ok_or("first plan should lower")?;

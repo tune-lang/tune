@@ -95,6 +95,17 @@ impl LowerContext<'_> {
         }
     }
 
+    pub(super) fn sequence_materializer(&self, shape: &Shape) -> Option<MemberId> {
+        let name = self.struct_shape_name(shape)?;
+        self.struct_item(name)?
+            .struct_members
+            .iter()
+            .find_map(|member| match member {
+                StructMember::SequenceMaterializer(member) => Some(member.id),
+                _ => None,
+            })
+    }
+
     pub(super) fn callable_member(&self, base: &Expr, member_name: &str) -> Option<MemberId> {
         let shape = self.expr_shape(base)?;
         let name = self.struct_shape_name(&shape)?;
