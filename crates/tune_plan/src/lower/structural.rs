@@ -13,6 +13,7 @@ impl LowerContext<'_> {
             self_shape: self.self_shape.clone(),
             struct_state,
             structural_witnesses: self.structural_witnesses.clone(),
+            param_shapes: self.param_shapes.clone(),
         }
     }
 
@@ -100,6 +101,7 @@ impl LowerContext<'_> {
             self_shape: self.self_shape.clone(),
             struct_state: self.struct_state,
             structural_witnesses: combined,
+            param_shapes: self.param_shapes.clone(),
         }
     }
 

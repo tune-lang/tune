@@ -177,10 +177,19 @@ impl LowerContext<'_> {
                 .iter()
                 .flat_map(|item| item.params.iter())
                 .find(|param| param.id == id)
-                .and_then(|param| self.lower_shape(param.shape.as_ref())),
+                .and_then(|param| self.lower_shape(param.shape.as_ref()))
+                .or_else(|| self.param_shape(id)),
             NameTarget::SelfValue => self.self_shape.clone(),
             NameTarget::Local(_) | NameTarget::Variant(_) => None,
         }
+    }
+
+    fn param_shape(&self, id: MemberId) -> Option<Shape> {
+        self.param_shapes
+            .iter()
+            .rev()
+            .find(|(param, _)| *param == id)
+            .map(|(_, shape)| shape.clone())
     }
 
     fn analysis_expr_shape(&self, expr: &Expr) -> Option<Shape> {

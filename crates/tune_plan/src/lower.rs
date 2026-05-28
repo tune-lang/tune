@@ -81,6 +81,7 @@ fn lower_item_with_context(
         self_shape: None,
         struct_state: StructStatePlan::LOCAL,
         structural_witnesses: Vec::new(),
+        param_shapes: Vec::new(),
     };
     context.lower_expr(body, &mut plan.ops);
     if matches!(body.kind, ExprKind::Sequence(_))
@@ -106,6 +107,7 @@ pub(super) struct LowerContext<'a> {
     pub(super) self_shape: Option<tune_shape::Shape>,
     pub(super) struct_state: StructStatePlan,
     pub(super) structural_witnesses: Vec<StructuralWitness>,
+    pub(super) param_shapes: Vec<(tune_hir::MemberId, tune_shape::Shape)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
