@@ -191,6 +191,30 @@ let result: Int = pick(7)
 }
 
 #[test]
+fn run_file_executes_inline_if_expression_value() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let label(flag: Bool): Int = if flag => 1 else 2
+let result: Int = label(false)
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        tune.run_file(file).map_err(|error| {
+            eprintln!("{error:?}");
+            "file entry should run"
+        })?,
+        tune_runtime::value::Value::Int(2)
+    );
+
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_branch_local_assignment() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

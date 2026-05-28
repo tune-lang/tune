@@ -15,7 +15,7 @@ let scoped(input) = { let f = _(x) = x; input = f(input); return input }
 let mutate(user, values) = { user.name = "Rey"; values[0] = user.name }
 let ops(value, other) = not value and other is not none
 let branch(value, ready, waiting) = if ready { value } elif waiting { panic("wait") } else { panic("bad") }
-let select(result, value) = match result { value => value; else => panic("bad") }
+let select(result, value) = match result { value => value; else panic("bad") }
 let repeated(ready) = while ready { continue }
 let forever() = loop { break }
 let ok(value) = Ok(value)

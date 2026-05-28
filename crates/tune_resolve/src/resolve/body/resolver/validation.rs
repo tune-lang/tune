@@ -13,7 +13,7 @@ impl BodyResolver<'_> {
                     pattern.span.unwrap_or_else(Span::synthetic),
                     "use `else` for the fallback arm",
                 )
-                .with_help("write `else => ...` when every remaining value should take this arm")
+                .with_help("write `else ...` when every remaining value should take this arm")
                 .build(),
             );
         }

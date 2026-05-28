@@ -293,8 +293,10 @@ let numbers = [1, 2, 3]
 let block = { let x = 1; x = x; return x }
 let grouped = (1 + 2)
 let ops = (not value and other) or (other is not none)
+let inline_branch = if count == 1 => "item" else "items"
 let branched = if ready { Ok(value) } elif waiting { Error("wait") } else { panic("bad") }
-let matched = match result { Ok(value) => value; Error(err) => panic(err); else => none }
+let matched = match result { Ok(value) => value; Error(err) => panic(err); else none }
+let matched_block = match result { Ok(value) { value } else { none } }
 let repeated = while ready { continue }
 let forever = loop { break }
 "#,

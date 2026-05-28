@@ -9,7 +9,7 @@ impl Parser<'_> {
         self.skip_trivia();
         self.parse_expr();
         self.skip_trivia();
-        self.expect_block_expr("expected `if` body");
+        self.expect_conditional_body("expected `if` body");
         self.skip_trivia_before_if_continuation();
 
         while self.at(TokenKind::KeywordElif) {
@@ -17,14 +17,14 @@ impl Parser<'_> {
             self.skip_trivia();
             self.parse_expr();
             self.skip_trivia();
-            self.expect_block_expr("expected `elif` body");
+            self.expect_conditional_body("expected `elif` body");
             self.skip_trivia_before_if_continuation();
         }
 
         if self.at(TokenKind::KeywordElse) {
             self.bump();
             self.skip_trivia();
-            self.expect_block_expr("expected `else` body");
+            self.expect_else_body("expected `else` body");
         }
 
         self.finish_node();
@@ -101,12 +101,41 @@ impl Parser<'_> {
 
     fn parse_match_arm(&mut self) {
         self.start_node(SyntaxKind::MatchArm);
+        let is_else = self.at(TokenKind::KeywordElse);
         self.parse_pattern();
         self.skip_trivia();
-        self.expect(TokenKind::FatArrow, "expected `=>`");
-        self.skip_trivia();
-        self.parse_expr();
+        if is_else {
+            self.expect_else_body("expected `else` body");
+        } else if self.at(TokenKind::LeftBrace) {
+            self.parse_block_expr();
+        } else {
+            self.expect(TokenKind::FatArrow, "expected `=>`");
+            self.skip_trivia();
+            self.parse_expr();
+        }
         self.finish_node();
+    }
+
+    fn expect_conditional_body(&mut self, message: &'static str) {
+        if self.at(TokenKind::LeftBrace) {
+            self.parse_block_expr();
+        } else if self.at(TokenKind::FatArrow) {
+            self.bump();
+            self.skip_trivia();
+            self.parse_expr();
+        } else {
+            self.error_at_current(message);
+        }
+    }
+
+    fn expect_else_body(&mut self, message: &'static str) {
+        if self.at(TokenKind::LeftBrace) {
+            self.parse_block_expr();
+        } else if !self.at(TokenKind::Eof) && !self.at(TokenKind::RightBrace) {
+            self.parse_expr();
+        } else {
+            self.error_at_current(message);
+        }
     }
 
     fn expect_block_expr(&mut self, message: &'static str) {
