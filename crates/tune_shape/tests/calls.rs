@@ -179,3 +179,31 @@ let run(): Int = {
 
     Ok(())
 }
+
+#[test]
+fn callable_signature_infers_param_from_struct_field_context() -> Result<(), &'static str> {
+    let source = r#"
+struct Counter {
+  value: Int
+}
+let make(seed) = Counter {
+  value = seed
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[1]);
+
+    let signature = analysis
+        .inferred_signature
+        .as_ref()
+        .ok_or("callable should have inferred signature")?;
+    assert_eq!(signature.params, vec![tune_shape::Shape::Int]);
+    assert_eq!(
+        signature.ret,
+        tune_shape::Shape::Struct("Counter".to_owned())
+    );
+
+    Ok(())
+}

@@ -5,17 +5,7 @@ use super::Analyzer;
 use crate::{Shape, lower_resolved_hir_shape};
 
 impl Analyzer<'_> {
-    pub(super) fn field_shape(&mut self, base: &Expr, expr: &Expr) -> Shape {
-        let base_shape = self.analyze_expr(base);
-        let ExprKind::Field { name, .. } = &expr.kind else {
-            return Shape::Hole;
-        };
-        let Some(field_name) = name.as_deref() else {
-            return Shape::Hole;
-        };
-        let Some(struct_name) = struct_shape_name(&base_shape) else {
-            return Shape::Hole;
-        };
+    pub(super) fn struct_field_shape(&mut self, struct_name: &str, field_name: &str) -> Shape {
         self.module
             .items
             .iter()
@@ -30,11 +20,28 @@ impl Analyzer<'_> {
                             .shape
                             .as_ref()
                             .map(|shape| lower_resolved_hir_shape(shape, &self.resolved.scope))
-                            .map_or(Shape::Hole, |lowered| lowered.shape)
+                            .map_or(Shape::Hole, |lowered| {
+                                self.diagnostics.extend(lowered.diagnostics);
+                                lowered.shape
+                            })
                     })
                 })
             })
             .unwrap_or(Shape::Hole)
+    }
+
+    pub(super) fn field_shape(&mut self, base: &Expr, expr: &Expr) -> Shape {
+        let base_shape = self.analyze_expr(base);
+        let ExprKind::Field { name, .. } = &expr.kind else {
+            return Shape::Hole;
+        };
+        let Some(field_name) = name.as_deref() else {
+            return Shape::Hole;
+        };
+        let Some(struct_name) = struct_shape_name(&base_shape) else {
+            return Shape::Hole;
+        };
+        self.struct_field_shape(struct_name, field_name)
     }
 }
 

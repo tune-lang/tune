@@ -8,7 +8,7 @@ mod diagnostics;
 mod fields;
 mod operators;
 
-use tune_hir::item::Item;
+use tune_hir::item::{Item, ItemKind};
 use tune_hir::module::Module;
 use tune_hir::{ExprId, MemberId};
 use tune_resolve::{ResolvedModule, VariantId};
@@ -93,6 +93,7 @@ pub struct ReturnCheck {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShapeAnalysis {
+    pub inferred_signature: Option<CallSignature>,
     pub frame: StateFrame,
     pub expr_shapes: Vec<ExprShape>,
     pub calls: Vec<CallCheck>,
@@ -116,11 +117,13 @@ pub fn analyze_item(module: &Module, resolved: &ResolvedModule, item: &Item) -> 
         finite_for: Vec::new(),
         materializers: Vec::new(),
         diagnostics: Vec::new(),
+        inferred_signature: None,
     };
     analyzer.seed_item(item);
     analyzer.check_public_api_shape(item);
     if let Some(body) = &item.body {
         let actual = analyzer.analyze_expr(body);
+        analyzer.infer_item_signature(item, &actual);
         if let Some(shape) = &item.shape {
             let lowered = lower_resolved_hir_shape(shape, &resolved.scope);
             let expected = lowered.shape;
@@ -163,11 +166,13 @@ struct Analyzer<'a> {
     finite_for: Vec<FiniteForCheck>,
     materializers: Vec<MaterializerCheck>,
     diagnostics: Vec<Diagnostic>,
+    inferred_signature: Option<CallSignature>,
 }
 
 impl Analyzer<'_> {
     fn finish(self) -> ShapeAnalysis {
         ShapeAnalysis {
+            inferred_signature: self.inferred_signature,
             frame: self.frame,
             expr_shapes: self.expr_shapes,
             calls: self.calls,
@@ -177,6 +182,45 @@ impl Analyzer<'_> {
             materializers: self.materializers,
             diagnostics: self.diagnostics,
         }
+    }
+
+    fn infer_item_signature(&mut self, item: &Item, actual: &Shape) {
+        if item.kind != ItemKind::CallableDecl {
+            return;
+        }
+        let ret = item
+            .shape
+            .as_ref()
+            .map(|shape| lower_resolved_hir_shape(shape, &self.resolved.scope))
+            .map_or_else(
+                || {
+                    Shape::join_all(
+                        [actual.clone()]
+                            .into_iter()
+                            .chain(self.returns.iter().map(|returned| returned.shape.clone())),
+                    )
+                },
+                |lowered| {
+                    self.diagnostics.extend(lowered.diagnostics);
+                    lowered.shape
+                },
+            );
+        let params = item
+            .params
+            .iter()
+            .map(|param| {
+                self.frame
+                    .get(BindingKey::Param(param.id))
+                    .map_or(Shape::Hole, |binding| binding.storage_shape.clone())
+            })
+            .collect();
+        self.inferred_signature = Some(CallSignature {
+            target: CallTarget::TopLevel(item.id),
+            params,
+            ret,
+            receiver: None,
+            span: item.span,
+        });
     }
 
     fn seed_item(&mut self, item: &Item) {
@@ -205,7 +249,10 @@ impl Analyzer<'_> {
             ExprKind::Literal(_) | ExprKind::Sequence(_) => self.literal_or_sequence_shape(expr),
             ExprKind::Struct { name, fields } => {
                 for field in fields {
-                    self.analyze_expr(&field.value);
+                    let expected = self.struct_field_shape(name, &field.name);
+                    let actual = self.analyze_expr(&field.value);
+                    self.constrain_expr_to_shape(&field.value, &expected);
+                    self.check_value_against(&expected, &actual, field.value.span);
                 }
                 Shape::Struct(name.clone())
             }
@@ -379,6 +426,24 @@ impl Analyzer<'_> {
                 )
                 .build(),
             );
+        }
+    }
+
+    fn constrain_expr_to_shape(&mut self, expr: &Expr, expected: &Shape) {
+        if matches!(expected, Shape::Hole) {
+            return;
+        }
+        let Some(key) = self.binding_key(expr) else {
+            return;
+        };
+        let Some(binding) = self.frame.get_mut(key) else {
+            return;
+        };
+        if binding.storage_shape == Shape::Hole {
+            binding.storage_shape = expected.clone();
+        }
+        if binding.current_shape == Shape::Hole {
+            binding.current_shape = expected.clone();
         }
     }
 }
