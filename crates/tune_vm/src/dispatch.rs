@@ -17,3 +17,11 @@ pub fn execute_binary(op: Opcode, a: &Value, b: &Value) -> Option<Value> {
         _ => None,
     }
 }
+
+pub fn execute_unary(op: Opcode, value: &Value) -> Option<Value> {
+    match (op, value) {
+        (Opcode::NegInt, Value::Int(value)) => value.checked_neg().map(Value::Int),
+        (Opcode::NotBool, Value::Bool(value)) => Some(Value::Bool(!value)),
+        _ => None,
+    }
+}

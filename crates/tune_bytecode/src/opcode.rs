@@ -42,6 +42,8 @@ pub enum Opcode {
     LessInt = 38,
     LessEqualInt = 39,
     GreaterEqualInt = 40,
+    NegInt = 41,
+    NotBool = 42,
 }
 
 impl Opcode {
@@ -87,5 +89,7 @@ impl Opcode {
         Self::LessInt,
         Self::LessEqualInt,
         Self::GreaterEqualInt,
+        Self::NegInt,
+        Self::NotBool,
     ];
 }

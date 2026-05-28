@@ -1,10 +1,8 @@
 use tune_hir::HirId;
 use tune_plan::{PlanFunction, PlanOp};
-use tune_resolve::NameTarget;
 use tune_shape::Shape;
 
-use crate::lower_slots::{local_offset, local_slot, module_slot, param_slot};
-use crate::{BlockId, ConstId, FieldId, IrBlock, IrConst, IrFunction, IrOp, Reg, StructField};
+use crate::{BlockId, ConstId, IrBlock, IrConst, IrFunction, IrOp, Reg};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IrLowerError {
@@ -87,89 +85,17 @@ impl Lowerer {
                 Ok(())
             }
             PlanOp::BinaryOp { op, span } => self.lower_binary(*op, *span),
+            PlanOp::UnaryOp { op } => self.lower_unary(*op),
             PlanOp::BindingGet {
-                source: Some(NameTarget::Local(local)),
-            } => {
-                let local = local_slot(*local, local_offset(&self.module_bindings, &self.params))?;
-                self.track_local(local)?;
-                let dst = self.alloc_reg()?;
-                self.push_op(IrOp::LoadLocal { dst, local });
-                self.stack.push(dst);
-                Ok(())
-            }
-            PlanOp::BindingGet {
-                source: Some(NameTarget::Param(param)),
-            } => {
-                let local = param_slot(*param, &self.module_bindings, &self.params)?;
-                self.track_local(local)?;
-                let dst = self.alloc_reg()?;
-                self.push_op(IrOp::LoadLocal { dst, local });
-                self.stack.push(dst);
-                Ok(())
-            }
-            PlanOp::BindingGet {
-                source: Some(NameTarget::SelfValue),
-            } => {
-                let local = tune_resolve::LocalId(0);
-                self.track_local(local)?;
-                let dst = self.alloc_reg()?;
-                self.push_op(IrOp::LoadLocal { dst, local });
-                self.stack.push(dst);
-                Ok(())
-            }
-            PlanOp::BindingGet {
-                source: Some(NameTarget::TopLevel(item)),
-            } if self.module_bindings.contains(item) => {
-                let local = module_slot(*item, &self.module_bindings)?;
-                self.track_local(local)?;
-                let dst = self.alloc_reg()?;
-                self.push_op(IrOp::LoadLocal { dst, local });
-                self.stack.push(dst);
-                Ok(())
-            }
-            PlanOp::LocalLet {
-                local: Some(local),
-                initialized: true,
-            } => {
-                let local = local_slot(*local, local_offset(&self.module_bindings, &self.params))?;
-                self.track_local(local)?;
-                let value = self.pop("local initializer")?;
-                self.push_op(IrOp::StoreLocal { local, value });
-                Ok(())
-            }
-            PlanOp::LocalLet {
-                local: None,
-                initialized: true,
-            } => Err(IrLowerError::UnsupportedOp("unresolved local initializer")),
-            PlanOp::LocalLet {
-                initialized: false, ..
-            } => Ok(()),
+                source: Some(source),
+            } => self.lower_binding_get(*source),
+            PlanOp::LocalLet { local, initialized } => self.lower_local_let(*local, *initialized),
             PlanOp::ModuleLet {
                 item,
-                initialized: true,
+                initialized,
                 keep_value,
-            } => {
-                let local = module_slot(*item, &self.module_bindings)?;
-                self.track_local(local)?;
-                let value = self.pop("module initializer")?;
-                self.push_op(IrOp::StoreLocal { local, value });
-                if *keep_value {
-                    self.stack.push(value);
-                }
-                Ok(())
-            }
-            PlanOp::ModuleLet {
-                initialized: false, ..
-            } => Ok(()),
-            PlanOp::BindingSet {
-                target: Some(NameTarget::Local(local)),
-            } => {
-                let local = local_slot(*local, local_offset(&self.module_bindings, &self.params))?;
-                self.track_local(local)?;
-                let value = self.pop("local assignment")?;
-                self.push_op(IrOp::StoreLocal { local, value });
-                Ok(())
-            }
+            } => self.lower_module_let(*item, *initialized, *keep_value),
+            PlanOp::BindingSet { target } => self.lower_binding_set(*target),
             PlanOp::Return => {
                 let value = self.stack.pop();
                 self.push_op(IrOp::Return { value });
@@ -193,88 +119,20 @@ impl Lowerer {
                 variant,
                 arg_count,
                 span,
-            } => {
-                let mut args = Vec::with_capacity(*arg_count);
-                for _ in 0..*arg_count {
-                    args.push(self.pop("variant argument")?);
-                }
-                args.reverse();
-                let dst = self.alloc_reg()?;
-                self.push_op(IrOp::VariantConstruct {
-                    dst,
-                    variant: *variant,
-                    args,
-                    span: *span,
-                });
-                self.stack.push(dst);
-                Ok(())
-            }
+            } => self.lower_variant_construct(*variant, *arg_count, *span),
             PlanOp::StructConstruct {
                 item,
                 state,
                 fields,
                 span,
-            } => {
-                let mut values = Vec::with_capacity(fields.len());
-                for field in fields.iter().rev() {
-                    values.push(StructField {
-                        field: FieldId(field.index),
-                        value: self.pop("struct field initializer")?,
-                    });
-                }
-                values.reverse();
-                let dst = self.alloc_reg()?;
-                self.push_op(IrOp::StructConstruct {
-                    dst,
-                    item: *item,
-                    state: crate::lower_state::lower_struct_state(*state),
-                    fields: values,
-                    span: *span,
-                });
-                self.stack.push(dst);
-                Ok(())
-            }
-            PlanOp::FieldGet {
-                member: Some(member),
-                span,
-                ..
-            } => {
-                let base = self.pop("field base")?;
-                let dst = self.alloc_reg()?;
-                self.push_op(IrOp::GetField {
-                    dst,
-                    base,
-                    field: FieldId(member.index),
-                    span: *span,
-                });
-                self.stack.push(dst);
-                Ok(())
-            }
+            } => self.lower_struct_construct(*item, *state, fields, *span),
+            PlanOp::FieldGet { member, span, .. } => self.lower_field_get(*member, *span),
             PlanOp::FieldSet {
-                member: Some(member),
+                member,
                 base: base_target,
                 span,
                 ..
-            } => {
-                let value = self.pop("field value")?;
-                let base = self.pop("field base")?;
-                self.push_op(IrOp::SetField {
-                    base,
-                    field: FieldId(member.index),
-                    value,
-                    span: *span,
-                });
-                if let Some(target) = base_target {
-                    self.store_binding_target(*target, base)?;
-                }
-                Ok(())
-            }
-            PlanOp::FieldGet { member: None, .. } => {
-                Err(IrLowerError::UnsupportedOp("unresolved field get"))
-            }
-            PlanOp::FieldSet { member: None, .. } => {
-                Err(IrLowerError::UnsupportedOp("unresolved field set"))
-            }
+            } => self.lower_field_set(*member, *base_target, *span),
             PlanOp::ResultPropagate { expr, span } => {
                 let result = self.pop("result propagation")?;
                 let dst = self.alloc_reg()?;
@@ -327,12 +185,10 @@ impl Lowerer {
             | PlanOp::WitnessCall
             | PlanOp::HostCall { .. }
             | PlanOp::Assign
-            | PlanOp::UnaryOp { .. }
             | PlanOp::SequenceGet { .. }
             | PlanOp::SequenceSet { .. }
             | PlanOp::SequencePush
             | PlanOp::Materialize { .. }
-            | PlanOp::BindingSet { .. }
             | PlanOp::FiniteFor { .. }
             | PlanOp::StringBuild
             | PlanOp::Panic
@@ -366,35 +222,5 @@ impl Lowerer {
         self.stack
             .pop()
             .ok_or(IrLowerError::StackUnderflow(context))
-    }
-
-    fn store_binding_target(&mut self, target: NameTarget, value: Reg) -> Result<(), IrLowerError> {
-        match target {
-            NameTarget::Local(local) => {
-                let local = local_slot(local, local_offset(&self.module_bindings, &self.params))?;
-                self.track_local(local)?;
-                self.push_op(IrOp::StoreLocal { local, value });
-                Ok(())
-            }
-            NameTarget::Param(param) => {
-                let local = param_slot(param, &self.module_bindings, &self.params)?;
-                self.track_local(local)?;
-                self.push_op(IrOp::StoreLocal { local, value });
-                Ok(())
-            }
-            NameTarget::TopLevel(item) if self.module_bindings.contains(&item) => {
-                let local = module_slot(item, &self.module_bindings)?;
-                self.track_local(local)?;
-                self.push_op(IrOp::StoreLocal { local, value });
-                Ok(())
-            }
-            NameTarget::SelfValue => {
-                let local = tune_resolve::LocalId(0);
-                self.track_local(local)?;
-                self.push_op(IrOp::StoreLocal { local, value });
-                Ok(())
-            }
-            NameTarget::TopLevel(_) | NameTarget::Variant(_) => Ok(()),
-        }
     }
 }

@@ -119,6 +119,14 @@ impl FunctionLowerer<'_> {
                 self.push_instruction(Opcode::AddInt, dst.0, a.0, b.0);
                 Ok(())
             }
+            IrOp::NegInt { dst, value, .. } => {
+                self.push_instruction(Opcode::NegInt, dst.0, value.0, 0);
+                Ok(())
+            }
+            IrOp::NotBool { dst, value, .. } => {
+                self.push_instruction(Opcode::NotBool, dst.0, value.0, 0);
+                Ok(())
+            }
             IrOp::GreaterInt { dst, a, b, .. } => {
                 self.push_instruction(Opcode::GreaterInt, dst.0, a.0, b.0);
                 Ok(())

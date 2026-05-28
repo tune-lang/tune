@@ -36,6 +36,8 @@ impl IrOp {
     pub const fn provenance_span(&self) -> Option<Span> {
         match self {
             Self::AddInt { span, .. }
+            | Self::NegInt { span, .. }
+            | Self::NotBool { span, .. }
             | Self::GreaterInt { span, .. }
             | Self::CompareInt { span, .. }
             | Self::GetField { span, .. }
@@ -88,6 +90,16 @@ pub enum IrOp {
         dst: Reg,
         a: Reg,
         b: Reg,
+        span: Option<Span>,
+    },
+    NegInt {
+        dst: Reg,
+        value: Reg,
+        span: Option<Span>,
+    },
+    NotBool {
+        dst: Reg,
+        value: Reg,
         span: Option<Span>,
     },
     GreaterInt {

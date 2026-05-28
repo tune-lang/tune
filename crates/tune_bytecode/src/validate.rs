@@ -122,6 +122,10 @@ fn validate_instruction(
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
         }
+        Opcode::NegInt | Opcode::NotBool => {
+            register(function_id, function, instruction.a)?;
+            register(function_id, function, instruction.b)?;
+        }
         Opcode::AddInt
         | Opcode::GreaterInt
         | Opcode::EqualInt

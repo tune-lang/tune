@@ -176,6 +176,25 @@ impl Vm {
             write_reg(registers, op.a, Value::Bool(result)),
         )
     }
+
+    pub(crate) fn execute_unary(
+        &self,
+        function: usize,
+        instruction: usize,
+        registers: &mut [Value],
+        op: &Instruction,
+    ) -> Result<(), VmFault> {
+        let value = self.at(function, instruction, read_reg(registers, op.b))?;
+        let result = match (op.opcode, value) {
+            (Opcode::NegInt, Value::Int(value)) => value.checked_neg().map(Value::Int),
+            (Opcode::NotBool, Value::Bool(value)) => Some(Value::Bool(!value)),
+            _ => None,
+        }
+        .ok_or_else(|| {
+            self.fault_at(function, instruction, VmError::UnsupportedOpcode(op.opcode))
+        })?;
+        self.at(function, instruction, write_reg(registers, op.a, result))
+    }
 }
 
 pub(crate) fn read_reg(registers: &[Value], reg: u32) -> Result<Value, VmError> {

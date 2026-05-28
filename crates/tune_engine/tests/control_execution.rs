@@ -73,6 +73,25 @@ let result: Int = {
     Ok(())
 }
 
+#[test]
+fn run_file_executes_unary_negation_and_not() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let offset: Int = -4
+let gate: Int = if not false { 10 } else { 0 }
+let result: Int = gate + offset
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, tune_runtime::value::Value::Int(6));
+
+    Ok(())
+}
+
 fn run_file(
     tune: &tune_engine::Tune,
     file: tune_db::FileId,

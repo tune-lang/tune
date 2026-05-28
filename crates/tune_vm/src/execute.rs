@@ -160,6 +160,9 @@ impl Vm {
                         write_reg(&mut registers, instruction.a, Value::Int(left + right)),
                     )?;
                 }
+                Opcode::NegInt | Opcode::NotBool => {
+                    self.execute_unary(function_index, ip, &mut registers, instruction)?;
+                }
                 Opcode::GreaterInt
                 | Opcode::EqualInt
                 | Opcode::NotEqualInt
