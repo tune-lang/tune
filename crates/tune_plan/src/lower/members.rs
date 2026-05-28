@@ -5,7 +5,8 @@ use tune_hir::pattern::{Pattern, PatternKind, StructuralRequirement, StructuralR
 use tune_resolve::NameTarget;
 use tune_shape::{Shape, lower_resolved_hir_shape};
 
-use super::{FiniteForContractKind, LowerContext, StructuralWitness, StructuralWitnessKind};
+use super::{LowerContext, StructuralWitness, StructuralWitnessKind};
+use crate::FiniteForContractKind;
 
 impl LowerContext<'_> {
     pub(super) fn struct_item_id(&self, name: &str) -> Option<tune_hir::HirId> {

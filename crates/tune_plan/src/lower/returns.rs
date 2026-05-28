@@ -1,7 +1,8 @@
 use tune_hir::expr::{Expr, ExprKind};
 
-use super::{LowerContext, PlanIfBranch, PlanMatchArm, PlanOp, StructEscapeReason};
+use super::LowerContext;
 use crate::lower::values::{expr_produces_value, if_produces_value};
+use crate::{PlanIfBranch, PlanMatchArm, PlanOp, StructEscapeReason};
 
 impl LowerContext<'_> {
     pub(super) fn lower_return_expr(&self, expr: &Expr, ops: &mut Vec<PlanOp>) {
