@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 
 use tune_bytecode::{
     Opcode,
@@ -6,14 +6,15 @@ use tune_bytecode::{
     function::{BytecodeOwnershipPlan, BytecodeStateRepr, BytecodeStructState, BytecodeVariant},
 };
 use tune_runtime::{
-    ownership::OwnershipPlan,
-    state::{StateHandle, StateId, StateRepr},
+    state::{StateHandle, StateId},
+    task::{Task, TaskJoinOutcome},
     value::{RuntimeVariant, StructFields, Value},
 };
 
 pub struct Vm {
     pub artifact: BytecodeArtifact,
     next_state_id: Cell<u64>,
+    tasks: RefCell<Vec<Task>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -34,6 +35,7 @@ impl Vm {
         Self {
             artifact,
             next_state_id: Cell::new(0),
+            tasks: RefCell::new(Vec::new()),
         }
     }
 
@@ -51,7 +53,9 @@ impl Vm {
             .ok_or(VmError::FunctionOutOfBounds)?;
         let mut registers = vec![Value::Unit; function.register_count as usize];
         let mut locals = vec![Value::Unit; function.local_count as usize];
-        if args.len() > locals.len() {
+        if args.len() != function.param_count as usize
+            || function.param_count > function.local_count
+        {
             return Err(VmError::ArityMismatch);
         }
         for (slot, arg) in args.into_iter().enumerate() {
@@ -203,6 +207,26 @@ impl Vm {
                     }
                     _ => return Err(VmError::UnsupportedOpcode(Opcode::ResultPropagate)),
                 },
+                Opcode::SpawnTask => {
+                    let value = read_reg(&registers, instruction.b)?;
+                    let task = self.push_ready_task(value);
+                    write_reg(&mut registers, instruction.a, task)?;
+                }
+                Opcode::TaskJoin => match read_reg(&registers, instruction.b)? {
+                    Value::Task(handle) => match self.join_task(handle.0) {
+                        Some(TaskJoinOutcome::Ready(value)) => {
+                            write_reg(&mut registers, instruction.a, value)?;
+                        }
+                        Some(TaskJoinOutcome::Pending(_)) => {
+                            return Err(VmError::UnsupportedOpcode(Opcode::TaskJoin));
+                        }
+                        Some(TaskJoinOutcome::UnrecoverablePanic(_)) => {
+                            return Err(VmError::UnsupportedOpcode(Opcode::TaskJoin));
+                        }
+                        None => return Err(VmError::RegisterOutOfBounds),
+                    },
+                    _ => return Err(VmError::UnsupportedOpcode(Opcode::TaskJoin)),
+                },
                 Opcode::Jump => {
                     ip = instruction.a as usize;
                     continue;
@@ -255,9 +279,16 @@ impl Vm {
     }
 
     fn alloc_state(&self, state: BytecodeStructState) -> Result<StateHandle, VmError> {
-        if state.repr != BytecodeStateRepr::LocalHandle
-            || state.ownership != BytecodeOwnershipPlan::NonAtomicRc
-        {
+        if !matches!(
+            (state.repr, state.ownership),
+            (
+                BytecodeStateRepr::LocalHandle,
+                BytecodeOwnershipPlan::NonAtomicRc
+            ) | (
+                BytecodeStateRepr::SharedHandle,
+                BytecodeOwnershipPlan::SharedAtomic
+            )
+        ) {
             return Err(VmError::UnsupportedStructState);
         }
         let id = StateId(self.next_state_id.get());
@@ -265,9 +296,24 @@ impl Vm {
             .set(self.next_state_id.get().saturating_add(1));
         Ok(StateHandle {
             id,
-            repr: runtime_state_repr(state.repr),
-            ownership: runtime_ownership(state.ownership),
+            repr: crate::vm_state::runtime_state_repr(state.repr),
+            ownership: crate::vm_state::runtime_ownership(state.ownership),
         })
+    }
+
+    fn push_ready_task(&self, value: Value) -> Value {
+        let mut tasks = self.tasks.borrow_mut();
+        let id = tune_runtime::TaskId(u64::try_from(tasks.len()).unwrap_or(u64::MAX));
+        tasks.push(Task::ready(id, value));
+        Value::Task(tune_runtime::TaskHandle(id))
+    }
+
+    fn join_task(&self, id: tune_runtime::TaskId) -> Option<TaskJoinOutcome> {
+        self.tasks
+            .borrow()
+            .get(id.0 as usize)
+            .cloned()
+            .map(Task::join)
     }
 
     #[allow(dead_code)]
@@ -310,26 +356,6 @@ impl Vm {
             Opcode::GreaterInt => {}
             Opcode::VariantField => {}
         }
-    }
-}
-
-fn runtime_state_repr(repr: BytecodeStateRepr) -> StateRepr {
-    match repr {
-        BytecodeStateRepr::Inline => StateRepr::Inline,
-        BytecodeStateRepr::LocalHandle => StateRepr::LocalHandle,
-        BytecodeStateRepr::SharedHandle => StateRepr::SharedHandle,
-        BytecodeStateRepr::HostResource => StateRepr::HostResource,
-    }
-}
-
-fn runtime_ownership(ownership: BytecodeOwnershipPlan) -> OwnershipPlan {
-    match ownership {
-        BytecodeOwnershipPlan::Stack => OwnershipPlan::Stack,
-        BytecodeOwnershipPlan::DirectDrop => OwnershipPlan::DirectDrop,
-        BytecodeOwnershipPlan::NonAtomicRc => OwnershipPlan::NonAtomicRc,
-        BytecodeOwnershipPlan::Cow => OwnershipPlan::Cow,
-        BytecodeOwnershipPlan::SharedAtomic => OwnershipPlan::SharedAtomic,
-        BytecodeOwnershipPlan::HostRetained => OwnershipPlan::HostRetained,
     }
 }
 

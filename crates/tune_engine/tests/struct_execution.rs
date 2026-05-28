@@ -129,6 +129,36 @@ let result: Counter = Counter {
     Ok(())
 }
 
+#[test]
+fn run_file_spawned_struct_uses_shared_atomic_state() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+struct Counter {
+  value: Int
+}
+let task: Task<Counter> = spawn Counter {
+  value = 1
+}
+let result: Counter = task.join()
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    let Value::Struct { state, .. } = run_file(&tune, file)? else {
+        return Err("entry should return a struct");
+    };
+
+    assert_eq!(state.repr, tune_runtime::StateRepr::SharedHandle);
+    assert_eq!(
+        state.ownership,
+        tune_runtime::ownership::OwnershipPlan::SharedAtomic
+    );
+    Ok(())
+}
+
 fn run_file(tune: &tune_engine::Tune, file: tune_db::FileId) -> Result<Value, &'static str> {
     tune.run_file(file).map_err(|error| {
         eprintln!("{error:?}");

@@ -61,6 +61,7 @@ fn lower_module_item_into_entry(
         module: Some(module),
         analysis: Some(&analysis),
         self_shape: None,
+        struct_state: crate::StructStatePlan::LOCAL,
     };
     context.lower_expr(body, ops);
     if matches!(body.kind, tune_hir::expr::ExprKind::Sequence(_))
@@ -125,6 +126,7 @@ fn lower_callable_member(
         module: Some(module),
         analysis: Some(&analysis),
         self_shape: owner.name.as_ref().map(|name| Shape::Struct(name.clone())),
+        struct_state: crate::StructStatePlan::LOCAL,
     };
     context.lower_expr(body, &mut plan.ops);
     if super::falls_through(body) {

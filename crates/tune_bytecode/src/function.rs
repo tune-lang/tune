@@ -85,6 +85,7 @@ pub enum BytecodeVariant {
 #[derive(Debug, Clone)]
 pub struct BytecodeFunction {
     pub name: String,
+    pub param_count: u32,
     pub register_count: u32,
     pub local_count: u32,
     pub call_sites: Vec<BytecodeCallSite>,

@@ -23,6 +23,7 @@ pub struct IrFunction {
     pub owner: Option<HirId>,
     pub member: Option<MemberId>,
     pub name: String,
+    pub params: u32,
     pub regs: u32,
     pub locals: u32,
     pub constants: Vec<IrConst>,

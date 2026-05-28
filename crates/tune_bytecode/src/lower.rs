@@ -77,6 +77,7 @@ fn lower_ir_function_with_constants(
     }
     Ok(BytecodeFunction {
         name: function.name.clone(),
+        param_count: function.params,
         register_count: function.regs,
         local_count: function.locals,
         call_sites: lowerer.call_sites,
@@ -87,7 +88,7 @@ fn lower_ir_function_with_constants(
     })
 }
 
-struct FunctionLowerer<'a> {
+pub(super) struct FunctionLowerer<'a> {
     function: &'a IrFunction,
     function_indices: &'a HashMap<HirId, u32>,
     member_indices: &'a HashMap<MemberId, u32>,
@@ -97,7 +98,7 @@ struct FunctionLowerer<'a> {
     struct_sites: Vec<BytecodeStructSite>,
     variant_sites: Vec<BytecodeVariantSite>,
     match_sites: Vec<BytecodeMatchSite>,
-    instructions: Vec<Instruction>,
+    pub(super) instructions: Vec<Instruction>,
 }
 
 impl FunctionLowerer<'_> {
@@ -281,6 +282,14 @@ impl FunctionLowerer<'_> {
                     b: result.0,
                     c: 0,
                 });
+                Ok(())
+            }
+            IrOp::Spawn { dst, callable } => {
+                self.lower_spawn(*dst, *callable);
+                Ok(())
+            }
+            IrOp::TaskJoin { dst, task } => {
+                self.lower_task_join(*dst, *task);
                 Ok(())
             }
             IrOp::Jump { target } => {

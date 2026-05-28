@@ -75,6 +75,7 @@ fn lower_item_with_context(
         module,
         analysis: analysis.as_ref(),
         self_shape: None,
+        struct_state: StructStatePlan::LOCAL,
     };
     context.lower_expr(body, &mut plan.ops);
     if matches!(body.kind, ExprKind::Sequence(_))
@@ -98,6 +99,7 @@ pub(super) struct LowerContext<'a> {
     pub(super) module: Option<&'a Module>,
     pub(super) analysis: Option<&'a tune_shape::ShapeAnalysis>,
     pub(super) self_shape: Option<tune_shape::Shape>,
+    pub(super) struct_state: StructStatePlan,
 }
 
 impl LowerContext<'_> {
@@ -134,7 +136,7 @@ impl LowerContext<'_> {
                 if let Some(item) = self.struct_item_id(name) {
                     ops.push(PlanOp::StructConstruct {
                         item,
-                        state: StructStatePlan::LOCAL,
+                        state: self.struct_state,
                         fields: ordered.into_iter().map(|(field, _)| field).collect(),
                     });
                 }
@@ -191,7 +193,8 @@ impl LowerContext<'_> {
                 ops.push(PlanOp::BinaryOp { op: *op });
             }
             ExprKind::Spawn(inner) => {
-                self.lower_expr(inner, ops);
+                self.with_struct_state(StructStatePlan::SHARED)
+                    .lower_expr(inner, ops);
                 ops.push(PlanOp::Spawn {
                     body: inner.id,
                     span: expr.span,
@@ -342,6 +345,16 @@ impl LowerContext<'_> {
         let mut ops = Vec::new();
         self.lower_expr(expr, &mut ops);
         ops
+    }
+
+    fn with_struct_state(&self, struct_state: StructStatePlan) -> Self {
+        Self {
+            resolved: self.resolved,
+            module: self.module,
+            analysis: self.analysis,
+            self_shape: self.self_shape.clone(),
+            struct_state,
+        }
     }
 
     fn name_target(&self, expr: ExprId) -> Option<NameTarget> {

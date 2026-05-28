@@ -319,6 +319,39 @@ fn task_join_lowers_to_dedicated_plan_op() -> Result<(), &'static str> {
 }
 
 #[test]
+fn spawned_struct_construct_uses_shared_state_plan() -> Result<(), &'static str> {
+    let source = r#"
+struct Counter {
+  value: Int
+}
+let run(): Task<Counter> = spawn Counter {
+  value = 1
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    let plan = tune_plan::lower_resolved_module_item_to_plan(&module, &module.items[1], &resolved)
+        .ok_or("run plan should lower")?;
+
+    assert!(plan.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::StructConstruct {
+            state: tune_plan::StructStatePlan::SHARED,
+            ..
+        }
+    )));
+    assert!(
+        plan.ops
+            .iter()
+            .any(|op| matches!(op, tune_plan::PlanOp::Spawn { .. }))
+    );
+
+    Ok(())
+}
+
+#[test]
 fn module_context_resolves_member_ids_and_materialization_slots() -> Result<(), &'static str> {
     let source = r#"
 struct Stack {

@@ -259,6 +259,29 @@ let result = fail()
 }
 
 #[test]
+fn run_file_executes_spawn_join_ready_value() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let task: Task<Int> = spawn 20
+let result: Int = task.join()
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        tune.run_file(file).map_err(|error| {
+            eprintln!("{error:?}");
+            "file entry should run"
+        })?,
+        tune_runtime::value::Value::Int(20)
+    );
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_local_binding_slice_through_vm() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

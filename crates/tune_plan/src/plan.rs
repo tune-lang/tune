@@ -68,6 +68,11 @@ impl StructStatePlan {
         repr: StructStateRepr::LocalHandle,
         ownership: StructOwnershipPlan::NonAtomicRc,
     };
+
+    pub const SHARED: Self = Self {
+        repr: StructStateRepr::SharedHandle,
+        ownership: StructOwnershipPlan::SharedAtomic,
+    };
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

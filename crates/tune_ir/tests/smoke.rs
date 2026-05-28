@@ -40,6 +40,7 @@ fn ir_has_typed_slots_for_core_planned_operations() {
         ],
     };
     let function = tune_ir::IrFunction {
+        params: 0,
         owner: None,
         member: None,
         name: "run".into(),

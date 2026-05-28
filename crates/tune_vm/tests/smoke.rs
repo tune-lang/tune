@@ -14,6 +14,7 @@ fn vm_executes_integer_add_bytecode_entry() -> Result<(), &'static str> {
         ],
         functions: vec![
             tune_bytecode::function::BytecodeFunction {
+                param_count: 0,
                 name: "main".into(),
                 register_count: 0,
                 local_count: 0,
@@ -24,6 +25,7 @@ fn vm_executes_integer_add_bytecode_entry() -> Result<(), &'static str> {
                 instructions: Vec::new(),
             },
             tune_bytecode::function::BytecodeFunction {
+                param_count: 0,
                 name: "<entry>".into(),
                 register_count: 3,
                 local_count: 0,
@@ -80,6 +82,7 @@ fn vm_executes_direct_call_with_arguments() -> Result<(), &'static str> {
         ],
         functions: vec![
             tune_bytecode::function::BytecodeFunction {
+                param_count: 0,
                 name: "<entry>".into(),
                 register_count: 3,
                 local_count: 0,
@@ -118,6 +121,7 @@ fn vm_executes_direct_call_with_arguments() -> Result<(), &'static str> {
                 ],
             },
             tune_bytecode::function::BytecodeFunction {
+                param_count: 2,
                 name: "add".into(),
                 register_count: 3,
                 local_count: 2,
@@ -165,11 +169,60 @@ fn vm_executes_direct_call_with_arguments() -> Result<(), &'static str> {
 }
 
 #[test]
-fn vm_rejects_unimplemented_shared_struct_state_plan() {
+fn vm_rejects_too_few_call_arguments() {
+    let artifact = tune_bytecode::artifact::BytecodeArtifact {
+        entry_function: Some(0),
+        constants: Vec::new(),
+        functions: vec![
+            tune_bytecode::function::BytecodeFunction {
+                param_count: 0,
+                name: "<entry>".into(),
+                register_count: 1,
+                local_count: 0,
+                call_sites: vec![tune_bytecode::function::BytecodeCallSite {
+                    function: 1,
+                    args: Vec::new(),
+                }],
+                struct_sites: Vec::new(),
+                variant_sites: Vec::new(),
+                match_sites: Vec::new(),
+                instructions: vec![tune_bytecode::function::Instruction {
+                    opcode: tune_bytecode::Opcode::CallDirect,
+                    a: 0,
+                    b: 0,
+                    c: 0,
+                }],
+            },
+            tune_bytecode::function::BytecodeFunction {
+                param_count: 1,
+                name: "id".into(),
+                register_count: 1,
+                local_count: 1,
+                call_sites: Vec::new(),
+                struct_sites: Vec::new(),
+                variant_sites: Vec::new(),
+                match_sites: Vec::new(),
+                instructions: vec![tune_bytecode::function::Instruction {
+                    opcode: tune_bytecode::Opcode::Return,
+                    a: 0,
+                    b: 1,
+                    c: 0,
+                }],
+            },
+        ],
+    };
+
+    let mut vm = tune_vm::Vm::new(artifact);
+    assert_eq!(vm.run_entry(), Err(tune_vm::VmError::ArityMismatch));
+}
+
+#[test]
+fn vm_rejects_unsupported_struct_state_plan() {
     let artifact = tune_bytecode::artifact::BytecodeArtifact {
         entry_function: Some(0),
         constants: Vec::new(),
         functions: vec![tune_bytecode::function::BytecodeFunction {
+            param_count: 0,
             name: "<entry>".into(),
             register_count: 1,
             local_count: 0,
@@ -177,7 +230,7 @@ fn vm_rejects_unimplemented_shared_struct_state_plan() {
             struct_sites: vec![tune_bytecode::function::BytecodeStructSite {
                 owner: 0,
                 state: tune_bytecode::function::BytecodeStructState {
-                    repr: tune_bytecode::function::BytecodeStateRepr::SharedHandle,
+                    repr: tune_bytecode::function::BytecodeStateRepr::Inline,
                     ownership: tune_bytecode::function::BytecodeOwnershipPlan::SharedAtomic,
                 },
                 fields: Vec::new(),

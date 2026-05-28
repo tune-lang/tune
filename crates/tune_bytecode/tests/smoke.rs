@@ -28,6 +28,7 @@ fn core_opcodes_reserve_dense_bytecode_slots() -> Result<(), &'static str> {
 #[test]
 fn lowers_typed_local_ir_to_bytecode() -> Result<(), &'static str> {
     let ir = tune_ir::IrFunction {
+        params: 0,
         owner: None,
         member: None,
         name: "entry".into(),
@@ -76,6 +77,7 @@ fn lowers_typed_local_ir_to_bytecode() -> Result<(), &'static str> {
 #[test]
 fn lowers_integer_add_ir_to_bytecode() -> Result<(), &'static str> {
     let ir = tune_ir::IrFunction {
+        params: 0,
         owner: None,
         member: None,
         name: "main".into(),
@@ -129,6 +131,7 @@ fn lowers_integer_add_ir_to_bytecode() -> Result<(), &'static str> {
 #[test]
 fn lowers_struct_construct_with_explicit_local_state_plan() -> Result<(), &'static str> {
     let ir = tune_ir::IrFunction {
+        params: 0,
         owner: None,
         member: None,
         name: "entry".into(),
@@ -177,6 +180,7 @@ fn lowers_struct_construct_with_explicit_local_state_plan() -> Result<(), &'stat
 #[test]
 fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
     let entry = tune_ir::IrFunction {
+        params: 0,
         owner: None,
         member: None,
         name: "<entry>".into(),
@@ -203,6 +207,7 @@ fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
         }],
     };
     let callee = tune_ir::IrFunction {
+        params: 1,
         owner: Some(tune_hir::HirId(1)),
         member: None,
         name: "id".into(),

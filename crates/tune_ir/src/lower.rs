@@ -39,6 +39,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
         owner: plan.owner,
         member: plan.member,
         name: plan.name.clone(),
+        params: u32::try_from(plan.params.len()).map_err(|_| IrLowerError::RegisterLimit)?,
         regs: lowerer.next_reg,
         locals: lowerer.locals,
         constants: lowerer.constants,
@@ -293,6 +294,8 @@ impl Lowerer {
                 self.stack.push(dst);
                 Ok(())
             }
+            PlanOp::Spawn { .. } => self.lower_spawn(),
+            PlanOp::TaskJoin => self.lower_task_join(),
             PlanOp::If {
                 branches, else_ops, ..
             } => self.lower_if(
@@ -330,8 +333,6 @@ impl Lowerer {
             | PlanOp::Loop { .. }
             | PlanOp::Break
             | PlanOp::Continue
-            | PlanOp::Spawn { .. }
-            | PlanOp::TaskJoin
             | PlanOp::Panic
             | PlanOp::Meta { .. } => Err(IrLowerError::UnsupportedOp("plan op")),
         }
