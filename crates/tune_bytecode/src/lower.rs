@@ -131,6 +131,34 @@ impl FunctionLowerer<'_> {
                 self.push_instruction(Opcode::SeqPush, seq.0, value.0, 0);
                 Ok(())
             }
+            IrOp::SeqGet {
+                dst,
+                seq,
+                index,
+                checked,
+            } => {
+                let opcode = if *checked {
+                    Opcode::SeqGetChecked
+                } else {
+                    Opcode::SeqGetUnchecked
+                };
+                self.push_instruction(opcode, dst.0, seq.0, index.0);
+                Ok(())
+            }
+            IrOp::SeqSet {
+                seq,
+                index,
+                value,
+                checked,
+            } => {
+                let opcode = if *checked {
+                    Opcode::SeqSetChecked
+                } else {
+                    Opcode::SeqSetUnchecked
+                };
+                self.push_instruction(opcode, seq.0, index.0, value.0);
+                Ok(())
+            }
             IrOp::NegInt { dst, value, .. } => {
                 self.push_instruction(Opcode::NegInt, dst.0, value.0, 0);
                 Ok(())

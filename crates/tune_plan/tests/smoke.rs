@@ -104,10 +104,14 @@ let ok(value) = Ok(value)
         op,
         tune_plan::PlanOp::FieldSet { field, .. } if field == "name"
     )));
-    assert!(mutate.ops.contains(&tune_plan::PlanOp::SequenceSet {
-        checked: true,
-        index_member: None
-    }));
+    assert!(mutate.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::SequenceSet {
+            checked: true,
+            index_member: None,
+            base: Some(_)
+        }
+    )));
     assert!(!mutate.ops.contains(&tune_plan::PlanOp::Assign));
 
     let ops = tune_plan::lower_resolved_item_to_plan(&module.items[6], &resolved)

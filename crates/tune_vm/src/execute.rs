@@ -72,7 +72,12 @@ impl Vm {
                         write_reg(&mut registers, instruction.a, value),
                     )?;
                 }
-                Opcode::SeqBuild | Opcode::SeqPush => {
+                Opcode::SeqBuild
+                | Opcode::SeqPush
+                | Opcode::SeqGetChecked
+                | Opcode::SeqGetUnchecked
+                | Opcode::SeqSetChecked
+                | Opcode::SeqSetUnchecked => {
                     self.execute_sequence(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::StructConstruct => {

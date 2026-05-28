@@ -196,40 +196,6 @@ impl Vm {
         self.at(function, instruction, write_reg(registers, op.a, result))
     }
 
-    pub(crate) fn execute_sequence(
-        &self,
-        function: usize,
-        instruction: usize,
-        registers: &mut [Value],
-        op: &Instruction,
-    ) -> Result<(), VmFault> {
-        match op.opcode {
-            Opcode::SeqBuild => self.at(
-                function,
-                instruction,
-                write_reg(registers, op.a, Value::Sequence(Vec::new())),
-            ),
-            Opcode::SeqPush => {
-                let seq = self.at(function, instruction, read_reg(registers, op.a))?;
-                let value = self.at(function, instruction, read_reg(registers, op.b))?;
-                let Value::Sequence(mut values) = seq else {
-                    return Err(self.fault_at(
-                        function,
-                        instruction,
-                        VmError::UnsupportedOpcode(Opcode::SeqPush),
-                    ));
-                };
-                values.push(value);
-                self.at(
-                    function,
-                    instruction,
-                    write_reg(registers, op.a, Value::Sequence(values)),
-                )
-            }
-            _ => Err(self.fault_at(function, instruction, VmError::UnsupportedOpcode(op.opcode))),
-        }
-    }
-
     pub(crate) fn execute_finite_for_init(
         &self,
         function: usize,

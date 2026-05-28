@@ -168,6 +168,7 @@ pub enum PlanOp {
     SequenceSet {
         checked: bool,
         index_member: Option<MemberId>,
+        base: Option<NameTarget>,
     },
     SequencePush,
     SequenceBuild {

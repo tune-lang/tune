@@ -88,6 +88,8 @@ impl Lowerer {
             PlanOp::UnaryOp { op } => self.lower_unary(*op),
             PlanOp::SequenceBuild { element_count } => self.lower_sequence_build(*element_count),
             PlanOp::SequencePush => self.lower_sequence_push(),
+            PlanOp::SequenceGet { checked, .. } => self.lower_sequence_get(*checked),
+            PlanOp::SequenceSet { checked, base, .. } => self.lower_sequence_set(*checked, *base),
             PlanOp::BindingGet {
                 source: Some(source),
             } => self.lower_binding_get(*source),
@@ -194,8 +196,6 @@ impl Lowerer {
             | PlanOp::WitnessCall
             | PlanOp::HostCall { .. }
             | PlanOp::Assign
-            | PlanOp::SequenceGet { .. }
-            | PlanOp::SequenceSet { .. }
             | PlanOp::Materialize { .. }
             | PlanOp::StringBuild
             | PlanOp::Panic

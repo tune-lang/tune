@@ -343,6 +343,7 @@ impl LowerContext<'_> {
                 ops.push(PlanOp::SequenceSet {
                     checked: true,
                     index_member: self.index_member(base),
+                    base: self.field_base_target(base),
                 });
             }
             _ => {

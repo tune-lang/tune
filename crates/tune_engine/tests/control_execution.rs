@@ -122,6 +122,27 @@ let result: Int = {
     Ok(())
 }
 
+#[test]
+fn run_file_executes_sequence_get_and_set() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let result: Int = {
+  let values = [10, 20, 30]
+  values[1] = 7
+  values[0] + values[1] + values[2]
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, tune_runtime::value::Value::Int(47));
+
+    Ok(())
+}
+
 fn run_file(
     tune: &tune_engine::Tune,
     file: tune_db::FileId,
