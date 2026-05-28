@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use crate::state::StateHandle;
 use crate::task::TaskId;
+use tune_diagnostics::Span;
 
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -22,6 +23,7 @@ pub enum Value {
     Variant {
         variant: RuntimeVariant,
         fields: Vec<Value>,
+        propagation_frames: Vec<PropagationFrame>,
     },
     StructState(StateHandle),
     Callable(CallableValue),
@@ -59,12 +61,18 @@ impl PartialEq for Value {
                 Self::Variant {
                     variant: left_variant,
                     fields: left_fields,
+                    propagation_frames: left_frames,
                 },
                 Self::Variant {
                     variant: right_variant,
                     fields: right_fields,
+                    propagation_frames: right_frames,
                 },
-            ) => left_variant == right_variant && left_fields == right_fields,
+            ) => {
+                left_variant == right_variant
+                    && left_fields == right_fields
+                    && left_frames == right_frames
+            }
             (Self::StructState(left), Self::StructState(right)) => left == right,
             (Self::Callable(left), Self::Callable(right)) => left == right,
             (Self::Task(left), Self::Task(right)) => left == right,
@@ -112,4 +120,11 @@ pub enum RuntimeVariant {
     ResultOk,
     ResultError,
     Other { owner: u32, index: u32 },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PropagationFrame {
+    pub function: u32,
+    pub instruction: u32,
+    pub span: Option<Span>,
 }

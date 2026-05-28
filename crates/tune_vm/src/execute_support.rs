@@ -1,10 +1,11 @@
+use tune_bytecode::Opcode;
 use tune_bytecode::function::{
     BytecodeOwnershipPlan, BytecodeStateRepr, BytecodeStructState, BytecodeVariant,
 };
 use tune_runtime::{
     state::{StateHandle, StateId},
     task::{Task, TaskJoinOutcome},
-    value::{RuntimeVariant, Value},
+    value::{PropagationFrame, RuntimeVariant, Value},
 };
 
 use crate::{Vm, VmError, VmFault, VmLocation};
@@ -84,6 +85,59 @@ impl Vm {
             .get(id.0 as usize)
             .cloned()
             .map(Task::join)
+    }
+
+    pub(crate) fn propagate_result(
+        &self,
+        function: usize,
+        instruction: usize,
+        registers: &mut [Value],
+        dst: u32,
+        result: Value,
+    ) -> Result<Option<Value>, VmFault> {
+        match result {
+            Value::Variant {
+                variant: RuntimeVariant::ResultOk,
+                mut fields,
+                ..
+            } if fields.len() == 1 => {
+                self.at(
+                    function,
+                    instruction,
+                    write_reg(registers, dst, fields.remove(0)),
+                )?;
+                Ok(None)
+            }
+            Value::Variant {
+                variant: RuntimeVariant::ResultError,
+                fields,
+                mut propagation_frames,
+            } => {
+                if let Some(frame) = self.propagation_frame(function, instruction) {
+                    propagation_frames.push(frame);
+                }
+                Ok(Some(Value::Variant {
+                    variant: RuntimeVariant::ResultError,
+                    fields,
+                    propagation_frames,
+                }))
+            }
+            _ => Err(self.fault_at(
+                function,
+                instruction,
+                VmError::UnsupportedOpcode(Opcode::ResultPropagate),
+            )),
+        }
+    }
+
+    fn propagation_frame(&self, function: usize, instruction: usize) -> Option<PropagationFrame> {
+        let function = u32::try_from(function).ok()?;
+        let instruction = u32::try_from(instruction).ok()?;
+        Some(PropagationFrame {
+            function,
+            instruction,
+            span: self.artifact.instruction_span(function, instruction),
+        })
     }
 }
 

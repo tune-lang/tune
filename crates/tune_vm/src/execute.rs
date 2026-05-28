@@ -1,7 +1,7 @@
 use tune_bytecode::{Opcode, artifact::BytecodeConst};
 use tune_runtime::{
     task::TaskJoinOutcome,
-    value::{RuntimeVariant, StructFields, Value},
+    value::{StructFields, Value},
 };
 
 use crate::execute_support::{read_reg, runtime_variant, write_reg};
@@ -217,6 +217,7 @@ impl Vm {
                             Value::Variant {
                                 variant: runtime_variant(variant_site.variant),
                                 fields,
+                                propagation_frames: Vec::new(),
                             },
                         ),
                     )?;
@@ -244,33 +245,16 @@ impl Vm {
                     }
                 }
                 Opcode::ResultPropagate => {
-                    match self.at(function_index, ip, read_reg(&registers, instruction.b))? {
-                        Value::Variant {
-                            variant: RuntimeVariant::ResultOk,
-                            mut fields,
-                        } if fields.len() == 1 => {
-                            self.at(
-                                function_index,
-                                ip,
-                                write_reg(&mut registers, instruction.a, fields.remove(0)),
-                            )?;
-                        }
-                        Value::Variant {
-                            variant: RuntimeVariant::ResultError,
-                            fields,
-                        } => {
-                            return Ok(Value::Variant {
-                                variant: RuntimeVariant::ResultError,
-                                fields,
-                            });
-                        }
-                        _ => {
-                            return Err(self.fault_at(
-                                function_index,
-                                ip,
-                                VmError::UnsupportedOpcode(Opcode::ResultPropagate),
-                            ));
-                        }
+                    let result =
+                        self.at(function_index, ip, read_reg(&registers, instruction.b))?;
+                    if let Some(value) = self.propagate_result(
+                        function_index,
+                        ip,
+                        &mut registers,
+                        instruction.a,
+                        result,
+                    )? {
+                        return Ok(value);
                     }
                 }
                 Opcode::SpawnTask => {

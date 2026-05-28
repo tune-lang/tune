@@ -222,6 +222,7 @@ let result = pass()
         tune_runtime::value::Value::Variant {
             variant: tune_runtime::value::RuntimeVariant::ResultOk,
             fields: vec![tune_runtime::value::Value::Int(1)],
+            propagation_frames: Vec::new(),
         }
     );
 
@@ -244,16 +245,22 @@ let result = fail()
         )
         .ok_or("file should allocate")?;
 
-    assert_eq!(
-        tune.run_file(file).map_err(|error| {
-            eprintln!("{error:?}");
-            "file entry should run"
-        })?,
-        tune_runtime::value::Value::Variant {
-            variant: tune_runtime::value::RuntimeVariant::ResultError,
-            fields: vec![tune_runtime::value::Value::Int(2)],
-        }
-    );
+    let value = tune.run_file(file).map_err(|error| {
+        eprintln!("{error:?}");
+        "file entry should run"
+    })?;
+    let tune_runtime::value::Value::Variant {
+        variant: tune_runtime::value::RuntimeVariant::ResultError,
+        fields,
+        propagation_frames,
+    } = value
+    else {
+        return Err("result should be Error variant");
+    };
+    assert_eq!(fields, vec![tune_runtime::value::Value::Int(2)]);
+    assert_eq!(propagation_frames.len(), 1);
+    assert_eq!(propagation_frames[0].function, 1);
+    assert!(propagation_frames[0].span.is_some());
 
     Ok(())
 }
