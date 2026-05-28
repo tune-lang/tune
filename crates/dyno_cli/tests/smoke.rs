@@ -38,6 +38,7 @@ fn renders_unhandled_result_error_at_runtime_boundary() {
         propagation_frames: vec![tune_runtime::PropagationFrame {
             function: 2,
             instruction: 7,
+            function_name: "load".to_owned(),
             span: Some(span),
         }],
     };
@@ -45,5 +46,5 @@ fn renders_unhandled_result_error_at_runtime_boundary() {
 
     assert_eq!(rendered.len(), 1);
     assert!(rendered[0].contains("error[T0901]: result error propagated"));
-    assert!(rendered[0].contains("propagated through bytecode function 2 instruction 7"));
+    assert!(rendered[0].contains("propagated through `load`"));
 }

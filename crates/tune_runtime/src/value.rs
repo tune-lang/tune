@@ -122,9 +122,10 @@ pub enum RuntimeVariant {
     Other { owner: u32, index: u32 },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PropagationFrame {
     pub function: u32,
     pub instruction: u32,
+    pub function_name: String,
     pub span: Option<Span>,
 }

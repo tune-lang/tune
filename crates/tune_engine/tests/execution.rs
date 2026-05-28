@@ -260,6 +260,7 @@ let result = fail()
     assert_eq!(fields, vec![tune_runtime::value::Value::Int(2)]);
     assert_eq!(propagation_frames.len(), 1);
     assert_eq!(propagation_frames[0].function, 1);
+    assert_eq!(propagation_frames[0].function_name, "fail");
     assert!(propagation_frames[0].span.is_some());
     let diagnostic =
         tune_engine::diagnostic_from_result_error(&tune_runtime::value::Value::Variant {
@@ -273,11 +274,9 @@ let result = fail()
         tune_diagnostics::codes::RESULT_PROPAGATION_ERROR
     );
     assert!(diagnostic.facts.iter().any(|fact| {
-        fact.entries.iter().any(|entry| {
-            entry
-                .message
-                .contains("propagated through bytecode function 1 instruction")
-        })
+        fact.entries
+            .iter()
+            .any(|entry| entry.message.contains("propagated through `fail`"))
     }));
 
     Ok(())

@@ -131,12 +131,16 @@ impl Vm {
     }
 
     fn propagation_frame(&self, function: usize, instruction: usize) -> Option<PropagationFrame> {
-        let function = u32::try_from(function).ok()?;
-        let instruction = u32::try_from(instruction).ok()?;
+        let function_index = u32::try_from(function).ok()?;
+        let instruction_index = u32::try_from(instruction).ok()?;
+        let function_name = self.artifact.functions.get(function)?.name.clone();
         Some(PropagationFrame {
-            function,
-            instruction,
-            span: self.artifact.instruction_span(function, instruction),
+            function: function_index,
+            instruction: instruction_index,
+            function_name,
+            span: self
+                .artifact
+                .instruction_span(function_index, instruction_index),
         })
     }
 }

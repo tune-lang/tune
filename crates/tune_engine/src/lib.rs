@@ -249,10 +249,7 @@ pub fn diagnostic_from_result_error(value: &Value) -> Option<Diagnostic> {
     let facts = propagation_frames
         .iter()
         .map(|frame| {
-            let message = format!(
-                "propagated through bytecode function {} instruction {}",
-                frame.function, frame.instruction
-            );
+            let message = format!("propagated through `{}`", frame.function_name);
             match frame.span {
                 Some(span) => FactEntry::spanned(span, message),
                 None => FactEntry::new(message),
