@@ -87,6 +87,7 @@ pub struct SequenceMaterializer {
 #[derive(Debug, Clone)]
 pub struct IndexAccess {
     pub id: MemberId,
+    pub index_param_id: MemberId,
     pub receiver_name: Option<String>,
     pub index_param_name: Option<String>,
     pub span: Option<Span>,

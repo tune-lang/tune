@@ -1,4 +1,4 @@
-use tune_hir::item::{CallableMember, Item, ItemKind, StructMember};
+use tune_hir::item::{CallableMember, IndexAccess, Item, ItemKind, StructMember};
 use tune_hir::module::Module;
 use tune_resolve::ResolvedModule;
 use tune_shape::{MaterializationPlan, Shape};
@@ -91,12 +91,17 @@ fn lower_struct_member_functions<'a>(
         .iter()
         .filter(|item| item.kind == ItemKind::Struct)
         .flat_map(move |item| {
-            item.struct_members.iter().filter_map(move |member| {
-                let StructMember::Callable(callable) = member else {
-                    return None;
-                };
-                lower_callable_member(module, resolved, item, callable)
-            })
+            item.struct_members
+                .iter()
+                .filter_map(move |member| match member {
+                    StructMember::Callable(callable) => {
+                        lower_callable_member(module, resolved, item, callable)
+                    }
+                    StructMember::IndexAccess(access) => {
+                        lower_index_access_member(module, resolved, item, access)
+                    }
+                    StructMember::Field(_) | StructMember::SequenceMaterializer(_) => None,
+                })
         })
 }
 
@@ -120,6 +125,37 @@ fn lower_callable_member(
         params: std::iter::once(callable.id)
             .chain(callable.params.iter().map(|param| param.id))
             .collect(),
+        module_bindings: Vec::new(),
+        ops: Vec::new(),
+    };
+    let context = LowerContext {
+        resolved: Some(resolved),
+        module: Some(module),
+        analysis: Some(&analysis),
+        self_shape: owner.name.as_ref().map(|name| Shape::Struct(name.clone())),
+        struct_state: crate::StructStatePlan::LOCAL,
+    };
+    context.lower_expr(body, &mut plan.ops);
+    if super::falls_through(body) {
+        plan.ops.push(PlanOp::Return);
+    }
+    Some(plan)
+}
+
+fn lower_index_access_member(
+    module: &Module,
+    resolved: &ResolvedModule,
+    owner: &Item,
+    access: &IndexAccess,
+) -> Option<PlanFunction> {
+    let body = access.body.as_ref()?;
+    let analysis = tune_shape::analyze_item(module, resolved, owner);
+    let mut plan = PlanFunction {
+        owner: Some(owner.id),
+        member: Some(access.id),
+        name: format!("{}.[index]", owner.name.as_deref().unwrap_or("<anonymous>")),
+        span: access.span,
+        params: vec![access.id, access.index_param_id],
         module_bindings: Vec::new(),
         ops: Vec::new(),
     };

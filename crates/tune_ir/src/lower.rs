@@ -13,9 +13,10 @@ pub enum IrLowerError {
 }
 
 pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerError> {
+    let param_count = u32::try_from(plan.params.len()).map_err(|_| IrLowerError::RegisterLimit)?;
     let mut lowerer = Lowerer {
         next_reg: 0,
-        locals: 0,
+        locals: param_count,
         params: plan.params.clone(),
         module_bindings: plan.module_bindings.clone(),
         constants: Vec::new(),
@@ -38,7 +39,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
         member: plan.member,
         name: plan.name.clone(),
         span: plan.span,
-        params: u32::try_from(plan.params.len()).map_err(|_| IrLowerError::RegisterLimit)?,
+        params: param_count,
         regs: lowerer.next_reg,
         locals: lowerer.locals,
         constants: lowerer.constants,
@@ -208,9 +209,10 @@ impl Lowerer {
                 binding,
                 iterable_ops,
                 body_ops,
+                contract,
                 span,
                 ..
-            } => self.lower_finite_for(*binding, iterable_ops, body_ops, *span),
+            } => self.lower_finite_for(*binding, iterable_ops, body_ops, contract, *span),
             PlanOp::Panic { arg_count } => self.lower_panic(*arg_count),
             PlanOp::BindingGet { .. }
             | PlanOp::BoundCall

@@ -118,7 +118,12 @@ fn assign_struct_member_owner(member: &mut StructMember, owner: HirId, next_para
             }
         }
         StructMember::SequenceMaterializer(materializer) => materializer.id.owner = owner,
-        StructMember::IndexAccess(access) => access.id.owner = owner,
+        StructMember::IndexAccess(access) => {
+            access.id.owner = owner;
+            access.index_param_id.owner = owner;
+            access.index_param_id.index = *next_param_index;
+            *next_param_index = next_param_index.saturating_add(1);
+        }
     }
 }
 

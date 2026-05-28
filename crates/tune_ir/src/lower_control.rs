@@ -5,89 +5,9 @@ use tune_resolve::LocalId;
 
 use crate::lower::Lowerer;
 use crate::lower_slots::{local_offset, local_slot};
-use crate::{BlockId, ConstId, IrBlock, IrConst, IrLowerError, IrOp, Reg};
+use crate::{BlockId, IrBlock, IrLowerError, IrOp, Reg};
 
 impl Lowerer {
-    pub(super) fn lower_bool_and(
-        &mut self,
-        lhs_ops: &[PlanOp],
-        rhs_ops: &[PlanOp],
-        span: Option<Span>,
-    ) -> Result<(), IrLowerError> {
-        self.lower_short_circuit_bool(lhs_ops, rhs_ops, false, span)
-    }
-
-    pub(super) fn lower_bool_or(
-        &mut self,
-        lhs_ops: &[PlanOp],
-        rhs_ops: &[PlanOp],
-        span: Option<Span>,
-    ) -> Result<(), IrLowerError> {
-        self.lower_short_circuit_bool(lhs_ops, rhs_ops, true, span)
-    }
-
-    fn lower_short_circuit_bool(
-        &mut self,
-        lhs_ops: &[PlanOp],
-        rhs_ops: &[PlanOp],
-        short_value: bool,
-        span: Option<Span>,
-    ) -> Result<(), IrLowerError> {
-        let base_stack_len = self.stack.len();
-        let result = self.alloc_reg()?;
-        let rhs_block = self.alloc_block();
-        let short_block = self.alloc_block();
-        let join = self.alloc_block();
-
-        for op in lhs_ops {
-            self.lower_op(op)?;
-        }
-        let lhs = self.pop("bool lhs")?;
-        let (then_block, else_block) = if short_value {
-            (short_block, rhs_block)
-        } else {
-            (rhs_block, short_block)
-        };
-        self.push_op(IrOp::Branch {
-            condition: lhs,
-            then_block,
-            else_block,
-            span,
-        });
-        self.stack.truncate(base_stack_len);
-
-        self.switch_to_block(short_block);
-        self.load_bool_into(result, short_value)?;
-        self.push_op(IrOp::Jump { target: join });
-        self.stack.truncate(base_stack_len);
-
-        self.switch_to_block(rhs_block);
-        for op in rhs_ops {
-            self.lower_op(op)?;
-        }
-        let rhs = self.pop("bool rhs")?;
-        self.push_op(IrOp::Move {
-            dst: result,
-            src: rhs,
-        });
-        self.push_op(IrOp::Jump { target: join });
-        self.stack.truncate(base_stack_len);
-
-        self.switch_to_block(join);
-        self.stack.push(result);
-        Ok(())
-    }
-
-    fn load_bool_into(&mut self, dst: Reg, value: bool) -> Result<(), IrLowerError> {
-        let constant: ConstId = self.push_const(IrConst::Bool(value))?;
-        self.push_op(IrOp::LoadConst {
-            dst,
-            constant,
-            shape: tune_shape::Shape::Bool,
-        });
-        Ok(())
-    }
-
     pub(super) fn lower_if(
         &mut self,
         branches: &[tune_plan::PlanIfBranch],
@@ -307,61 +227,6 @@ impl Lowerer {
         Ok(())
     }
 
-    pub(super) fn lower_finite_for(
-        &mut self,
-        binding: Option<LocalId>,
-        iterable_ops: &[PlanOp],
-        body_ops: &[PlanOp],
-        span: Option<Span>,
-    ) -> Result<(), IrLowerError> {
-        let base_stack_len = self.stack.len();
-        for op in iterable_ops {
-            self.lower_op(op)?;
-        }
-        let iterable = self.pop("for iterable")?;
-        let iterator = self.alloc_reg()?;
-        let len = self.alloc_reg()?;
-        let index = self.alloc_reg()?;
-        let item = self.alloc_reg()?;
-        let next_block = self.alloc_block();
-        let body_block = self.alloc_block();
-        let done_block = self.alloc_block();
-
-        self.push_op(IrOp::FiniteForInit {
-            iterator,
-            iterable,
-            len,
-        });
-        self.push_op(IrOp::Jump { target: next_block });
-
-        self.switch_to_block(next_block);
-        self.push_op(IrOp::FiniteForNext {
-            iterator,
-            iterable,
-            len,
-            index,
-            item,
-            body: body_block,
-            done: done_block,
-        });
-
-        self.switch_to_block(body_block);
-        self.store_for_binding(binding, item)?;
-        self.loop_targets.push((next_block, done_block));
-        for op in body_ops {
-            self.lower_op(op)?;
-        }
-        self.loop_targets.pop();
-        if !self.current_block_terminates() {
-            self.push_op(IrOp::Jump { target: next_block });
-        }
-        self.stack.truncate(base_stack_len);
-        self.switch_to_block(done_block);
-        self.stack.truncate(base_stack_len);
-        let _ = span;
-        Ok(())
-    }
-
     pub(super) fn lower_break(&mut self) -> Result<(), IrLowerError> {
         let Some((_, break_block)) = self.loop_targets.last().copied() else {
             return Err(IrLowerError::UnsupportedOp("break outside loop"));
@@ -392,7 +257,7 @@ impl Lowerer {
         }
     }
 
-    fn alloc_block(&mut self) -> BlockId {
+    pub(super) fn alloc_block(&mut self) -> BlockId {
         let block = BlockId(self.next_block);
         self.next_block = self.next_block.saturating_add(1);
         self.blocks.push(IrBlock {
@@ -402,11 +267,11 @@ impl Lowerer {
         block
     }
 
-    fn switch_to_block(&mut self, block: BlockId) {
+    pub(super) fn switch_to_block(&mut self, block: BlockId) {
         self.current_block = block;
     }
 
-    fn store_for_binding(
+    pub(super) fn store_for_binding(
         &mut self,
         binding: Option<LocalId>,
         item: Reg,
@@ -420,7 +285,7 @@ impl Lowerer {
         Ok(())
     }
 
-    fn current_block_terminates(&self) -> bool {
+    pub(super) fn current_block_terminates(&self) -> bool {
         self.blocks
             .iter()
             .find(|block| block.id == self.current_block)

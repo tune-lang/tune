@@ -171,6 +171,37 @@ let result: Int = {
 }
 
 #[test]
+fn run_file_executes_finite_for_over_struct_contract() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+struct Window {
+  values: [Int]
+
+  len(): Int = 3
+  Window[index: Size]: Int = self.values[index]
+}
+
+let result: Int = {
+  let window: Window = Window { values = [2, 4, 6] }
+  let total: Int = 0
+  for item in window {
+    total = total + item
+  }
+  total
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, tune_runtime::value::Value::Int(12));
+
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_sequence_get_and_set() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

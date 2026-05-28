@@ -289,11 +289,19 @@ fn direct_call_targets_in_op(op: &tune_plan::PlanOp) -> Vec<FunctionTarget> {
         tune_plan::PlanOp::FiniteFor {
             iterable_ops,
             body_ops,
+            contract,
             ..
-        } => iterable_ops
-            .iter()
-            .chain(body_ops)
-            .flat_map(direct_call_targets_in_op)
+        } => contract
+            .len_member
+            .into_iter()
+            .chain(contract.index_member)
+            .map(FunctionTarget::Member)
+            .chain(
+                iterable_ops
+                    .iter()
+                    .chain(body_ops)
+                    .flat_map(direct_call_targets_in_op),
+            )
             .collect(),
         tune_plan::PlanOp::While {
             condition_ops,

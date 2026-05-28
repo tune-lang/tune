@@ -101,6 +101,7 @@ pub(super) fn lower_struct_members(
                         .collect::<Vec<_>>();
                     Some(StructMember::IndexAccess(IndexAccess {
                         id,
+                        index_param_id: member_id(0, MemberKind::Param)?,
                         receiver_name: access.receiver_name(source).map(str::to_owned),
                         index_param_name: access.index_param_name(source).map(str::to_owned),
                         span: access.syntax().span,

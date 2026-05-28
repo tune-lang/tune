@@ -69,7 +69,7 @@ fn resolve_struct_member_body(
             };
             let mut resolver = BodyResolver::new(resolved, items, item.id);
             if let Some(name) = &access.index_param_name {
-                resolver.bind_local(name, LocalKind::Pattern, None, access.span);
+                resolver.bind_param(name, access.index_param_id);
             }
             resolver.resolve_expr_names(body);
         }
