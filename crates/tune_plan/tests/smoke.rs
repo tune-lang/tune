@@ -51,6 +51,7 @@ let ok(value) = Ok(value)
     assert!(each.ops.iter().any(|op| matches!(
         op,
         tune_plan::PlanOp::FiniteFor {
+            body_ops,
             contract: tune_plan::FiniteForContract {
                 source_evaluated_once: true,
                 length_evaluated_once: true,
@@ -58,12 +59,11 @@ let ok(value) = Ok(value)
             },
             span: Some(_),
             ..
-        }
+        } if body_ops.contains(&tune_plan::PlanOp::DirectCall {
+            target: tune_hir::HirId(0),
+            arg_count: 1,
+        })
     )));
-    assert!(each.ops.contains(&tune_plan::PlanOp::DirectCall {
-        target: tune_hir::HirId(0),
-        arg_count: 1,
-    }));
 
     let values = tune_plan::lower_resolved_item_to_plan(&module.items[3], &resolved)
         .ok_or("expected values plan")?;
@@ -147,23 +147,25 @@ let ok(value) = Ok(value)
 
     let repeated = tune_plan::lower_resolved_item_to_plan(&module.items[9], &resolved)
         .ok_or("expected repeated plan")?;
-    assert!(
-        repeated
-            .ops
-            .iter()
-            .any(|op| matches!(op, tune_plan::PlanOp::While { span: Some(_), .. }))
-    );
-    assert!(repeated.ops.contains(&tune_plan::PlanOp::Continue));
+    assert!(repeated.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::While {
+            body_ops,
+            span: Some(_),
+            ..
+        } if body_ops.contains(&tune_plan::PlanOp::Continue)
+    )));
 
     let forever = tune_plan::lower_resolved_item_to_plan(&module.items[10], &resolved)
         .ok_or("expected forever plan")?;
-    assert!(
-        forever
-            .ops
-            .iter()
-            .any(|op| matches!(op, tune_plan::PlanOp::Loop { span: Some(_), .. }))
-    );
-    assert!(forever.ops.contains(&tune_plan::PlanOp::Break));
+    assert!(forever.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::Loop {
+            body_ops,
+            span: Some(_),
+            ..
+        } if body_ops.contains(&tune_plan::PlanOp::Break)
+    )));
 
     let ok = tune_plan::lower_resolved_item_to_plan(&module.items[11], &resolved)
         .ok_or("expected ok plan")?;

@@ -250,18 +250,18 @@ impl LowerContext<'_> {
                 });
             }
             ExprKind::While { condition, body } => {
-                self.lower_expr(condition, ops);
-                self.lower_expr(body, ops);
                 ops.push(PlanOp::While {
                     condition: condition.id,
                     body: body.id,
+                    condition_ops: self.lower_expr_to_ops(condition),
+                    body_ops: self.lower_expr_to_ops(body),
                     span: expr.span,
                 });
             }
             ExprKind::Loop(body) => {
-                self.lower_expr(body, ops);
                 ops.push(PlanOp::Loop {
                     body: body.id,
+                    body_ops: self.lower_expr_to_ops(body),
                     span: expr.span,
                 });
             }
@@ -284,12 +284,12 @@ impl LowerContext<'_> {
                 iterable,
                 body,
             } => {
-                self.lower_expr(iterable, ops);
-                self.lower_expr(body, ops);
                 ops.push(PlanOp::FiniteFor {
                     pattern: pattern.clone(),
                     iterable: iterable.id,
                     body: body.id,
+                    iterable_ops: self.lower_expr_to_ops(iterable),
+                    body_ops: self.lower_expr_to_ops(body),
                     contract: FiniteForContract {
                         source: iterable.id,
                         len_member: self.len_member(iterable),

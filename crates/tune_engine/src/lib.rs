@@ -286,6 +286,28 @@ fn direct_call_targets_in_op(op: &tune_plan::PlanOp) -> Vec<FunctionTarget> {
             .iter()
             .flat_map(|arm| arm.body_ops.iter().flat_map(direct_call_targets_in_op))
             .collect(),
+        tune_plan::PlanOp::FiniteFor {
+            iterable_ops,
+            body_ops,
+            ..
+        } => iterable_ops
+            .iter()
+            .chain(body_ops)
+            .flat_map(direct_call_targets_in_op)
+            .collect(),
+        tune_plan::PlanOp::While {
+            condition_ops,
+            body_ops,
+            ..
+        } => condition_ops
+            .iter()
+            .chain(body_ops)
+            .flat_map(direct_call_targets_in_op)
+            .collect(),
+        tune_plan::PlanOp::Loop { body_ops, .. } => body_ops
+            .iter()
+            .flat_map(direct_call_targets_in_op)
+            .collect(),
         _ => Vec::new(),
     })
     .collect()

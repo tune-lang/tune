@@ -173,6 +173,8 @@ pub enum PlanOp {
         pattern: Pattern,
         iterable: ExprId,
         body: ExprId,
+        iterable_ops: Vec<PlanOp>,
+        body_ops: Vec<PlanOp>,
         contract: FiniteForContract,
         span: Option<Span>,
     },
@@ -193,10 +195,13 @@ pub enum PlanOp {
     While {
         condition: ExprId,
         body: ExprId,
+        condition_ops: Vec<PlanOp>,
+        body_ops: Vec<PlanOp>,
         span: Option<Span>,
     },
     Loop {
         body: ExprId,
+        body_ops: Vec<PlanOp>,
         span: Option<Span>,
     },
     Break,
