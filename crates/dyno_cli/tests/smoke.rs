@@ -26,11 +26,15 @@ fn renders_engine_diagnostics_with_shared_renderer() {
 }
 
 #[test]
-fn renders_unhandled_result_error_at_runtime_boundary() {
+fn renders_unhandled_result_error_at_runtime_boundary() -> Result<(), &'static str> {
+    let mut db = tune_db::TuneDb::new();
+    let file = db
+        .add_file("main.tn", "let value = load()!")
+        .ok_or("source should allocate")?;
     let span = tune_diagnostics::Span::new(
-        tune_diagnostics::FileId(0),
-        tune_diagnostics::ByteOffset::new(4),
-        tune_diagnostics::ByteOffset::new(5),
+        file,
+        tune_diagnostics::ByteOffset::new(12),
+        tune_diagnostics::ByteOffset::new(19),
     );
     let value = tune_runtime::Value::Variant {
         variant: tune_runtime::value::RuntimeVariant::ResultError,
@@ -47,4 +51,10 @@ fn renders_unhandled_result_error_at_runtime_boundary() {
     assert_eq!(rendered.len(), 1);
     assert!(rendered[0].contains("error[T0901]: result error propagated"));
     assert!(rendered[0].contains("propagated through `load`"));
+
+    let rendered = dyno_cli::render_runtime_boundary_with_sources(&value, &db);
+    assert_eq!(rendered.len(), 1);
+    assert!(rendered[0].contains("propagated through `load` at `load()!`"));
+
+    Ok(())
 }

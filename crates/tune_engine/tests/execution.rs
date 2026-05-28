@@ -262,12 +262,12 @@ let result = fail()
     assert_eq!(propagation_frames[0].function, 1);
     assert_eq!(propagation_frames[0].function_name, "fail");
     assert!(propagation_frames[0].span.is_some());
-    let diagnostic =
-        tune_engine::diagnostic_from_result_error(&tune_runtime::value::Value::Variant {
-            variant: tune_runtime::value::RuntimeVariant::ResultError,
-            fields,
-            propagation_frames,
-        })
+    let result_error = tune_runtime::value::Value::Variant {
+        variant: tune_runtime::value::RuntimeVariant::ResultError,
+        fields,
+        propagation_frames,
+    };
+    let diagnostic = tune_engine::diagnostic_from_result_error(&result_error)
         .ok_or("result error should produce a propagation diagnostic")?;
     assert_eq!(
         diagnostic.code,
@@ -277,6 +277,16 @@ let result = fail()
         fact.entries
             .iter()
             .any(|entry| entry.message.contains("propagated through `fail`"))
+    }));
+    let source_diagnostic =
+        tune_engine::diagnostic_from_result_error_with_sources(&result_error, tune.db())
+            .ok_or("result error should produce a source-aware propagation diagnostic")?;
+    assert!(source_diagnostic.facts.iter().any(|fact| {
+        fact.entries.iter().any(|entry| {
+            entry
+                .message
+                .contains("propagated through `fail` at `Error(2)!`")
+        })
     }));
 
     Ok(())

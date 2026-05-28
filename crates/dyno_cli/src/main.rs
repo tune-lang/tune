@@ -22,7 +22,7 @@ fn main() {
 
     match tune.run_file(file) {
         Ok(value) => {
-            let diagnostics = dyno_cli::render_runtime_boundary(&value);
+            let diagnostics = dyno_cli::render_runtime_boundary_with_sources(&value, tune.db());
             if diagnostics.is_empty() {
                 println!("{value:?}");
             } else {

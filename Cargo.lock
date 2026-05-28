@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "dyno_pkg",
  "dyno_project",
+ "tune_db",
  "tune_diagnostics",
  "tune_engine",
  "tune_host",
