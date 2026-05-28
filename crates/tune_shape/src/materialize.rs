@@ -20,7 +20,12 @@ pub fn can_materialize(lit: &LiteralFact, target: &Shape) -> bool {
         (LiteralFact::Numeric { text }, Shape::Byte) => {
             numeric_value(text).is_some_and(|n| n <= 255)
         }
-        (LiteralFact::Numeric { text }, Shape::Int | Shape::Size) => numeric_value(text).is_some(),
+        (LiteralFact::Numeric { text }, Shape::Int) => {
+            numeric_value(text).is_some_and(|n| n <= i64::MAX as u128)
+        }
+        (LiteralFact::Numeric { text }, Shape::Size) => {
+            numeric_value(text).is_some_and(|n| n <= usize::MAX as u128)
+        }
         (LiteralFact::Numeric { text }, Shape::Float) => float_value(text).is_some(),
         (LiteralFact::String { .. }, Shape::String) => true,
         (LiteralFact::Sequence { elements }, Shape::Sequence(element_shape)) => elements

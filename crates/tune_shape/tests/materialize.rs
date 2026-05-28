@@ -2,6 +2,12 @@
 fn numeric_literals_materialize_by_target_fit() {
     let twenty = tune_shape::LiteralFact::Numeric { text: "20".into() };
     let too_large_for_byte = tune_shape::LiteralFact::Numeric { text: "300".into() };
+    let too_large_for_int = tune_shape::LiteralFact::Numeric {
+        text: "9223372036854775808".into(),
+    };
+    let too_large_for_size = tune_shape::LiteralFact::Numeric {
+        text: format!("{}0", usize::MAX),
+    };
 
     assert!(tune_shape::can_materialize(
         &twenty,
@@ -22,6 +28,14 @@ fn numeric_literals_materialize_by_target_fit() {
     assert!(!tune_shape::can_materialize(
         &too_large_for_byte,
         &tune_shape::Shape::Byte
+    ));
+    assert!(!tune_shape::can_materialize(
+        &too_large_for_int,
+        &tune_shape::Shape::Int
+    ));
+    assert!(!tune_shape::can_materialize(
+        &too_large_for_size,
+        &tune_shape::Shape::Size
     ));
 }
 
