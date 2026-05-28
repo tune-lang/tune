@@ -1,7 +1,7 @@
 use tune_db::{FileId, ModuleAnalysis, TuneDb};
 use tune_diagnostics::{Diagnostic, FactEntry, Span};
 use tune_host::module::HostModule;
-use tune_runtime::value::Value;
+use tune_runtime::value::{RuntimeVariant, Value};
 
 #[derive(Default)]
 pub struct Tune {
@@ -220,6 +220,57 @@ pub fn diagnostic_from_vm_fault(fault: &tune_vm::VmFault) -> Diagnostic {
     .with_fact_entries("runtime provenance", facts)
     .with_note("this diagnostic was produced from a VM fault")
     .build()
+}
+
+#[must_use]
+pub fn diagnostics_from_runtime_value(value: &Value) -> Vec<Diagnostic> {
+    diagnostic_from_result_error(value).into_iter().collect()
+}
+
+#[must_use]
+pub fn diagnostic_from_result_error(value: &Value) -> Option<Diagnostic> {
+    let Value::Variant {
+        variant: RuntimeVariant::ResultError,
+        propagation_frames,
+        ..
+    } = value
+    else {
+        return None;
+    };
+    if propagation_frames.is_empty() {
+        return None;
+    }
+
+    let primary_span = propagation_frames
+        .iter()
+        .rev()
+        .find_map(|frame| frame.span)
+        .unwrap_or_else(Span::synthetic);
+    let facts = propagation_frames
+        .iter()
+        .map(|frame| {
+            let message = format!(
+                "propagated through bytecode function {} instruction {}",
+                frame.function, frame.instruction
+            );
+            match frame.span {
+                Some(span) => FactEntry::spanned(span, message),
+                None => FactEntry::new(message),
+            }
+        })
+        .collect::<Vec<_>>();
+
+    Some(
+        Diagnostic::error(
+            tune_diagnostics::codes::RESULT_PROPAGATION_ERROR,
+            "result error propagated",
+            primary_span,
+            "unhandled Result error reached this boundary",
+        )
+        .with_fact_entries("Result propagation trace", facts)
+        .with_note("each propagation frame comes from a `!` site on the cold Error path")
+        .build(),
+    )
 }
 
 fn report_from_analysis(file: FileId, analysis: ModuleAnalysis) -> CheckReport {

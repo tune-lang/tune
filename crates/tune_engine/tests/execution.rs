@@ -261,6 +261,24 @@ let result = fail()
     assert_eq!(propagation_frames.len(), 1);
     assert_eq!(propagation_frames[0].function, 1);
     assert!(propagation_frames[0].span.is_some());
+    let diagnostic =
+        tune_engine::diagnostic_from_result_error(&tune_runtime::value::Value::Variant {
+            variant: tune_runtime::value::RuntimeVariant::ResultError,
+            fields,
+            propagation_frames,
+        })
+        .ok_or("result error should produce a propagation diagnostic")?;
+    assert_eq!(
+        diagnostic.code,
+        tune_diagnostics::codes::RESULT_PROPAGATION_ERROR
+    );
+    assert!(diagnostic.facts.iter().any(|fact| {
+        fact.entries.iter().any(|entry| {
+            entry
+                .message
+                .contains("propagated through bytecode function 1 instruction")
+        })
+    }));
 
     Ok(())
 }
