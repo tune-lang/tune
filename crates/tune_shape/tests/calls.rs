@@ -227,3 +227,30 @@ let make(seed) = Counter {
 
     Ok(())
 }
+
+#[test]
+fn explicit_structural_type_param_allows_member_call() -> Result<(), &'static str> {
+    let source = r#"
+struct Duck {
+  quack(): String = "quack"
+}
+let speak<T: { quack(): String }>(duck: T): String = duck.quack()
+let result: String = speak(Duck {})
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analyses = tune_shape::analyze_module(&module, &resolved);
+
+    assert!(
+        analyses
+            .iter()
+            .all(|analysis| analysis.diagnostics.is_empty())
+    );
+    let speak = &analyses[1];
+    assert!(matches!(
+        speak.calls.first().map(|call| &call.ret),
+        Some(tune_shape::Shape::String)
+    ));
+    Ok(())
+}

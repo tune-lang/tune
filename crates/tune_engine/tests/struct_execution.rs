@@ -97,6 +97,30 @@ let result: Int = match duck {
 }
 
 #[test]
+fn run_file_executes_explicit_structural_generic_call() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+struct Duck {
+  quack(): String = "quack"
+}
+
+let speak<T: { quack(): String }>(duck: T): String = duck.quack()
+let result: String = speak(Duck {})
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        run_file(&tune, file)?,
+        tune_runtime::Value::String("quack".to_owned())
+    );
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_structural_match_fallback_when_shape_does_not_match()
 -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();

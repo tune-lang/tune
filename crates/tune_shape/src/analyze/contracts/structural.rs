@@ -50,13 +50,16 @@ impl Analyzer<'_> {
         }
     }
 
-    pub(super) fn lower_structural_shape(&mut self, shape: &tune_hir::shape::ShapeExpr) -> Shape {
+    pub(in crate::analyze) fn lower_structural_shape(
+        &mut self,
+        shape: &tune_hir::shape::ShapeExpr,
+    ) -> Shape {
         let lowered = lower_resolved_hir_shape(shape, &self.resolved.scope);
         self.diagnostics.extend(lowered.diagnostics);
         lowered.shape
     }
 
-    fn structural_pattern_can_match(
+    pub(in crate::analyze) fn structural_pattern_can_match(
         &mut self,
         scrutinee_shape: &Shape,
         structural: &Shape,
@@ -66,7 +69,11 @@ impl Analyzer<'_> {
             || self.struct_satisfies_structural(scrutinee_shape, structural)
     }
 
-    fn struct_satisfies_structural(&mut self, scrutinee_shape: &Shape, structural: &Shape) -> bool {
+    pub(in crate::analyze) fn struct_satisfies_structural(
+        &mut self,
+        scrutinee_shape: &Shape,
+        structural: &Shape,
+    ) -> bool {
         let Some(struct_id) = struct_shape_id(scrutinee_shape) else {
             return false;
         };

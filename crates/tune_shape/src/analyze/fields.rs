@@ -3,7 +3,7 @@ use tune_hir::expr::{Expr, ExprKind};
 use tune_hir::item::{Field, ItemKind, StructMember};
 
 use super::Analyzer;
-use crate::{Shape, lower_resolved_hir_shape};
+use crate::{MemberRequirement, Shape, lower_resolved_hir_shape};
 
 impl Analyzer<'_> {
     pub(super) fn struct_field_shape(&mut self, struct_name: &str, field_name: &str) -> Shape {
@@ -60,11 +60,26 @@ impl Analyzer<'_> {
         let Some(field_name) = name.as_deref() else {
             return Shape::Hole;
         };
+        if let Some(shape) = structural_field_shape(&base_shape, field_name) {
+            return shape;
+        }
         let Some(struct_id) = struct_shape_id(&base_shape) else {
             return Shape::Hole;
         };
         self.struct_field_shape_by_id(struct_id, field_name)
     }
+}
+
+fn structural_field_shape(shape: &Shape, field_name: &str) -> Option<Shape> {
+    let Shape::Structural(requirements) = shape else {
+        return None;
+    };
+    requirements.iter().find_map(|requirement| {
+        let MemberRequirement::Field { name, shape } = requirement else {
+            return None;
+        };
+        (name == field_name).then(|| shape.clone().unwrap_or(Shape::Hole))
+    })
 }
 
 fn struct_shape_id(shape: &Shape) -> Option<HirId> {

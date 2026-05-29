@@ -1,6 +1,7 @@
 use tune_hir::expr::{Expr, ExprKind, LiteralKind, StringPart};
 use tune_hir::item::Item;
 use tune_hir::module::Module;
+use tune_hir::shape::{ShapeExprKind, StructuralShapeRequirementKind};
 use tune_resolve::{NameTarget, ResolvedModule};
 use tune_shape::Shape;
 
@@ -184,11 +185,38 @@ fn collect_param_arg_shapes(
     inferred: &mut Vec<(tune_hir::MemberId, Shape)>,
 ) {
     for (param, arg) in item.params.iter().zip(args) {
-        if param.shape.is_none()
+        if param_is_specializable(item, param.shape.as_ref())
             && let Some(shape) = context.expr_shape(arg)
             && shape != Shape::Hole
         {
             inferred.push((param.id, shape));
         }
+    }
+}
+
+fn param_is_specializable(item: &Item, shape: Option<&tune_hir::shape::ShapeExpr>) -> bool {
+    let Some(shape) = shape else {
+        return true;
+    };
+    let ShapeExprKind::Named(name) = &shape.kind else {
+        return false;
+    };
+    item.type_params
+        .iter()
+        .find(|param| param.name.as_deref() == Some(name.as_str()))
+        .and_then(|param| param.constraint.as_ref())
+        .is_some_and(shape_expr_is_structural)
+}
+
+fn shape_expr_is_structural(shape: &tune_hir::shape::ShapeExpr) -> bool {
+    match &shape.kind {
+        ShapeExprKind::Structural(requirements) => requirements.iter().all(|requirement| {
+            matches!(
+                requirement.kind,
+                StructuralShapeRequirementKind::Field { .. }
+                    | StructuralShapeRequirementKind::Callable { .. }
+            )
+        }),
+        _ => false,
     }
 }

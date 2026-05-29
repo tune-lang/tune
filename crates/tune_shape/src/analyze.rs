@@ -11,6 +11,7 @@ mod operators;
 
 use tune_hir::item::{Item, ItemKind};
 use tune_hir::module::Module;
+use tune_hir::shape::{ShapeExpr, ShapeExprKind};
 use tune_hir::{ExprId, MemberId};
 use tune_resolve::{BindingKind, ResolvedModule, VariantId};
 
@@ -237,14 +238,7 @@ impl Analyzer<'_> {
 
     fn seed_item(&mut self, item: &Item) {
         for param in &item.params {
-            let shape = param
-                .shape
-                .as_ref()
-                .map(|shape| lower_resolved_hir_shape(shape, &self.resolved.scope))
-                .map_or(Shape::Hole, |lowered| {
-                    self.diagnostics.extend(lowered.diagnostics);
-                    lowered.shape
-                });
+            let shape = self.lower_item_shape_or_hole(item, param.shape.as_ref());
             self.frame.define(BindingState::new(
                 BindingKey::Param(param.id),
                 param.name.clone(),
@@ -253,6 +247,31 @@ impl Analyzer<'_> {
                 param.span,
             ));
         }
+    }
+
+    pub(super) fn lower_item_shape_or_hole(
+        &mut self,
+        item: &Item,
+        shape: Option<&ShapeExpr>,
+    ) -> Shape {
+        let Some(shape) = shape else {
+            return Shape::Hole;
+        };
+        if let ShapeExprKind::Named(name) = &shape.kind
+            && let Some(type_param) = item
+                .type_params
+                .iter()
+                .find(|param| param.name.as_deref() == Some(name.as_str()))
+        {
+            return type_param
+                .constraint
+                .as_ref()
+                .map(|constraint| self.lower_structural_shape(constraint))
+                .unwrap_or_else(|| Shape::Param(name.clone()));
+        }
+        let lowered = lower_resolved_hir_shape(shape, &self.resolved.scope);
+        self.diagnostics.extend(lowered.diagnostics);
+        lowered.shape
     }
 
     fn analyze_expr(&mut self, expr: &Expr) -> Shape {

@@ -5,7 +5,7 @@ use tune_hir::shape::{ShapeExpr, ShapeExprKind, StructuralShapeRequirementKind};
 use tune_resolve::{NameTarget, PreludeVariant, VariantId};
 
 use super::{Analyzer, CallCheck, CallSignature, CallTarget};
-use crate::{MemberRequirement, NominalShape, Shape, expr_shape_fact, lower_resolved_hir_shape};
+use crate::{MemberRequirement, NominalShape, Shape, expr_shape_fact};
 
 impl Analyzer<'_> {
     pub(super) fn analyze_call(&mut self, expr: &Expr, callee: &Expr, args: &[Expr]) -> Shape {
@@ -66,7 +66,7 @@ impl Analyzer<'_> {
         }
 
         for (index, (expected, actual)) in signature.params.iter().zip(args).enumerate() {
-            if !expected.accepts(actual) {
+            if !expected.accepts(actual) && !self.structural_pattern_can_match(actual, expected) {
                 self.diagnostics.push(
                     Diagnostic::error(
                         codes::CALLABLE_MISMATCH,
@@ -121,8 +121,13 @@ impl Analyzer<'_> {
         member_name: Option<&str>,
     ) -> Option<CallSignature> {
         let base_shape = self.analyze_expr(base);
+        if let Some(signature) =
+            structural_member_call_signature(&base_shape, member_name, base.span)
+        {
+            return Some(signature);
+        }
         let struct_name = struct_shape_name(&base_shape)?;
-        let callable = self
+        let (item, callable) = self
             .module
             .items
             .iter()
@@ -130,7 +135,7 @@ impl Analyzer<'_> {
             .and_then(|item| {
                 item.struct_members.iter().find_map(|member| match member {
                     StructMember::Callable(callable) if callable.name.as_deref() == member_name => {
-                        Some(callable)
+                        Some((item, callable))
                     }
                     _ => None,
                 })
@@ -140,9 +145,9 @@ impl Analyzer<'_> {
             params: callable
                 .params
                 .iter()
-                .map(|param| self.lower_shape_or_hole(param.shape.as_ref()))
+                .map(|param| self.lower_item_shape_or_hole(item, param.shape.as_ref()))
                 .collect(),
-            ret: self.lower_shape_or_hole(callable.shape.as_ref()),
+            ret: self.lower_item_shape_or_hole(item, callable.shape.as_ref()),
             receiver: Some(base_shape),
             span: callable.span,
         })
@@ -158,9 +163,9 @@ impl Analyzer<'_> {
             params: item
                 .params
                 .iter()
-                .map(|param| self.lower_shape_or_hole(param.shape.as_ref()))
+                .map(|param| self.lower_item_shape_or_hole(item, param.shape.as_ref()))
                 .collect(),
-            ret: self.lower_shape_or_hole(item.shape.as_ref()),
+            ret: self.lower_item_shape_or_hole(item, item.shape.as_ref()),
             receiver: None,
             span: item.span,
         })
@@ -196,15 +201,6 @@ impl Analyzer<'_> {
         }
     }
 
-    fn lower_shape_or_hole(&mut self, shape: Option<&ShapeExpr>) -> Shape {
-        shape
-            .map(|shape| lower_resolved_hir_shape(shape, &self.resolved.scope))
-            .map_or(Shape::Hole, |lowered| {
-                self.diagnostics.extend(lowered.diagnostics);
-                lowered.shape
-            })
-    }
-
     fn name_target(&self, expr: &Expr) -> Option<NameTarget> {
         self.resolved
             .name_refs
@@ -216,6 +212,28 @@ impl Analyzer<'_> {
 
 fn struct_shape_name(shape: &Shape) -> Option<&str> {
     shape.nominal_name()
+}
+
+fn structural_member_call_signature(
+    base_shape: &Shape,
+    member_name: Option<&str>,
+    span: Option<Span>,
+) -> Option<CallSignature> {
+    let Shape::Structural(requirements) = base_shape else {
+        return None;
+    };
+    requirements.iter().find_map(|requirement| {
+        let MemberRequirement::Callable { name, params, ret } = requirement else {
+            return None;
+        };
+        (Some(name.as_str()) == member_name).then(|| CallSignature {
+            target: CallTarget::Bound,
+            params: params.clone(),
+            ret: ret.clone().unwrap_or(Shape::Hole),
+            receiver: Some(base_shape.clone()),
+            span,
+        })
+    })
 }
 
 fn variant_return_shape(item: &Item, variant: &Variant) -> Shape {

@@ -202,6 +202,12 @@ impl LowerContext<'_> {
     }
 
     pub(super) fn expr_shape(&self, expr: &Expr) -> Option<Shape> {
+        if let ExprKind::Name(_) = &expr.kind
+            && let Some(NameTarget::Param(id)) = self.name_target(expr.id)
+            && let Some(shape) = self.param_shape(id)
+        {
+            return Some(shape);
+        }
         if let Some(shape) = self.analysis_expr_shape(expr)
             && shape != Shape::Hole
         {
@@ -228,8 +234,10 @@ impl LowerContext<'_> {
                 .iter()
                 .flat_map(|item| item.params.iter())
                 .find(|param| param.id == id)
-                .and_then(|param| self.lower_shape(param.shape.as_ref()))
-                .or_else(|| self.param_shape(id)),
+                .and_then(|param| {
+                    self.param_shape(id)
+                        .or_else(|| self.lower_shape(param.shape.as_ref()))
+                }),
             NameTarget::SelfValue => self.self_shape.clone(),
             NameTarget::Local(_) | NameTarget::Variant(_) => None,
         }
