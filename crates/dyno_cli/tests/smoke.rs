@@ -22,12 +22,22 @@ fn parses_cli_commands_without_special_entry_names() {
         Ok(dyno_cli::CliCommand::Run { path: None })
     );
     assert_eq!(
+        dyno_cli::parse_command(&["build".to_owned()]),
+        Ok(dyno_cli::CliCommand::Build { path: None })
+    );
+    assert_eq!(
         dyno_cli::parse_command(&["check".to_owned()]),
         Ok(dyno_cli::CliCommand::Check { path: None })
     );
     assert_eq!(
         dyno_cli::parse_command(&["check".to_owned(), "main.tn".to_owned()]),
         Ok(dyno_cli::CliCommand::Check {
+            path: Some("main.tn".to_owned()),
+        })
+    );
+    assert_eq!(
+        dyno_cli::parse_command(&["build".to_owned(), "main.tn".to_owned()]),
+        Ok(dyno_cli::CliCommand::Build {
             path: Some("main.tn".to_owned()),
         })
     );

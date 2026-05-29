@@ -24,9 +24,9 @@ fn main() {
     }
 
     let path = match command {
-        dyno_cli::CliCommand::Check { ref path } | dyno_cli::CliCommand::Run { ref path } => {
-            path.as_ref()
-        }
+        dyno_cli::CliCommand::Build { ref path }
+        | dyno_cli::CliCommand::Check { ref path }
+        | dyno_cli::CliCommand::Run { ref path } => path.as_ref(),
         dyno_cli::CliCommand::Profile { ref path } => Some(path),
         dyno_cli::CliCommand::New { .. } => unreachable!(),
         dyno_cli::CliCommand::Help => {
@@ -70,6 +70,19 @@ fn main() {
                     std::process::exit(1);
                 }
             }
+            Err(error) => {
+                for diagnostic in dyno_cli::render_engine_error(&error) {
+                    eprintln!("{diagnostic}");
+                }
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+
+    if matches!(command, dyno_cli::CliCommand::Build { .. }) {
+        match tune.executable_file(file) {
+            Ok(report) => println!("{}", dyno_cli::render_build_report(&report)),
             Err(error) => {
                 for diagnostic in dyno_cli::render_engine_error(&error) {
                     eprintln!("{diagnostic}");
@@ -149,6 +162,19 @@ fn run_project_command(command: dyno_cli::CliCommand) {
         }
         if !report.diagnostics.is_empty() {
             std::process::exit(1);
+        }
+        return;
+    }
+
+    if matches!(command, dyno_cli::CliCommand::Build { .. }) {
+        match tune.executable_project_entry(entry) {
+            Ok(report) => println!("{}", dyno_cli::render_build_report(&report)),
+            Err(error) => {
+                for diagnostic in dyno_cli::render_engine_error(&error) {
+                    eprintln!("{diagnostic}");
+                }
+                std::process::exit(1);
+            }
         }
         return;
     }
