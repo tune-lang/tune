@@ -5,6 +5,7 @@ mod compare;
 mod context;
 mod control;
 mod error;
+mod numeric;
 mod string;
 
 use crate::Opcode;
@@ -21,7 +22,6 @@ use crate::provenance::BytecodeFunctionProvenance;
 use tune_hir::{HirId, MemberId};
 use tune_ir::{IrFunction, IrOp};
 
-use self::compare::{lower_float_comparison, lower_int_comparison};
 pub(crate) use self::context::FunctionLowerer;
 use self::control::FiniteForNextLowering;
 pub use self::error::BytecodeLowerError;
@@ -185,70 +185,30 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(())
             }
-            IrOp::AddInt { dst, a, b, .. } => {
-                self.push_instruction(Opcode::AddInt, dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::SubInt { dst, a, b, .. } => {
-                self.push_instruction(Opcode::SubInt, dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::MulInt { dst, a, b, .. } => {
-                self.push_instruction(Opcode::MulInt, dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::DivInt { dst, a, b, .. } => {
-                self.push_instruction(Opcode::DivInt, dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::RemInt { dst, a, b, .. } => {
-                self.push_instruction(Opcode::RemInt, dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::BitAndInt { dst, a, b, .. } => {
-                self.push_instruction(Opcode::BitAndInt, dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::BitOrInt { dst, a, b, .. } => {
-                self.push_instruction(Opcode::BitOrInt, dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::BitXorInt { dst, a, b, .. } => {
-                self.push_instruction(Opcode::BitXorInt, dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::ShiftLeftInt { dst, a, b, .. } => {
-                self.push_instruction(Opcode::ShiftLeftInt, dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::ShiftRightInt { dst, a, b, .. } => {
-                self.push_instruction(Opcode::ShiftRightInt, dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::AddFloat { dst, a, b, .. } => {
-                self.push_instruction(Opcode::AddFloat, dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::SubFloat { dst, a, b, .. } => {
-                self.push_instruction(Opcode::SubFloat, dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::MulFloat { dst, a, b, .. } => {
-                self.push_instruction(Opcode::MulFloat, dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::DivFloat { dst, a, b, .. } => {
-                self.push_instruction(Opcode::DivFloat, dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::AddSizeChecked { dst, a, b, .. } => {
-                self.push_instruction(Opcode::AddSizeChecked, dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::AddByteWrap { dst, a, b } => {
-                self.push_instruction(Opcode::AddByteWrap, dst.0, a.0, b.0);
-                Ok(())
-            }
+            IrOp::AddInt { .. }
+            | IrOp::SubInt { .. }
+            | IrOp::MulInt { .. }
+            | IrOp::DivInt { .. }
+            | IrOp::RemInt { .. }
+            | IrOp::BitAndInt { .. }
+            | IrOp::BitOrInt { .. }
+            | IrOp::BitXorInt { .. }
+            | IrOp::ShiftLeftInt { .. }
+            | IrOp::ShiftRightInt { .. }
+            | IrOp::AddFloat { .. }
+            | IrOp::SubFloat { .. }
+            | IrOp::MulFloat { .. }
+            | IrOp::DivFloat { .. }
+            | IrOp::AddSizeChecked { .. }
+            | IrOp::AddByteWrap { .. }
+            | IrOp::NegInt { .. }
+            | IrOp::NotBool { .. }
+            | IrOp::BitNotInt { .. }
+            | IrOp::NoneCheck { .. }
+            | IrOp::GreaterInt { .. }
+            | IrOp::GreaterFloat { .. }
+            | IrOp::CompareInt { .. }
+            | IrOp::CompareFloat { .. } => self.lower_numeric_op(op),
             IrOp::RangeInt {
                 dst,
                 start,
@@ -298,40 +258,6 @@ impl FunctionLowerer<'_> {
                     Opcode::SeqSetUnchecked
                 };
                 self.push_instruction(opcode, seq.0, index.0, value.0);
-                Ok(())
-            }
-            IrOp::NegInt { dst, value, .. } => {
-                self.push_instruction(Opcode::NegInt, dst.0, value.0, 0);
-                Ok(())
-            }
-            IrOp::NotBool { dst, value, .. } => {
-                self.push_instruction(Opcode::NotBool, dst.0, value.0, 0);
-                Ok(())
-            }
-            IrOp::BitNotInt { dst, value, .. } => {
-                self.push_instruction(Opcode::BitNotInt, dst.0, value.0, 0);
-                Ok(())
-            }
-            IrOp::NoneCheck {
-                dst, value, is_not, ..
-            } => {
-                self.push_instruction(Opcode::NoneCheck, dst.0, value.0, u32::from(*is_not));
-                Ok(())
-            }
-            IrOp::GreaterInt { dst, a, b, .. } => {
-                self.push_instruction(Opcode::GreaterInt, dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::GreaterFloat { dst, a, b, .. } => {
-                self.push_instruction(Opcode::GreaterFloat, dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::CompareInt { dst, a, b, op, .. } => {
-                self.push_instruction(lower_int_comparison(*op), dst.0, a.0, b.0);
-                Ok(())
-            }
-            IrOp::CompareFloat { dst, a, b, op, .. } => {
-                self.push_instruction(lower_float_comparison(*op), dst.0, a.0, b.0);
                 Ok(())
             }
             IrOp::Move { dst, src } => {
