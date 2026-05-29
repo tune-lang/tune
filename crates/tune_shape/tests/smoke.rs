@@ -135,7 +135,6 @@ fn return_expression_shape_is_never() -> Result<(), &'static str> {
 fn contextual_logic_aliases_shape_as_bool_or_int() -> Result<(), &'static str> {
     let source = r#"
 let bool_words: Bool = true and false
-let bool_symbols: Bool = true & false
 let int_words: Int = 1 or 2
 let int_symbols: Int = 1 | 2
 "#;
@@ -147,6 +146,24 @@ let int_symbols: Int = 1 | 2
         let analysis = tune_shape::analyze_item(&module, &resolved, item);
         assert!(analysis.diagnostics.is_empty());
     }
+
+    Ok(())
+}
+
+#[test]
+fn bit_operators_reject_bool_operands() -> Result<(), &'static str> {
+    let source = "let value: Bool = true & false";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert!(
+        analysis
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == tune_diagnostics::codes::SHAPE_MISMATCH)
+    );
 
     Ok(())
 }
