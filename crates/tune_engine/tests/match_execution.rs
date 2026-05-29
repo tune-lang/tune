@@ -7,7 +7,8 @@ fn run_file_executes_match_on_result_variant() -> Result<(), &'static str> {
         .add_file(
             "app.tn",
             r#"
-let result: Int = match Ok(1) {
+let input: Result = Ok(1)
+let result: Int = match input {
   Ok(value) => value
   Error(_) => 0
 }

@@ -67,10 +67,7 @@ impl BodyResolver<'_> {
     }
 
     pub(super) fn variant_by_name(&self, name: &str) -> Option<VariantId> {
-        self.resolved
-            .variants
-            .get(name)
-            .or_else(|| self.resolved.prelude.variant(name).map(VariantId::Prelude))
+        self.resolved.variants.get(name)
     }
 
     pub(super) fn resolve_expected_variant_callee(
@@ -91,13 +88,13 @@ impl BodyResolver<'_> {
         expr: &Expr,
         expected: Option<&ShapeExpr>,
     ) -> bool {
-        let Some(variant) = self.variant_for_expected_enum(name, expected) else {
+        let Some(variant) = self.variant_for_expected_shape(name, expected) else {
             return false;
         };
 
         self.resolved.name_refs.push(NameRef {
             expr: expr.id,
-            target: NameTarget::Variant(VariantId::Member(variant)),
+            target: NameTarget::Variant(variant),
             span: expr.span,
         });
         true

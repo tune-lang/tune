@@ -4,6 +4,7 @@ use tune_hir::item::{Item, StructMember};
 use tune_hir::shape::{ShapeExpr, ShapeExprKind};
 
 use crate::locals::NameTarget;
+use crate::prelude::{PreludeVariant, VariantId};
 
 use super::BodyResolver;
 
@@ -100,6 +101,30 @@ impl BodyResolver<'_> {
             .map(|variant| variant.id)
     }
 
+    pub(super) fn variant_for_expected_shape(
+        &self,
+        variant_name: &str,
+        expected: Option<&ShapeExpr>,
+    ) -> Option<VariantId> {
+        self.variant_for_expected_result(variant_name, expected)
+            .map(VariantId::Prelude)
+            .or_else(|| {
+                self.variant_for_expected_enum(variant_name, expected)
+                    .map(VariantId::Member)
+            })
+    }
+
+    fn variant_for_expected_result(
+        &self,
+        variant_name: &str,
+        expected: Option<&ShapeExpr>,
+    ) -> Option<PreludeVariant> {
+        if !is_result_shape(expected?) {
+            return None;
+        }
+        self.resolved.prelude.variant(variant_name)
+    }
+
     pub(super) fn expected_shape_for_expr(&self, expr: &Expr) -> Option<ShapeExpr> {
         let ExprKind::Name(name) = &expr.kind else {
             return None;
@@ -125,6 +150,34 @@ impl BodyResolver<'_> {
                 .and_then(|binding| binding.expr)
                 .and_then(|expr| self.shape_for_local_expr(expr)),
             NameTarget::SelfValue | NameTarget::Variant(_) => None,
+        }
+    }
+
+    pub(super) fn expected_result_for_propagate(
+        &self,
+        expected: Option<&ShapeExpr>,
+    ) -> Option<ShapeExpr> {
+        let expected = expected?;
+        let span = expected.span;
+        let missing = || ShapeExpr {
+            kind: ShapeExprKind::Missing,
+            span,
+        };
+        let result = |ok: ShapeExpr, err: ShapeExpr| ShapeExpr {
+            kind: ShapeExprKind::Generic {
+                name: "Result".to_owned(),
+                args: vec![ok, err],
+            },
+            span,
+        };
+
+        match &expected.kind {
+            ShapeExprKind::Named(name) if name == "Result" => Some(result(missing(), missing())),
+            ShapeExprKind::Generic { name, args } if name == "Result" => {
+                let err = args.get(1).cloned().unwrap_or_else(missing);
+                Some(result(missing(), err))
+            }
+            _ => Some(result(expected.clone(), missing())),
         }
     }
 
@@ -158,6 +211,13 @@ fn expected_enum_name(expected: &ShapeExpr) -> Option<&str> {
     match &expected.kind {
         ShapeExprKind::Named(name) | ShapeExprKind::Generic { name, .. } => Some(name.as_str()),
         _ => None,
+    }
+}
+
+fn is_result_shape(expected: &ShapeExpr) -> bool {
+    match &expected.kind {
+        ShapeExprKind::Named(name) | ShapeExprKind::Generic { name, .. } => name == "Result",
+        _ => false,
     }
 }
 

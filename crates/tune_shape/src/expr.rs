@@ -4,7 +4,7 @@ use tune_hir::module::Module;
 use tune_hir::shape::{ShapeExpr, ShapeExprKind, StructuralShapeRequirementKind};
 use tune_resolve::{NameTarget, PreludeVariant, ResolvedModule, VariantId};
 
-use crate::{LiteralFact, MemberRequirement, NominalShape, Shape};
+use crate::{LiteralFact, MemberRequirement, NominalShape, Shape, builtin::builtin_shape};
 
 #[must_use]
 pub fn expr_literal_fact(expr: &Expr) -> Option<LiteralFact> {
@@ -258,17 +258,7 @@ fn lower_declared_shape(expr: &ShapeExpr, item: &Item) -> Shape {
 }
 
 fn named_shape_hint(name: &str) -> Shape {
-    match name {
-        "Never" => Shape::Never,
-        "()" | "Unit" => Shape::Unit,
-        "Int" => Shape::Int,
-        "Float" => Shape::Float,
-        "Size" => Shape::Size,
-        "Byte" => Shape::Byte,
-        "Bool" => Shape::Bool,
-        "String" => Shape::String,
-        _ => Shape::Hole,
-    }
+    builtin_shape(name).unwrap_or(Shape::Hole)
 }
 
 fn result_ok_shape(shape: Shape) -> Option<Shape> {

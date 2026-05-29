@@ -18,7 +18,7 @@ let branch(value, ready, waiting) = if ready { value } elif waiting { panic("wai
 let select(result, value) = match result { value => value; else panic("bad") }
 let repeated(ready) = while ready { continue }
 let forever() = loop { break }
-let ok(value) = Ok(value)
+let ok(value): Result = Ok(value)
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);

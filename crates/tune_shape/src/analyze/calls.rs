@@ -5,7 +5,7 @@ use tune_hir::shape::{ShapeExpr, ShapeExprKind, StructuralShapeRequirementKind};
 use tune_resolve::{NameTarget, PreludeVariant, VariantId};
 
 use super::{Analyzer, CallCheck, CallSignature, CallTarget};
-use crate::{MemberRequirement, NominalShape, Shape, expr_shape_fact};
+use crate::{MemberRequirement, NominalShape, Shape, builtin::builtin_shape, expr_shape_fact};
 
 impl Analyzer<'_> {
     pub(super) fn analyze_call(&mut self, expr: &Expr, callee: &Expr, args: &[Expr]) -> Shape {
@@ -338,15 +338,5 @@ fn non_callable_call(shape: &Shape, span: Option<Span>) -> Diagnostic {
 }
 
 fn named_payload_shape(name: &str) -> Shape {
-    match name {
-        "Never" => Shape::Never,
-        "()" | "Unit" => Shape::Unit,
-        "Int" => Shape::Int,
-        "Float" => Shape::Float,
-        "Size" => Shape::Size,
-        "Byte" => Shape::Byte,
-        "Bool" => Shape::Bool,
-        "String" => Shape::String,
-        _ => Shape::Hole,
-    }
+    builtin_shape(name).unwrap_or(Shape::Hole)
 }

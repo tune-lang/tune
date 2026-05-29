@@ -1,4 +1,5 @@
 pub mod analyze;
+pub mod builtin;
 pub mod constraints;
 pub mod expr;
 pub mod flow;
@@ -13,6 +14,7 @@ pub use analyze::{
     FiniteForContractKind, MaterializerCheck, ReturnCheck, ShapeAnalysis, analyze_item,
     analyze_module,
 };
+pub use builtin::{BuiltinShape, builtin_generic_shape, builtin_shape};
 pub use expr::{expr_literal_fact, expr_shape_fact};
 pub use flow::{expr_propagated_error_shape_fact, expr_result_constructor_shape_fact};
 pub use hir::{

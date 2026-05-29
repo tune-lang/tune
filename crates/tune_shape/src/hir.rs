@@ -2,7 +2,10 @@ use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::shape::{ShapeExpr, ShapeExprKind, StructuralShapeRequirementKind};
 use tune_resolve::{BindingKind, Scope};
 
-use crate::{MemberRequirement, NominalShape, Shape, ShapeId, ShapeOrigin, ShapeStore};
+use crate::{
+    MemberRequirement, NominalShape, Shape, ShapeId, ShapeOrigin, ShapeStore,
+    builtin::{builtin_generic_shape, builtin_shape},
+};
 
 #[derive(Debug, Clone)]
 pub struct LoweredShape {
@@ -172,7 +175,7 @@ fn lower_generic_shape(
     scope: &Scope,
 ) -> LoweredShape {
     let (lowered_args, mut diagnostics) = lower_args(args, scope);
-    if let Some(shape) = generic_shape_if_builtin(name, &lowered_args) {
+    if let Some(shape) = builtin_generic_shape(name, lowered_args.clone()) {
         return LoweredShape { shape, diagnostics };
     }
 
@@ -272,38 +275,9 @@ fn lower_named_shape(name: &str, span: Option<Span>, scope: &Scope) -> LoweredSh
 }
 
 fn named_shape(name: &str) -> Shape {
-    if let Some(shape) = builtin_shape(name) {
-        return shape;
-    }
-
-    Shape::Hole
+    builtin_shape(name).unwrap_or(Shape::Hole)
 }
 
 fn generic_shape(name: &str, args: Vec<Shape>) -> Shape {
-    generic_shape_if_builtin(name, &args).unwrap_or(Shape::Hole)
-}
-
-fn generic_shape_if_builtin(name: &str, args: &[Shape]) -> Option<Shape> {
-    match (name, args) {
-        ("Result", [ok, err]) => Some(Shape::Result {
-            ok: Box::new(ok.clone()),
-            err: Box::new(err.clone()),
-        }),
-        ("Task", [task]) => Some(Shape::Task(Box::new(task.clone()))),
-        _ => None,
-    }
-}
-
-fn builtin_shape(name: &str) -> Option<Shape> {
-    match name {
-        "Never" => Some(Shape::Never),
-        "()" | "Unit" => Some(Shape::Unit),
-        "Int" => Some(Shape::Int),
-        "Float" => Some(Shape::Float),
-        "Size" => Some(Shape::Size),
-        "Byte" => Some(Shape::Byte),
-        "Bool" => Some(Shape::Bool),
-        "String" => Some(Shape::String),
-        _ => None,
-    }
+    builtin_generic_shape(name, args).unwrap_or(Shape::Hole)
 }

@@ -62,8 +62,6 @@ pub fn resolve_module(module: &Module) -> ResolvedModule {
         define_item(&mut resolved, item);
     }
 
-    define_prelude_variants(&mut resolved);
-
     for item in &module.items {
         validate::validate_member_names(&mut resolved, item);
     }
@@ -77,15 +75,6 @@ pub fn resolve_module(module: &Module) -> ResolvedModule {
     }
 
     resolved
-}
-
-fn define_prelude_variants(resolved: &mut ResolvedModule) {
-    resolved
-        .variants
-        .define("Ok", VariantId::Prelude(resolved.prelude.ok), None);
-    resolved
-        .variants
-        .define("Error", VariantId::Prelude(resolved.prelude.error), None);
 }
 
 fn define_item(resolved: &mut ResolvedModule, item: &Item) {

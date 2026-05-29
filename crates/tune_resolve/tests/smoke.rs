@@ -322,7 +322,7 @@ let each(items) = for item in items { helper(item) }
 let scoped(input) = { let local = _(x) = helper(x); local(input) }
 let check(input, other) = not input and other is not none
 let branch(input, ready) = if ready { helper(input) } else { panic("bad") }
-let select(result) = match result { Ok(value) => helper(value); else panic("bad") }
+let select(result: Result) = match result { Ok(value) => helper(value); else panic("bad") }
 let repeated(ready) = while ready { continue }
 let forever() = loop { break }
 struct Box {
@@ -365,9 +365,9 @@ struct Box {
 #[test]
 fn resolves_prelude_result_variants_as_constructors_and_patterns() {
     let source = r#"
-let ok(value) = Ok(value)
-let fail(error) = Error(error)
-let unwrap(result) = match result { Ok(value) => value; Error(error) => error }
+let ok(value): Result = Ok(value)
+let fail(error): Result = Error(error)
+let unwrap(result: Result) = match result { Ok(value) => value; Error(error) => error }
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
@@ -387,6 +387,19 @@ let unwrap(result) = match result { Ok(value) => value; Error(error) => error }
             ))
     }));
     assert_eq!(resolved.variant_pattern_refs.len(), 2);
+}
+
+#[test]
+fn rejects_prelude_result_variants_without_result_context() {
+    let source = "let ok = Ok(1)";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert!(resolved.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::UNRESOLVED_NAME
+            && diagnostic.title == "unresolved name `Ok`"
+    }));
 }
 
 #[test]

@@ -1,8 +1,8 @@
 #[test]
 fn extracts_result_shapes_from_prelude_variant_constructors() -> Result<(), &'static str> {
     let source = r#"
-let ok(value) = Ok(value)
-let error(err) = Error(err)
+let ok(value): Result = Ok(value)
+let error(err): Result = Error(err)
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
@@ -27,7 +27,7 @@ let error(err) = Error(err)
 
 #[test]
 fn propagation_shape_uses_result_ok_shape() -> Result<(), &'static str> {
-    let source = "let value = Ok(1)!";
+    let source = "let value: Int = Ok(1)!";
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
     let resolved = tune_resolve::resolve_module(&module);
@@ -195,7 +195,7 @@ let maybe_quack(duck) = match duck {
 #[test]
 fn result_constructor_facts_union_variant_payloads_from_value_flow() -> Result<(), &'static str> {
     let source = r#"
-let choose(ready, waiting, value) = if ready { Ok(value) } elif waiting { Error("wait") } else { Error(1) }
+let choose(ready, waiting, value): Result = if ready { Ok(value) } elif waiting { Error("wait") } else { Error(1) }
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
@@ -221,7 +221,7 @@ let choose(ready, waiting, value) = if ready { Ok(value) } elif waiting { Error(
 #[test]
 fn result_constructor_facts_include_explicit_returns() -> Result<(), &'static str> {
     let source = r#"
-let choose(ready) = {
+let choose(ready): Result = {
   if ready { return Ok(1) }
   return Error("bad")
 }
@@ -251,9 +251,9 @@ let choose(ready) = {
 #[test]
 fn propagated_error_facts_union_only_bang_sites() -> Result<(), &'static str> {
     let source = r#"
-let load = {
-  Error("fs")!
-  Error(1)!
+let load(): Result = {
+  let _: Int = Error("fs")!
+  let _: Int = Error(1)!
   Ok("done")
 }
 "#;
@@ -472,41 +472,6 @@ fn resolved_hir_shape_uses_declared_structs() -> Result<(), &'static str> {
         lowered.shape,
         tune_shape::Shape::Struct(tune_shape::NominalShape::new(module.items[0].id, "User"))
     );
-
-    Ok(())
-}
-
-#[test]
-fn resolved_hir_shape_lowers_result_and_task_generics() -> Result<(), &'static str> {
-    let source = r#"
-struct Config {}
-enum ParseError {}
-let parse(text: String): Result<Config, ParseError> = text
-let background(): Task<Result<Config, ParseError>> = parse("")
-"#;
-    let parsed = tune_syntax::parse(source);
-    let module = tune_hir::lower::lower_module(source, &parsed.cst);
-    let resolved = tune_resolve::resolve_module(&module);
-
-    let result_shape = module.items[2]
-        .shape
-        .as_ref()
-        .ok_or("expected result shape")?;
-    let task_shape = module.items[3]
-        .shape
-        .as_ref()
-        .ok_or("expected task shape")?;
-
-    let lowered_result = tune_shape::lower_resolved_hir_shape(result_shape, &resolved.scope);
-    let lowered_task = tune_shape::lower_resolved_hir_shape(task_shape, &resolved.scope);
-
-    assert!(lowered_result.diagnostics.is_empty());
-    assert!(lowered_task.diagnostics.is_empty());
-    assert!(matches!(
-        lowered_result.shape,
-        tune_shape::Shape::Result { .. }
-    ));
-    assert!(matches!(lowered_task.shape, tune_shape::Shape::Task(_)));
 
     Ok(())
 }

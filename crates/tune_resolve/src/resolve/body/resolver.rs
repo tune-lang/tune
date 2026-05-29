@@ -13,6 +13,7 @@ use crate::prelude::VariantId;
 use super::super::ResolvedModule;
 
 mod expected;
+mod flow;
 mod names;
 mod validation;
 
@@ -124,8 +125,12 @@ impl<'resolved> BodyResolver<'resolved> {
                 self.resolve_expr_names(lhs);
                 self.resolve_expr_names(rhs);
             }
-            ExprKind::Spawn(inner) | ExprKind::Propagate(inner) => {
+            ExprKind::Spawn(inner) => {
                 self.resolve_expr_names(inner);
+            }
+            ExprKind::Propagate(inner) => {
+                let inner_expected = self.expected_result_for_propagate(expected);
+                self.resolve_expr_names_with_expected(inner, inner_expected.as_ref());
             }
             ExprKind::If {
                 branches,
@@ -133,20 +138,27 @@ impl<'resolved> BodyResolver<'resolved> {
             } => {
                 for branch in branches {
                     self.resolve_expr_names(&branch.condition);
-                    self.with_scope(|this| this.resolve_expr_names(&branch.body));
+                    self.with_scope(|this| {
+                        this.resolve_expr_names_with_expected(&branch.body, expected);
+                    });
                 }
                 if let Some(else_branch) = else_branch {
-                    self.with_scope(|this| this.resolve_expr_names(else_branch));
+                    self.with_scope(|this| {
+                        this.resolve_expr_names_with_expected(else_branch, expected);
+                    });
                 }
             }
             ExprKind::Match { scrutinee, arms } => {
                 self.resolve_expr_names(scrutinee);
-                let expected = self.expected_shape_for_expr(scrutinee);
+                let scrutinee_expected = self.expected_shape_for_expr(scrutinee);
                 for arm in arms {
                     self.validate_match_pattern(&arm.pattern);
                     self.with_scope(|this| {
-                        this.bind_pattern_names_with_expected(&arm.pattern, expected.as_ref());
-                        this.resolve_expr_names(&arm.body);
+                        this.bind_pattern_names_with_expected(
+                            &arm.pattern,
+                            scrutinee_expected.as_ref(),
+                        );
+                        this.resolve_expr_names_with_expected(&arm.body, expected);
                     });
                 }
             }
@@ -160,7 +172,7 @@ impl<'resolved> BodyResolver<'resolved> {
             ExprKind::Break | ExprKind::Continue => {}
             ExprKind::Return(inner) => {
                 if let Some(inner) = inner {
-                    self.resolve_expr_names(inner);
+                    self.resolve_expr_names_with_expected(inner, expected);
                 }
             }
             ExprKind::Panic(args) => {
@@ -181,8 +193,13 @@ impl<'resolved> BodyResolver<'resolved> {
             }
             ExprKind::Block(exprs) => {
                 self.with_scope(|this| {
-                    for expr in exprs {
-                        this.resolve_expr_names(expr);
+                    let last = exprs.len().saturating_sub(1);
+                    for (index, expr) in exprs.iter().enumerate() {
+                        if index == last {
+                            this.resolve_expr_names_with_expected(expr, expected);
+                        } else {
+                            this.resolve_statement_names_with_return_expected(expr, expected);
+                        }
                     }
                 });
             }
@@ -243,11 +260,11 @@ impl<'resolved> BodyResolver<'resolved> {
         }
     }
 
-    fn bind_pattern_names(&mut self, pattern: &Pattern) {
+    pub(super) fn bind_pattern_names(&mut self, pattern: &Pattern) {
         self.bind_pattern_names_with_expected(pattern, None);
     }
 
-    fn bind_pattern_names_with_expected(
+    pub(super) fn bind_pattern_names_with_expected(
         &mut self,
         pattern: &Pattern,
         expected: Option<&ShapeExpr>,
@@ -296,8 +313,7 @@ impl<'resolved> BodyResolver<'resolved> {
         expected: Option<&ShapeExpr>,
     ) -> Option<VariantId> {
         if let Some(variant) = self
-            .variant_for_expected_enum(name, expected)
-            .map(VariantId::Member)
+            .variant_for_expected_shape(name, expected)
             .or_else(|| self.variant_by_name(name))
         {
             self.resolved
@@ -347,7 +363,7 @@ impl<'resolved> BodyResolver<'resolved> {
             .cloned()
     }
 
-    fn with_scope(&mut self, f: impl FnOnce(&mut Self)) {
+    pub(super) fn with_scope(&mut self, f: impl FnOnce(&mut Self)) {
         self.scopes.push(HashMap::new());
         f(self);
         self.scopes.pop();
