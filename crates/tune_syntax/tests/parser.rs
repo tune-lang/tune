@@ -83,6 +83,30 @@ struct Counter {
 }
 
 #[test]
+fn parses_compound_assignments() {
+    let parsed = parse(
+        r#"
+let result = {
+  let value: Int = 1
+  value += 2
+  value <<= 1
+}
+"#,
+    );
+
+    let kinds = nested_node_kinds(&parsed.cst);
+
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| **kind == SyntaxKind::AssignExpr)
+            .count(),
+        2
+    );
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
 fn newline_ends_simple_declarations() {
     let parsed = parse(
         r#"

@@ -40,7 +40,7 @@ impl Parser<'_> {
         self.parse_binary_expr(0);
         self.skip_inline_trivia();
 
-        if self.at(TokenKind::Equal) {
+        if self.at_assignment_operator() {
             self.builder
                 .start_node_at(checkpoint, SyntaxKind::AssignExpr);
             self.bump();
@@ -48,6 +48,25 @@ impl Parser<'_> {
             self.parse_expr();
             self.finish_node();
         }
+    }
+
+    fn at_assignment_operator(&self) -> bool {
+        matches!(
+            self.current_kind(),
+            Some(
+                TokenKind::Equal
+                    | TokenKind::PlusEqual
+                    | TokenKind::MinusEqual
+                    | TokenKind::StarEqual
+                    | TokenKind::SlashEqual
+                    | TokenKind::PercentEqual
+                    | TokenKind::AmpEqual
+                    | TokenKind::PipeEqual
+                    | TokenKind::CaretEqual
+                    | TokenKind::ShiftLeftEqual
+                    | TokenKind::ShiftRightEqual
+            )
+        )
     }
 
     fn parse_let_expr(&mut self) {

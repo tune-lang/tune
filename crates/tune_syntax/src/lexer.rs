@@ -195,21 +195,31 @@ impl<'src> Lexer<'src> {
             Some('?') => single(TokenKind::Question),
             Some('~') if self.starts_with("~=") => double(TokenKind::TildeEqual),
             Some('~') => single(TokenKind::Tilde),
+            Some('&') if self.starts_with("&=") => double(TokenKind::AmpEqual),
             Some('&') => single(TokenKind::Amp),
+            Some('|') if self.starts_with("|=") => double(TokenKind::PipeEqual),
             Some('|') => single(TokenKind::Pipe),
+            Some('^') if self.starts_with("^=") => double(TokenKind::CaretEqual),
             Some('^') => single(TokenKind::Caret),
+            Some('+') if self.starts_with("+=") => double(TokenKind::PlusEqual),
             Some('+') => single(TokenKind::Plus),
             Some('-') if self.starts_with("->") => double(TokenKind::Arrow),
+            Some('-') if self.starts_with("-=") => double(TokenKind::MinusEqual),
             Some('-') => single(TokenKind::Minus),
+            Some('*') if self.starts_with("*=") => double(TokenKind::StarEqual),
             Some('*') => single(TokenKind::Star),
+            Some('/') if self.starts_with("/=") => double(TokenKind::SlashEqual),
             Some('/') => single(TokenKind::Slash),
+            Some('%') if self.starts_with("%=") => double(TokenKind::PercentEqual),
             Some('%') => single(TokenKind::Percent),
             Some('=') if self.starts_with("==") => double(TokenKind::EqualEqual),
             Some('=') if self.starts_with("=>") => double(TokenKind::FatArrow),
             Some('=') => single(TokenKind::Equal),
+            Some('<') if self.starts_with("<<=") => TokenKind::ShiftLeftEqual,
             Some('<') if self.starts_with("<<") => double(TokenKind::ShiftLeft),
             Some('<') if self.starts_with("<=") => double(TokenKind::LessEqual),
             Some('<') => single(TokenKind::Less),
+            Some('>') if self.starts_with(">>=") => TokenKind::ShiftRightEqual,
             Some('>') if self.starts_with(">>") => double(TokenKind::ShiftRight),
             Some('>') if self.starts_with(">=") => double(TokenKind::GreaterEqual),
             Some('>') => single(TokenKind::Greater),
@@ -330,6 +340,14 @@ const fn double(kind: TokenKind) -> TokenKind {
 const fn token_width(kind: TokenKind) -> usize {
     match kind {
         TokenKind::TildeEqual
+        | TokenKind::PlusEqual
+        | TokenKind::MinusEqual
+        | TokenKind::StarEqual
+        | TokenKind::SlashEqual
+        | TokenKind::PercentEqual
+        | TokenKind::AmpEqual
+        | TokenKind::PipeEqual
+        | TokenKind::CaretEqual
         | TokenKind::Arrow
         | TokenKind::FatArrow
         | TokenKind::EqualEqual
@@ -339,7 +357,7 @@ const fn token_width(kind: TokenKind) -> usize {
         | TokenKind::ShiftRight
         | TokenKind::ColonColon
         | TokenKind::DotDot => 2,
-        TokenKind::DotDotEqual => 3,
+        TokenKind::DotDotEqual | TokenKind::ShiftLeftEqual | TokenKind::ShiftRightEqual => 3,
         _ => 1,
     }
 }

@@ -460,6 +460,42 @@ let result: Int = counter.value
 }
 
 #[test]
+fn run_file_executes_compound_assignment() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+struct Counter {
+  value: Int = 1
+
+  bump(): Int = {
+    self.value += 2
+    self.value
+  }
+}
+let counter: Counter = Counter {}
+let result: Int = {
+  let value: Int = counter.bump()
+  value += 3
+  value
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        tune.run_file(file).map_err(|error| {
+            eprintln!("{error:?}");
+            "file entry should run"
+        })?,
+        tune_runtime::value::Value::Int(6)
+    );
+
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_local_binding_slice_through_vm() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

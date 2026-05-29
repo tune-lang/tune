@@ -134,6 +134,30 @@ struct Counter {
 }
 
 #[test]
+fn lowers_compound_assignment_to_assignment_with_binary_value() -> Result<(), &'static str> {
+    let source = "let result = { let value: Int = 1; value += 2 }";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let body = module.items[0].body.as_ref().ok_or("expected body")?;
+    let tune_hir::expr::ExprKind::Block(exprs) = &body.kind else {
+        return Err("expected block");
+    };
+    let tune_hir::expr::ExprKind::Assign { value, .. } = &exprs[1].kind else {
+        return Err("expected assignment");
+    };
+
+    assert!(matches!(
+        value.kind,
+        tune_hir::expr::ExprKind::Binary {
+            op: tune_hir::expr::BinaryOp::Add,
+            ..
+        }
+    ));
+
+    Ok(())
+}
+
+#[test]
 fn lowers_shape_annotations_to_hir_shape_exprs() -> Result<(), &'static str> {
     let source = "let value: [Int | String]? = none";
     let parsed = tune_syntax::parse(source);

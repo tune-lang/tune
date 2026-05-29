@@ -163,9 +163,25 @@ impl ExprLowerer {
             return ExprKind::Missing;
         };
 
+        let target = self.lower(source, target);
+        let value = self.lower(source, value);
+        let value = if let Some(op) = compound_assignment_op(expr.syntax()) {
+            Expr {
+                id: self.alloc_id(),
+                span: expr.syntax().span,
+                kind: ExprKind::Binary {
+                    op,
+                    lhs: Box::new(target.clone()),
+                    rhs: Box::new(value),
+                },
+            }
+        } else {
+            value
+        };
+
         ExprKind::Assign {
-            target: Box::new(self.lower(source, target)),
-            value: Box::new(self.lower(source, value)),
+            target: Box::new(target),
+            value: Box::new(value),
         }
     }
 
@@ -281,6 +297,25 @@ fn unary_op(node: &CstNode) -> Option<UnaryOp> {
             TokenKind::KeywordNot => Some(UnaryOp::Not),
             TokenKind::Minus => Some(UnaryOp::Neg),
             TokenKind::Tilde => Some(UnaryOp::BitNot),
+            _ => None,
+        },
+        CstElement::Node(_) => None,
+    })
+}
+
+fn compound_assignment_op(node: &CstNode) -> Option<BinaryOp> {
+    node.children.iter().find_map(|child| match child {
+        CstElement::Token(token) => match token.kind {
+            TokenKind::PlusEqual => Some(BinaryOp::Add),
+            TokenKind::MinusEqual => Some(BinaryOp::Sub),
+            TokenKind::StarEqual => Some(BinaryOp::Mul),
+            TokenKind::SlashEqual => Some(BinaryOp::Div),
+            TokenKind::PercentEqual => Some(BinaryOp::Rem),
+            TokenKind::AmpEqual => Some(BinaryOp::BitAnd),
+            TokenKind::PipeEqual => Some(BinaryOp::BitOr),
+            TokenKind::CaretEqual => Some(BinaryOp::BitXor),
+            TokenKind::ShiftLeftEqual => Some(BinaryOp::ShiftLeft),
+            TokenKind::ShiftRightEqual => Some(BinaryOp::ShiftRight),
             _ => None,
         },
         CstElement::Node(_) => None,
