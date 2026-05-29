@@ -12,6 +12,9 @@ impl Analyzer<'_> {
         lhs: &Expr,
         rhs: &Expr,
     ) -> Shape {
+        if matches!(op, BinaryOp::And | BinaryOp::Or) {
+            return self.analyze_short_circuit_binary(op, expr, lhs, rhs);
+        }
         let expected = self
             .expected_shape()
             .and_then(|expected| binary_operand_expected(op, expected))
@@ -154,6 +157,36 @@ impl Analyzer<'_> {
             }
         }
     }
+
+    fn analyze_short_circuit_binary(
+        &mut self,
+        op: BinaryOp,
+        expr: &Expr,
+        lhs: &Expr,
+        rhs: &Expr,
+    ) -> Shape {
+        let lhs_shape = self.analyze_expr(lhs);
+        let entry = self.frame.clone();
+        match op {
+            BinaryOp::And => self.apply_condition_narrowing(lhs, true),
+            BinaryOp::Or => self.apply_condition_narrowing(lhs, false),
+            _ => {}
+        }
+        let rhs_shape = self.analyze_expr(rhs);
+        self.frame = entry;
+        if Shape::Bool.accepts(&lhs_shape) && Shape::Bool.accepts(&rhs_shape) {
+            Shape::Bool
+        } else {
+            self.diagnostics.push(operator_mismatch(
+                op,
+                expected_operands(op),
+                &lhs_shape,
+                &rhs_shape,
+                expr.span,
+            ));
+            Shape::Bool
+        }
+    }
 }
 
 fn binary_operand_expected(op: BinaryOp, expected: &Shape) -> Option<&Shape> {
@@ -203,7 +236,7 @@ fn can_diagnose_operands(lhs: &Shape, rhs: &Shape) -> bool {
 
 fn expected_operands(op: BinaryOp) -> &'static str {
     match op {
-        BinaryOp::Or | BinaryOp::And => "`Bool`/`Bool` or `Int`/`Int` operands",
+        BinaryOp::Or | BinaryOp::And => "`Bool` operands",
         BinaryOp::Add => "compatible numeric operands",
         BinaryOp::RangeExclusive | BinaryOp::RangeInclusive => {
             "`Int`/`Int` or `Size`/`Size` endpoints"

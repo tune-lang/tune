@@ -132,10 +132,9 @@ fn return_expression_shape_is_never() -> Result<(), &'static str> {
 }
 
 #[test]
-fn contextual_logic_aliases_shape_as_bool_or_int() -> Result<(), &'static str> {
+fn boolean_words_and_bit_symbols_have_separate_meaning() -> Result<(), &'static str> {
     let source = r#"
 let bool_words: Bool = true and false
-let int_words: Int = 1 or 2
 let int_symbols: Int = 1 | 2
 "#;
     let parsed = tune_syntax::parse(source);

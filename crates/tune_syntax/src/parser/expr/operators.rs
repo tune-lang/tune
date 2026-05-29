@@ -41,19 +41,21 @@ impl Parser<'_> {
     fn current_binary_precedence(&self) -> Option<u8> {
         let precedence = match self.current_kind()? {
             TokenKind::DotDot | TokenKind::DotDotEqual => 2,
+            TokenKind::KeywordOr => 3,
+            TokenKind::KeywordAnd => 4,
+            TokenKind::Pipe => 5,
+            TokenKind::Caret => 6,
+            TokenKind::Amp => 7,
             TokenKind::KeywordIs
             | TokenKind::EqualEqual
             | TokenKind::TildeEqual
             | TokenKind::Less
             | TokenKind::LessEqual
             | TokenKind::Greater
-            | TokenKind::GreaterEqual => 3,
-            TokenKind::KeywordOr | TokenKind::Pipe => 4,
-            TokenKind::Caret => 5,
-            TokenKind::KeywordAnd | TokenKind::Amp => 6,
-            TokenKind::ShiftLeft | TokenKind::ShiftRight => 7,
-            TokenKind::Plus | TokenKind::Minus => 8,
-            TokenKind::Star | TokenKind::Slash | TokenKind::Percent => 9,
+            | TokenKind::GreaterEqual => 8,
+            TokenKind::ShiftLeft | TokenKind::ShiftRight => 9,
+            TokenKind::Plus | TokenKind::Minus => 10,
+            TokenKind::Star | TokenKind::Slash | TokenKind::Percent => 11,
             _ => return None,
         };
 

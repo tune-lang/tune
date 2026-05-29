@@ -119,27 +119,35 @@ impl Analyzer<'_> {
         self.frame = joined;
     }
 
-    fn apply_condition_narrowing(&mut self, condition: &Expr, truthy: bool) {
-        if let Some((key, narrowed)) = optional_none_narrowing(condition, truthy, self)
-            && let Some(binding) = self.frame.get_mut(key)
-        {
-            binding.narrow_current(narrowed);
+    pub(super) fn apply_condition_narrowing(&mut self, condition: &Expr, truthy: bool) {
+        for (key, narrowed) in optional_none_narrowings(condition, truthy, self) {
+            if let Some(binding) = self.frame.get_mut(key) {
+                binding.narrow_current(narrowed);
+            }
         }
     }
 }
 
-fn optional_none_narrowing(
+fn optional_none_narrowings(
     condition: &Expr,
     truthy: bool,
     analyzer: &Analyzer<'_>,
-) -> Option<(BindingKey, Shape)> {
+) -> Vec<(BindingKey, Shape)> {
     let ExprKind::Binary { op, lhs, rhs } = &condition.kind else {
-        return None;
+        return Vec::new();
     };
+    match (op, truthy) {
+        (BinaryOp::And, true) | (BinaryOp::Or, false) => {
+            let mut narrowings = optional_none_narrowings(lhs, truthy, analyzer);
+            narrowings.extend(optional_none_narrowings(rhs, truthy, analyzer));
+            return narrowings;
+        }
+        _ => {}
+    }
     let is_equal = matches!(op, BinaryOp::Equal);
     let is_not_equal = matches!(op, BinaryOp::NotEqual);
     if !is_equal && !is_not_equal {
-        return None;
+        return Vec::new();
     }
 
     let value = if is_none_literal(rhs) {
@@ -147,12 +155,16 @@ fn optional_none_narrowing(
     } else if is_none_literal(lhs) {
         rhs
     } else {
-        return None;
+        return Vec::new();
     };
-    let key = analyzer.binding_key(value)?;
-    let binding = analyzer.frame.get(key)?;
+    let Some(key) = analyzer.binding_key(value) else {
+        return Vec::new();
+    };
+    let Some(binding) = analyzer.frame.get(key) else {
+        return Vec::new();
+    };
     let Shape::Optional(payload) = &binding.current_shape else {
-        return None;
+        return Vec::new();
     };
 
     let narrows_to_payload = is_not_equal == truthy;
@@ -161,7 +173,7 @@ fn optional_none_narrowing(
     } else {
         Shape::Literal(LiteralFact::None)
     };
-    Some((key, narrowed))
+    vec![(key, narrowed)]
 }
 
 fn is_none_literal(expr: &Expr) -> bool {
