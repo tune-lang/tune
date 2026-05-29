@@ -294,14 +294,10 @@ impl Analyzer<'_> {
                     .unwrap_or(Shape::Unit);
                 self.returns.push(ReturnCheck {
                     expr: expr.id,
-                    shape: returned.clone(),
+                    shape: returned,
                     span: expr.span,
                 });
-                if inner.is_some() {
-                    returned
-                } else {
-                    Shape::Never
-                }
+                Shape::Never
             }
             ExprKind::Panic(args) => {
                 for arg in args {

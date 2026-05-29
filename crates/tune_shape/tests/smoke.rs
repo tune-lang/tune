@@ -91,6 +91,47 @@ fn tuple_expression_shape_is_tuple_product() -> Result<(), &'static str> {
 }
 
 #[test]
+fn non_continuing_flow_does_not_force_unit_shape() -> Result<(), &'static str> {
+    let source = r#"
+let result: Int = {
+  let value = if true {
+    panic("bad")
+  }
+  value + 1
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert!(analysis.diagnostics.is_empty());
+
+    Ok(())
+}
+
+#[test]
+fn return_expression_shape_is_never() -> Result<(), &'static str> {
+    let source = "let result(): Int = return 1";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+    let body = module.items[0].body.as_ref().ok_or("expected body")?;
+
+    assert_eq!(
+        analysis
+            .expr_shapes
+            .iter()
+            .find(|expr| expr.expr == body.id)
+            .map(|expr| &expr.shape),
+        Some(&tune_shape::Shape::Never)
+    );
+
+    Ok(())
+}
+
+#[test]
 fn contextual_logic_aliases_shape_as_bool_or_int() -> Result<(), &'static str> {
     let source = r#"
 let bool_words: Bool = true and false

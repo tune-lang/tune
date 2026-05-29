@@ -24,7 +24,7 @@ impl Analyzer<'_> {
             frames.push(self.frame.clone());
         }
         self.join_branch_frames(entry, frames);
-        Shape::join_all(shapes)
+        join_continuing_shapes(shapes)
     }
 
     pub(super) fn analyze_for(
@@ -74,11 +74,11 @@ impl Analyzer<'_> {
             shapes.push(self.analyze_expr(else_branch));
             frames.push(self.frame.clone());
         } else {
-            shapes.push(Shape::Unit);
+            shapes.push(Shape::Hole);
             frames.push(entry.clone());
         }
         self.join_branch_frames(entry, frames);
-        Shape::join_all(shapes)
+        join_continuing_shapes(shapes)
     }
 
     pub(super) fn analyze_while(&mut self, condition: &Expr, body: &Expr) -> Shape {
@@ -95,9 +95,13 @@ impl Analyzer<'_> {
     pub(super) fn analyze_loop(&mut self, body: &Expr) -> Shape {
         let entry = self.frame.clone();
         self.frame = entry.clone();
-        self.analyze_expr(body);
+        let body_shape = self.analyze_expr(body);
         self.frame = entry;
-        Shape::Hole
+        if body_shape == Shape::Never {
+            Shape::Never
+        } else {
+            Shape::Hole
+        }
     }
 
     fn join_branch_frames(&mut self, entry: StateFrame, mut frames: Vec<StateFrame>) {
@@ -109,6 +113,24 @@ impl Analyzer<'_> {
             let _ = joined.join_from(frame);
         }
         self.frame = joined;
+    }
+}
+
+fn join_continuing_shapes(shapes: Vec<Shape>) -> Shape {
+    let mut saw_never = false;
+    let continuing = shapes
+        .into_iter()
+        .filter(|shape| {
+            let is_never = *shape == Shape::Never;
+            saw_never |= is_never;
+            !is_never
+        })
+        .collect::<Vec<_>>();
+
+    if continuing.is_empty() && saw_never {
+        Shape::Never
+    } else {
+        Shape::join_all(continuing)
     }
 }
 
