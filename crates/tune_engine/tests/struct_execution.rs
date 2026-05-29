@@ -212,9 +212,10 @@ let result: Counter = Counter {
         )
         .ok_or("file should allocate")?;
 
-    let Value::Struct { state, .. } = run_file(&tune, file)? else {
+    let Value::Struct { fields, .. } = run_file(&tune, file)? else {
         return Err("entry should return a struct");
     };
+    let state = fields.state();
 
     assert_eq!(state.repr, tune_runtime::StateRepr::LocalHandle);
     assert_eq!(
@@ -242,9 +243,10 @@ let result: Counter = task.join()
         )
         .ok_or("file should allocate")?;
 
-    let Value::Struct { state, .. } = run_file(&tune, file)? else {
+    let Value::Struct { fields, .. } = run_file(&tune, file)? else {
         return Err("entry should return a struct");
     };
+    let state = fields.state();
 
     assert_eq!(state.repr, tune_runtime::StateRepr::SharedHandle);
     assert_eq!(

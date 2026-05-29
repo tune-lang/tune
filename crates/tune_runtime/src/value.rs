@@ -19,7 +19,6 @@ pub enum Value {
     Range(RangeValue),
     Struct {
         owner: u32,
-        state: StateHandle,
         fields: StructFields,
     },
     Variant {
@@ -48,19 +47,13 @@ impl PartialEq for Value {
             (
                 Self::Struct {
                     owner: left_owner,
-                    state: left_state,
                     fields: left_fields,
                 },
                 Self::Struct {
                     owner: right_owner,
-                    state: right_state,
                     fields: right_fields,
                 },
-            ) => {
-                left_owner == right_owner
-                    && left_state == right_state
-                    && left_fields == right_fields
-            }
+            ) => left_owner == right_owner && left_fields == right_fields,
             (
                 Self::Variant {
                     variant: left_variant,
@@ -89,13 +82,8 @@ impl Value {
     #[must_use]
     pub fn capture_snapshot(&self) -> Self {
         match self {
-            Self::Struct {
-                owner,
-                state,
-                fields,
-            } => Self::Struct {
+            Self::Struct { owner, fields } => Self::Struct {
                 owner: *owner,
-                state: *state,
                 fields: fields.snapshot(),
             },
             Self::Sequence(values) => {
@@ -131,21 +119,32 @@ pub enum RangeItemKind {
 }
 
 #[derive(Debug, Clone)]
-pub struct StructFields(Rc<RefCell<Vec<Value>>>);
+pub struct StructFields {
+    state: StateHandle,
+    fields: Rc<RefCell<Vec<Value>>>,
+}
 
 impl StructFields {
     #[must_use]
-    pub fn new(fields: Vec<Value>) -> Self {
-        Self(Rc::new(RefCell::new(fields)))
+    pub fn new(state: StateHandle, fields: Vec<Value>) -> Self {
+        Self {
+            state,
+            fields: Rc::new(RefCell::new(fields)),
+        }
+    }
+
+    #[must_use]
+    pub const fn state(&self) -> StateHandle {
+        self.state
     }
 
     #[must_use]
     pub fn get(&self, index: usize) -> Option<Value> {
-        self.0.borrow().get(index).cloned()
+        self.fields.borrow().get(index).cloned()
     }
 
     pub fn set(&self, index: usize, value: Value) -> Option<()> {
-        let mut fields = self.0.borrow_mut();
+        let mut fields = self.fields.borrow_mut();
         let field = fields.get_mut(index)?;
         *field = value;
         Some(())
@@ -154,7 +153,8 @@ impl StructFields {
     #[must_use]
     pub fn snapshot(&self) -> Self {
         Self::new(
-            self.0
+            self.state,
+            self.fields
                 .borrow()
                 .iter()
                 .map(Value::capture_snapshot)
@@ -165,7 +165,7 @@ impl StructFields {
 
 impl PartialEq for StructFields {
     fn eq(&self, other: &Self) -> bool {
-        *self.0.borrow() == *other.0.borrow()
+        self.state == other.state && *self.fields.borrow() == *other.fields.borrow()
     }
 }
 

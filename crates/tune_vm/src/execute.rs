@@ -142,8 +142,7 @@ impl Vm {
                             instruction.a,
                             Value::Struct {
                                 owner: site.owner,
-                                state,
-                                fields: StructFields::new(fields),
+                                fields: StructFields::new(state, fields),
                             },
                         ),
                     )?;
