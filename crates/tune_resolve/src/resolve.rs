@@ -86,6 +86,7 @@ fn define_item(resolved: &mut ResolvedModule, item: &Item) {
         id: item.id,
         kind: binding_kind(item.kind),
         span: item.span,
+        generic_arity: item.type_params.len(),
     };
 
     match resolved.scope.define(name, binding) {

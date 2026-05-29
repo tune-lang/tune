@@ -181,6 +181,11 @@ fn lower_generic_shape(
 
     match scope.get(name) {
         Some(binding) if matches!(binding.kind, BindingKind::Struct | BindingKind::Enum) => {
+            if let Some(diagnostic) =
+                generic_arity_diagnostic(name, span, binding.generic_arity, args.len())
+            {
+                diagnostics.push(diagnostic);
+            }
             LoweredShape {
                 shape: Shape::Apply {
                     nominal: NominalShape::new(binding.id, name),
@@ -248,14 +253,28 @@ fn lower_named_shape(name: &str, span: Option<Span>, scope: &Scope) -> LoweredSh
     }
 
     match scope.get(name) {
-        Some(binding) if binding.kind == BindingKind::Struct => LoweredShape {
-            shape: Shape::Struct(NominalShape::new(binding.id, name)),
-            diagnostics: Vec::new(),
-        },
-        Some(binding) if binding.kind == BindingKind::Enum => LoweredShape {
-            shape: Shape::Enum(NominalShape::new(binding.id, name)),
-            diagnostics: Vec::new(),
-        },
+        Some(binding) if binding.kind == BindingKind::Struct => {
+            let nominal = NominalShape::new(binding.id, name);
+            LoweredShape {
+                shape: nominal_shape_or_holey_apply(
+                    Shape::Struct(nominal.clone()),
+                    nominal,
+                    binding.generic_arity,
+                ),
+                diagnostics: Vec::new(),
+            }
+        }
+        Some(binding) if binding.kind == BindingKind::Enum => {
+            let nominal = NominalShape::new(binding.id, name);
+            LoweredShape {
+                shape: nominal_shape_or_holey_apply(
+                    Shape::Enum(nominal.clone()),
+                    nominal,
+                    binding.generic_arity,
+                ),
+                diagnostics: Vec::new(),
+            }
+        }
         _ => {
             let span = span.unwrap_or_else(Span::synthetic);
             LoweredShape {
@@ -272,6 +291,34 @@ fn lower_named_shape(name: &str, span: Option<Span>, scope: &Scope) -> LoweredSh
             }
         }
     }
+}
+
+fn nominal_shape_or_holey_apply(base: Shape, nominal: NominalShape, generic_arity: usize) -> Shape {
+    if generic_arity == 0 {
+        base
+    } else {
+        Shape::Apply {
+            nominal,
+            args: vec![Shape::Hole; generic_arity],
+        }
+    }
+}
+
+fn generic_arity_diagnostic(
+    name: &str,
+    span: Option<Span>,
+    expected: usize,
+    actual: usize,
+) -> Option<Diagnostic> {
+    (expected != actual).then(|| {
+        Diagnostic::error(
+            codes::SHAPE_MISMATCH,
+            format!("generic shape `{name}` expects {expected} argument(s)"),
+            span.unwrap_or_else(Span::synthetic),
+            format!("this shape was given {actual} generic argument(s)"),
+        )
+        .build()
+    })
 }
 
 fn named_shape(name: &str) -> Shape {

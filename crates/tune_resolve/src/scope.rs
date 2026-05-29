@@ -19,6 +19,7 @@ pub struct Binding {
     pub id: HirId,
     pub kind: BindingKind,
     pub span: Option<Span>,
+    pub generic_arity: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

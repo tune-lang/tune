@@ -80,3 +80,73 @@ let bare_set: Set = none
 
     Ok(())
 }
+
+#[test]
+fn resolved_hir_shape_lowers_bare_user_generics_to_holey_apply() -> Result<(), &'static str> {
+    let source = r#"
+struct Box<T> {
+  value: T
+}
+enum Pair<L, R> {
+  Both(L, R)
+}
+let boxed: Box = none
+let pair: Pair = none
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    let boxed_shape = module.items[2]
+        .shape
+        .as_ref()
+        .ok_or("expected boxed shape")?;
+    let pair_shape = module.items[3]
+        .shape
+        .as_ref()
+        .ok_or("expected pair shape")?;
+
+    let lowered_boxed = tune_shape::lower_resolved_hir_shape(boxed_shape, &resolved.scope);
+    let lowered_pair = tune_shape::lower_resolved_hir_shape(pair_shape, &resolved.scope);
+
+    assert!(lowered_boxed.diagnostics.is_empty());
+    assert!(lowered_pair.diagnostics.is_empty());
+    assert!(matches!(
+        lowered_boxed.shape,
+        tune_shape::Shape::Apply { nominal, args }
+            if nominal.name == "Box" && args == vec![tune_shape::Shape::Hole]
+    ));
+    assert!(matches!(
+        lowered_pair.shape,
+        tune_shape::Shape::Apply { nominal, args }
+            if nominal.name == "Pair" && args == vec![tune_shape::Shape::Hole, tune_shape::Shape::Hole]
+    ));
+
+    Ok(())
+}
+
+#[test]
+fn resolved_hir_shape_reports_user_generic_arity_mismatch() -> Result<(), &'static str> {
+    let source = r#"
+struct Box<T> {
+  value: T
+}
+let boxed: Box<Int, String> = none
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let boxed_shape = module.items[1]
+        .shape
+        .as_ref()
+        .ok_or("expected boxed shape")?;
+
+    let lowered = tune_shape::lower_resolved_hir_shape(boxed_shape, &resolved.scope);
+
+    assert!(lowered.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::SHAPE_MISMATCH
+            && diagnostic.title == "generic shape `Box` expects 1 argument(s)"
+    }));
+
+    Ok(())
+}
