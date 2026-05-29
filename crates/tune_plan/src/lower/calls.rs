@@ -34,10 +34,14 @@ impl LowerContext<'_> {
             return;
         }
 
-        if matches!(
-            self.name_target(callee.id),
-            Some(NameTarget::TopLevel(_) | NameTarget::Variant(_))
-        ) {
+        let resolved_static = match self.name_target(callee.id) {
+            Some(NameTarget::Variant(_)) => true,
+            Some(NameTarget::TopLevel(target)) => {
+                self.host_symbol(target).is_some() || self.is_callable_decl(target)
+            }
+            _ => false,
+        };
+        if resolved_static {
             for arg in args {
                 self.lower_expr(arg, ops);
             }
@@ -108,6 +112,8 @@ impl LowerContext<'_> {
                         type_args: self.call_type_args(expr),
                         span: callee.span,
                     })
+                } else if matches!(callee.kind, ExprKind::Field { .. }) {
+                    None
                 } else {
                     Some(PlanOp::BoundCall {
                         arg_count,
