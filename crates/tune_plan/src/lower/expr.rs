@@ -104,11 +104,16 @@ impl LowerContext<'_> {
             }
             ExprKind::Index { base, index } => {
                 self.lower_expr(base, ops);
-                self.lower_expr(index, ops);
-                ops.push(PlanOp::SequenceGet {
-                    checked: true,
-                    index_member: self.index_member(base),
-                });
+                if matches!(self.expr_shape(base), Some(Shape::String)) {
+                    self.lower_expr_for_shape(index, Some(Shape::Size), ops);
+                    ops.push(PlanOp::StringGet { span: expr.span });
+                } else {
+                    self.lower_expr(index, ops);
+                    ops.push(PlanOp::SequenceGet {
+                        checked: true,
+                        index_member: self.index_member(base),
+                    });
+                }
             }
             ExprKind::Let { shape, value, .. } => {
                 let initialized = value.is_some();

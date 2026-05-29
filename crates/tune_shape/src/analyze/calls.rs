@@ -121,6 +121,15 @@ impl Analyzer<'_> {
         member_name: Option<&str>,
     ) -> Option<CallSignature> {
         let base_shape = self.analyze_expr(base);
+        if base_shape == Shape::String && member_name == Some("len") {
+            return Some(CallSignature {
+                target: CallTarget::StringLen,
+                params: Vec::new(),
+                ret: Shape::Size,
+                receiver: Some(base_shape),
+                span: base.span,
+            });
+        }
         if let Some(signature) =
             structural_member_call_signature(&base_shape, member_name, base.span)
         {

@@ -313,6 +313,12 @@ pub enum PlanOp {
     StringBuild {
         part_count: usize,
     },
+    StringLen {
+        span: Option<Span>,
+    },
+    StringGet {
+        span: Option<Span>,
+    },
     If {
         branches: Vec<PlanIfBranch>,
         else_body: Option<ExprId>,

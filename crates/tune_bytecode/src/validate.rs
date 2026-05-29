@@ -248,6 +248,15 @@ fn validate_instruction(
         Opcode::CallBound => validate_bound_call(function_id, function, instruction)?,
         Opcode::TupleBuild => validate_tuple(function_id, function, instruction)?,
         Opcode::StringBuild => validate_string(function_id, function, instruction)?,
+        Opcode::StringLen => {
+            register(function_id, function, instruction.a)?;
+            register(function_id, function, instruction.b)?;
+        }
+        Opcode::StringGet => {
+            register(function_id, function, instruction.a)?;
+            register(function_id, function, instruction.b)?;
+            register(function_id, function, instruction.c)?;
+        }
         Opcode::CallableValue => validate_callable(artifact, function_id, function, instruction)?,
         Opcode::VariantConstruct => validate_variant(function_id, function, instruction)?,
         Opcode::VariantField | Opcode::ResultPropagate | Opcode::TaskJoin => {

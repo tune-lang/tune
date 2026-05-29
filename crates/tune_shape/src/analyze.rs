@@ -69,6 +69,7 @@ pub enum CallTarget {
     TopLevel(tune_hir::HirId),
     Member(MemberId),
     Variant(VariantId),
+    StringLen,
     Bound,
     Unknown,
 }
@@ -362,9 +363,15 @@ impl Analyzer<'_> {
             }
             ExprKind::Field { base, .. } => self.field_shape(base, expr),
             ExprKind::Index { base, index } => {
-                self.analyze_expr(base);
-                self.analyze_expr(index);
-                Shape::Hole
+                let base_shape = self.analyze_expr(base);
+                if base_shape == Shape::String {
+                    let index_shape = self.analyze_expr_expected(index, &Shape::Size);
+                    self.check_value_against(&Shape::Size, &index_shape, index.span);
+                    Shape::String
+                } else {
+                    self.analyze_expr(index);
+                    Shape::Hole
+                }
             }
             ExprKind::CallableValue { params, body } => self.analyze_callable_value(params, body),
             ExprKind::Loop(body) => self.analyze_loop(body),

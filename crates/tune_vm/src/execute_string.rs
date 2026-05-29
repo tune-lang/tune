@@ -32,6 +32,75 @@ impl Vm {
             write_reg(registers, instruction.a, Value::String(output)),
         )
     }
+
+    pub(crate) fn execute_string_len(
+        &self,
+        function: usize,
+        instruction_index: usize,
+        registers: &mut [Value],
+        instruction: &Instruction,
+    ) -> Result<(), VmFault> {
+        let value = self.at(
+            function,
+            instruction_index,
+            read_reg(registers, instruction.b),
+        )?;
+        let Value::String(value) = value else {
+            return Err(self.fault_at(
+                function,
+                instruction_index,
+                VmError::UnsupportedOpcode(instruction.opcode),
+            ));
+        };
+        let len = u64::try_from(value.chars().count())
+            .map_err(|_| self.fault_at(function, instruction_index, VmError::NumericOverflow))?;
+        self.at(
+            function,
+            instruction_index,
+            write_reg(registers, instruction.a, Value::Size(len)),
+        )
+    }
+
+    pub(crate) fn execute_string_get(
+        &self,
+        function: usize,
+        instruction_index: usize,
+        registers: &mut [Value],
+        instruction: &Instruction,
+    ) -> Result<(), VmFault> {
+        let value = self.at(
+            function,
+            instruction_index,
+            read_reg(registers, instruction.b),
+        )?;
+        let index = self.at(
+            function,
+            instruction_index,
+            read_reg(registers, instruction.c),
+        )?;
+        let (Value::String(value), Value::Size(index)) = (value, index) else {
+            return Err(self.fault_at(
+                function,
+                instruction_index,
+                VmError::UnsupportedOpcode(instruction.opcode),
+            ));
+        };
+        let Some(value) = usize::try_from(index)
+            .ok()
+            .and_then(|index| value.chars().nth(index))
+        else {
+            return Err(self.fault_at(
+                function,
+                instruction_index,
+                VmError::SequenceIndexOutOfBounds,
+            ));
+        };
+        self.at(
+            function,
+            instruction_index,
+            write_reg(registers, instruction.a, Value::String(value.to_string())),
+        )
+    }
 }
 
 fn append_string_part(output: &mut String, value: &Value) {

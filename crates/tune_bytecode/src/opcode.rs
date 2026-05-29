@@ -95,6 +95,8 @@ pub enum Opcode {
     LessByte = 91,
     LessEqualByte = 92,
     GreaterEqualByte = 93,
+    StringLen = 94,
+    StringGet = 95,
 }
 
 impl Opcode {
@@ -193,5 +195,7 @@ impl Opcode {
         Self::LessByte,
         Self::LessEqualByte,
         Self::GreaterEqualByte,
+        Self::StringLen,
+        Self::StringGet,
     ];
 }

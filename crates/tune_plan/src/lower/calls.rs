@@ -1,5 +1,6 @@
 use tune_hir::expr::{Expr, ExprKind};
 use tune_resolve::NameTarget;
+use tune_shape::Shape;
 
 use super::LowerContext;
 use super::StructuralWitnessKind;
@@ -18,7 +19,15 @@ impl LowerContext<'_> {
             return;
         }
 
-        if let ExprKind::Field { base, .. } = &callee.kind {
+        if let ExprKind::Field { base, name } = &callee.kind {
+            if args.is_empty()
+                && name.as_deref() == Some("len")
+                && matches!(self.expr_shape(base), Some(Shape::String))
+            {
+                self.lower_expr(base, ops);
+                ops.push(PlanOp::StringLen { span: callee.span });
+                return;
+            }
             self.lower_expr(base, ops);
             for arg in args {
                 self.lower_expr(arg, ops);

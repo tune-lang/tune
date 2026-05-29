@@ -111,6 +111,12 @@ impl Vm {
                 Opcode::StringBuild => {
                     self.execute_string_build(function_index, ip, &mut registers, instruction)?;
                 }
+                Opcode::StringLen => {
+                    self.execute_string_len(function_index, ip, &mut registers, instruction)?;
+                }
+                Opcode::StringGet => {
+                    self.execute_string_get(function_index, ip, &mut registers, instruction)?;
+                }
                 Opcode::StructConstruct => {
                     self.execute_struct_construct(function_index, ip, &mut registers, instruction)?;
                 }

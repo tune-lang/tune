@@ -437,6 +437,16 @@ impl FunctionLowerer<'_> {
                 Ok(())
             }
             IrOp::StringBuild { dst, parts } => self.lower_string_build(*dst, parts),
+            IrOp::StringLen { dst, value, .. } => {
+                self.push_instruction(Opcode::StringLen, dst.0, value.0, 0);
+                Ok(())
+            }
+            IrOp::StringGet {
+                dst, value, index, ..
+            } => {
+                self.push_instruction(Opcode::StringGet, dst.0, value.0, index.0);
+                Ok(())
+            }
             IrOp::Jump { target } => {
                 self.lower_jump(*target)?;
                 Ok(())

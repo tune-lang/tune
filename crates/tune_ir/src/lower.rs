@@ -1,3 +1,4 @@
+use tune_diagnostics::Span;
 use tune_hir::HirId;
 use tune_plan::{Capture, PlanFunction, PlanOp};
 use tune_shape::Shape;
@@ -312,6 +313,8 @@ impl Lowerer {
             } => self.lower_finite_for(*binding, iterable_ops, body_ops, contract, *span),
             PlanOp::Panic { arg_count } => self.lower_panic(*arg_count),
             PlanOp::StringBuild { part_count } => self.lower_string_build(*part_count),
+            PlanOp::StringLen { span } => self.lower_string_len(*span),
+            PlanOp::StringGet { span } => self.lower_string_get(*span),
             PlanOp::BindingGet { .. }
             | PlanOp::WitnessCall
             | PlanOp::HostCall { .. }
@@ -368,6 +371,28 @@ impl Lowerer {
         parts.reverse();
         let dst = self.alloc_reg()?;
         self.push_op(IrOp::StringBuild { dst, parts });
+        self.stack.push(dst);
+        Ok(())
+    }
+
+    fn lower_string_len(&mut self, span: Option<Span>) -> Result<(), IrLowerError> {
+        let value = self.pop("string len value")?;
+        let dst = self.alloc_reg()?;
+        self.push_op(IrOp::StringLen { dst, value, span });
+        self.stack.push(dst);
+        Ok(())
+    }
+
+    fn lower_string_get(&mut self, span: Option<Span>) -> Result<(), IrLowerError> {
+        let index = self.pop("string index")?;
+        let value = self.pop("string value")?;
+        let dst = self.alloc_reg()?;
+        self.push_op(IrOp::StringGet {
+            dst,
+            value,
+            index,
+            span,
+        });
         self.stack.push(dst);
         Ok(())
     }

@@ -88,6 +88,8 @@ impl IrOp {
             | Self::CallMember { span, .. }
             | Self::CallableValue { span, .. }
             | Self::CallBound { span, .. }
+            | Self::StringLen { span, .. }
+            | Self::StringGet { span, .. }
             | Self::Branch { span, .. }
             | Self::MatchVariant { span, .. }
             | Self::ResultPropagate { span, .. } => *span,
@@ -469,6 +471,17 @@ pub enum IrOp {
     StringBuild {
         dst: Reg,
         parts: Vec<Reg>,
+    },
+    StringLen {
+        dst: Reg,
+        value: Reg,
+        span: Option<Span>,
+    },
+    StringGet {
+        dst: Reg,
+        value: Reg,
+        index: Reg,
+        span: Option<Span>,
     },
     Panic {
         args: Vec<Reg>,
