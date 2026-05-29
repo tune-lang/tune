@@ -74,10 +74,10 @@ resolve_family() {
 build_paths() {
   local family="$1"
   shift
-  local -a provided=("$@")
+  local -a effective
 
-  local -a effective=("${provided[@]}")
-  if [ "${#effective[@]}" -eq 0 ]; then
+  if [ "$#" -eq 0 ]; then
+    effective=()
     local resolved_lines
     if ! resolved_lines="$(resolve_family "$family")"; then
       return 1
@@ -88,6 +88,8 @@ build_paths() {
     while IFS= read -r path; do
       effective+=("$path")
     done <<< "${resolved_lines}"
+  else
+    effective=("$@")
   fi
 
   for path in "${effective[@]}"; do
@@ -182,8 +184,14 @@ case "$command" in
       esac
     done
 
-    resolved_output="$(build_paths "$family" "${paths[@]}")"
-    if [ "$?" -ne 0 ]; then
+    if [ "${#paths[@]}" -eq 0 ]; then
+      resolved_status=0
+      resolved_output="$(build_paths "$family")" || resolved_status=$?
+    else
+      resolved_status=0
+      resolved_output="$(build_paths "$family" "${paths[@]}")" || resolved_status=$?
+    fi
+    if [ "$resolved_status" -ne 0 ]; then
       echo "unknown family: $family" >&2
       usage
       exit 1
@@ -264,8 +272,14 @@ case "$command" in
       exit 1
     fi
 
-    resolved_output="$(build_paths "$family" "${paths[@]}")"
-    if [ "$?" -ne 0 ]; then
+    if [ "${#paths[@]}" -eq 0 ]; then
+      resolved_status=0
+      resolved_output="$(build_paths "$family")" || resolved_status=$?
+    else
+      resolved_status=0
+      resolved_output="$(build_paths "$family" "${paths[@]}")" || resolved_status=$?
+    fi
+    if [ "$resolved_status" -ne 0 ]; then
       echo "unknown family: $family" >&2
       usage
       exit 1
@@ -313,8 +327,7 @@ case "$command" in
       exit 1
     fi
 
-    resolved_output="$(build_paths "$family")"
-    if [ "$?" -ne 0 ]; then
+    if ! resolved_output="$(build_paths "$family")"; then
       echo "unknown family: $family" >&2
       usage
       exit 1
@@ -332,7 +345,6 @@ case "$command" in
       cargo run --package tune_engine --bin profile_trace -- \
         --compare "$baseline" \
         --full \
-        --csv \
         --max-stage-delta-pct 10 \
         --max-counter-delta-pct 10 \
         "${resolved[@]}"
