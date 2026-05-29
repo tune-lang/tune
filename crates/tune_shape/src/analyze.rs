@@ -83,6 +83,8 @@ pub struct CallSignature {
     pub target: CallTarget,
     pub params: Vec<Shape>,
     pub ret: Shape,
+    pub type_params: Vec<String>,
+    pub type_args: Vec<Shape>,
     pub receiver: Option<Shape>,
     pub span: Option<Span>,
 }
@@ -94,6 +96,7 @@ pub struct CallCheck {
     pub args: Vec<Shape>,
     pub params: Vec<Shape>,
     pub ret: Shape,
+    pub type_args: Vec<Shape>,
     pub receiver: Option<Shape>,
     pub span: Option<Span>,
 }
@@ -244,6 +247,12 @@ impl Analyzer<'_> {
             target: CallTarget::TopLevel(item.id),
             params,
             ret,
+            type_params: item
+                .type_params
+                .iter()
+                .filter_map(|param| param.name.clone())
+                .collect(),
+            type_args: Vec::new(),
             receiver: None,
             span: item.span,
         });

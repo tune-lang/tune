@@ -50,6 +50,9 @@ let result = id(1)
         ) && matches!(
             call.ret,
             tune_shape::Shape::Literal(tune_shape::LiteralFact::Numeric { ref text }) if text == "1"
+        ) && matches!(
+            call.type_args.as_slice(),
+            [tune_shape::Shape::Literal(tune_shape::LiteralFact::Numeric { text })] if text == "1"
         )
     }));
 
@@ -74,6 +77,7 @@ let result: Int = id(1)
                 tune_shape::CallTarget::TopLevel(tune_hir::HirId(0))
             ) && call.params == vec![tune_shape::Shape::Int]
                 && call.ret == tune_shape::Shape::Int
+                && call.type_args == vec![tune_shape::Shape::Int]
         }),
         "{:?}",
         analysis.calls

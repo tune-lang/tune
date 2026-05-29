@@ -395,6 +395,7 @@ pub enum IrOp {
         dst: Reg,
         function: HirId,
         args: Vec<Reg>,
+        type_args: Vec<Shape>,
         span: Option<Span>,
     },
     CallMember {

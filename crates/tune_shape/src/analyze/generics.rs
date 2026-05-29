@@ -22,6 +22,18 @@ pub(super) fn solve_generic_call_signature(
         return signature;
     }
 
+    let type_args = signature
+        .type_params
+        .iter()
+        .map(|param| {
+            solved
+                .iter()
+                .rev()
+                .find(|(name, _)| name == param)
+                .map_or(Shape::Hole, |(_, shape)| shape.clone())
+        })
+        .collect();
+
     CallSignature {
         params: signature
             .params
@@ -29,6 +41,7 @@ pub(super) fn solve_generic_call_signature(
             .map(|shape| substitute_generic_params(shape, &solved))
             .collect(),
         ret: substitute_generic_params(&signature.ret, &solved),
+        type_args,
         ..signature
     }
 }

@@ -14,12 +14,13 @@ impl FunctionLowerer<'_> {
         dst: Reg,
         function: HirId,
         args: &[Reg],
+        type_args: &[tune_shape::Shape],
     ) -> Result<(), BytecodeLowerError> {
         let function = *self
             .function_indices
             .get(&function)
             .ok_or(BytecodeLowerError::UnknownFunction)?;
-        self.push_call_direct(dst, function, args)
+        self.push_call_direct(dst, function, args, type_args)
     }
 
     pub(super) fn lower_member_call(
@@ -32,7 +33,7 @@ impl FunctionLowerer<'_> {
             .member_indices
             .get(&member)
             .ok_or(BytecodeLowerError::UnknownFunction)?;
-        self.push_call_direct(dst, function, args)
+        self.push_call_direct(dst, function, args, &[])
     }
 
     pub(super) fn lower_callable_value(
@@ -96,12 +97,14 @@ impl FunctionLowerer<'_> {
         dst: Reg,
         function: u32,
         args: &[Reg],
+        type_args: &[tune_shape::Shape],
     ) -> Result<(), BytecodeLowerError> {
         let call_site =
             u32::try_from(self.call_sites.len()).map_err(|_| BytecodeLowerError::ConstantLimit)?;
         self.call_sites.push(BytecodeCallSite {
             function,
             args: args.iter().map(|arg| arg.0).collect(),
+            type_args: type_args.to_vec(),
         });
         self.instructions.push(Instruction {
             opcode: Opcode::CallDirect,

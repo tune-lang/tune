@@ -194,6 +194,7 @@ pub enum PlanOp {
     DirectCall {
         target: HirId,
         arg_count: usize,
+        type_args: Vec<Shape>,
         span: Option<Span>,
     },
     VariantConstruct {

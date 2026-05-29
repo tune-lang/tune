@@ -278,6 +278,7 @@ fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
                     dst: tune_ir::Reg(1),
                     function: tune_hir::HirId(1),
                     args: vec![tune_ir::Reg(0)],
+                    type_args: vec![tune_shape::Shape::Int],
                     span: Some(call_span),
                 },
                 tune_ir::IrOp::Return {
@@ -320,6 +321,10 @@ fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
     assert_eq!(artifact.functions[0].call_sites[0].function, 1);
     assert_eq!(artifact.functions[0].call_sites[0].args, vec![0]);
     assert_eq!(
+        artifact.functions[0].call_sites[0].type_args,
+        vec![tune_shape::Shape::Int]
+    );
+    assert_eq!(
         artifact.functions[0].instructions[1].opcode,
         tune_bytecode::Opcode::CallDirect
     );
@@ -343,6 +348,7 @@ fn validation_rejects_call_arity_mismatch() {
                 call_sites: vec![tune_bytecode::function::BytecodeCallSite {
                     function: 1,
                     args: Vec::new(),
+                    type_args: Vec::new(),
                 }],
                 bound_call_sites: Vec::new(),
                 callable_sites: Vec::new(),

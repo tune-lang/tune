@@ -273,6 +273,7 @@ fn lowers_direct_call_plan_to_ir_with_param_slots() -> Result<(), &'static str> 
             tune_plan::PlanOp::DirectCall {
                 target: tune_hir::HirId(1),
                 arg_count: 1,
+                type_args: Vec::new(),
                 span: None,
             },
             tune_plan::PlanOp::Return,

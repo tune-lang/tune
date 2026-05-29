@@ -8,7 +8,13 @@ use super::values::task_join_base;
 use crate::PlanOp;
 
 impl LowerContext<'_> {
-    pub(super) fn lower_call(&self, callee: &Expr, args: &[Expr], ops: &mut Vec<PlanOp>) {
+    pub(super) fn lower_call(
+        &self,
+        expr: tune_hir::ExprId,
+        callee: &Expr,
+        args: &[Expr],
+        ops: &mut Vec<PlanOp>,
+    ) {
         if let Some(base) = task_join_base(callee, args)
             && matches!(self.expr_shape(base), Some(Shape::Task(_)))
         {
@@ -34,7 +40,7 @@ impl LowerContext<'_> {
             for arg in args {
                 self.lower_expr(arg, ops);
             }
-            ops.push(self.call_op(callee, args.len()));
+            ops.push(self.call_op(expr, callee, args.len()));
             return;
         }
 
@@ -44,7 +50,7 @@ impl LowerContext<'_> {
         for arg in args {
             self.lower_expr(arg, ops);
         }
-        ops.push(self.call_op(callee, args.len()));
+        ops.push(self.call_op(expr, callee, args.len()));
     }
 
     fn lower_structural_witness_call(
@@ -75,7 +81,7 @@ impl LowerContext<'_> {
         true
     }
 
-    fn call_op(&self, callee: &Expr, arg_count: usize) -> PlanOp {
+    fn call_op(&self, expr: tune_hir::ExprId, callee: &Expr, arg_count: usize) -> PlanOp {
         if let ExprKind::Field { base, name } = &callee.kind {
             let name = name.clone().unwrap_or_default();
             return PlanOp::MemberCall {
@@ -91,6 +97,7 @@ impl LowerContext<'_> {
                 PlanOp::DirectCall {
                     target,
                     arg_count,
+                    type_args: self.call_type_args(expr),
                     span: callee.span,
                 }
             }
@@ -119,6 +126,12 @@ impl LowerContext<'_> {
             .iter()
             .find(|item| item.id == target)
             .is_some_and(|item| item.kind == tune_hir::item::ItemKind::CallableDecl)
+    }
+
+    fn call_type_args(&self, expr: tune_hir::ExprId) -> Vec<Shape> {
+        self.analysis
+            .and_then(|analysis| analysis.calls.iter().find(|call| call.expr == expr))
+            .map_or_else(Vec::new, |call| call.type_args.clone())
     }
 
     fn static_call_target(&self, callee: &Expr) -> bool {

@@ -43,6 +43,9 @@ impl Analyzer<'_> {
                 .as_ref()
                 .map_or_else(Vec::new, |signature| signature.params.clone()),
             ret: ret.clone(),
+            type_args: signature
+                .as_ref()
+                .map_or_else(Vec::new, |signature| signature.type_args.clone()),
             receiver: signature
                 .as_ref()
                 .and_then(|signature| signature.receiver.clone()),
@@ -106,6 +109,8 @@ impl Analyzer<'_> {
                         target: CallTarget::Bound,
                         params,
                         ret: *ret,
+                        type_params: Vec::new(),
+                        type_args: Vec::new(),
                         receiver: None,
                         span: callee.span,
                     });
@@ -130,6 +135,8 @@ impl Analyzer<'_> {
                 target: CallTarget::StringLen,
                 params: Vec::new(),
                 ret: Shape::Size,
+                type_params: Vec::new(),
+                type_args: Vec::new(),
                 receiver: Some(base_shape),
                 span: base.span,
             });
@@ -171,6 +178,12 @@ impl Analyzer<'_> {
             target: CallTarget::Member(callable.id),
             params,
             ret,
+            type_params: item
+                .type_params
+                .iter()
+                .filter_map(|param| param.name.clone())
+                .collect(),
+            type_args: Vec::new(),
             receiver: Some(base_shape),
             span: callable.span,
         })
@@ -189,6 +202,12 @@ impl Analyzer<'_> {
                 .map(|param| self.lower_item_shape_or_hole(item, param.shape.as_ref()))
                 .collect(),
             ret: self.lower_item_shape_or_hole(item, item.shape.as_ref()),
+            type_params: item
+                .type_params
+                .iter()
+                .filter_map(|param| param.name.clone())
+                .collect(),
+            type_args: Vec::new(),
             receiver: None,
             span: item.span,
         })
@@ -203,6 +222,8 @@ impl Analyzer<'_> {
                     ok: Box::new(Shape::Hole),
                     err: Box::new(Shape::Hole),
                 },
+                type_params: Vec::new(),
+                type_args: Vec::new(),
                 receiver: None,
                 span: None,
             }),
@@ -232,6 +253,12 @@ impl Analyzer<'_> {
                     target: CallTarget::Variant(variant),
                     params,
                     ret: variant_return_shape(&item, &variant_item),
+                    type_params: item
+                        .type_params
+                        .iter()
+                        .filter_map(|param| param.name.clone())
+                        .collect(),
+                    type_args: Vec::new(),
                     receiver: None,
                     span: variant_item.span,
                 })
@@ -268,6 +295,8 @@ fn structural_member_call_signature(
             target: CallTarget::Bound,
             params: params.clone(),
             ret: ret.clone().unwrap_or(Shape::Hole),
+            type_params: Vec::new(),
+            type_args: Vec::new(),
             receiver: Some(base_shape.clone()),
             span,
         })

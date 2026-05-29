@@ -63,6 +63,7 @@ let ok(value): Result = Ok(value)
             tune_plan::PlanOp::DirectCall {
                 target: tune_hir::HirId(0),
                 arg_count: 1,
+                type_args: _,
                 span: Some(_),
             }
         ))

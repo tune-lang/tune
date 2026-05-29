@@ -1,5 +1,6 @@
 use crate::Opcode;
 use crate::provenance::BytecodeFunctionProvenance;
+use tune_shape::Shape;
 
 #[derive(Debug, Clone)]
 pub struct Instruction {
@@ -13,6 +14,7 @@ pub struct Instruction {
 pub struct BytecodeCallSite {
     pub function: u32,
     pub args: Vec<u32>,
+    pub type_args: Vec<Shape>,
 }
 
 #[derive(Debug, Clone)]

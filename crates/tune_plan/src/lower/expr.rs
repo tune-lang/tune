@@ -95,7 +95,7 @@ impl LowerContext<'_> {
                 }
             }
             ExprKind::Call { callee, args } => {
-                self.lower_call(callee, args, ops);
+                self.lower_call(expr.id, callee, args, ops);
             }
             ExprKind::Field { base, name } => {
                 self.lower_expr(base, ops);

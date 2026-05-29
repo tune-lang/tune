@@ -209,8 +209,9 @@ impl Lowerer {
             PlanOp::DirectCall {
                 target,
                 arg_count,
+                type_args,
                 span,
-            } => self.lower_direct_call(*target, *arg_count, *span),
+            } => self.lower_direct_call(*target, *arg_count, type_args, *span),
             PlanOp::MemberCall {
                 member: Some(member),
                 arg_count,

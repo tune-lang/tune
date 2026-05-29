@@ -2,6 +2,7 @@ use tune_hir::{HirId, MemberId};
 
 use tune_diagnostics::Span;
 use tune_plan::{Capture, CaptureSource};
+use tune_shape::Shape;
 
 use crate::lower::{IrLowerError, Lowerer};
 use crate::{IrCapture, IrCaptureMode, IrOp};
@@ -11,6 +12,7 @@ impl Lowerer {
         &mut self,
         target: HirId,
         arg_count: usize,
+        type_args: &[Shape],
         span: Option<Span>,
     ) -> Result<(), IrLowerError> {
         let mut args = Vec::with_capacity(arg_count);
@@ -23,6 +25,7 @@ impl Lowerer {
             dst,
             function: target,
             args,
+            type_args: type_args.to_vec(),
             span,
         });
         self.stack.push(dst);

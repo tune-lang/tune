@@ -108,6 +108,7 @@ fn vm_executes_direct_call_with_arguments() -> Result<(), &'static str> {
                 call_sites: vec![tune_bytecode::function::BytecodeCallSite {
                     function: 1,
                     args: vec![0, 1],
+                    type_args: Vec::new(),
                 }],
                 bound_call_sites: Vec::new(),
                 callable_sites: Vec::new(),
@@ -219,6 +220,7 @@ fn vm_rejects_too_few_call_arguments() {
                 call_sites: vec![tune_bytecode::function::BytecodeCallSite {
                     function: 1,
                     args: Vec::new(),
+                    type_args: Vec::new(),
                 }],
                 bound_call_sites: Vec::new(),
                 callable_sites: Vec::new(),
