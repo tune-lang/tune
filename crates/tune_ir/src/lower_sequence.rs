@@ -38,10 +38,24 @@ impl Lowerer {
         Ok(())
     }
 
-    pub(super) fn lower_sequence_get(&mut self, checked: bool) -> Result<(), IrLowerError> {
+    pub(super) fn lower_sequence_get(
+        &mut self,
+        checked: bool,
+        index_member: Option<tune_hir::MemberId>,
+    ) -> Result<(), IrLowerError> {
         let index = self.pop("sequence index")?;
         let seq = self.pop("sequence base")?;
         let dst = self.alloc_reg()?;
+        if let Some(member) = index_member {
+            self.push_op(IrOp::CallMember {
+                dst,
+                member,
+                args: vec![seq, index],
+                span: None,
+            });
+            self.stack.push(dst);
+            return Ok(());
+        }
         self.push_op(IrOp::SeqGet {
             dst,
             seq,
@@ -55,8 +69,12 @@ impl Lowerer {
     pub(super) fn lower_sequence_set(
         &mut self,
         checked: bool,
+        index_member: Option<tune_hir::MemberId>,
         base_target: Option<NameTarget>,
     ) -> Result<(), IrLowerError> {
+        if index_member.is_some() {
+            return Err(IrLowerError::UnsupportedOp("index member assignment"));
+        }
         let value = self.pop("sequence value")?;
         let index = self.pop("sequence index")?;
         let seq = self.pop("sequence base")?;

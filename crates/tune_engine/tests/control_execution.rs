@@ -375,6 +375,32 @@ let result: Int = {
 }
 
 #[test]
+fn run_file_executes_direct_struct_index_access() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+struct Window {
+  values: [Int]
+
+  Window[index: Size]: Int = self.values[index]
+}
+
+let result: Int = {
+  let window: Window = Window { values = [2, 4, 6] }
+  window[1]
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, tune_runtime::value::Value::Int(4));
+
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_sequence_get_and_set() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

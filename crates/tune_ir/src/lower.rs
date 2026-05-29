@@ -182,8 +182,15 @@ impl Lowerer {
             PlanOp::SequenceBuild { element_count } => self.lower_sequence_build(*element_count),
             PlanOp::SequencePush => self.lower_sequence_push(),
             PlanOp::TupleBuild { element_count } => self.lower_tuple_build(*element_count),
-            PlanOp::SequenceGet { checked, .. } => self.lower_sequence_get(*checked),
-            PlanOp::SequenceSet { checked, base, .. } => self.lower_sequence_set(*checked, *base),
+            PlanOp::SequenceGet {
+                checked,
+                index_member,
+            } => self.lower_sequence_get(*checked, *index_member),
+            PlanOp::SequenceSet {
+                checked,
+                index_member,
+                base,
+            } => self.lower_sequence_set(*checked, *index_member, *base),
             PlanOp::BindingGet {
                 source: Some(source),
             } => self.lower_binding_get(*source),

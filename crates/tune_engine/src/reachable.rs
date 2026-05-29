@@ -56,6 +56,14 @@ fn direct_call_targets_in_op(op: &tune_plan::PlanOp) -> Vec<FunctionTarget> {
             materializer: Some(member),
             ..
         } => Some(FunctionTarget::Member(*member)),
+        tune_plan::PlanOp::SequenceGet {
+            index_member: Some(member),
+            ..
+        }
+        | tune_plan::PlanOp::SequenceSet {
+            index_member: Some(member),
+            ..
+        } => Some(FunctionTarget::Member(*member)),
         tune_plan::PlanOp::CallableValue { callable, .. } => {
             Some(FunctionTarget::Callable(*callable))
         }
