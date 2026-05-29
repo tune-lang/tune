@@ -71,6 +71,11 @@ fn resolve_struct_member_body(
             }
             resolver.resolve_expr_names(body);
         }
-        StructMember::Field(_) => {}
+        StructMember::Field(field) => {
+            if let Some(default) = &field.default {
+                let mut resolver = BodyResolver::new(resolved, items, item.id);
+                resolver.resolve_expr_names_with_expected(default, field.shape.as_ref());
+            }
+        }
     }
 }

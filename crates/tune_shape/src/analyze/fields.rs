@@ -1,12 +1,13 @@
 use tune_hir::expr::{Expr, ExprKind};
-use tune_hir::item::{ItemKind, StructMember};
+use tune_hir::item::{Field, ItemKind, StructMember};
 
 use super::Analyzer;
 use crate::{Shape, lower_resolved_hir_shape};
 
 impl Analyzer<'_> {
     pub(super) fn struct_field_shape(&mut self, struct_name: &str, field_name: &str) -> Shape {
-        self.module
+        let field = self
+            .module
             .items
             .iter()
             .find(|item| item.kind == ItemKind::Struct && item.name.as_deref() == Some(struct_name))
@@ -15,19 +16,26 @@ impl Analyzer<'_> {
                     let StructMember::Field(field) = member else {
                         return None;
                     };
-                    (field.name.as_deref() == Some(field_name)).then(|| {
-                        field
-                            .shape
-                            .as_ref()
-                            .map(|shape| lower_resolved_hir_shape(shape, &self.resolved.scope))
-                            .map_or(Shape::Hole, |lowered| {
-                                self.diagnostics.extend(lowered.diagnostics);
-                                lowered.shape
-                            })
-                    })
+                    (field.name.as_deref() == Some(field_name)).then(|| field.clone())
                 })
-            })
-            .unwrap_or(Shape::Hole)
+            });
+
+        field
+            .as_ref()
+            .map_or(Shape::Hole, |field| self.shape_for_field(field))
+    }
+
+    fn shape_for_field(&mut self, field: &Field) -> Shape {
+        if let Some(shape) = &field.shape {
+            let lowered = lower_resolved_hir_shape(shape, &self.resolved.scope);
+            self.diagnostics.extend(lowered.diagnostics);
+            return lowered.shape;
+        }
+
+        field
+            .default
+            .as_ref()
+            .map_or(Shape::Hole, |default| self.analyze_expr(default))
     }
 
     pub(super) fn field_shape(&mut self, base: &Expr, expr: &Expr) -> Shape {

@@ -109,6 +109,11 @@ impl<'tree> FieldDecl<'tree> {
             CstElement::Token(_) => None,
         })
     }
+
+    #[must_use]
+    pub fn default_expr(self) -> Option<Expr<'tree>> {
+        first_expr(self.node)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

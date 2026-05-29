@@ -60,6 +60,29 @@ enum Response<T, E> { Ok(T) Error(E) }
 }
 
 #[test]
+fn parses_struct_field_defaults() {
+    let parsed = parse(
+        r#"
+struct Counter {
+  value: Int = 0
+  inferred = 1
+}
+"#,
+    );
+
+    let kinds = nested_node_kinds(&parsed.cst);
+
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| **kind == SyntaxKind::FieldDecl)
+            .count(),
+        2
+    );
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
 fn newline_ends_simple_declarations() {
     let parsed = parse(
         r#"

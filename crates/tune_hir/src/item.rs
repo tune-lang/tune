@@ -54,6 +54,7 @@ pub struct Field {
     pub span: Option<Span>,
     pub doc: Option<String>,
     pub shape: Option<ShapeExpr>,
+    pub default: Option<Expr>,
 }
 
 #[derive(Debug, Clone)]

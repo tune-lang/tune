@@ -29,6 +29,7 @@ pub(super) fn lower_params(source: &str, node: tune_ast::nodes::LetDecl<'_>) -> 
 pub(super) fn lower_fields(
     source: &str,
     fields: Vec<tune_ast::nodes::DocumentedField<'_>>,
+    exprs: &mut ExprLowerer,
 ) -> Vec<Field> {
     fields
         .into_iter()
@@ -43,6 +44,10 @@ pub(super) fn lower_fields(
                     .field
                     .shape_annotation()
                     .map(|shape| lower_shape(source, shape)),
+                default: documented
+                    .field
+                    .default_expr()
+                    .map(|expr| exprs.lower(source, expr)),
             })
         })
         .collect()
@@ -68,6 +73,7 @@ pub(super) fn lower_struct_members(
                     shape: field
                         .shape_annotation()
                         .map(|shape| lower_shape(source, shape)),
+                    default: field.default_expr().map(|expr| exprs.lower(source, expr)),
                 })),
                 tune_ast::nodes::StructMember::Callable(callable) => {
                     Some(StructMember::Callable(CallableMember {

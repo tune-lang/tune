@@ -113,6 +113,27 @@ let grouped = (10)"#;
 }
 
 #[test]
+fn lowers_struct_field_defaults() -> Result<(), &'static str> {
+    let source = r#"
+struct Counter {
+  value: Int = 0
+  inferred = 1
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let item = module.items.first().ok_or("expected struct item")?;
+
+    assert_eq!(item.fields.len(), 2);
+    assert!(item.fields[0].shape.is_some());
+    assert!(item.fields[0].default.is_some());
+    assert!(item.fields[1].shape.is_none());
+    assert!(item.fields[1].default.is_some());
+
+    Ok(())
+}
+
+#[test]
 fn lowers_shape_annotations_to_hir_shape_exprs() -> Result<(), &'static str> {
     let source = "let value: [Int | String]? = none";
     let parsed = tune_syntax::parse(source);

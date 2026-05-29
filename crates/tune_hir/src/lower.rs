@@ -58,7 +58,9 @@ fn lower_item(
             lower_struct(source, node, visibility, doc, tags, exprs),
         ),
         AstItem::Enum(node) => push_item(items, lower_enum(source, node, visibility, doc, tags)),
-        AstItem::Tag(node) => push_item(items, lower_tag(source, node, visibility, doc, tags)),
+        AstItem::Tag(node) => {
+            push_item(items, lower_tag(source, node, visibility, doc, tags, exprs))
+        }
         AstItem::Pub(node) => {
             if let Some(item) = node.item() {
                 lower_item(
@@ -255,6 +257,7 @@ fn lower_tag(
     visibility: Visibility,
     doc: Option<String>,
     tags: Vec<TagApplication>,
+    exprs: &mut ExprLowerer,
 ) -> Item {
     Item {
         id: HirId(0),
@@ -267,7 +270,7 @@ fn lower_tag(
         type_params: Vec::new(),
         params: Vec::new(),
         struct_members: Vec::new(),
-        fields: lower_fields(source, node.fields()),
+        fields: lower_fields(source, node.fields(), exprs),
         variants: Vec::new(),
         shape: None,
         body: None,

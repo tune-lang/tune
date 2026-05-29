@@ -13,11 +13,11 @@ impl LowerContext<'_> {
         Some(self.struct_item(name)?.id)
     }
 
-    pub(super) fn struct_field_inits<'expr>(
+    pub(super) fn struct_field_inits(
         &self,
         name: &str,
-        fields: &'expr [tune_hir::expr::StructFieldInit],
-    ) -> Vec<(MemberId, &'expr Expr)> {
+        fields: &[tune_hir::expr::StructFieldInit],
+    ) -> Vec<(MemberId, Expr)> {
         let Some(item) = self.struct_item(name) else {
             return Vec::new();
         };
@@ -28,8 +28,12 @@ impl LowerContext<'_> {
                     return None;
                 };
                 let field_name = field.name.as_deref()?;
-                let init = fields.iter().find(|init| init.name == field_name)?;
-                Some((field.id, &init.value))
+                let value = fields
+                    .iter()
+                    .find(|init| init.name == field_name)
+                    .map(|init| init.value.clone())
+                    .or_else(|| field.default.clone())?;
+                Some((field.id, value))
             })
             .collect()
     }
@@ -48,6 +52,18 @@ impl LowerContext<'_> {
                 _ => None,
             })
             .map(|shape| lower_resolved_hir_shape(shape, scope).shape)
+            .or_else(|| {
+                self.struct_item(name)?
+                    .struct_members
+                    .iter()
+                    .find_map(|member| match member {
+                        StructMember::Field(member) if member.id == field => {
+                            member.default.as_ref()
+                        }
+                        _ => None,
+                    })
+                    .and_then(|default| self.expr_shape(default))
+            })
     }
 
     pub(super) fn field_member(&self, base: &Expr, field: &str) -> Option<MemberId> {

@@ -93,13 +93,24 @@ impl Parser<'_> {
         self.start_node(SyntaxKind::FieldDecl);
         self.expect(TokenKind::Ident, "expected field name");
         self.skip_trivia();
+
+        let mut has_shape = false;
         if self.at(TokenKind::Colon) {
+            has_shape = true;
             self.bump();
             self.skip_trivia();
             self.parse_shape();
-        } else {
-            self.error_at_current("expected field shape");
+            self.skip_trivia();
         }
+
+        if self.at(TokenKind::Equal) {
+            self.bump();
+            self.skip_trivia();
+            self.parse_expr_until_boundary();
+        } else if !has_shape {
+            self.error_at_current("expected field shape or initializer");
+        }
+
         self.finish_node();
     }
 
