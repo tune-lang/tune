@@ -335,6 +335,19 @@ impl Vm {
                         .ok_or_else(|| {
                             self.fault_at(function_index, ip, VmError::HostSymbolOutOfBounds)
                         })?;
+                    if let Some(required) = self.host_authorities.get(site.symbol.0 as usize) {
+                        for authority in required {
+                            if !self.granted_authorities.contains(authority) {
+                                return Err(self.fault_at(
+                                    function_index,
+                                    ip,
+                                    VmError::MissingHostAuthority {
+                                        authority: authority.0.clone(),
+                                    },
+                                ));
+                            }
+                        }
+                    }
                     let args = site
                         .args
                         .iter()

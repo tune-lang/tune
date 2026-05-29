@@ -1,3 +1,4 @@
+use tune_host::Authority;
 use tune_host::Host;
 use tune_host::HostExecutor;
 use tune_host::HostFunction;
@@ -24,6 +25,7 @@ pub(crate) struct HostRegistry {
     modules: Vec<HostModule>,
     symbols: Vec<EngineHostSymbol>,
     executors: Vec<Option<HostExecutor>>,
+    authorities: Vec<Vec<Authority>>,
 }
 
 impl HostRegistry {
@@ -44,6 +46,7 @@ impl HostRegistry {
                     function: function.name.clone(),
                 });
                 self.executors.push(function.executor.clone());
+                self.authorities.push(function.authorities.clone());
             }
         }
 
@@ -68,6 +71,10 @@ impl HostRegistry {
 
     pub(crate) fn executors(&self) -> Vec<Option<HostExecutor>> {
         self.executors.clone()
+    }
+
+    pub(crate) fn authorities(&self) -> Vec<Vec<Authority>> {
+        self.authorities.clone()
     }
 
     pub(crate) fn function(

@@ -1,4 +1,5 @@
 use std::cell::{Cell, RefCell};
+use std::collections::HashSet;
 
 use tune_bytecode::{artifact::BytecodeArtifact, validate_artifact};
 use tune_runtime::{
@@ -12,6 +13,8 @@ pub struct Vm {
     pub artifact: BytecodeArtifact,
     pub task_execution: TaskExecutionMode,
     pub(crate) host_executors: Vec<Option<tune_host::HostExecutor>>,
+    pub(crate) host_authorities: Vec<Vec<tune_host::Authority>>,
+    pub(crate) granted_authorities: HashSet<tune_host::Authority>,
     pub(crate) next_state_id: Cell<u64>,
     pub(crate) tasks: RefCell<Vec<VmTask>>,
 }
@@ -43,6 +46,8 @@ impl Vm {
             artifact,
             task_execution: TaskExecutionMode::DeferredUntilJoin,
             host_executors: Vec::new(),
+            host_authorities: Vec::new(),
+            granted_authorities: HashSet::new(),
             next_state_id: Cell::new(0),
             tasks: RefCell::new(Vec::new()),
         }
@@ -69,6 +74,24 @@ impl Vm {
         executors: Vec<Option<tune_host::HostExecutor>>,
     ) -> Self {
         self.host_executors = executors;
+        self
+    }
+
+    #[must_use]
+    pub fn with_host_authority_slots(
+        mut self,
+        authorities: impl IntoIterator<Item = Vec<tune_host::Authority>>,
+    ) -> Self {
+        self.host_authorities = authorities.into_iter().collect();
+        self
+    }
+
+    #[must_use]
+    pub fn with_authorities(
+        mut self,
+        authorities: impl IntoIterator<Item = tune_host::Authority>,
+    ) -> Self {
+        self.granted_authorities = authorities.into_iter().collect();
         self
     }
 

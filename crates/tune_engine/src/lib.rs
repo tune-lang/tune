@@ -22,6 +22,7 @@ pub use profile::{
 
 use tune_db::{FileId, TuneDb};
 use tune_diagnostics::Diagnostic;
+use tune_host::Authority;
 use tune_host::module::HostModule;
 use tune_runtime::value::Value;
 
@@ -31,6 +32,7 @@ use crate::reachable::reachable_functions;
 pub struct Tune {
     db: TuneDb,
     hosts: host::HostRegistry,
+    authorities: Vec<Authority>,
     projects: Vec<dyno_project::manifest::Manifest>,
 }
 
@@ -160,8 +162,10 @@ impl Tune {
 
     pub fn run_entry(&self, entry: EntryPoint) -> Result<Value, EngineError> {
         let executable = self.executable_entry(entry)?;
-        let mut vm =
-            tune_vm::Vm::new(executable.bytecode).with_host_executor_slots(self.hosts.executors());
+        let mut vm = tune_vm::Vm::new(executable.bytecode)
+            .with_host_executor_slots(self.hosts.executors())
+            .with_host_authority_slots(self.hosts.authorities())
+            .with_authorities(self.authorities.clone());
         vm.run_entry().map_err(|fault| {
             EngineError::Diagnostics(vec![diagnostic_from_vm_fault_with_sources(
                 &fault, &self.db,
@@ -275,8 +279,10 @@ impl Tune {
             return Err(EngineError::NotImplemented("unknown project handle"));
         }
         let executable = self.executable_project_entry(entry)?;
-        let mut vm =
-            tune_vm::Vm::new(executable.bytecode).with_host_executor_slots(self.hosts.executors());
+        let mut vm = tune_vm::Vm::new(executable.bytecode)
+            .with_host_executor_slots(self.hosts.executors())
+            .with_host_authority_slots(self.hosts.authorities())
+            .with_authorities(self.authorities.clone());
         vm.run_entry().map_err(|fault| {
             EngineError::Diagnostics(vec![diagnostic_from_vm_fault_with_sources(
                 &fault, &self.db,
@@ -363,6 +369,26 @@ impl Tune {
     #[must_use]
     pub fn host_symbol(&self, id: EngineHostSymbolId) -> Option<&EngineHostSymbol> {
         self.hosts.symbol(id)
+    }
+
+    pub fn grant_authority(&mut self, authority: Authority) {
+        if !self.authorities.contains(&authority) {
+            self.authorities.push(authority);
+        }
+    }
+
+    #[must_use]
+    pub fn with_authority(mut self, authority: Authority) -> Self {
+        self.grant_authority(authority);
+        self
+    }
+
+    #[must_use]
+    pub fn with_authorities(mut self, authorities: impl IntoIterator<Item = Authority>) -> Self {
+        for authority in authorities {
+            self.grant_authority(authority);
+        }
+        self
     }
 
     #[must_use]
