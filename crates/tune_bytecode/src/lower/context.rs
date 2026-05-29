@@ -6,8 +6,8 @@ use tune_ir::{BlockId, IrFunction};
 use crate::Opcode;
 use crate::artifact::BytecodeConst;
 use crate::function::{
-    BytecodeBoundCallSite, BytecodeCallSite, BytecodeCallableSite, BytecodeForSite,
-    BytecodeMatchSite, BytecodePanicSite, BytecodeStringSite, BytecodeStructSite,
+    BytecodeBoundCallSite, BytecodeCallSite, BytecodeCallableSite, BytecodeFieldSite,
+    BytecodeForSite, BytecodeMatchSite, BytecodePanicSite, BytecodeStringSite, BytecodeStructSite,
     BytecodeTupleSite, BytecodeVariantSite, Instruction,
 };
 
@@ -23,6 +23,7 @@ pub(crate) struct FunctionLowerer<'a> {
     pub(super) bound_call_sites: Vec<BytecodeBoundCallSite>,
     pub(super) callable_sites: Vec<BytecodeCallableSite>,
     pub(super) struct_sites: Vec<BytecodeStructSite>,
+    pub(super) field_sites: Vec<BytecodeFieldSite>,
     pub(super) variant_sites: Vec<BytecodeVariantSite>,
     pub(super) match_sites: Vec<BytecodeMatchSite>,
     pub(super) for_sites: Vec<BytecodeForSite>,

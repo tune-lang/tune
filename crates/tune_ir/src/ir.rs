@@ -344,11 +344,13 @@ pub enum IrOp {
     GetField {
         dst: Reg,
         base: Reg,
+        owner: HirId,
         field: FieldId,
         span: Option<Span>,
     },
     SetField {
         base: Reg,
+        owner: HirId,
         field: FieldId,
         value: Reg,
         span: Option<Span>,

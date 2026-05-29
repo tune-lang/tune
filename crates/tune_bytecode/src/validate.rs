@@ -237,12 +237,12 @@ fn validate_instruction(
         Opcode::FieldGet => {
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
-            field_index(artifact, function_id, instruction.c)?;
+            field_site(artifact, function_id, function, instruction.c)?;
         }
         Opcode::FieldSet => {
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.c)?;
-            field_index(artifact, function_id, instruction.b)?;
+            field_site(artifact, function_id, function, instruction.b)?;
         }
         Opcode::CallDirect => validate_call(artifact, function_id, function, instruction)?,
         Opcode::CallBound => validate_bound_call(function_id, function, instruction)?,
@@ -522,26 +522,35 @@ fn register(
     Ok(())
 }
 
-fn field_index(
+fn field_site(
     artifact: &BytecodeArtifact,
     function_id: u32,
-    field: u32,
+    function: &BytecodeFunction,
+    site: u32,
 ) -> Result<(), BytecodeValidationError> {
+    let site = function.field_sites.get(site as usize).ok_or(
+        BytecodeValidationError::FieldIndexOutOfBounds {
+            function: function_id,
+            field: site,
+        },
+    )?;
     if artifact
         .functions
         .iter()
         .flat_map(|function| function.struct_sites.iter())
-        .any(|site| {
-            site.fields
-                .iter()
-                .any(|site_field| site_field.field == field)
+        .any(|struct_site| {
+            struct_site.owner == site.owner
+                && struct_site
+                    .fields
+                    .iter()
+                    .any(|site_field| site_field.field == site.field)
         })
     {
         return Ok(());
     }
     Err(BytecodeValidationError::FieldIndexOutOfBounds {
         function: function_id,
-        field,
+        field: site.field,
     })
 }
 

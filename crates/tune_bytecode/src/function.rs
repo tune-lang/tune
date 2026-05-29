@@ -89,6 +89,12 @@ pub struct BytecodeStructField {
 }
 
 #[derive(Debug, Clone)]
+pub struct BytecodeFieldSite {
+    pub owner: u32,
+    pub field: u32,
+}
+
+#[derive(Debug, Clone)]
 pub struct BytecodeMatchSite {
     pub arms: Vec<BytecodeMatchArm>,
 }
@@ -142,6 +148,7 @@ pub struct BytecodeFunction {
     pub bound_call_sites: Vec<BytecodeBoundCallSite>,
     pub callable_sites: Vec<BytecodeCallableSite>,
     pub struct_sites: Vec<BytecodeStructSite>,
+    pub field_sites: Vec<BytecodeFieldSite>,
     pub variant_sites: Vec<BytecodeVariantSite>,
     pub match_sites: Vec<BytecodeMatchSite>,
     pub for_sites: Vec<BytecodeForSite>,

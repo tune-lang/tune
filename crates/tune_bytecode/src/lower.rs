@@ -11,8 +11,8 @@ mod string;
 use crate::Opcode;
 use crate::artifact::{BytecodeArtifact, BytecodeConst};
 use crate::function::{
-    BytecodeFunction, BytecodePanicSite, BytecodeStructField, BytecodeStructSite,
-    BytecodeTupleSite, BytecodeVariantSite, Instruction,
+    BytecodeFieldSite, BytecodeFunction, BytecodePanicSite, BytecodeStructField,
+    BytecodeStructSite, BytecodeTupleSite, BytecodeVariantSite, Instruction,
 };
 use crate::lower_tables::{
     block_offsets, callable_function_indices, function_indices, lower_variant,
@@ -94,6 +94,7 @@ fn lower_ir_function_with_constants(
         bound_call_sites: Vec::new(),
         callable_sites: Vec::new(),
         struct_sites: Vec::new(),
+        field_sites: Vec::new(),
         variant_sites: Vec::new(),
         match_sites: Vec::new(),
         for_sites: Vec::new(),
@@ -124,6 +125,7 @@ fn lower_ir_function_with_constants(
         bound_call_sites: lowerer.bound_call_sites,
         callable_sites: lowerer.callable_sites,
         struct_sites: lowerer.struct_sites,
+        field_sites: lowerer.field_sites,
         variant_sites: lowerer.variant_sites,
         match_sites: lowerer.match_sites,
         for_sites: lowerer.for_sites,
@@ -309,23 +311,43 @@ impl FunctionLowerer<'_> {
                 Ok(())
             }
             IrOp::GetField {
-                dst, base, field, ..
+                dst,
+                base,
+                owner,
+                field,
+                ..
             } => {
+                let site = u32::try_from(self.field_sites.len())
+                    .map_err(|_| BytecodeLowerError::ConstantLimit)?;
+                self.field_sites.push(BytecodeFieldSite {
+                    owner: owner.0,
+                    field: field.0,
+                });
                 self.instructions.push(Instruction {
                     opcode: Opcode::FieldGet,
                     a: dst.0,
                     b: base.0,
-                    c: field.0,
+                    c: site,
                 });
                 Ok(())
             }
             IrOp::SetField {
-                base, field, value, ..
+                base,
+                owner,
+                field,
+                value,
+                ..
             } => {
+                let site = u32::try_from(self.field_sites.len())
+                    .map_err(|_| BytecodeLowerError::ConstantLimit)?;
+                self.field_sites.push(BytecodeFieldSite {
+                    owner: owner.0,
+                    field: field.0,
+                });
                 self.instructions.push(Instruction {
                     opcode: Opcode::FieldSet,
                     a: base.0,
-                    b: field.0,
+                    b: site,
                     c: value.0,
                 });
                 Ok(())

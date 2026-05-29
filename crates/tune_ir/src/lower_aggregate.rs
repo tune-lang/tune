@@ -69,6 +69,7 @@ impl Lowerer {
         self.push_op(IrOp::GetField {
             dst,
             base,
+            owner: member.owner,
             field: FieldId(member.index),
             span,
         });
@@ -89,6 +90,7 @@ impl Lowerer {
         let base = self.pop("field base")?;
         self.push_op(IrOp::SetField {
             base,
+            owner: member.owner,
             field: FieldId(member.index),
             value,
             span,

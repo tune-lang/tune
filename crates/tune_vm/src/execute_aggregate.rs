@@ -98,9 +98,10 @@ impl Vm {
         registers: &mut [Value],
         instruction: &Instruction,
     ) -> Result<(), VmFault> {
+        let site = self.field_site(function_index, ip, instruction.c)?;
         match self.at(function_index, ip, read_reg(registers, instruction.b))? {
-            Value::Struct { fields, .. } => {
-                let value = fields.get(instruction.c as usize).ok_or_else(|| {
+            Value::Struct { owner, fields } if owner == site.owner => {
+                let value = fields.get(site.field as usize).ok_or_else(|| {
                     self.fault_at(function_index, ip, VmError::RegisterOutOfBounds)
                 })?;
                 self.at(
@@ -124,11 +125,12 @@ impl Vm {
         registers: &[Value],
         instruction: &Instruction,
     ) -> Result<(), VmFault> {
+        let site = self.field_site(function_index, ip, instruction.b)?;
         match self.at(function_index, ip, read_reg(registers, instruction.a))? {
-            Value::Struct { fields, .. } => {
+            Value::Struct { owner, fields } if owner == site.owner => {
                 let value = self.at(function_index, ip, read_reg(registers, instruction.c))?;
                 fields
-                    .set(instruction.b as usize, value)
+                    .set(site.field as usize, value)
                     .ok_or_else(|| self.fault_at(function_index, ip, VmError::RegisterOutOfBounds))
             }
             _ => Err(self.fault_at(
@@ -137,6 +139,19 @@ impl Vm {
                 VmError::UnsupportedOpcode(Opcode::FieldSet),
             )),
         }
+    }
+
+    fn field_site(
+        &self,
+        function_index: usize,
+        ip: usize,
+        site: u32,
+    ) -> Result<&tune_bytecode::function::BytecodeFieldSite, VmFault> {
+        self.artifact
+            .functions
+            .get(function_index)
+            .and_then(|function| function.field_sites.get(site as usize))
+            .ok_or_else(|| self.fault_at(function_index, ip, VmError::RegisterOutOfBounds))
     }
 
     pub(crate) fn execute_variant_construct(
