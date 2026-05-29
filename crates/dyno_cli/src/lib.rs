@@ -7,7 +7,6 @@ pub enum CliCommand {
     Help,
 }
 
-#[must_use]
 pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
     match args {
         [] => Ok(CliCommand::Help),

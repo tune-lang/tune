@@ -15,7 +15,7 @@ fn main() {
             return;
         }
     };
-    let source = match std::fs::read_to_string(&path) {
+    let source = match std::fs::read_to_string(path) {
         Ok(source) => source,
         Err(error) => {
             eprintln!("failed to read {path}: {error}");
