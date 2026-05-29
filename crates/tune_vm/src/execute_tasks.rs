@@ -86,11 +86,9 @@ impl Vm {
                         write_reg(registers, instruction.a, value),
                     )
                 }
-                Some(TaskJoinOutcome::UnrecoverablePanic(_)) => Err(self.fault_at(
-                    function,
-                    instruction_index,
-                    VmError::UnsupportedOpcode(tune_bytecode::Opcode::TaskJoin),
-                )),
+                Some(TaskJoinOutcome::UnrecoverablePanic(panic)) => {
+                    Err(self.fault_at(function, instruction_index, VmError::Panic(panic)))
+                }
                 None => {
                     Err(self.fault_at(function, instruction_index, VmError::RegisterOutOfBounds))
                 }

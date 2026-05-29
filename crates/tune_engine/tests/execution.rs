@@ -460,6 +460,34 @@ let result: Int = 1
 }
 
 #[test]
+fn run_file_reports_spawned_panic_at_join() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let task: Task<Int> = spawn panic("joined")
+let result: Int = task.join()
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_file(file) else {
+        return Err("joining a panicked task should report diagnostics");
+    };
+
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic
+            .facts
+            .iter()
+            .flat_map(|fact| &fact.entries)
+            .any(|entry| entry.message.contains("joined"))
+    }));
+
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_callable_value_with_capture() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
