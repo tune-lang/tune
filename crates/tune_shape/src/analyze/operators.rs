@@ -2,7 +2,7 @@ use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::expr::{BinaryOp, Expr};
 
 use super::Analyzer;
-use crate::Shape;
+use crate::{LiteralFact, Shape, expr_literal_fact};
 
 impl Analyzer<'_> {
     pub(super) fn analyze_binary(
@@ -19,19 +19,19 @@ impl Analyzer<'_> {
             .expected_shape()
             .and_then(|expected| binary_operand_expected(op, expected))
             .cloned();
-        let lhs = if let Some(shape) = expected.as_ref() {
+        let lhs_shape = if let Some(shape) = expected.as_ref() {
             self.analyze_expr_expected(lhs, shape)
         } else {
             self.analyze_expr(lhs)
         };
-        let rhs = if let Some(shape) = expected.as_ref() {
+        let rhs_shape = if let Some(shape) = expected.as_ref() {
             self.analyze_expr_expected(rhs, shape)
         } else {
             self.analyze_expr(rhs)
         };
         match op {
             BinaryOp::Or | BinaryOp::And
-                if Shape::Bool.accepts(&lhs) && Shape::Bool.accepts(&rhs) =>
+                if Shape::Bool.accepts(&lhs_shape) && Shape::Bool.accepts(&rhs_shape) =>
             {
                 Shape::Bool
             }
@@ -40,7 +40,7 @@ impl Analyzer<'_> {
             | BinaryOp::BitOr
             | BinaryOp::BitXor
             | BinaryOp::BitAnd
-                if Shape::Int.accepts(&lhs) && Shape::Int.accepts(&rhs) =>
+                if Shape::Int.accepts(&lhs_shape) && Shape::Int.accepts(&rhs_shape) =>
             {
                 Shape::Int
             }
@@ -51,22 +51,29 @@ impl Analyzer<'_> {
             | BinaryOp::Rem
             | BinaryOp::ShiftLeft
             | BinaryOp::ShiftRight
-                if Shape::Int.accepts(&lhs) && Shape::Int.accepts(&rhs) =>
+                if Shape::Int.accepts(&lhs_shape) && Shape::Int.accepts(&rhs_shape) =>
             {
+                self.check_compile_time_int_fault(op, lhs, rhs, expr.span);
                 Shape::Int
             }
-            BinaryOp::Add if Shape::Float.accepts(&lhs) && Shape::Float.accepts(&rhs) => {
+            BinaryOp::Add
+                if Shape::Float.accepts(&lhs_shape) && Shape::Float.accepts(&rhs_shape) =>
+            {
                 Shape::Float
             }
             BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div
-                if Shape::Float.accepts(&lhs) && Shape::Float.accepts(&rhs) =>
+                if Shape::Float.accepts(&lhs_shape) && Shape::Float.accepts(&rhs_shape) =>
             {
                 Shape::Float
             }
-            BinaryOp::Add if Shape::Size.accepts(&lhs) && Shape::Size.accepts(&rhs) => Shape::Size,
+            BinaryOp::Add if Shape::Size.accepts(&lhs_shape) && Shape::Size.accepts(&rhs_shape) => {
+                self.check_compile_time_size_fault(op, lhs, rhs, expr.span);
+                Shape::Size
+            }
             BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Rem
-                if Shape::Size.accepts(&lhs) && Shape::Size.accepts(&rhs) =>
+                if Shape::Size.accepts(&lhs_shape) && Shape::Size.accepts(&rhs_shape) =>
             {
+                self.check_compile_time_size_fault(op, lhs, rhs, expr.span);
                 Shape::Size
             }
             BinaryOp::Add
@@ -79,22 +86,23 @@ impl Analyzer<'_> {
             | BinaryOp::BitAnd
             | BinaryOp::ShiftLeft
             | BinaryOp::ShiftRight
-                if Shape::Byte.accepts(&lhs) && Shape::Byte.accepts(&rhs) =>
+                if Shape::Byte.accepts(&lhs_shape) && Shape::Byte.accepts(&rhs_shape) =>
             {
                 Shape::Byte
             }
             BinaryOp::RangeExclusive | BinaryOp::RangeInclusive
-                if Shape::Int.accepts(&lhs) && Shape::Int.accepts(&rhs) =>
+                if Shape::Int.accepts(&lhs_shape) && Shape::Int.accepts(&rhs_shape) =>
             {
                 Shape::Range(Box::new(Shape::Int))
             }
             BinaryOp::RangeExclusive | BinaryOp::RangeInclusive
-                if Shape::Size.accepts(&lhs) && Shape::Size.accepts(&rhs) =>
+                if Shape::Size.accepts(&lhs_shape) && Shape::Size.accepts(&rhs_shape) =>
             {
                 Shape::Range(Box::new(Shape::Size))
             }
             BinaryOp::Equal | BinaryOp::NotEqual
-                if optional_none_equality_operand(&lhs) || optional_none_equality_operand(&rhs) =>
+                if optional_none_equality_operand(&lhs_shape)
+                    || optional_none_equality_operand(&rhs_shape) =>
             {
                 Shape::Bool
             }
@@ -104,7 +112,7 @@ impl Analyzer<'_> {
             | BinaryOp::LessEqual
             | BinaryOp::Greater
             | BinaryOp::GreaterEqual
-                if Shape::Int.accepts(&lhs) && Shape::Int.accepts(&rhs) =>
+                if Shape::Int.accepts(&lhs_shape) && Shape::Int.accepts(&rhs_shape) =>
             {
                 Shape::Bool
             }
@@ -114,7 +122,7 @@ impl Analyzer<'_> {
             | BinaryOp::LessEqual
             | BinaryOp::Greater
             | BinaryOp::GreaterEqual
-                if Shape::Float.accepts(&lhs) && Shape::Float.accepts(&rhs) =>
+                if Shape::Float.accepts(&lhs_shape) && Shape::Float.accepts(&rhs_shape) =>
             {
                 Shape::Bool
             }
@@ -124,7 +132,7 @@ impl Analyzer<'_> {
             | BinaryOp::LessEqual
             | BinaryOp::Greater
             | BinaryOp::GreaterEqual
-                if Shape::Size.accepts(&lhs) && Shape::Size.accepts(&rhs) =>
+                if Shape::Size.accepts(&lhs_shape) && Shape::Size.accepts(&rhs_shape) =>
             {
                 Shape::Bool
             }
@@ -134,7 +142,7 @@ impl Analyzer<'_> {
             | BinaryOp::LessEqual
             | BinaryOp::Greater
             | BinaryOp::GreaterEqual
-                if Shape::Byte.accepts(&lhs) && Shape::Byte.accepts(&rhs) =>
+                if Shape::Byte.accepts(&lhs_shape) && Shape::Byte.accepts(&rhs_shape) =>
             {
                 Shape::Bool
             }
@@ -147,8 +155,8 @@ impl Analyzer<'_> {
                 self.diagnostics.push(operator_mismatch(
                     op,
                     expected_operands(op),
-                    &lhs,
-                    &rhs,
+                    &lhs_shape,
+                    &rhs_shape,
                     expr.span,
                 ));
                 Shape::Bool
@@ -167,17 +175,69 @@ impl Analyzer<'_> {
             | BinaryOp::ShiftRight
             | BinaryOp::RangeExclusive
             | BinaryOp::RangeInclusive => {
-                if can_diagnose_operands(&lhs, &rhs) {
+                if can_diagnose_operands(&lhs_shape, &rhs_shape) {
                     self.diagnostics.push(operator_mismatch(
                         op,
                         expected_operands(op),
-                        &lhs,
-                        &rhs,
+                        &lhs_shape,
+                        &rhs_shape,
                         expr.span,
                     ));
                 }
                 Shape::Hole
             }
+        }
+    }
+
+    fn check_compile_time_int_fault(
+        &mut self,
+        op: BinaryOp,
+        lhs: &Expr,
+        rhs: &Expr,
+        span: Option<Span>,
+    ) {
+        let (Some(lhs), Some(rhs)) = (int_literal(lhs), int_literal(rhs)) else {
+            return;
+        };
+        let ok = match op {
+            BinaryOp::Add => lhs.checked_add(rhs).is_some(),
+            BinaryOp::Sub => lhs.checked_sub(rhs).is_some(),
+            BinaryOp::Mul => lhs.checked_mul(rhs).is_some(),
+            BinaryOp::Div => rhs != 0 && lhs.checked_div(rhs).is_some(),
+            BinaryOp::Rem => rhs != 0 && lhs.checked_rem(rhs).is_some(),
+            BinaryOp::ShiftLeft => {
+                valid_int_shift(rhs) && lhs.checked_shl(u32::try_from(rhs).unwrap_or(0)).is_some()
+            }
+            BinaryOp::ShiftRight => {
+                valid_int_shift(rhs) && lhs.checked_shr(u32::try_from(rhs).unwrap_or(0)).is_some()
+            }
+            _ => true,
+        };
+        if !ok {
+            self.diagnostics.push(numeric_fault(op, span));
+        }
+    }
+
+    fn check_compile_time_size_fault(
+        &mut self,
+        op: BinaryOp,
+        lhs: &Expr,
+        rhs: &Expr,
+        span: Option<Span>,
+    ) {
+        let (Some(lhs), Some(rhs)) = (size_literal(lhs), size_literal(rhs)) else {
+            return;
+        };
+        let ok = match op {
+            BinaryOp::Add => lhs.checked_add(rhs).is_some(),
+            BinaryOp::Sub => lhs.checked_sub(rhs).is_some(),
+            BinaryOp::Mul => lhs.checked_mul(rhs).is_some(),
+            BinaryOp::Div => rhs != 0 && lhs.checked_div(rhs).is_some(),
+            BinaryOp::Rem => rhs != 0 && lhs.checked_rem(rhs).is_some(),
+            _ => true,
+        };
+        if !ok {
+            self.diagnostics.push(numeric_fault(op, span));
         }
     }
 
@@ -244,6 +304,39 @@ fn optional_none_equality_operand(shape: &Shape) -> bool {
         shape,
         Shape::Optional(_) | Shape::Literal(crate::LiteralFact::None)
     )
+}
+
+fn int_literal(expr: &Expr) -> Option<i64> {
+    let LiteralFact::Numeric { text } = expr_literal_fact(expr)? else {
+        return None;
+    };
+    text.parse().ok()
+}
+
+fn size_literal(expr: &Expr) -> Option<u64> {
+    let LiteralFact::Numeric { text } = expr_literal_fact(expr)? else {
+        return None;
+    };
+    text.parse().ok()
+}
+
+fn valid_int_shift(value: i64) -> bool {
+    u32::try_from(value)
+        .ok()
+        .is_some_and(|shift| shift < i64::BITS)
+}
+
+fn numeric_fault(op: BinaryOp, span: Option<Span>) -> Diagnostic {
+    Diagnostic::error(
+        codes::NUMERIC_OVERFLOW,
+        "compile-time numeric operation cannot produce a valid value",
+        span.unwrap_or_else(Span::synthetic),
+        format!(
+            "operator `{}` is proven to overflow or divide by zero",
+            op_name(op)
+        ),
+    )
+    .build()
 }
 
 fn operator_mismatch(
