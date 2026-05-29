@@ -6,7 +6,10 @@ fn numeric_literals_materialize_by_target_fit() {
         text: "9223372036854775808".into(),
     };
     let too_large_for_size = tune_shape::LiteralFact::Numeric {
-        text: format!("{}0", usize::MAX),
+        text: "18446744073709551616".into(),
+    };
+    let max_size = tune_shape::LiteralFact::Numeric {
+        text: u64::MAX.to_string(),
     };
 
     assert!(tune_shape::can_materialize(
@@ -19,6 +22,10 @@ fn numeric_literals_materialize_by_target_fit() {
     ));
     assert!(tune_shape::can_materialize(
         &twenty,
+        &tune_shape::Shape::Size
+    ));
+    assert!(tune_shape::can_materialize(
+        &max_size,
         &tune_shape::Shape::Size
     ));
     assert!(tune_shape::can_materialize(
