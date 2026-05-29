@@ -219,6 +219,7 @@ fn append_host_item(
         body: None,
         external: Some(ExternalItem::HostFunction {
             symbol: ExternalSymbolId(symbol.0),
+            task_safe: function.task_safe,
         }),
     });
 }

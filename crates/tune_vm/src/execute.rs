@@ -335,6 +335,15 @@ impl Vm {
                         .ok_or_else(|| {
                             self.fault_at(function_index, ip, VmError::HostSymbolOutOfBounds)
                         })?;
+                    if self.task_context && !site.task_safe {
+                        return Err(self.fault_at(
+                            function_index,
+                            ip,
+                            VmError::TaskUnsafeHostCall {
+                                symbol: site.symbol.0,
+                            },
+                        ));
+                    }
                     if let Some(required) = self.host_authorities.get(site.symbol.0 as usize) {
                         for authority in required {
                             if !self.granted_authorities.contains(authority) {

@@ -192,6 +192,37 @@ let result: Int = wait()
     Ok(())
 }
 
+#[test]
+fn run_file_rejects_task_unsafe_host_call_inside_spawn() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new()
+        .with_std()
+        .with_authority(tune_host::Authority("io.write".into()));
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+import "io".print
+
+let task: Task<Unit> = spawn print("unsafe")
+let result: Unit = task.join()
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_file(file) else {
+        return Err("task-unsafe host call should fail before execution");
+    };
+
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic
+            .facts
+            .iter()
+            .flat_map(|fact| &fact.entries)
+            .any(|entry| entry.message.contains("TaskUnsafeHostCall"))
+    }));
+    Ok(())
+}
+
 fn run_file(tune: &tune_engine::Tune, file: tune_db::FileId) -> Result<Value, &'static str> {
     tune.run_file(file).map_err(|error| {
         eprintln!("{error:?}");

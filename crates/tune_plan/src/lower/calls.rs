@@ -97,6 +97,7 @@ impl LowerContext<'_> {
                 if let Some(symbol) = self.host_symbol(target) {
                     Some(PlanOp::HostCall {
                         symbol,
+                        task_safe: self.host_function_task_safe(target),
                         arg_count,
                         span: callee.span,
                     })
@@ -154,10 +155,23 @@ impl LowerContext<'_> {
     fn host_symbol(&self, target: tune_hir::HirId) -> Option<tune_host::HostSymbolId> {
         let item = self.module?.items.iter().find(|item| item.id == target)?;
         match item.external.as_ref()? {
-            tune_hir::item::ExternalItem::HostFunction { symbol } => {
+            tune_hir::item::ExternalItem::HostFunction { symbol, .. } => {
                 Some(tune_host::HostSymbolId(symbol.0))
             }
             tune_hir::item::ExternalItem::ModuleNamespace { .. } => None,
+        }
+    }
+
+    fn host_function_task_safe(&self, target: tune_hir::HirId) -> bool {
+        let Some(item) = self
+            .module
+            .and_then(|module| module.items.iter().find(|item| item.id == target))
+        else {
+            return false;
+        };
+        match item.external.as_ref() {
+            Some(tune_hir::item::ExternalItem::HostFunction { task_safe, .. }) => *task_safe,
+            _ => false,
         }
     }
 

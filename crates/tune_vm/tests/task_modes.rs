@@ -131,6 +131,7 @@ fn vm_rejects_task_unsafe_capture_in_eager_mode_at_spawn() {
                 bound_call_sites: Vec::new(),
                 host_call_sites: vec![tune_bytecode::function::BytecodeHostCallSite {
                     symbol: tune_host::HostSymbolId(0),
+                    task_safe: true,
                     args: vec![0],
                 }],
                 callable_sites: Vec::new(),

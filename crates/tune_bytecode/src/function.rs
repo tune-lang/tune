@@ -44,6 +44,7 @@ pub struct BytecodeBoundCallSite {
 #[derive(Debug, Clone)]
 pub struct BytecodeHostCallSite {
     pub symbol: HostSymbolId,
+    pub task_safe: bool,
     pub args: Vec<u32>,
 }
 

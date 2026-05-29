@@ -21,8 +21,13 @@ pub enum Visibility {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExternalItem {
-    HostFunction { symbol: ExternalSymbolId },
-    ModuleNamespace { members: Vec<ModuleNamespaceMember> },
+    HostFunction {
+        symbol: ExternalSymbolId,
+        task_safe: bool,
+    },
+    ModuleNamespace {
+        members: Vec<ModuleNamespaceMember>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

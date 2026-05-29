@@ -96,12 +96,14 @@ impl FunctionLowerer<'_> {
         &mut self,
         dst: Reg,
         symbol: tune_ir::HostSymbolId,
+        task_safe: bool,
         args: &[Reg],
     ) -> Result<(), BytecodeLowerError> {
         let site = u32::try_from(self.host_call_sites.len())
             .map_err(|_| BytecodeLowerError::ConstantLimit)?;
         self.host_call_sites.push(BytecodeHostCallSite {
             symbol,
+            task_safe,
             args: args.iter().map(|arg| arg.0).collect(),
         });
         self.instructions.push(Instruction {

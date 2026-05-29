@@ -400,7 +400,12 @@ impl FunctionLowerer<'_> {
             IrOp::CallBound {
                 dst, callee, args, ..
             } => self.lower_bound_call(*dst, *callee, args),
-            IrOp::CallHost { dst, symbol, args } => self.lower_host_call(*dst, *symbol, args),
+            IrOp::CallHost {
+                dst,
+                symbol,
+                task_safe,
+                args,
+            } => self.lower_host_call(*dst, *symbol, *task_safe, args),
             IrOp::VariantConstruct {
                 dst, variant, args, ..
             } => {

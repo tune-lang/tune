@@ -39,6 +39,7 @@ pub enum VmError {
     DivideByZero,
     SequenceIndexOutOfBounds,
     TaskUnsafeCapture { resource_type: String },
+    TaskUnsafeHostCall { symbol: u32 },
     MissingHostAuthority { authority: String },
     HostCallFailed { message: String },
     UnsupportedStructState,

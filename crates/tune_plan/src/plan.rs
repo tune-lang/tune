@@ -251,6 +251,7 @@ pub enum PlanOp {
     WitnessCall,
     HostCall {
         symbol: tune_host::HostSymbolId,
+        task_safe: bool,
         arg_count: usize,
         span: Option<Span>,
     },

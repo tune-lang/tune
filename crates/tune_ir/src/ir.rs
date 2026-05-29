@@ -435,6 +435,7 @@ pub enum IrOp {
     CallHost {
         dst: Reg,
         symbol: HostSymbolId,
+        task_safe: bool,
         args: Vec<Reg>,
     },
     Jump {

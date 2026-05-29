@@ -380,6 +380,7 @@ fn lowers_host_call_ir_to_host_call_site() -> Result<(), &'static str> {
                 tune_ir::IrOp::CallHost {
                     dst: tune_ir::Reg(1),
                     symbol: tune_ir::HostSymbolId(3),
+                    task_safe: true,
                     args: vec![tune_ir::Reg(0)],
                 },
                 tune_ir::IrOp::Return {

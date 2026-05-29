@@ -247,9 +247,10 @@ impl Lowerer {
             PlanOp::BoundCall { arg_count, span } => self.lower_bound_call(*arg_count, *span),
             PlanOp::HostCall {
                 symbol,
+                task_safe,
                 arg_count,
                 span,
-            } => self.lower_host_call(*symbol, *arg_count, *span),
+            } => self.lower_host_call(*symbol, *task_safe, *arg_count, *span),
             PlanOp::Materialize {
                 materializer: Some(member),
                 ..

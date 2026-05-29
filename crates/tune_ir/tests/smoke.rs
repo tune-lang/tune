@@ -145,6 +145,7 @@ fn lowers_host_call_plan_to_ir() -> Result<(), &'static str> {
             tune_plan::PlanOp::ConstString { value: "42".into() },
             tune_plan::PlanOp::HostCall {
                 symbol: tune_host::HostSymbolId(2),
+                task_safe: true,
                 arg_count: 1,
                 span: None,
             },

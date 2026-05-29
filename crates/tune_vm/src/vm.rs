@@ -19,6 +19,7 @@ pub struct Vm {
     pub(crate) granted_authorities: HashSet<tune_host::Authority>,
     pub(crate) next_state_id: Arc<AtomicU64>,
     pub(crate) tasks: RefCell<Vec<VmTask>>,
+    pub(crate) task_context: bool,
 }
 
 #[derive(Debug)]
@@ -47,6 +48,7 @@ impl Vm {
             granted_authorities: HashSet::new(),
             next_state_id: Arc::new(AtomicU64::new(0)),
             tasks: RefCell::new(Vec::new()),
+            task_context: false,
         }
     }
 
@@ -101,6 +103,7 @@ impl Vm {
             granted_authorities: self.granted_authorities.clone(),
             next_state_id: Arc::clone(&self.next_state_id),
             tasks: RefCell::new(Vec::new()),
+            task_context: true,
         }
     }
 

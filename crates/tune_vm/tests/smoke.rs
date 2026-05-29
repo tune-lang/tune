@@ -115,6 +115,7 @@ fn vm_executes_host_call_bytecode_entry() -> Result<(), &'static str> {
             bound_call_sites: Vec::new(),
             host_call_sites: vec![tune_bytecode::function::BytecodeHostCallSite {
                 symbol: tune_host::HostSymbolId(0),
+                task_safe: true,
                 args: vec![0],
             }],
             callable_sites: Vec::new(),

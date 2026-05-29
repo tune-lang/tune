@@ -127,6 +127,7 @@ impl Lowerer {
     pub(super) fn lower_host_call(
         &mut self,
         symbol: tune_host::HostSymbolId,
+        task_safe: bool,
         arg_count: usize,
         _span: Option<Span>,
     ) -> Result<(), IrLowerError> {
@@ -136,7 +137,12 @@ impl Lowerer {
         }
         args.reverse();
         let dst = self.alloc_reg()?;
-        self.push_op(IrOp::CallHost { dst, symbol, args });
+        self.push_op(IrOp::CallHost {
+            dst,
+            symbol,
+            task_safe,
+            args,
+        });
         self.stack.push(dst);
         Ok(())
     }
