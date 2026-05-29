@@ -189,6 +189,20 @@ let run(__name: String): String = __name
 struct Box {
   __json_invoker: String
 }
+tag tool {
+  __field: String
+}
+@tool(__arg = 1)
+let scoped() = {
+  let __local = 1
+  match __local {
+    __pattern => __pattern
+  }
+}
+enum Result {
+  __Variant
+}
+import "pkg".__hidden
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
@@ -202,7 +216,7 @@ struct Box {
                 diagnostic.code == tune_diagnostics::codes::COMPILER_RESERVED_NAME
             })
             .count(),
-        3
+        9
     );
 }
 

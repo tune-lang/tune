@@ -1,13 +1,25 @@
 use std::collections::HashMap;
 
 use tune_diagnostics::{Diagnostic, Span, codes};
-use tune_hir::item::{Item, StructMember};
+use tune_hir::item::{ImportSelector, Item, StructMember};
 
 use super::ResolvedModule;
 
 pub(super) fn validate_member_names(resolved: &mut ResolvedModule, item: &Item) {
     if let Some(name) = &item.name {
         validate_user_name(resolved, name, item.span, "declaration");
+    }
+
+    if let Some(import) = &item.import {
+        validate_import_selector(resolved, &import.selector, item.span);
+    }
+
+    for tag in &item.tags {
+        for arg in &tag.args {
+            if let Some(name) = &arg.name {
+                validate_user_name(resolved, name, arg.value.span, "tag argument");
+            }
+        }
     }
 
     validate_named_members(
@@ -59,6 +71,22 @@ pub(super) fn validate_member_names(resolved: &mut ResolvedModule, item: &Item) 
             .filter_map(|variant| Some((variant.name.as_deref()?, variant.span))),
         "variant",
     );
+}
+
+fn validate_import_selector(
+    resolved: &mut ResolvedModule,
+    selector: &ImportSelector,
+    span: Option<Span>,
+) {
+    match selector {
+        ImportSelector::Module => {}
+        ImportSelector::Member(name) => validate_user_name(resolved, name, span, "import selector"),
+        ImportSelector::Members(names) => {
+            for name in names {
+                validate_user_name(resolved, name, span, "import selector");
+            }
+        }
+    }
 }
 
 fn named_struct_value_members(item: &Item) -> Vec<(&str, Option<Span>)> {
