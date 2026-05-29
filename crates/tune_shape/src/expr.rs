@@ -4,7 +4,10 @@ use tune_hir::module::Module;
 use tune_hir::shape::{ShapeExpr, ShapeExprKind, StructuralShapeRequirementKind};
 use tune_resolve::{NameTarget, PreludeVariant, ResolvedModule, VariantId};
 
-use crate::{LiteralFact, MemberRequirement, NominalShape, Shape, builtin::builtin_shape};
+use crate::{
+    LiteralFact, MemberRequirement, NominalShape, Shape,
+    builtin::{builtin_generic_shape, builtin_shape},
+};
 
 #[must_use]
 pub fn expr_literal_fact(expr: &Expr) -> Option<LiteralFact> {
@@ -139,7 +142,7 @@ fn member_variant_shape(
         .collect::<Vec<_>>();
 
     for (payload, arg) in variant.payload.iter().zip(arg_shapes) {
-        collect_type_param_shapes(payload, arg, item, &mut solved);
+        collect_type_param_shapes(payload, arg, item, module, &mut solved);
     }
 
     Some(Shape::Apply {
@@ -152,9 +155,10 @@ fn collect_type_param_shapes(
     payload: &ShapeExpr,
     arg: &Shape,
     item: &Item,
+    module: &Module,
     solved: &mut [(String, Shape)],
 ) {
-    collect_shape_params(&lower_declared_shape(payload, item), arg, solved);
+    collect_shape_params(&lower_declared_shape(payload, item, module), arg, solved);
 }
 
 fn collect_shape_params(payload: &Shape, arg: &Shape, solved: &mut [(String, Shape)]) {
@@ -193,7 +197,7 @@ fn collect_shape_params(payload: &Shape, arg: &Shape, solved: &mut [(String, Sha
     }
 }
 
-fn lower_declared_shape(expr: &ShapeExpr, item: &Item) -> Shape {
+fn lower_declared_shape(expr: &ShapeExpr, item: &Item, module: &Module) -> Shape {
     match &expr.kind {
         ShapeExprKind::Named(name)
             if item
@@ -203,23 +207,23 @@ fn lower_declared_shape(expr: &ShapeExpr, item: &Item) -> Shape {
         {
             Shape::Param(name.clone())
         }
-        ShapeExprKind::Named(name) => named_shape_hint(name),
+        ShapeExprKind::Named(name) => named_shape_hint(name, module),
         ShapeExprKind::Sequence(element) => {
-            Shape::Sequence(Box::new(lower_declared_shape(element, item)))
+            Shape::Sequence(Box::new(lower_declared_shape(element, item, module)))
         }
         ShapeExprKind::Tuple(items) => Shape::Tuple(
             items
                 .iter()
-                .map(|item_shape| lower_declared_shape(item_shape, item))
+                .map(|item_shape| lower_declared_shape(item_shape, item, module))
                 .collect(),
         ),
         ShapeExprKind::Optional(inner) => {
-            Shape::Optional(Box::new(lower_declared_shape(inner, item)))
+            Shape::Optional(Box::new(lower_declared_shape(inner, item, module)))
         }
         ShapeExprKind::Union(items) => Shape::Union(
             items
                 .iter()
-                .map(|item_shape| lower_declared_shape(item_shape, item))
+                .map(|item_shape| lower_declared_shape(item_shape, item, module))
                 .collect(),
         ),
         ShapeExprKind::Structural(requirements) => Shape::Structural(
@@ -230,35 +234,62 @@ fn lower_declared_shape(expr: &ShapeExpr, item: &Item) -> Shape {
                         name: requirement.name.clone(),
                         shape: shape
                             .as_ref()
-                            .map(|shape| lower_declared_shape(shape, item)),
+                            .map(|shape| lower_declared_shape(shape, item, module)),
                     },
                     StructuralShapeRequirementKind::Callable { params, ret } => {
                         MemberRequirement::Callable {
                             name: requirement.name.clone(),
                             params: params
                                 .iter()
-                                .map(|param| lower_declared_shape(param, item))
+                                .map(|param| lower_declared_shape(param, item, module))
                                 .collect(),
-                            ret: ret.as_ref().map(|ret| lower_declared_shape(ret, item)),
+                            ret: ret
+                                .as_ref()
+                                .map(|ret| lower_declared_shape(ret, item, module)),
                         }
                     }
                 })
                 .collect(),
         ),
-        ShapeExprKind::Generic { .. } => Shape::Hole,
+        ShapeExprKind::Generic { name, args } => {
+            let args = args
+                .iter()
+                .map(|arg| lower_declared_shape(arg, item, module))
+                .collect::<Vec<_>>();
+            builtin_generic_shape(name, args.clone()).unwrap_or_else(|| {
+                module
+                    .items
+                    .iter()
+                    .find(|candidate| candidate.name.as_deref() == Some(name.as_str()))
+                    .map_or(Shape::Hole, |candidate| Shape::Apply {
+                        nominal: NominalShape::new(candidate.id, name),
+                        args,
+                    })
+            })
+        }
         ShapeExprKind::Callable { params, ret } => Shape::Callable {
             params: params
                 .iter()
-                .map(|param| lower_declared_shape(param, item))
+                .map(|param| lower_declared_shape(param, item, module))
                 .collect(),
-            ret: Box::new(lower_declared_shape(ret, item)),
+            ret: Box::new(lower_declared_shape(ret, item, module)),
         },
         ShapeExprKind::Missing => Shape::Hole,
     }
 }
 
-fn named_shape_hint(name: &str) -> Shape {
-    builtin_shape(name).unwrap_or(Shape::Hole)
+fn named_shape_hint(name: &str, module: &Module) -> Shape {
+    builtin_shape(name).unwrap_or_else(|| {
+        module
+            .items
+            .iter()
+            .find(|candidate| candidate.name.as_deref() == Some(name))
+            .map_or(Shape::Hole, |item| match item.kind {
+                tune_hir::item::ItemKind::Struct => Shape::Struct(NominalShape::new(item.id, name)),
+                tune_hir::item::ItemKind::Enum => Shape::Enum(NominalShape::new(item.id, name)),
+                _ => Shape::Hole,
+            })
+    })
 }
 
 fn result_ok_shape(shape: Shape) -> Option<Shape> {

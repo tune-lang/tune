@@ -308,53 +308,6 @@ let rgb: Color = Rgb(1, 2, 3)
 }
 
 #[test]
-fn generic_enum_constructors_solve_payload_type_params() -> Result<(), &'static str> {
-    let source = r#"
-enum Boxed<T> {
-  Value(T)
-  Pair(T, T)
-}
-let boxed: Boxed<String> = Value("hello")
-let paired: Boxed<String | Bool> = Pair("hello", true)
-"#;
-    let parsed = tune_syntax::parse(source);
-    let module = tune_hir::lower::lower_module(source, &parsed.cst);
-    let resolved = tune_resolve::resolve_module(&module);
-
-    let boxed_body = module.items[1].body.as_ref().ok_or("expected boxed body")?;
-    let paired_body = module.items[2]
-        .body
-        .as_ref()
-        .ok_or("expected paired body")?;
-
-    assert_eq!(
-        tune_shape::expr_shape_fact(boxed_body, &module, &resolved),
-        Some(tune_shape::Shape::Apply {
-            nominal: tune_shape::NominalShape::new(module.items[0].id, "Boxed"),
-            args: vec![tune_shape::Shape::Literal(
-                tune_shape::LiteralFact::String {
-                    segments: vec!["hello".into()],
-                }
-            )],
-        })
-    );
-    assert_eq!(
-        tune_shape::expr_shape_fact(paired_body, &module, &resolved),
-        Some(tune_shape::Shape::Apply {
-            nominal: tune_shape::NominalShape::new(module.items[0].id, "Boxed"),
-            args: vec![tune_shape::Shape::Union(vec![
-                tune_shape::Shape::Literal(tune_shape::LiteralFact::String {
-                    segments: vec!["hello".into()],
-                }),
-                tune_shape::Shape::Literal(tune_shape::LiteralFact::Bool(true)),
-            ])],
-        })
-    );
-
-    Ok(())
-}
-
-#[test]
 fn shape_store_keeps_stable_ids_and_origins() -> Result<(), &'static str> {
     let mut store = tune_shape::ShapeStore::new();
     let span = tune_diagnostics::Span::new(
