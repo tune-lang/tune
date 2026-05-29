@@ -7,8 +7,9 @@ use crate::Opcode;
 use crate::artifact::BytecodeConst;
 use crate::function::{
     BytecodeBoundCallSite, BytecodeCallSite, BytecodeCallableSite, BytecodeFieldSite,
-    BytecodeForSite, BytecodeMatchSite, BytecodePanicSite, BytecodeStringSite, BytecodeStructSite,
-    BytecodeTaskSite, BytecodeTupleSite, BytecodeVariantSite, Instruction,
+    BytecodeForSite, BytecodeHostCallSite, BytecodeMatchSite, BytecodePanicSite,
+    BytecodeStringSite, BytecodeStructSite, BytecodeTaskSite, BytecodeTupleSite,
+    BytecodeVariantSite, Instruction,
 };
 
 pub(crate) struct FunctionLowerer<'a> {
@@ -21,6 +22,7 @@ pub(crate) struct FunctionLowerer<'a> {
     pub(super) constants: &'a mut Vec<BytecodeConst>,
     pub(super) call_sites: Vec<BytecodeCallSite>,
     pub(super) bound_call_sites: Vec<BytecodeBoundCallSite>,
+    pub(super) host_call_sites: Vec<BytecodeHostCallSite>,
     pub(super) callable_sites: Vec<BytecodeCallableSite>,
     pub(crate) task_sites: Vec<BytecodeTaskSite>,
     pub(super) struct_sites: Vec<BytecodeStructSite>,

@@ -4,7 +4,7 @@ use tune_ir::Reg;
 use crate::Opcode;
 use crate::function::{
     BytecodeBoundCallSite, BytecodeCallSite, BytecodeCallableSite, BytecodeCapture,
-    BytecodeCaptureMode, Instruction,
+    BytecodeCaptureMode, BytecodeHostCallSite, Instruction,
 };
 use crate::lower::{BytecodeLowerError, FunctionLowerer};
 
@@ -88,6 +88,27 @@ impl FunctionLowerer<'_> {
             a: dst.0,
             b: site,
             c: callee.0,
+        });
+        Ok(())
+    }
+
+    pub(super) fn lower_host_call(
+        &mut self,
+        dst: Reg,
+        symbol: tune_ir::HostSymbolId,
+        args: &[Reg],
+    ) -> Result<(), BytecodeLowerError> {
+        let site = u32::try_from(self.host_call_sites.len())
+            .map_err(|_| BytecodeLowerError::ConstantLimit)?;
+        self.host_call_sites.push(BytecodeHostCallSite {
+            symbol: symbol.0,
+            args: args.iter().map(|arg| arg.0).collect(),
+        });
+        self.instructions.push(Instruction {
+            opcode: Opcode::CallHost,
+            a: dst.0,
+            b: site,
+            c: 0,
         });
         Ok(())
     }

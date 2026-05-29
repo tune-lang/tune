@@ -37,6 +37,10 @@ pub enum BytecodeValidationError {
         function: u32,
         site: u32,
     },
+    HostCallSiteOutOfBounds {
+        function: u32,
+        site: u32,
+    },
     CallableSiteOutOfBounds {
         function: u32,
         site: u32,
@@ -271,6 +275,7 @@ fn validate_instruction(
         }
         Opcode::CallDirect => validate_call(artifact, function_id, function, instruction)?,
         Opcode::CallBound => validate_bound_call(function_id, function, instruction)?,
+        Opcode::CallHost => validate_host_call(function_id, function, instruction)?,
         Opcode::TupleBuild => validate_tuple(function_id, function, instruction)?,
         Opcode::StringBuild => validate_string(function_id, function, instruction)?,
         Opcode::StringLen => {
@@ -326,6 +331,24 @@ fn validate_bound_call(
             function: function_id,
             site: instruction.b,
         })?;
+    for arg in &site.args {
+        register(function_id, function, *arg)?;
+    }
+    Ok(())
+}
+
+fn validate_host_call(
+    function_id: u32,
+    function: &BytecodeFunction,
+    instruction: &Instruction,
+) -> Result<(), BytecodeValidationError> {
+    register(function_id, function, instruction.a)?;
+    let site = function.host_call_sites.get(instruction.b as usize).ok_or(
+        BytecodeValidationError::HostCallSiteOutOfBounds {
+            function: function_id,
+            site: instruction.b,
+        },
+    )?;
     for arg in &site.args {
         register(function_id, function, *arg)?;
     }

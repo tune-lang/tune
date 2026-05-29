@@ -350,6 +350,55 @@ fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
 }
 
 #[test]
+fn lowers_host_call_ir_to_host_call_site() -> Result<(), &'static str> {
+    let ir = tune_ir::IrFunction {
+        params: 0,
+        owner: None,
+        member: None,
+        callable: None,
+        name: "<entry>".into(),
+        span: None,
+        regs: 2,
+        locals: 0,
+        constants: vec![tune_ir::IrConst::String("42".into())],
+        struct_layouts: Vec::new(),
+        blocks: vec![tune_ir::IrBlock {
+            id: tune_ir::BlockId(0),
+            ops: vec![
+                tune_ir::IrOp::LoadConst {
+                    dst: tune_ir::Reg(0),
+                    constant: tune_ir::ConstId(0),
+                    shape: tune_shape::Shape::String,
+                },
+                tune_ir::IrOp::CallHost {
+                    dst: tune_ir::Reg(1),
+                    symbol: tune_ir::HostSymbolId(3),
+                    args: vec![tune_ir::Reg(0)],
+                },
+                tune_ir::IrOp::Return {
+                    value: Some(tune_ir::Reg(1)),
+                },
+            ],
+        }],
+        task_functions: Vec::new(),
+    };
+
+    let artifact =
+        tune_bytecode::lower_ir_functions(&[ir]).map_err(|_| "ir should lower to bytecode")?;
+    tune_bytecode::validate_artifact(&artifact).map_err(|_| "bytecode should validate")?;
+
+    assert_eq!(artifact.functions[0].host_call_sites.len(), 1);
+    assert_eq!(artifact.functions[0].host_call_sites[0].symbol, 3);
+    assert_eq!(artifact.functions[0].host_call_sites[0].args, vec![0]);
+    assert_eq!(
+        artifact.functions[0].instructions[1].opcode,
+        tune_bytecode::Opcode::CallHost
+    );
+
+    Ok(())
+}
+
+#[test]
 fn lowering_preserves_function_and_instruction_provenance() -> Result<(), &'static str> {
     let function_span = tune_diagnostics::Span::new(
         tune_diagnostics::FileId(1),

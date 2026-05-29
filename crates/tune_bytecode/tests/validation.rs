@@ -12,6 +12,7 @@ fn empty_function(
         frame: tune_bytecode::function::BytecodeFrameLayout::unknown(0, registers, locals),
         call_sites: Vec::new(),
         bound_call_sites: Vec::new(),
+        host_call_sites: Vec::new(),
         callable_sites: Vec::new(),
         task_sites: Vec::new(),
         struct_sites: Vec::new(),

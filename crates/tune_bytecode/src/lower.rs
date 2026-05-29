@@ -114,6 +114,7 @@ fn lower_ir_function_with_constants(
         constants,
         call_sites: Vec::new(),
         bound_call_sites: Vec::new(),
+        host_call_sites: Vec::new(),
         callable_sites: Vec::new(),
         task_sites: Vec::new(),
         struct_sites: Vec::new(),
@@ -147,6 +148,7 @@ fn lower_ir_function_with_constants(
         frame: frame::infer_frame_layout(function),
         call_sites: lowerer.call_sites,
         bound_call_sites: lowerer.bound_call_sites,
+        host_call_sites: lowerer.host_call_sites,
         callable_sites: lowerer.callable_sites,
         task_sites: lowerer.task_sites,
         struct_sites: lowerer.struct_sites,
@@ -396,6 +398,7 @@ impl FunctionLowerer<'_> {
             IrOp::CallBound {
                 dst, callee, args, ..
             } => self.lower_bound_call(*dst, *callee, args),
+            IrOp::CallHost { dst, symbol, args } => self.lower_host_call(*dst, *symbol, args),
             IrOp::VariantConstruct {
                 dst, variant, args, ..
             } => {
