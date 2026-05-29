@@ -169,7 +169,7 @@ fn lower_module_callable(
         captured_locals: captured_locals_for_body(resolved, body),
     };
     context.lower_return_expr(body, &mut plan.ops);
-    if super::falls_through(body) {
+    if super::falls_through(body, analysis) {
         plan.ops.push(PlanOp::Return);
     }
     Some(plan)
@@ -262,7 +262,7 @@ fn lower_callable_member(
         captured_locals: captured_locals_for_body(resolved, body),
     };
     context.lower_expr_for_binding(body, callable.shape.as_ref(), &mut plan.ops);
-    if super::falls_through(body) {
+    if super::falls_through(body, analysis) {
         plan.ops.push(PlanOp::Return);
     }
     Some(plan)
@@ -304,7 +304,7 @@ fn lower_sequence_materializer_member(
         captured_locals: captured_locals_for_body(resolved, body),
     };
     context.lower_return_expr(body, &mut plan.ops);
-    if super::falls_through(body) {
+    if super::falls_through(body, analysis) {
         plan.ops.push(PlanOp::Return);
     }
     Some(plan)
@@ -346,7 +346,7 @@ fn lower_index_access_member(
         captured_locals: captured_locals_for_body(resolved, body),
     };
     context.lower_return_expr(body, &mut plan.ops);
-    if super::falls_through(body) {
+    if super::falls_through(body, analysis) {
         plan.ops.push(PlanOp::Return);
     }
     Some(plan)

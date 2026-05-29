@@ -103,7 +103,7 @@ fn lower_callable_value_function(
         ops: Vec::new(),
     };
     lower.lower_return_expr(body, &mut plan.ops);
-    if super::falls_through(body) {
+    if super::falls_through(body, Some(context.analysis)) {
         plan.ops.push(PlanOp::Return);
     }
     plan

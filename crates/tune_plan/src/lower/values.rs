@@ -1,18 +1,38 @@
 use tune_hir::expr::{Expr, ExprKind, IfBranch};
+use tune_shape::{Shape, ShapeAnalysis};
 
-pub(super) fn falls_through(expr: &Expr) -> bool {
+pub(super) fn falls_through(expr: &Expr, analysis: Option<&ShapeAnalysis>) -> bool {
+    if expr_is_never(expr, analysis) {
+        return false;
+    }
     match &expr.kind {
         ExprKind::Return(_) | ExprKind::Panic(_) | ExprKind::Break | ExprKind::Continue => false,
-        ExprKind::Block(exprs) => exprs.last().is_none_or(falls_through),
+        ExprKind::Block(exprs) => exprs
+            .last()
+            .is_none_or(|expr| falls_through(expr, analysis)),
         ExprKind::If {
             branches,
             else_branch: Some(else_branch),
         } => {
-            branches.iter().any(|branch| falls_through(&branch.body)) || falls_through(else_branch)
+            branches
+                .iter()
+                .any(|branch| falls_through(&branch.body, analysis))
+                || falls_through(else_branch, analysis)
         }
-        ExprKind::Loop(body) => falls_through(body),
+        ExprKind::Loop(body) => falls_through(body, analysis),
         _ => true,
     }
+}
+
+fn expr_is_never(expr: &Expr, analysis: Option<&ShapeAnalysis>) -> bool {
+    analysis.is_some_and(|analysis| {
+        analysis
+            .expr_shapes
+            .iter()
+            .rev()
+            .find(|shape| shape.expr == expr.id)
+            .is_some_and(|shape| shape.shape == Shape::Never)
+    })
 }
 
 pub(super) fn if_produces_value(branches: &[IfBranch], else_branch: Option<&Expr>) -> bool {

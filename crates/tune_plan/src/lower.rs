@@ -124,7 +124,7 @@ fn lower_item_with_context(
             materializer,
         });
     }
-    if falls_through(body) {
+    if falls_through(body, analysis) {
         plan.ops.push(PlanOp::Return);
     }
     Some(plan)
