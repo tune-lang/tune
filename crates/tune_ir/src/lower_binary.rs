@@ -52,7 +52,7 @@ impl Lowerer {
         }
     }
 
-    fn lower_int_arithmetic(
+    pub(super) fn lower_int_arithmetic(
         &mut self,
         op: IntArithmetic,
         span: Option<Span>,
@@ -330,51 +330,6 @@ impl Lowerer {
         Ok(())
     }
 
-    fn lower_byte_arithmetic(
-        &mut self,
-        op: Arithmetic,
-        span: Option<Span>,
-    ) -> Result<(), IrLowerError> {
-        let op = match op {
-            Arithmetic::Sub => IrByteBinary::SubWrap,
-            Arithmetic::Mul => IrByteBinary::MulWrap,
-            Arithmetic::Div => IrByteBinary::Div,
-        };
-        self.lower_byte_binary(op, span)
-    }
-
-    fn lower_bit_op(
-        &mut self,
-        shape: &tune_shape::Shape,
-        byte_op: IrByteBinary,
-        int_op: IntArithmetic,
-        span: Option<Span>,
-    ) -> Result<(), IrLowerError> {
-        if matches!(shape, tune_shape::Shape::Byte) {
-            return self.lower_byte_binary(byte_op, span);
-        }
-        self.lower_int_arithmetic(int_op, span)
-    }
-
-    fn lower_byte_binary(
-        &mut self,
-        op: IrByteBinary,
-        span: Option<Span>,
-    ) -> Result<(), IrLowerError> {
-        let rhs = self.pop("binary rhs")?;
-        let lhs = self.pop("binary lhs")?;
-        let dst = self.alloc_reg()?;
-        self.push_op(IrOp::ByteBinary {
-            dst,
-            a: lhs,
-            b: rhs,
-            op,
-            span,
-        });
-        self.stack.push(dst);
-        Ok(())
-    }
-
     fn lower_add_size(&mut self, span: Option<Span>) -> Result<(), IrLowerError> {
         let rhs = self.pop("binary rhs")?;
         let lhs = self.pop("binary lhs")?;
@@ -449,14 +404,7 @@ impl Lowerer {
             return self.lower_compare_size(op, span);
         }
         if matches!(shape, tune_shape::Shape::Byte) {
-            let op = match op {
-                IrIntComparison::Equal => IrByteBinary::Equal,
-                IrIntComparison::NotEqual => IrByteBinary::NotEqual,
-                IrIntComparison::Less => IrByteBinary::Less,
-                IrIntComparison::LessEqual => IrByteBinary::LessEqual,
-                IrIntComparison::GreaterEqual => IrByteBinary::GreaterEqual,
-            };
-            return self.lower_byte_binary(op, span);
+            return self.lower_compare_byte(op, span);
         }
         self.lower_compare_int(op, span)
     }
@@ -501,7 +449,7 @@ impl Lowerer {
 }
 
 #[derive(Clone, Copy)]
-enum Arithmetic {
+pub(super) enum Arithmetic {
     Sub,
     Mul,
     Div,
@@ -517,7 +465,7 @@ impl From<Arithmetic> for IntArithmetic {
     }
 }
 
-enum IntArithmetic {
+pub(super) enum IntArithmetic {
     Sub,
     Mul,
     Div,

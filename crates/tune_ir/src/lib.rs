@@ -4,6 +4,7 @@ mod lower_aggregate;
 mod lower_binary;
 mod lower_bindings;
 mod lower_bool;
+mod lower_byte;
 mod lower_calls;
 mod lower_control;
 mod lower_for;
