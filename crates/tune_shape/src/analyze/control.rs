@@ -120,10 +120,10 @@ impl Analyzer<'_> {
     }
 
     fn apply_condition_narrowing(&mut self, condition: &Expr, truthy: bool) {
-        if let Some((key, narrowed)) = optional_none_narrowing(condition, truthy, self) {
-            if let Some(binding) = self.frame.get_mut(key) {
-                binding.narrow_current(narrowed);
-            }
+        if let Some((key, narrowed)) = optional_none_narrowing(condition, truthy, self)
+            && let Some(binding) = self.frame.get_mut(key)
+        {
+            binding.narrow_current(narrowed);
         }
     }
 }
