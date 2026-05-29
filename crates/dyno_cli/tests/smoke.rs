@@ -14,13 +14,21 @@ fn parses_cli_commands_without_special_entry_names() {
     assert_eq!(
         dyno_cli::parse_command(&["main.tn".to_owned()]),
         Ok(dyno_cli::CliCommand::Run {
-            path: "main.tn".to_owned(),
+            path: Some("main.tn".to_owned()),
         })
+    );
+    assert_eq!(
+        dyno_cli::parse_command(&["run".to_owned()]),
+        Ok(dyno_cli::CliCommand::Run { path: None })
+    );
+    assert_eq!(
+        dyno_cli::parse_command(&["check".to_owned()]),
+        Ok(dyno_cli::CliCommand::Check { path: None })
     );
     assert_eq!(
         dyno_cli::parse_command(&["check".to_owned(), "main.tn".to_owned()]),
         Ok(dyno_cli::CliCommand::Check {
-            path: "main.tn".to_owned(),
+            path: Some("main.tn".to_owned()),
         })
     );
     assert_eq!(
@@ -90,6 +98,23 @@ fn renders_unhandled_result_error_at_runtime_boundary() -> Result<(), &'static s
     let rendered = dyno_cli::render_runtime_boundary_with_sources(&value, &db);
     assert_eq!(rendered.len(), 1);
     assert!(rendered[0].contains("propagated through `load` at `load()!`"));
+
+    Ok(())
+}
+
+#[test]
+fn loads_project_sources_from_manifest() -> Result<(), String> {
+    let root = std::env::temp_dir().join(format!("dyno-cli-load-project-{}", std::process::id()));
+    if root.exists() {
+        std::fs::remove_dir_all(&root).map_err(|error| error.to_string())?;
+    }
+    let project = dyno_cli::create_project_in(&root, "demo_app")?;
+    let loaded = dyno_cli::load_project_from_dir(&project.root)?;
+
+    std::fs::remove_dir_all(&root).map_err(|error| error.to_string())?;
+
+    assert_eq!(loaded.manifest.name, "demo_app");
+    assert!(loaded.sources.iter().any(|(path, _)| path == "src/main.tn"));
 
     Ok(())
 }

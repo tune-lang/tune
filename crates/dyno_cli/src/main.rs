@@ -24,15 +24,21 @@ fn main() {
     }
 
     let path = match command {
-        dyno_cli::CliCommand::Check { ref path }
-        | dyno_cli::CliCommand::Run { ref path }
-        | dyno_cli::CliCommand::Profile { ref path } => path,
+        dyno_cli::CliCommand::Check { ref path } | dyno_cli::CliCommand::Run { ref path } => {
+            path.as_ref()
+        }
+        dyno_cli::CliCommand::Profile { ref path } => Some(path),
         dyno_cli::CliCommand::New { .. } => unreachable!(),
         dyno_cli::CliCommand::Help => {
             println!("{}", dyno_cli::usage());
             return;
         }
     };
+    if path.is_none() {
+        run_project_command(command);
+        return;
+    }
+    let path = path.expect("path checked above");
     let source = match std::fs::read_to_string(path) {
         Ok(source) => source,
         Err(error) => {
@@ -89,6 +95,65 @@ fn main() {
     }
 
     match tune.run_file(file) {
+        Ok(value) => {
+            let diagnostics = dyno_cli::render_runtime_boundary_with_sources(&value, tune.db());
+            if diagnostics.is_empty() {
+                println!("{value:?}");
+            } else {
+                for diagnostic in diagnostics {
+                    eprintln!("{diagnostic}");
+                }
+                std::process::exit(1);
+            }
+        }
+        Err(error) => {
+            for diagnostic in dyno_cli::render_engine_error(&error) {
+                eprintln!("{diagnostic}");
+            }
+            std::process::exit(1);
+        }
+    }
+}
+
+fn run_project_command(command: dyno_cli::CliCommand) {
+    let loaded = match dyno_cli::load_project_from_dir(".") {
+        Ok(loaded) => loaded,
+        Err(error) => {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+    };
+    let mut tune = tune_engine::Tune::new();
+    let entry = match tune.load_project_sources(loaded.manifest, loaded.sources) {
+        Ok(entry) => entry,
+        Err(error) => {
+            for diagnostic in dyno_cli::render_engine_error(&error) {
+                eprintln!("{diagnostic}");
+            }
+            std::process::exit(1);
+        }
+    };
+
+    if matches!(command, dyno_cli::CliCommand::Check { .. }) {
+        let report = match tune.check_project_entry(entry) {
+            Ok(report) => report,
+            Err(error) => {
+                for diagnostic in dyno_cli::render_engine_error(&error) {
+                    eprintln!("{diagnostic}");
+                }
+                std::process::exit(1);
+            }
+        };
+        for diagnostic in &report.diagnostics {
+            eprintln!("{}", tune_diagnostics::render::render_plain(diagnostic));
+        }
+        if !report.diagnostics.is_empty() {
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    match tune.run_project_entry(entry) {
         Ok(value) => {
             let diagnostics = dyno_cli::render_runtime_boundary_with_sources(&value, tune.db());
             if diagnostics.is_empty() {

@@ -36,3 +36,43 @@ fn project_manifest_lockfile_and_resolution_are_typed() {
             .contains(&dyno_project::ModuleRoot::Host("fs".into()))
     );
 }
+
+#[test]
+fn project_manifest_round_trips_minimal_toml() -> Result<(), &'static str> {
+    let manifest = dyno_project::Manifest::from_toml(
+        r#"
+[project]
+name = "demo"
+edition = "2026"
+entry = "src/main.tn"
+strict = false
+
+[dependencies]
+
+[host]
+profile = "dyno.default"
+"#,
+    )
+    .map_err(|_| "manifest should parse")?;
+
+    assert_eq!(manifest.name, "demo");
+    assert_eq!(
+        manifest.entry,
+        dyno_project::ModulePath("src/main.tn".to_owned())
+    );
+    assert!(
+        manifest
+            .roots
+            .contains(&dyno_project::ModuleRoot::Source(dyno_project::ModulePath(
+                "src".to_owned()
+            )))
+    );
+    assert!(
+        manifest
+            .roots
+            .contains(&dyno_project::ModuleRoot::Host("dyno.default".to_owned()))
+    );
+    assert!(manifest.to_toml().contains("edition = \"2026\""));
+
+    Ok(())
+}
