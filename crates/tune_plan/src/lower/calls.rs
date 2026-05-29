@@ -140,6 +140,7 @@ impl LowerContext<'_> {
     fn host_symbol(&self, target: tune_hir::HirId) -> Option<tune_host::HostSymbolId> {
         let item = self.module?.items.iter().find(|item| item.id == target)?;
         item.external
+            .as_ref()
             .map(|tune_hir::item::ExternalItem::HostFunction { symbol }| {
                 tune_host::HostSymbolId(symbol.0)
             })
