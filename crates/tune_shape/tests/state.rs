@@ -323,6 +323,31 @@ let stack: Stack = [1, 2]
 }
 
 #[test]
+fn analyzer_rejects_calls_inside_sequence_materializers() -> Result<(), &'static str> {
+    let source = r#"
+let helper(): Int = 1
+struct Stack {
+  [items] = Stack {
+    value = helper()
+  }
+  value: Int
+}
+let stack: Stack = [1, 2]
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[2]);
+
+    assert!(analysis.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::MATERIALIZATION_FAILED
+            && diagnostic.title == "sequence materializer is not pure"
+    }));
+
+    Ok(())
+}
+
+#[test]
 fn analyzer_enforces_result_propagation_return_shape() -> Result<(), &'static str> {
     let source = r#"
 let run(): Int = Error("bad")!

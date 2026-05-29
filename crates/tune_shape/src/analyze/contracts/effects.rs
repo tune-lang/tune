@@ -17,9 +17,7 @@ pub(super) fn expr_has_materializer_effect(expr: &Expr) -> bool {
         ExprKind::Struct { fields, .. } => fields
             .iter()
             .any(|field| expr_has_materializer_effect(&field.value)),
-        ExprKind::Call { callee, args } => {
-            expr_has_materializer_effect(callee) || args.iter().any(expr_has_materializer_effect)
-        }
+        ExprKind::Call { .. } => true,
         ExprKind::Field { base, .. } => expr_has_materializer_effect(base),
         ExprKind::Index { base, index } => {
             expr_has_materializer_effect(base) || expr_has_materializer_effect(index)
