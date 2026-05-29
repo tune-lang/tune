@@ -21,3 +21,13 @@ pub(super) fn lower_float_comparison(op: IrIntComparison) -> Opcode {
         IrIntComparison::GreaterEqual => Opcode::GreaterEqualFloat,
     }
 }
+
+pub(super) fn lower_size_comparison(op: IrIntComparison) -> Opcode {
+    match op {
+        IrIntComparison::Equal => Opcode::EqualSize,
+        IrIntComparison::NotEqual => Opcode::NotEqualSize,
+        IrIntComparison::Less => Opcode::LessSize,
+        IrIntComparison::LessEqual => Opcode::LessEqualSize,
+        IrIntComparison::GreaterEqual => Opcode::GreaterEqualSize,
+    }
+}

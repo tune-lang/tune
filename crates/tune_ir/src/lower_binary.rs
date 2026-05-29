@@ -16,7 +16,7 @@ impl Lowerer {
             BinaryOp::Sub => self.lower_arithmetic(shape, Arithmetic::Sub, span),
             BinaryOp::Mul => self.lower_arithmetic(shape, Arithmetic::Mul, span),
             BinaryOp::Div => self.lower_arithmetic(shape, Arithmetic::Div, span),
-            BinaryOp::Rem => self.lower_int_arithmetic(IntArithmetic::Rem, span),
+            BinaryOp::Rem => self.lower_remainder(shape, span),
             BinaryOp::BitAnd => self.lower_int_arithmetic(IntArithmetic::BitAnd, span),
             BinaryOp::BitOr => self.lower_int_arithmetic(IntArithmetic::BitOr, span),
             BinaryOp::BitXor => self.lower_int_arithmetic(IntArithmetic::BitXor, span),
@@ -113,7 +113,21 @@ impl Lowerer {
         if matches!(shape, tune_shape::Shape::Float) {
             return self.lower_float_arithmetic(op, span);
         }
+        if matches!(shape, tune_shape::Shape::Size) {
+            return self.lower_size_arithmetic(op, span);
+        }
         self.lower_int_arithmetic(op.into(), span)
+    }
+
+    fn lower_remainder(
+        &mut self,
+        shape: &tune_shape::Shape,
+        span: Option<Span>,
+    ) -> Result<(), IrLowerError> {
+        if matches!(shape, tune_shape::Shape::Size) {
+            return self.lower_size_rem(span);
+        }
+        self.lower_int_arithmetic(IntArithmetic::Rem, span)
     }
 
     fn lower_add(
@@ -151,6 +165,9 @@ impl Lowerer {
         if matches!(shape, tune_shape::Shape::Float) {
             return self.lower_greater_float(span);
         }
+        if matches!(shape, tune_shape::Shape::Size) {
+            return self.lower_greater_size(span);
+        }
         self.lower_greater_int(span)
     }
 
@@ -173,6 +190,20 @@ impl Lowerer {
         let lhs = self.pop("binary lhs")?;
         let dst = self.alloc_reg()?;
         self.push_op(IrOp::GreaterFloat {
+            dst,
+            a: lhs,
+            b: rhs,
+            span,
+        });
+        self.stack.push(dst);
+        Ok(())
+    }
+
+    fn lower_greater_size(&mut self, span: Option<Span>) -> Result<(), IrLowerError> {
+        let rhs = self.pop("binary rhs")?;
+        let lhs = self.pop("binary lhs")?;
+        let dst = self.alloc_reg()?;
+        self.push_op(IrOp::GreaterSize {
             dst,
             a: lhs,
             b: rhs,
@@ -224,6 +255,52 @@ impl Lowerer {
                 span,
             }),
         }
+        self.stack.push(dst);
+        Ok(())
+    }
+
+    fn lower_size_arithmetic(
+        &mut self,
+        op: Arithmetic,
+        span: Option<Span>,
+    ) -> Result<(), IrLowerError> {
+        let rhs = self.pop("binary rhs")?;
+        let lhs = self.pop("binary lhs")?;
+        let dst = self.alloc_reg()?;
+        match op {
+            Arithmetic::Sub => self.push_op(IrOp::SubSizeChecked {
+                dst,
+                a: lhs,
+                b: rhs,
+                span,
+            }),
+            Arithmetic::Mul => self.push_op(IrOp::MulSizeChecked {
+                dst,
+                a: lhs,
+                b: rhs,
+                span,
+            }),
+            Arithmetic::Div => self.push_op(IrOp::DivSize {
+                dst,
+                a: lhs,
+                b: rhs,
+                span,
+            }),
+        }
+        self.stack.push(dst);
+        Ok(())
+    }
+
+    fn lower_size_rem(&mut self, span: Option<Span>) -> Result<(), IrLowerError> {
+        let rhs = self.pop("binary rhs")?;
+        let lhs = self.pop("binary lhs")?;
+        let dst = self.alloc_reg()?;
+        self.push_op(IrOp::RemSize {
+            dst,
+            a: lhs,
+            b: rhs,
+            span,
+        });
         self.stack.push(dst);
         Ok(())
     }
@@ -298,6 +375,9 @@ impl Lowerer {
         if matches!(shape, tune_shape::Shape::Float) {
             return self.lower_compare_float(op, span);
         }
+        if matches!(shape, tune_shape::Shape::Size) {
+            return self.lower_compare_size(op, span);
+        }
         self.lower_compare_int(op, span)
     }
 
@@ -310,6 +390,25 @@ impl Lowerer {
         let lhs = self.pop("binary lhs")?;
         let dst = self.alloc_reg()?;
         self.push_op(IrOp::CompareFloat {
+            dst,
+            a: lhs,
+            b: rhs,
+            op,
+            span,
+        });
+        self.stack.push(dst);
+        Ok(())
+    }
+
+    fn lower_compare_size(
+        &mut self,
+        op: IrIntComparison,
+        span: Option<Span>,
+    ) -> Result<(), IrLowerError> {
+        let rhs = self.pop("binary rhs")?;
+        let lhs = self.pop("binary lhs")?;
+        let dst = self.alloc_reg()?;
+        self.push_op(IrOp::CompareSize {
             dst,
             a: lhs,
             b: rhs,

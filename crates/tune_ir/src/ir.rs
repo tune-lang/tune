@@ -60,6 +60,10 @@ impl IrOp {
             | Self::ShiftLeftInt { span, .. }
             | Self::ShiftRightInt { span, .. }
             | Self::AddSizeChecked { span, .. }
+            | Self::SubSizeChecked { span, .. }
+            | Self::MulSizeChecked { span, .. }
+            | Self::DivSize { span, .. }
+            | Self::RemSize { span, .. }
             | Self::RangeInt { span, .. }
             | Self::NegInt { span, .. }
             | Self::NotBool { span, .. }
@@ -72,6 +76,8 @@ impl IrOp {
             | Self::DivFloat { span, .. }
             | Self::GreaterFloat { span, .. }
             | Self::CompareFloat { span, .. }
+            | Self::GreaterSize { span, .. }
+            | Self::CompareSize { span, .. }
             | Self::GetField { span, .. }
             | Self::SetField { span, .. }
             | Self::VariantConstruct { span, .. }
@@ -269,6 +275,43 @@ pub enum IrOp {
         dst: Reg,
         a: Reg,
         b: Reg,
+        span: Option<Span>,
+    },
+    SubSizeChecked {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    MulSizeChecked {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    DivSize {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    RemSize {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    GreaterSize {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    CompareSize {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        op: IrIntComparison,
         span: Option<Span>,
     },
     AddByteWrap {

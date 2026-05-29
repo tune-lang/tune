@@ -138,6 +138,10 @@ impl Vm {
                 | Opcode::MulFloat
                 | Opcode::DivFloat
                 | Opcode::AddSizeChecked
+                | Opcode::SubSizeChecked
+                | Opcode::MulSizeChecked
+                | Opcode::DivSize
+                | Opcode::RemSize
                 | Opcode::AddByteWrap => {
                     self.execute_add(function_index, ip, &mut registers, instruction)?;
                 }
@@ -184,6 +188,14 @@ impl Vm {
                 | Opcode::LessEqualFloat
                 | Opcode::GreaterEqualFloat => {
                     self.execute_float_comparison(function_index, ip, &mut registers, instruction)?;
+                }
+                Opcode::GreaterSize
+                | Opcode::EqualSize
+                | Opcode::NotEqualSize
+                | Opcode::LessSize
+                | Opcode::LessEqualSize
+                | Opcode::GreaterEqualSize => {
+                    self.execute_size_comparison(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::CallDirect => {
                     let call_site =

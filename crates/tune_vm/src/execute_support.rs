@@ -210,54 +210,6 @@ impl Vm {
             .map(|function| function.name.clone())
     }
 
-    pub(crate) fn execute_int_comparison(
-        &self,
-        function: usize,
-        instruction: usize,
-        registers: &mut [Value],
-        op: &Instruction,
-    ) -> Result<(), VmFault> {
-        let left = self.at(function, instruction, read_reg(registers, op.b))?;
-        let right = self.at(function, instruction, read_reg(registers, op.c))?;
-        let (Value::Int(left), Value::Int(right)) = (left, right) else {
-            return Err(self.fault_at(
-                function,
-                instruction,
-                VmError::UnsupportedOpcode(op.opcode),
-            ));
-        };
-        let result = self.at(function, instruction, compare_int(op.opcode, left, right))?;
-        self.at(
-            function,
-            instruction,
-            write_reg(registers, op.a, Value::Bool(result)),
-        )
-    }
-
-    pub(crate) fn execute_float_comparison(
-        &self,
-        function: usize,
-        instruction: usize,
-        registers: &mut [Value],
-        op: &Instruction,
-    ) -> Result<(), VmFault> {
-        let left = self.at(function, instruction, read_reg(registers, op.b))?;
-        let right = self.at(function, instruction, read_reg(registers, op.c))?;
-        let (Value::Float(left), Value::Float(right)) = (left, right) else {
-            return Err(self.fault_at(
-                function,
-                instruction,
-                VmError::UnsupportedOpcode(op.opcode),
-            ));
-        };
-        let result = self.at(function, instruction, compare_float(op.opcode, left, right))?;
-        self.at(
-            function,
-            instruction,
-            write_reg(registers, op.a, Value::Bool(result)),
-        )
-    }
-
     pub(crate) fn execute_unary(
         &self,
         function: usize,
@@ -457,29 +409,5 @@ pub(crate) fn runtime_variant(variant: BytecodeVariant) -> RuntimeVariant {
         BytecodeVariant::ResultOk => RuntimeVariant::ResultOk,
         BytecodeVariant::ResultError => RuntimeVariant::ResultError,
         BytecodeVariant::Other { owner, index } => RuntimeVariant::Other { owner, index },
-    }
-}
-
-pub(crate) fn compare_int(opcode: Opcode, left: i64, right: i64) -> Result<bool, VmError> {
-    match opcode {
-        Opcode::GreaterInt => Ok(left > right),
-        Opcode::EqualInt => Ok(left == right),
-        Opcode::NotEqualInt => Ok(left != right),
-        Opcode::LessInt => Ok(left < right),
-        Opcode::LessEqualInt => Ok(left <= right),
-        Opcode::GreaterEqualInt => Ok(left >= right),
-        _ => Err(VmError::UnsupportedOpcode(opcode)),
-    }
-}
-
-pub(crate) fn compare_float(opcode: Opcode, left: f64, right: f64) -> Result<bool, VmError> {
-    match opcode {
-        Opcode::GreaterFloat => Ok(left > right),
-        Opcode::EqualFloat => Ok(left == right),
-        Opcode::NotEqualFloat => Ok(left != right),
-        Opcode::LessFloat => Ok(left < right),
-        Opcode::LessEqualFloat => Ok(left <= right),
-        Opcode::GreaterEqualFloat => Ok(left >= right),
-        _ => Err(VmError::UnsupportedOpcode(opcode)),
     }
 }

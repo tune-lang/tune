@@ -1,7 +1,7 @@
 use tune_ir::IrOp;
 
 use crate::Opcode;
-use crate::lower::compare::{lower_float_comparison, lower_int_comparison};
+use crate::lower::compare::{lower_float_comparison, lower_int_comparison, lower_size_comparison};
 use crate::lower::{BytecodeLowerError, FunctionLowerer};
 
 impl FunctionLowerer<'_> {
@@ -52,6 +52,18 @@ impl FunctionLowerer<'_> {
             IrOp::AddSizeChecked { dst, a, b, .. } => {
                 self.push_instruction(Opcode::AddSizeChecked, dst.0, a.0, b.0);
             }
+            IrOp::SubSizeChecked { dst, a, b, .. } => {
+                self.push_instruction(Opcode::SubSizeChecked, dst.0, a.0, b.0);
+            }
+            IrOp::MulSizeChecked { dst, a, b, .. } => {
+                self.push_instruction(Opcode::MulSizeChecked, dst.0, a.0, b.0);
+            }
+            IrOp::DivSize { dst, a, b, .. } => {
+                self.push_instruction(Opcode::DivSize, dst.0, a.0, b.0);
+            }
+            IrOp::RemSize { dst, a, b, .. } => {
+                self.push_instruction(Opcode::RemSize, dst.0, a.0, b.0);
+            }
             IrOp::AddByteWrap { dst, a, b } => {
                 self.push_instruction(Opcode::AddByteWrap, dst.0, a.0, b.0);
             }
@@ -73,11 +85,17 @@ impl FunctionLowerer<'_> {
             IrOp::GreaterFloat { dst, a, b, .. } => {
                 self.push_instruction(Opcode::GreaterFloat, dst.0, a.0, b.0);
             }
+            IrOp::GreaterSize { dst, a, b, .. } => {
+                self.push_instruction(Opcode::GreaterSize, dst.0, a.0, b.0);
+            }
             IrOp::CompareInt { dst, a, b, op, .. } => {
                 self.push_instruction(lower_int_comparison(*op), dst.0, a.0, b.0);
             }
             IrOp::CompareFloat { dst, a, b, op, .. } => {
                 self.push_instruction(lower_float_comparison(*op), dst.0, a.0, b.0);
+            }
+            IrOp::CompareSize { dst, a, b, op, .. } => {
+                self.push_instruction(lower_size_comparison(*op), dst.0, a.0, b.0);
             }
             _ => return Err(BytecodeLowerError::UnsupportedIr("numeric ir op")),
         }

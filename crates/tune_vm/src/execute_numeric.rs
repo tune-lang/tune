@@ -134,23 +134,44 @@ impl Vm {
                 )
             }
             Opcode::AddSizeChecked => {
-                let left = self.at(function_index, ip, read_reg(registers, instruction.b))?;
-                let right = self.at(function_index, ip, read_reg(registers, instruction.c))?;
-                let (Value::Size(left), Value::Size(right)) = (left, right) else {
-                    return Err(self.fault_at(
-                        function_index,
-                        ip,
-                        VmError::UnsupportedOpcode(Opcode::AddSizeChecked),
-                    ));
-                };
+                let (left, right) =
+                    self.read_size_pair(function_index, ip, registers, instruction)?;
                 let value = left
                     .checked_add(right)
                     .ok_or_else(|| self.fault_at(function_index, ip, VmError::NumericOverflow))?;
-                self.at(
-                    function_index,
-                    ip,
-                    write_reg(registers, instruction.a, Value::Size(value)),
-                )
+                self.write_size(function_index, ip, registers, instruction, value)
+            }
+            Opcode::SubSizeChecked => {
+                let (left, right) =
+                    self.read_size_pair(function_index, ip, registers, instruction)?;
+                let value = left
+                    .checked_sub(right)
+                    .ok_or_else(|| self.fault_at(function_index, ip, VmError::NumericOverflow))?;
+                self.write_size(function_index, ip, registers, instruction, value)
+            }
+            Opcode::MulSizeChecked => {
+                let (left, right) =
+                    self.read_size_pair(function_index, ip, registers, instruction)?;
+                let value = left
+                    .checked_mul(right)
+                    .ok_or_else(|| self.fault_at(function_index, ip, VmError::NumericOverflow))?;
+                self.write_size(function_index, ip, registers, instruction, value)
+            }
+            Opcode::DivSize => {
+                let (left, right) =
+                    self.read_size_pair(function_index, ip, registers, instruction)?;
+                let value = left
+                    .checked_div(right)
+                    .ok_or_else(|| self.fault_at(function_index, ip, divide_size_error(right)))?;
+                self.write_size(function_index, ip, registers, instruction, value)
+            }
+            Opcode::RemSize => {
+                let (left, right) =
+                    self.read_size_pair(function_index, ip, registers, instruction)?;
+                let value = left
+                    .checked_rem(right)
+                    .ok_or_else(|| self.fault_at(function_index, ip, divide_size_error(right)))?;
+                self.write_size(function_index, ip, registers, instruction, value)
             }
             Opcode::AddByteWrap => {
                 let left = self.at(function_index, ip, read_reg(registers, instruction.b))?;
@@ -209,9 +230,51 @@ impl Vm {
             write_reg(registers, instruction.a, Value::Int(value)),
         )
     }
+
+    fn read_size_pair(
+        &self,
+        function_index: usize,
+        ip: usize,
+        registers: &[Value],
+        instruction: &Instruction,
+    ) -> Result<(u64, u64), VmFault> {
+        let left = self.at(function_index, ip, read_reg(registers, instruction.b))?;
+        let right = self.at(function_index, ip, read_reg(registers, instruction.c))?;
+        let (Value::Size(left), Value::Size(right)) = (left, right) else {
+            return Err(self.fault_at(
+                function_index,
+                ip,
+                VmError::UnsupportedOpcode(instruction.opcode),
+            ));
+        };
+        Ok((left, right))
+    }
+
+    fn write_size(
+        &self,
+        function_index: usize,
+        ip: usize,
+        registers: &mut [Value],
+        instruction: &Instruction,
+        value: u64,
+    ) -> Result<(), VmFault> {
+        self.at(
+            function_index,
+            ip,
+            write_reg(registers, instruction.a, Value::Size(value)),
+        )
+    }
 }
 
 const fn divide_error(rhs: i64) -> VmError {
+    if rhs == 0 {
+        VmError::DivideByZero
+    } else {
+        VmError::NumericOverflow
+    }
+}
+
+const fn divide_size_error(rhs: u64) -> VmError {
     if rhs == 0 {
         VmError::DivideByZero
     } else {

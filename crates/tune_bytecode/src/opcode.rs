@@ -69,6 +69,16 @@ pub enum Opcode {
     LessFloat = 65,
     LessEqualFloat = 66,
     GreaterEqualFloat = 67,
+    SubSizeChecked = 68,
+    MulSizeChecked = 69,
+    DivSize = 70,
+    RemSize = 71,
+    GreaterSize = 72,
+    EqualSize = 73,
+    NotEqualSize = 74,
+    LessSize = 75,
+    LessEqualSize = 76,
+    GreaterEqualSize = 77,
 }
 
 impl Opcode {
@@ -141,5 +151,15 @@ impl Opcode {
         Self::LessFloat,
         Self::LessEqualFloat,
         Self::GreaterEqualFloat,
+        Self::SubSizeChecked,
+        Self::MulSizeChecked,
+        Self::DivSize,
+        Self::RemSize,
+        Self::GreaterSize,
+        Self::EqualSize,
+        Self::NotEqualSize,
+        Self::LessSize,
+        Self::LessEqualSize,
+        Self::GreaterEqualSize,
     ];
 }

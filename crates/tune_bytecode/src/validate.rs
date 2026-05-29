@@ -184,6 +184,10 @@ fn validate_instruction(
         | Opcode::MulFloat
         | Opcode::DivFloat
         | Opcode::AddSizeChecked
+        | Opcode::SubSizeChecked
+        | Opcode::MulSizeChecked
+        | Opcode::DivSize
+        | Opcode::RemSize
         | Opcode::AddByteWrap
         | Opcode::RangeExclusiveInt
         | Opcode::RangeInclusiveInt
@@ -198,7 +202,13 @@ fn validate_instruction(
         | Opcode::NotEqualFloat
         | Opcode::LessFloat
         | Opcode::LessEqualFloat
-        | Opcode::GreaterEqualFloat => {
+        | Opcode::GreaterEqualFloat
+        | Opcode::GreaterSize
+        | Opcode::EqualSize
+        | Opcode::NotEqualSize
+        | Opcode::LessSize
+        | Opcode::LessEqualSize
+        | Opcode::GreaterEqualSize => {
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
             register(function_id, function, instruction.c)?;

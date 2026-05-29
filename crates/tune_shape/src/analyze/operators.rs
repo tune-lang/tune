@@ -49,6 +49,11 @@ impl Analyzer<'_> {
                 Shape::Float
             }
             BinaryOp::Add if Shape::Size.accepts(&lhs) && Shape::Size.accepts(&rhs) => Shape::Size,
+            BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Rem
+                if Shape::Size.accepts(&lhs) && Shape::Size.accepts(&rhs) =>
+            {
+                Shape::Size
+            }
             BinaryOp::Add if Shape::Byte.accepts(&lhs) && Shape::Byte.accepts(&rhs) => Shape::Byte,
             BinaryOp::RangeExclusive | BinaryOp::RangeInclusive
                 if Shape::Int.accepts(&lhs) && Shape::Int.accepts(&rhs) =>
@@ -82,6 +87,16 @@ impl Analyzer<'_> {
             | BinaryOp::Greater
             | BinaryOp::GreaterEqual
                 if Shape::Float.accepts(&lhs) && Shape::Float.accepts(&rhs) =>
+            {
+                Shape::Bool
+            }
+            BinaryOp::Equal
+            | BinaryOp::NotEqual
+            | BinaryOp::Less
+            | BinaryOp::LessEqual
+            | BinaryOp::Greater
+            | BinaryOp::GreaterEqual
+                if Shape::Size.accepts(&lhs) && Shape::Size.accepts(&rhs) =>
             {
                 Shape::Bool
             }
@@ -171,12 +186,11 @@ fn expected_operands(op: BinaryOp) -> &'static str {
         | BinaryOp::Less
         | BinaryOp::LessEqual
         | BinaryOp::Greater
-        | BinaryOp::GreaterEqual
-        | BinaryOp::Sub
-        | BinaryOp::Mul
-        | BinaryOp::Div
-        | BinaryOp::Rem
-        | BinaryOp::BitOr
+        | BinaryOp::GreaterEqual => "`Int`/`Int`, `Float`/`Float`, or `Size`/`Size` operands",
+        BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Rem => {
+            "`Int`/`Int` or `Size`/`Size` operands"
+        }
+        BinaryOp::BitOr
         | BinaryOp::BitXor
         | BinaryOp::BitAnd
         | BinaryOp::ShiftLeft

@@ -190,6 +190,37 @@ let result: Int = {
 }
 
 #[test]
+fn run_file_executes_size_arithmetic_and_comparisons() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let result: Int = {
+  let eight: Size = 8
+  let two: Size = 2
+  let three: Size = 3
+  let one: Size = 1
+  let five: Size = 5
+  let eleven: Size = 11
+  let x: Size = eight / two
+  let y: Size = (x * three) - one
+  let z: Size = y % five
+  if (y >= eleven) and (z == one) {
+    1
+  } else {
+    0
+  }
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, tune_runtime::value::Value::Int(1));
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_boolean_short_circuit_ops() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

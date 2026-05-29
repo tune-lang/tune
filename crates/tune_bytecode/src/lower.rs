@@ -200,6 +200,10 @@ impl FunctionLowerer<'_> {
             | IrOp::MulFloat { .. }
             | IrOp::DivFloat { .. }
             | IrOp::AddSizeChecked { .. }
+            | IrOp::SubSizeChecked { .. }
+            | IrOp::MulSizeChecked { .. }
+            | IrOp::DivSize { .. }
+            | IrOp::RemSize { .. }
             | IrOp::AddByteWrap { .. }
             | IrOp::NegInt { .. }
             | IrOp::NotBool { .. }
@@ -207,8 +211,10 @@ impl FunctionLowerer<'_> {
             | IrOp::NoneCheck { .. }
             | IrOp::GreaterInt { .. }
             | IrOp::GreaterFloat { .. }
+            | IrOp::GreaterSize { .. }
             | IrOp::CompareInt { .. }
-            | IrOp::CompareFloat { .. } => self.lower_numeric_op(op),
+            | IrOp::CompareFloat { .. }
+            | IrOp::CompareSize { .. } => self.lower_numeric_op(op),
             IrOp::RangeInt {
                 dst,
                 start,
