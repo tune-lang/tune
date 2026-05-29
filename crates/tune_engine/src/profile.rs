@@ -9,7 +9,7 @@ use tune_diagnostics::Diagnostic;
 
 use crate::diagnostics::{diagnostic_from_bytecode_lower_error, diagnostic_from_ir_lower_error};
 use crate::reachable::reachable_functions;
-use crate::{EngineError, Tune};
+use crate::{CheckReport, EngineError, ProjectEntry, Tune};
 
 #[derive(Debug, Clone)]
 pub struct ProfileReport {
@@ -95,6 +95,21 @@ pub struct OpcodeCount {
 }
 
 impl Tune {
+    pub fn profile_project(
+        &mut self,
+        manifest_path: impl AsRef<std::path::Path>,
+    ) -> Result<ProfileReport, EngineError> {
+        let entry = self.load_project_manifest(manifest_path)?;
+        self.profile_project_entry(entry)
+    }
+
+    pub fn profile_project_entry(&self, entry: ProjectEntry) -> Result<ProfileReport, EngineError> {
+        let mut timings = Vec::new();
+        let (check, duration) = timed(|| self.check_project_entry(entry));
+        timings.push(stage("project-check", duration));
+        finish_profile(check?, timings)
+    }
+
     pub fn profile_file(&self, file: FileId) -> Result<ProfileReport, EngineError> {
         let source = self
             .db()
@@ -126,114 +141,129 @@ impl Tune {
             .cloned()
             .collect::<Vec<_>>();
 
-        let (module_plan, duration) =
-            timed(|| tune_plan::lower_analyzed_module_to_plan(&module, &resolved, &shape));
-        timings.push(stage("plan", duration));
-
-        let plan_quality = plan_quality(module_plan.entry.as_ref(), &module_plan.functions);
-
-        let Some(entry_plan) = module_plan.entry.as_ref() else {
-            return Ok(ProfileReport {
+        finish_profile(
+            CheckReport {
                 file,
                 diagnostics,
-                timings,
-                plan: plan_quality,
-                ir: IrQuality::default(),
-                optimizer: OptimizerQuality::default(),
-                bytecode: BytecodeQuality::default(),
-                stop_reason: Some("missing entry plan".to_owned()),
-            });
-        };
+                module,
+                resolved,
+                shape,
+            },
+            timings,
+        )
+    }
+}
 
-        if !diagnostics.is_empty() {
-            return Ok(ProfileReport {
-                file,
-                diagnostics,
-                timings,
-                plan: plan_quality,
-                ir: IrQuality::default(),
-                optimizer: OptimizerQuality::default(),
-                bytecode: BytecodeQuality::default(),
-                stop_reason: Some("frontend diagnostics".to_owned()),
-            });
-        }
+fn finish_profile(
+    check: CheckReport,
+    mut timings: Vec<StageTiming>,
+) -> Result<ProfileReport, EngineError> {
+    let (module_plan, duration) = timed(|| {
+        tune_plan::lower_analyzed_module_to_plan(&check.module, &check.resolved, &check.shape)
+    });
+    timings.push(stage("plan", duration));
 
-        let (reachable, duration) =
-            timed(|| reachable_functions(&module_plan.functions, entry_plan));
-        timings.push(stage("reachability", duration));
+    let plan_quality = plan_quality(module_plan.entry.as_ref(), &module_plan.functions);
 
-        let planned = core::iter::once(entry_plan)
-            .chain(reachable.iter().map(|index| &module_plan.functions[*index]))
-            .collect::<Vec<_>>();
-
-        let (ir_result, duration) = timed(|| {
-            let mut ir = Vec::new();
-            for plan in &planned {
-                let function = tune_ir::lower_plan_function(plan).map_err(|error| {
-                    diagnostic_from_ir_lower_error(&plan.name, plan.span, &error)
-                })?;
-                ir.push(function);
-            }
-            Ok::<_, Diagnostic>(ir)
-        });
-        timings.push(stage("ir", duration));
-        let ir = match ir_result {
-            Ok(ir) => ir,
-            Err(diagnostic) => {
-                return Ok(ProfileReport {
-                    file,
-                    diagnostics: vec![diagnostic],
-                    timings,
-                    plan: plan_quality,
-                    ir: IrQuality::default(),
-                    optimizer: OptimizerQuality::default(),
-                    bytecode: BytecodeQuality::default(),
-                    stop_reason: Some("ir lowering failed".to_owned()),
-                });
-            }
-        };
-        let ir_quality = ir_quality(&ir);
-
-        let (optimizer_quality, duration) = timed(|| optimizer_quality(&mut ir.clone()));
-        timings.push(stage("opt", duration));
-
-        let (bytecode_result, duration) = timed(|| tune_bytecode::lower_ir_functions(&ir));
-        timings.push(stage("bytecode", duration));
-        let mut bytecode = match bytecode_result {
-            Ok(bytecode) => bytecode,
-            Err(error) => {
-                return Ok(ProfileReport {
-                    file,
-                    diagnostics: vec![diagnostic_from_bytecode_lower_error(&error)],
-                    timings,
-                    plan: plan_quality,
-                    ir: ir_quality,
-                    optimizer: optimizer_quality,
-                    bytecode: BytecodeQuality::default(),
-                    stop_reason: Some("bytecode lowering failed".to_owned()),
-                });
-            }
-        };
-        bytecode.entry_function = Some(0);
-        let bytecode_quality = bytecode_quality(&bytecode);
-
-        let (validation, duration) = timed(|| tune_bytecode::validate_artifact(&bytecode));
-        timings.push(stage("validate", duration));
-        let stop_reason = validation
-            .err()
-            .map(|error| format!("bytecode validation failed: {error:?}"));
-
-        Ok(ProfileReport {
-            file,
-            diagnostics,
+    let Some(entry_plan) = module_plan.entry.as_ref() else {
+        return Ok(ProfileReport {
+            file: check.file,
+            diagnostics: check.diagnostics,
             timings,
             plan: plan_quality,
-            ir: ir_quality,
-            optimizer: optimizer_quality,
-            bytecode: bytecode_quality,
-            stop_reason,
-        })
+            ir: IrQuality::default(),
+            optimizer: OptimizerQuality::default(),
+            bytecode: BytecodeQuality::default(),
+            stop_reason: Some("missing entry plan".to_owned()),
+        });
+    };
+
+    if !check.diagnostics.is_empty() {
+        return Ok(ProfileReport {
+            file: check.file,
+            diagnostics: check.diagnostics,
+            timings,
+            plan: plan_quality,
+            ir: IrQuality::default(),
+            optimizer: OptimizerQuality::default(),
+            bytecode: BytecodeQuality::default(),
+            stop_reason: Some("frontend diagnostics".to_owned()),
+        });
     }
+
+    let (reachable, duration) = timed(|| reachable_functions(&module_plan.functions, entry_plan));
+    timings.push(stage("reachability", duration));
+
+    let planned = core::iter::once(entry_plan)
+        .chain(reachable.iter().map(|index| &module_plan.functions[*index]))
+        .collect::<Vec<_>>();
+
+    let (ir_result, duration) = timed(|| {
+        let mut ir = Vec::new();
+        for plan in &planned {
+            let function = tune_ir::lower_plan_function(plan)
+                .map_err(|error| diagnostic_from_ir_lower_error(&plan.name, plan.span, &error))?;
+            ir.push(function);
+        }
+        Ok::<_, Diagnostic>(ir)
+    });
+    timings.push(stage("ir", duration));
+    let ir = match ir_result {
+        Ok(ir) => ir,
+        Err(diagnostic) => {
+            return Ok(ProfileReport {
+                file: check.file,
+                diagnostics: vec![diagnostic],
+                timings,
+                plan: plan_quality,
+                ir: IrQuality::default(),
+                optimizer: OptimizerQuality::default(),
+                bytecode: BytecodeQuality::default(),
+                stop_reason: Some("ir lowering failed".to_owned()),
+            });
+        }
+    };
+    let ir_quality = ir_quality(&ir);
+
+    let (optimizer_quality, duration) = timed(|| optimizer_quality(&mut ir.clone()));
+    timings.push(stage("opt", duration));
+
+    let (bytecode_result, duration) = timed(|| tune_bytecode::lower_ir_functions(&ir));
+    timings.push(stage("bytecode", duration));
+    let mut bytecode = match bytecode_result {
+        Ok(bytecode) => bytecode,
+        Err(error) => {
+            return Ok(ProfileReport {
+                file: check.file,
+                diagnostics: vec![diagnostic_from_bytecode_lower_error(&error)],
+                timings,
+                plan: plan_quality,
+                ir: ir_quality,
+                optimizer: optimizer_quality,
+                bytecode: BytecodeQuality::default(),
+                stop_reason: Some("bytecode lowering failed".to_owned()),
+            });
+        }
+    };
+    bytecode.entry_function = Some(0);
+    let bytecode_quality = bytecode_quality(&bytecode);
+
+    let (validation, duration) = timed(|| tune_bytecode::validate_artifact(&bytecode));
+    timings.push(stage("validate", duration));
+    let stop_reason = validation
+        .err()
+        .map(|error| format!("bytecode validation failed: {error:?}"));
+
+    Ok(ProfileReport {
+        file: check.file,
+        diagnostics: check.diagnostics,
+        timings,
+        plan: plan_quality,
+        ir: ir_quality,
+        optimizer: optimizer_quality,
+        bytecode: bytecode_quality,
+        stop_reason,
+    })
 }
 
 fn timed<T>(f: impl FnOnce() -> T) -> (T, Duration) {

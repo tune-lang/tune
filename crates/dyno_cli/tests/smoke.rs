@@ -44,8 +44,12 @@ fn parses_cli_commands_without_special_entry_names() {
     assert_eq!(
         dyno_cli::parse_command(&["profile".to_owned(), "main.tn".to_owned()]),
         Ok(dyno_cli::CliCommand::Profile {
-            path: "main.tn".to_owned(),
+            path: Some("main.tn".to_owned()),
         })
+    );
+    assert_eq!(
+        dyno_cli::parse_command(&["profile".to_owned()]),
+        Ok(dyno_cli::CliCommand::Profile { path: None })
     );
     assert_eq!(
         dyno_cli::parse_command(&["new".to_owned(), "app".to_owned()]),

@@ -5,7 +5,7 @@ pub enum CliCommand {
     Build { path: Option<String> },
     Check { path: Option<String> },
     Run { path: Option<String> },
-    Profile { path: String },
+    Profile { path: Option<String> },
     New { name: String },
     Help,
 }
@@ -29,7 +29,10 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
         [command, path] if command == "build" => Ok(CliCommand::Build {
             path: Some(path.clone()),
         }),
-        [command, path] if command == "profile" => Ok(CliCommand::Profile { path: path.clone() }),
+        [command] if command == "profile" => Ok(CliCommand::Profile { path: None }),
+        [command, path] if command == "profile" => Ok(CliCommand::Profile {
+            path: Some(path.clone()),
+        }),
         [command, name] if command == "new" => Ok(CliCommand::New { name: name.clone() }),
         [command, ..] => Err(format!("unknown dyno command `{command}`")),
     }
@@ -37,7 +40,7 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
 
 #[must_use]
 pub fn usage() -> &'static str {
-    "usage: dyno new <name>\n       dyno check [file]\n       dyno run [file]\n       dyno build [file]\n       dyno profile <file>\n       dyno <file>"
+    "usage: dyno new <name>\n       dyno check [file]\n       dyno run [file]\n       dyno build [file]\n       dyno profile [file]\n       dyno <file>"
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
