@@ -4,6 +4,7 @@ pub mod json;
 pub mod meta;
 pub mod parse;
 pub mod prelude;
+pub mod text;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct StdHost;
@@ -21,7 +22,12 @@ pub fn host() -> StdHost {
 
 #[must_use]
 pub fn modules() -> Vec<tune_host::HostModule> {
-    vec![io::install(), parse::install(), fs::install()]
+    vec![
+        io::install(),
+        parse::install(),
+        text::install(),
+        fs::install(),
+    ]
 }
 
 #[must_use]
@@ -53,4 +59,12 @@ pub(crate) fn string_arg<'a>(
             "expected String for `{name}`"
         ))),
     }
+}
+
+pub(crate) fn string_pair<'a>(
+    args: &'a [tune_runtime::Value],
+    left: &str,
+    right: &str,
+) -> Result<(&'a str, &'a str), tune_host::HostCallError> {
+    Ok((string_arg(args, 0, left)?, string_arg(args, 1, right)?))
 }

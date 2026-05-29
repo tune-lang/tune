@@ -31,6 +31,7 @@ fn std_host_installs_default_modules() {
 
     assert!(modules.iter().any(|module| module.name == "io"));
     assert!(modules.iter().any(|module| module.name == "parse"));
+    assert!(modules.iter().any(|module| module.name == "text"));
     assert!(modules.iter().any(|module| module.name == "fs"));
 }
 
@@ -113,5 +114,28 @@ fn fs_text_executors_return_result_values() -> Result<(), &'static str> {
     );
 
     drop(std::fs::remove_file(path));
+    Ok(())
+}
+
+#[test]
+fn text_contains_executor_returns_bool() -> Result<(), &'static str> {
+    let module = tune_std::text::install();
+    let executor = module
+        .functions
+        .iter()
+        .find(|function| function.name == "contains")
+        .and_then(|function| function.executor.as_ref())
+        .ok_or("text.contains should carry an executor")?;
+
+    assert_eq!(
+        executor
+            .call(&[
+                tune_runtime::Value::String("hello std".into()),
+                tune_runtime::Value::String("std".into()),
+            ])
+            .map_err(|_| "text.contains should execute")?,
+        tune_runtime::Value::Bool(true)
+    );
+
     Ok(())
 }
