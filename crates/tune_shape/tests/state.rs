@@ -413,7 +413,7 @@ fn analyzer_rejects_non_integer_executable_comparisons() -> Result<(), &'static 
 
     assert!(analysis.diagnostics.iter().any(|diagnostic| {
         diagnostic.code == tune_diagnostics::codes::SHAPE_MISMATCH
-            && diagnostic.title == "operator operands do not match executable integer operation"
+            && diagnostic.title == "operator operands do not match an executable operation"
     }));
 
     Ok(())
