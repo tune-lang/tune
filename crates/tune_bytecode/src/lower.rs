@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+mod calls;
 mod compare;
 mod context;
 mod control;
@@ -8,11 +9,12 @@ mod error;
 use crate::Opcode;
 use crate::artifact::{BytecodeArtifact, BytecodeConst};
 use crate::function::{
-    BytecodeCallSite, BytecodeFunction, BytecodePanicSite, BytecodeStructField, BytecodeStructSite,
+    BytecodeFunction, BytecodePanicSite, BytecodeStructField, BytecodeStructSite,
     BytecodeVariantSite, Instruction,
 };
 use crate::lower_tables::{
-    block_offsets, function_indices, lower_variant, member_function_indices, push_artifact_const,
+    block_offsets, callable_function_indices, function_indices, lower_variant,
+    member_function_indices, push_artifact_const,
 };
 use crate::provenance::BytecodeFunctionProvenance;
 use tune_hir::{HirId, MemberId};
@@ -28,6 +30,7 @@ pub fn lower_ir_functions(
 ) -> Result<BytecodeArtifact, BytecodeLowerError> {
     let function_indices = function_indices(functions)?;
     let member_indices = member_function_indices(functions)?;
+    let callable_indices = callable_function_indices(functions)?;
     let mut constants = Vec::new();
     let functions = functions
         .iter()
@@ -36,6 +39,7 @@ pub fn lower_ir_functions(
                 function,
                 &function_indices,
                 &member_indices,
+                &callable_indices,
                 &mut constants,
             )
         })
@@ -51,13 +55,21 @@ pub fn lower_ir_function(function: &IrFunction) -> Result<BytecodeFunction, Byte
     let mut constants = Vec::new();
     let function_indices = function_indices(std::slice::from_ref(function))?;
     let member_indices = member_function_indices(std::slice::from_ref(function))?;
-    lower_ir_function_with_constants(function, &function_indices, &member_indices, &mut constants)
+    let callable_indices = callable_function_indices(std::slice::from_ref(function))?;
+    lower_ir_function_with_constants(
+        function,
+        &function_indices,
+        &member_indices,
+        &callable_indices,
+        &mut constants,
+    )
 }
 
 fn lower_ir_function_with_constants(
     function: &IrFunction,
     function_indices: &HashMap<HirId, u32>,
     member_indices: &HashMap<MemberId, u32>,
+    callable_indices: &HashMap<tune_hir::ExprId, u32>,
     constants: &mut Vec<BytecodeConst>,
 ) -> Result<BytecodeFunction, BytecodeLowerError> {
     let block_offsets = block_offsets(function)?;
@@ -65,9 +77,12 @@ fn lower_ir_function_with_constants(
         function,
         function_indices,
         member_indices,
+        callable_indices,
         block_offsets,
         constants,
         call_sites: Vec::new(),
+        bound_call_sites: Vec::new(),
+        callable_sites: Vec::new(),
         struct_sites: Vec::new(),
         variant_sites: Vec::new(),
         match_sites: Vec::new(),
@@ -94,6 +109,8 @@ fn lower_ir_function_with_constants(
         register_count: function.regs,
         local_count: function.locals,
         call_sites: lowerer.call_sites,
+        bound_call_sites: lowerer.bound_call_sites,
+        callable_sites: lowerer.callable_sites,
         struct_sites: lowerer.struct_sites,
         variant_sites: lowerer.variant_sites,
         match_sites: lowerer.match_sites,
@@ -246,46 +263,19 @@ impl FunctionLowerer<'_> {
                 function,
                 args,
                 ..
-            } => {
-                let function = *self
-                    .function_indices
-                    .get(function)
-                    .ok_or(BytecodeLowerError::UnknownFunction)?;
-                let call_site = u32::try_from(self.call_sites.len())
-                    .map_err(|_| BytecodeLowerError::ConstantLimit)?;
-                self.call_sites.push(BytecodeCallSite {
-                    function,
-                    args: args.iter().map(|arg| arg.0).collect(),
-                });
-                self.instructions.push(Instruction {
-                    opcode: Opcode::CallDirect,
-                    a: dst.0,
-                    b: call_site,
-                    c: 0,
-                });
-                Ok(())
-            }
+            } => self.lower_direct_call(*dst, *function, args),
             IrOp::CallMember {
                 dst, member, args, ..
-            } => {
-                let function = *self
-                    .member_indices
-                    .get(member)
-                    .ok_or(BytecodeLowerError::UnknownFunction)?;
-                let call_site = u32::try_from(self.call_sites.len())
-                    .map_err(|_| BytecodeLowerError::ConstantLimit)?;
-                self.call_sites.push(BytecodeCallSite {
-                    function,
-                    args: args.iter().map(|arg| arg.0).collect(),
-                });
-                self.instructions.push(Instruction {
-                    opcode: Opcode::CallDirect,
-                    a: dst.0,
-                    b: call_site,
-                    c: 0,
-                });
-                Ok(())
-            }
+            } => self.lower_member_call(*dst, *member, args),
+            IrOp::CallableValue {
+                dst,
+                callable,
+                captures,
+                ..
+            } => self.lower_callable_value(*dst, *callable, captures),
+            IrOp::CallBound {
+                dst, callee, args, ..
+            } => self.lower_bound_call(*dst, *callee, args),
             IrOp::VariantConstruct {
                 dst, variant, args, ..
             } => {

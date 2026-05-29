@@ -6,7 +6,7 @@ fn smoke() {
 
 #[test]
 fn core_opcodes_reserve_dense_bytecode_slots() -> Result<(), &'static str> {
-    assert_eq!(tune_bytecode::Opcode::ALL.len(), 45);
+    assert_eq!(tune_bytecode::Opcode::ALL.len(), 46);
     for (index, opcode) in tune_bytecode::Opcode::ALL.iter().enumerate() {
         let expected = u8::try_from(index).map_err(|_| "opcode index overflow")?;
         assert_eq!(*opcode as u8, expected);
@@ -40,6 +40,7 @@ fn lowers_typed_local_ir_to_bytecode() -> Result<(), &'static str> {
         params: 0,
         owner: None,
         member: None,
+        callable: None,
         name: "entry".into(),
         span: None,
         regs: 2,
@@ -91,6 +92,7 @@ fn lowers_integer_add_ir_to_bytecode() -> Result<(), &'static str> {
         params: 0,
         owner: None,
         member: None,
+        callable: None,
         name: "main".into(),
         span: None,
         regs: 3,
@@ -148,6 +150,7 @@ fn lowers_struct_construct_with_explicit_local_state_plan() -> Result<(), &'stat
         params: 0,
         owner: None,
         member: None,
+        callable: None,
         name: "entry".into(),
         span: None,
         regs: 2,
@@ -205,6 +208,7 @@ fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
         params: 0,
         owner: None,
         member: None,
+        callable: None,
         name: "<entry>".into(),
         span: None,
         regs: 2,
@@ -234,6 +238,7 @@ fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
         params: 1,
         owner: Some(tune_hir::HirId(1)),
         member: None,
+        callable: None,
         name: "id".into(),
         span: None,
         regs: 1,
@@ -285,6 +290,8 @@ fn validation_rejects_call_arity_mismatch() {
                     function: 1,
                     args: Vec::new(),
                 }],
+                bound_call_sites: Vec::new(),
+                callable_sites: Vec::new(),
                 struct_sites: Vec::new(),
                 variant_sites: Vec::new(),
                 match_sites: Vec::new(),
@@ -304,6 +311,8 @@ fn validation_rejects_call_arity_mismatch() {
                 register_count: 1,
                 local_count: 1,
                 call_sites: Vec::new(),
+                bound_call_sites: Vec::new(),
+                callable_sites: Vec::new(),
                 struct_sites: Vec::new(),
                 variant_sites: Vec::new(),
                 match_sites: Vec::new(),
@@ -342,6 +351,8 @@ fn validation_rejects_register_out_of_bounds() {
             register_count: 1,
             local_count: 0,
             call_sites: Vec::new(),
+            bound_call_sites: Vec::new(),
+            callable_sites: Vec::new(),
             struct_sites: Vec::new(),
             variant_sites: Vec::new(),
             match_sites: Vec::new(),
@@ -383,6 +394,7 @@ fn lowering_preserves_function_and_instruction_provenance() -> Result<(), &'stat
         params: 0,
         owner: None,
         member: None,
+        callable: None,
         name: "entry".into(),
         span: Some(function_span),
         regs: 2,

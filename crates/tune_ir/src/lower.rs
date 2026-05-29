@@ -13,11 +13,19 @@ pub enum IrLowerError {
 }
 
 pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerError> {
-    let param_count = u32::try_from(plan.params.len()).map_err(|_| IrLowerError::RegisterLimit)?;
+    let param_count = u32::try_from(
+        plan.captures
+            .len()
+            .saturating_add(plan.params.len())
+            .saturating_add(plan.local_params.len()),
+    )
+    .map_err(|_| IrLowerError::RegisterLimit)?;
     let mut lowerer = Lowerer {
         next_reg: 0,
         locals: param_count,
         params: plan.params.clone(),
+        local_params: plan.local_params.clone(),
+        captures: plan.captures.clone(),
         module_bindings: plan.module_bindings.clone(),
         constants: Vec::new(),
         blocks: vec![IrBlock {
@@ -37,6 +45,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
     Ok(IrFunction {
         owner: plan.owner,
         member: plan.member,
+        callable: plan.callable,
         name: plan.name.clone(),
         span: plan.span,
         params: param_count,
@@ -51,6 +60,8 @@ pub(super) struct Lowerer {
     pub(super) next_reg: u32,
     pub(super) locals: u32,
     pub(super) params: Vec<tune_hir::MemberId>,
+    pub(super) local_params: Vec<tune_resolve::LocalId>,
+    pub(super) captures: Vec<tune_resolve::LocalId>,
     pub(super) module_bindings: Vec<HirId>,
     pub(super) constants: Vec<IrConst>,
     pub(super) blocks: Vec<IrBlock>,
@@ -141,6 +152,12 @@ impl Lowerer {
             PlanOp::MemberCall { member: None, .. } => {
                 Err(IrLowerError::UnsupportedOp("unresolved member call"))
             }
+            PlanOp::CallableValue {
+                callable,
+                captures,
+                span,
+            } => self.lower_callable_value(*callable, captures, *span),
+            PlanOp::BoundCall { arg_count, span } => self.lower_bound_call(*arg_count, *span),
             PlanOp::Materialize {
                 materializer: Some(member),
                 ..
@@ -223,8 +240,6 @@ impl Lowerer {
             } => self.lower_finite_for(*binding, iterable_ops, body_ops, contract, *span),
             PlanOp::Panic { arg_count } => self.lower_panic(*arg_count),
             PlanOp::BindingGet { .. }
-            | PlanOp::BoundCall
-            | PlanOp::CallableValue { .. }
             | PlanOp::WitnessCall
             | PlanOp::HostCall { .. }
             | PlanOp::Assign

@@ -1,5 +1,6 @@
 use tune_hir::expr::{Expr, ExprKind};
 mod assign;
+mod callables;
 mod calls;
 mod captures;
 mod expr;
@@ -28,9 +29,12 @@ pub fn lower_to_plan(name: &str) -> PlanFunction {
     PlanFunction {
         owner: None,
         member: None,
+        callable: None,
         name: name.into(),
         span: None,
         params: Vec::new(),
+        local_params: Vec::new(),
+        captures: Vec::new(),
         module_bindings: Vec::new(),
         ops: Vec::new(),
     }
@@ -64,12 +68,15 @@ fn lower_item_with_context(
     let mut plan = PlanFunction {
         owner: Some(item.id),
         member: None,
+        callable: None,
         name: item
             .name
             .clone()
             .unwrap_or_else(|| "<anonymous>".to_owned()),
         span: item.span,
         params: item.params.iter().map(|param| param.id).collect(),
+        local_params: Vec::new(),
+        captures: Vec::new(),
         module_bindings: Vec::new(),
         ops: Vec::new(),
     };

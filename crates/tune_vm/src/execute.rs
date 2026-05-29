@@ -1,7 +1,7 @@
 use tune_bytecode::{Opcode, artifact::BytecodeConst};
 use tune_runtime::{
     task::TaskJoinOutcome,
-    value::{RangeItemKind, RangeValue, StructFields, Value},
+    value::{CallableValue, RangeItemKind, RangeValue, StructFields, Value},
 };
 
 use crate::execute_support::{read_reg, runtime_variant, write_reg};
@@ -219,6 +219,62 @@ impl Vm {
                         .map(|arg| self.at(function_index, ip, read_reg(&registers, *arg)))
                         .collect::<Result<Vec<_>, _>>()?;
                     let value = self.execute_function(call_site.function as usize, args)?;
+                    self.at(
+                        function_index,
+                        ip,
+                        write_reg(&mut registers, instruction.a, value),
+                    )?;
+                }
+                Opcode::CallableValue => {
+                    let site = function
+                        .callable_sites
+                        .get(instruction.b as usize)
+                        .ok_or_else(|| {
+                            self.fault_at(function_index, ip, VmError::CallSiteOutOfBounds)
+                        })?;
+                    let captures = site
+                        .captures
+                        .iter()
+                        .map(|capture| self.at(function_index, ip, read_reg(&registers, *capture)))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    self.at(
+                        function_index,
+                        ip,
+                        write_reg(
+                            &mut registers,
+                            instruction.a,
+                            Value::Callable(CallableValue {
+                                function: site.function,
+                                captures,
+                            }),
+                        ),
+                    )?;
+                }
+                Opcode::CallBound => {
+                    let Value::Callable(callable) =
+                        self.at(function_index, ip, read_reg(&registers, instruction.c))?
+                    else {
+                        return Err(self.fault_at(
+                            function_index,
+                            ip,
+                            VmError::UnsupportedOpcode(Opcode::CallBound),
+                        ));
+                    };
+                    let site = function
+                        .bound_call_sites
+                        .get(instruction.b as usize)
+                        .ok_or_else(|| {
+                            self.fault_at(function_index, ip, VmError::CallSiteOutOfBounds)
+                        })?;
+                    let args = site
+                        .args
+                        .iter()
+                        .map(|arg| self.at(function_index, ip, read_reg(&registers, *arg)))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let value = self.execute_function(
+                        callable.function as usize,
+                        callable.captures.into_iter().chain(args).collect(),
+                    )?;
                     self.at(
                         function_index,
                         ip,

@@ -1,15 +1,32 @@
 use tune_resolve::NameTarget;
 
 use crate::lower::Lowerer;
-use crate::lower_slots::{local_offset, local_slot, module_slot, param_slot};
+use crate::lower_slots::{
+    capture_slot, local_offset, local_param_slot, local_slot, module_slot, param_slot,
+};
 use crate::{IrLowerError, IrOp};
 
 impl Lowerer {
     pub(super) fn lower_binding_get(&mut self, source: NameTarget) -> Result<(), IrLowerError> {
         let local = match source {
-            NameTarget::Local(local) => {
-                local_slot(local, local_offset(&self.module_bindings, &self.params))?
+            NameTarget::Local(local) if self.captures.contains(&local) => {
+                capture_slot(local, &self.module_bindings, &self.captures)?
             }
+            NameTarget::Local(local) if self.local_params.contains(&local) => local_param_slot(
+                local,
+                &self.module_bindings,
+                &self.captures,
+                &self.local_params,
+            )?,
+            NameTarget::Local(local) => local_slot(
+                local,
+                local_offset(
+                    &self.module_bindings,
+                    &self.params,
+                    &self.local_params,
+                    &self.captures,
+                ),
+            )?,
             NameTarget::Param(param) => param_slot(param, &self.module_bindings, &self.params)?,
             NameTarget::SelfValue => tune_resolve::LocalId(0),
             NameTarget::TopLevel(item) if self.module_bindings.contains(&item) => {
@@ -37,7 +54,15 @@ impl Lowerer {
         let Some(local) = local else {
             return Err(IrLowerError::UnsupportedOp("unresolved local initializer"));
         };
-        let local = local_slot(local, local_offset(&self.module_bindings, &self.params))?;
+        let local = local_slot(
+            local,
+            local_offset(
+                &self.module_bindings,
+                &self.params,
+                &self.local_params,
+                &self.captures,
+            ),
+        )?;
         self.track_local(local)?;
         let value = self.pop("local initializer")?;
         self.push_op(IrOp::StoreLocal { local, value });
@@ -70,7 +95,7 @@ impl Lowerer {
         let Some(NameTarget::Local(local)) = target else {
             return Err(IrLowerError::UnsupportedOp("binding set"));
         };
-        let local = local_slot(local, local_offset(&self.module_bindings, &self.params))?;
+        let local = self.lower_local_source_slot(local)?;
         self.track_local(local)?;
         let value = self.pop("local assignment")?;
         self.push_op(IrOp::StoreLocal { local, value });
@@ -84,7 +109,7 @@ impl Lowerer {
     ) -> Result<(), IrLowerError> {
         match target {
             NameTarget::Local(local) => {
-                let local = local_slot(local, local_offset(&self.module_bindings, &self.params))?;
+                let local = self.lower_local_source_slot(local)?;
                 self.track_local(local)?;
                 self.push_op(IrOp::StoreLocal { local, value });
                 Ok(())
@@ -109,5 +134,31 @@ impl Lowerer {
             }
             NameTarget::TopLevel(_) | NameTarget::Variant(_) => Ok(()),
         }
+    }
+
+    fn lower_local_source_slot(
+        &self,
+        local: tune_resolve::LocalId,
+    ) -> Result<tune_resolve::LocalId, IrLowerError> {
+        if self.captures.contains(&local) {
+            return capture_slot(local, &self.module_bindings, &self.captures);
+        }
+        if self.local_params.contains(&local) {
+            return local_param_slot(
+                local,
+                &self.module_bindings,
+                &self.captures,
+                &self.local_params,
+            );
+        }
+        local_slot(
+            local,
+            local_offset(
+                &self.module_bindings,
+                &self.params,
+                &self.local_params,
+                &self.captures,
+            ),
+        )
     }
 }

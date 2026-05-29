@@ -22,6 +22,7 @@ pub struct HostSymbolId(pub u32);
 pub struct IrFunction {
     pub owner: Option<HirId>,
     pub member: Option<MemberId>,
+    pub callable: Option<ExprId>,
     pub name: String,
     pub span: Option<Span>,
     pub params: u32,
@@ -47,6 +48,8 @@ impl IrOp {
             | Self::StructConstruct { span, .. }
             | Self::CallDirect { span, .. }
             | Self::CallMember { span, .. }
+            | Self::CallableValue { span, .. }
+            | Self::CallBound { span, .. }
             | Self::Branch { span, .. }
             | Self::MatchVariant { span, .. }
             | Self::ResultPropagate { span, .. } => *span,
@@ -197,10 +200,17 @@ pub enum IrOp {
         args: Vec<Reg>,
         span: Option<Span>,
     },
+    CallableValue {
+        dst: Reg,
+        callable: ExprId,
+        captures: Vec<Reg>,
+        span: Option<Span>,
+    },
     CallBound {
         dst: Reg,
         callee: Reg,
         args: Vec<Reg>,
+        span: Option<Span>,
     },
     CallWitness {
         dst: Reg,

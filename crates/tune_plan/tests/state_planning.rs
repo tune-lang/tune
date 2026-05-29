@@ -94,7 +94,7 @@ let make(seed: Int) = {
     )));
     assert!(plan.ops.iter().any(|op| matches!(
         op,
-        tune_plan::PlanOp::CallableValue { captures } if !captures.is_empty()
+        tune_plan::PlanOp::CallableValue { captures, .. } if !captures.is_empty()
     )));
 
     Ok(())

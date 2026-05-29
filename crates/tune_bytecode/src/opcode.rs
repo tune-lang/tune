@@ -46,6 +46,7 @@ pub enum Opcode {
     NotBool = 42,
     RangeExclusiveInt = 43,
     RangeInclusiveInt = 44,
+    CallableValue = 45,
 }
 
 impl Opcode {
@@ -95,5 +96,6 @@ impl Opcode {
         Self::NotBool,
         Self::RangeExclusiveInt,
         Self::RangeInclusiveInt,
+        Self::CallableValue,
     ];
 }

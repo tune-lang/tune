@@ -64,4 +64,48 @@ impl Lowerer {
         self.stack.push(dst);
         Ok(())
     }
+
+    pub(super) fn lower_callable_value(
+        &mut self,
+        callable: tune_hir::ExprId,
+        captures: &[tune_resolve::LocalId],
+        span: Option<Span>,
+    ) -> Result<(), IrLowerError> {
+        let mut capture_regs = Vec::with_capacity(captures.len());
+        for capture in captures {
+            self.lower_binding_get(tune_resolve::NameTarget::Local(*capture))?;
+            capture_regs.push(self.pop("callable capture")?);
+        }
+        let dst = self.alloc_reg()?;
+        self.push_op(IrOp::CallableValue {
+            dst,
+            callable,
+            captures: capture_regs,
+            span,
+        });
+        self.stack.push(dst);
+        Ok(())
+    }
+
+    pub(super) fn lower_bound_call(
+        &mut self,
+        arg_count: usize,
+        span: Option<Span>,
+    ) -> Result<(), IrLowerError> {
+        let mut args = Vec::with_capacity(arg_count);
+        for _ in 0..arg_count {
+            args.push(self.pop("bound call argument")?);
+        }
+        args.reverse();
+        let callee = self.pop("bound call callee")?;
+        let dst = self.alloc_reg()?;
+        self.push_op(IrOp::CallBound {
+            dst,
+            callee,
+            args,
+            span,
+        });
+        self.stack.push(dst);
+        Ok(())
+    }
 }

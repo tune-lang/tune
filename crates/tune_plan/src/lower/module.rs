@@ -6,6 +6,7 @@ use tune_resolve::ResolvedModule;
 use tune_shape::{MaterializationPlan, Shape};
 
 use super::LowerContext;
+use super::callables::lower_callable_value_functions;
 use super::specialize::infer_direct_call_param_shapes;
 use crate::plan::{PlanFunction, PlanModule, PlanOp};
 
@@ -23,9 +24,12 @@ pub fn lower_resolved_module_to_plan(module: &Module, resolved: &ResolvedModule)
         let mut entry = PlanFunction {
             owner: None,
             member: None,
+            callable: None,
             name: "<entry>".to_owned(),
             span: module.items.first().and_then(|item| item.span),
             params: Vec::new(),
+            local_params: Vec::new(),
+            captures: Vec::new(),
             module_bindings: module_bindings.clone(),
             ops: Vec::new(),
         };
@@ -52,6 +56,11 @@ pub fn lower_resolved_module_to_plan(module: &Module, resolved: &ResolvedModule)
         .filter(|item| item.kind == ItemKind::CallableDecl)
         .filter_map(|item| lower_module_callable(module, resolved, item, &param_shapes))
         .chain(lower_struct_member_functions(
+            module,
+            resolved,
+            &param_shapes,
+        ))
+        .chain(lower_callable_value_functions(
             module,
             resolved,
             &param_shapes,
@@ -114,12 +123,15 @@ fn lower_module_callable(
     let mut plan = PlanFunction {
         owner: Some(item.id),
         member: None,
+        callable: None,
         name: item
             .name
             .clone()
             .unwrap_or_else(|| "<anonymous>".to_owned()),
         span: item.span,
         params: item.params.iter().map(|param| param.id).collect(),
+        local_params: Vec::new(),
+        captures: Vec::new(),
         module_bindings: Vec::new(),
         ops: Vec::new(),
     };
@@ -185,6 +197,7 @@ fn lower_callable_member(
     let mut plan = PlanFunction {
         owner: Some(owner.id),
         member: Some(callable.id),
+        callable: None,
         name: format!(
             "{}.{}",
             owner.name.as_deref().unwrap_or("<anonymous>"),
@@ -194,6 +207,8 @@ fn lower_callable_member(
         params: std::iter::once(callable.id)
             .chain(callable.params.iter().map(|param| param.id))
             .collect(),
+        local_params: Vec::new(),
+        captures: Vec::new(),
         module_bindings: Vec::new(),
         ops: Vec::new(),
     };
@@ -226,9 +241,12 @@ fn lower_sequence_materializer_member(
     let mut plan = PlanFunction {
         owner: Some(owner.id),
         member: Some(materializer.id),
+        callable: None,
         name: format!("{}.[items]", owner.name.as_deref().unwrap_or("<anonymous>")),
         span: materializer.span,
         params: vec![materializer.id],
+        local_params: Vec::new(),
+        captures: Vec::new(),
         module_bindings: Vec::new(),
         ops: Vec::new(),
     };
@@ -261,9 +279,12 @@ fn lower_index_access_member(
     let mut plan = PlanFunction {
         owner: Some(owner.id),
         member: Some(access.id),
+        callable: None,
         name: format!("{}.[index]", owner.name.as_deref().unwrap_or("<anonymous>")),
         span: access.span,
         params: vec![access.id, access.index_param_id],
+        local_params: Vec::new(),
+        captures: Vec::new(),
         module_bindings: Vec::new(),
         ops: Vec::new(),
     };
@@ -284,7 +305,7 @@ fn lower_index_access_member(
     Some(plan)
 }
 
-fn captured_locals_for_body(
+pub(super) fn captured_locals_for_body(
     resolved: &ResolvedModule,
     body: &tune_hir::expr::Expr,
 ) -> Vec<tune_resolve::LocalId> {

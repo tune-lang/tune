@@ -54,6 +54,7 @@ fn ir_has_typed_slots_for_core_planned_operations() {
         params: 0,
         owner: None,
         member: None,
+        callable: None,
         name: "run".into(),
         span: None,
         regs: 10,
@@ -85,7 +86,10 @@ fn lowers_integer_add_plan_to_ir() -> Result<(), &'static str> {
         span: None,
         owner: None,
         member: None,
+        callable: None,
         params: Vec::new(),
+        local_params: Vec::new(),
+        captures: Vec::new(),
         module_bindings: Vec::new(),
         ops: vec![
             tune_plan::PlanOp::ConstInt { value: 1 },
@@ -121,9 +125,12 @@ fn lowers_local_binding_plan_to_ir_loads_and_stores() -> Result<(), &'static str
     let plan = tune_plan::PlanFunction {
         owner: None,
         member: None,
+        callable: None,
         name: "entry".into(),
         span: None,
         params: Vec::new(),
+        local_params: Vec::new(),
+        captures: Vec::new(),
         module_bindings: Vec::new(),
         ops: vec![
             tune_plan::PlanOp::ConstInt { value: 1 },
@@ -174,9 +181,12 @@ fn lowers_struct_state_plan_to_ir() -> Result<(), &'static str> {
     let plan = tune_plan::PlanFunction {
         owner: None,
         member: None,
+        callable: None,
         name: "entry".into(),
         span: None,
         params: Vec::new(),
+        local_params: Vec::new(),
+        captures: Vec::new(),
         module_bindings: Vec::new(),
         ops: vec![
             tune_plan::PlanOp::ConstInt { value: 1 },
@@ -217,9 +227,12 @@ fn lowers_direct_call_plan_to_ir_with_param_slots() -> Result<(), &'static str> 
     let plan = tune_plan::PlanFunction {
         owner: Some(tune_hir::HirId(1)),
         member: None,
+        callable: None,
         name: "id".into(),
         span: None,
         params: vec![param],
+        local_params: Vec::new(),
+        captures: Vec::new(),
         module_bindings: Vec::new(),
         ops: vec![
             tune_plan::PlanOp::BindingGet {
@@ -244,9 +257,12 @@ fn lowers_direct_call_plan_to_ir_with_param_slots() -> Result<(), &'static str> 
     let entry = tune_plan::PlanFunction {
         owner: None,
         member: None,
+        callable: None,
         name: "<entry>".into(),
         span: None,
         params: Vec::new(),
+        local_params: Vec::new(),
+        captures: Vec::new(),
         module_bindings: Vec::new(),
         ops: vec![
             tune_plan::PlanOp::ConstInt { value: 7 },

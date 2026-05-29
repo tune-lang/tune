@@ -10,6 +10,7 @@ fn optimizer_runs_ordered_semantic_passes_over_ir() {
         params: 0,
         owner: None,
         member: None,
+        callable: None,
         name: "run".into(),
         span: None,
         regs: 0,

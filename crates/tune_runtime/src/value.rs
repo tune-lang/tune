@@ -125,8 +125,11 @@ impl PartialEq for StructFields {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct CallableValue(pub u64);
+#[derive(Debug, Clone, PartialEq)]
+pub struct CallableValue {
+    pub function: u32,
+    pub captures: Vec<Value>,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TaskHandle(pub TaskId);

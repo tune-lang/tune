@@ -243,12 +243,14 @@ fn reachable_functions(
 enum FunctionTarget {
     Item(tune_hir::HirId),
     Member(tune_hir::MemberId),
+    Callable(tune_hir::ExprId),
 }
 
 fn function_matches_target(function: &tune_plan::PlanFunction, target: FunctionTarget) -> bool {
     match target {
         FunctionTarget::Item(item) => function.owner == Some(item) && function.member.is_none(),
         FunctionTarget::Member(member) => function.member == Some(member),
+        FunctionTarget::Callable(callable) => function.callable == Some(callable),
     }
 }
 
@@ -269,6 +271,9 @@ fn direct_call_targets_in_op(op: &tune_plan::PlanOp) -> Vec<FunctionTarget> {
             materializer: Some(member),
             ..
         } => Some(FunctionTarget::Member(*member)),
+        tune_plan::PlanOp::CallableValue { callable, .. } => {
+            Some(FunctionTarget::Callable(*callable))
+        }
         _ => None,
     }
     .into_iter()

@@ -126,7 +126,15 @@ impl Lowerer {
                 let Some(local) = binding.local else {
                     continue;
                 };
-                let local = local_slot(local, local_offset(&self.module_bindings, &self.params))?;
+                let local = local_slot(
+                    local,
+                    local_offset(
+                        &self.module_bindings,
+                        &self.params,
+                        &self.local_params,
+                        &self.captures,
+                    ),
+                )?;
                 self.track_local(local)?;
                 let dst = self.alloc_reg()?;
                 self.push_op(IrOp::VariantField {
@@ -282,7 +290,15 @@ impl Lowerer {
         let Some(binding) = binding else {
             return Ok(());
         };
-        let local = local_slot(binding, local_offset(&self.module_bindings, &self.params))?;
+        let local = local_slot(
+            binding,
+            local_offset(
+                &self.module_bindings,
+                &self.params,
+                &self.local_params,
+                &self.captures,
+            ),
+        )?;
         self.track_local(local)?;
         self.push_op(IrOp::StoreLocal { local, value: item });
         Ok(())

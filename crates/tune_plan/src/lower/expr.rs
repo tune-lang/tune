@@ -32,9 +32,10 @@ impl LowerContext<'_> {
             }
             ExprKind::Literal(_) => {}
             ExprKind::CallableValue { params: _, body } => {
-                self.lower_expr(body, ops);
                 ops.push(PlanOp::CallableValue {
+                    callable: expr.id,
                     captures: self.callable_value_captures(body),
+                    span: expr.span,
                 });
             }
             ExprKind::Sequence(elements) => {

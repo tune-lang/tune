@@ -86,7 +86,10 @@ impl LowerContext<'_> {
                 arg_count,
                 span: callee.span,
             },
-            _ => PlanOp::BoundCall,
+            _ => PlanOp::BoundCall {
+                arg_count,
+                span: callee.span,
+            },
         }
     }
 
