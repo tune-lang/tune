@@ -404,3 +404,43 @@ let result: String = speak(Duck {})
     ));
     Ok(())
 }
+
+#[test]
+fn generic_call_substitutes_params_inside_structural_requirements() -> Result<(), &'static str> {
+    let source = r#"
+struct Box {
+  value: String
+}
+let read<T, R>(boxed: { value: R }, fallback: T): R = boxed.value
+let result: String = read(Box { value = "ok" }, 1)
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[2]);
+
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let call = analysis
+        .calls
+        .iter()
+        .find(|call| matches!(call.target, tune_shape::CallTarget::TopLevel(_)))
+        .ok_or("expected read call")?;
+    let Some(tune_shape::Shape::Structural(requirements)) = call.params.first() else {
+        return Err("expected substituted structural parameter");
+    };
+    assert!(requirements.iter().any(|requirement| {
+        matches!(
+            requirement,
+            tune_shape::MemberRequirement::Field {
+                name,
+                shape: Some(tune_shape::Shape::String)
+            } if name == "value"
+        )
+    }));
+
+    Ok(())
+}

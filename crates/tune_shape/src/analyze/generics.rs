@@ -196,7 +196,36 @@ pub(super) fn substitute_generic_params(shape: &Shape, solved: &[(String, Shape)
                 .map(|arg| substitute_generic_params(arg, solved))
                 .collect(),
         },
-        Shape::Structural(requirements) => Shape::Structural(requirements.clone()),
+        Shape::Structural(requirements) => Shape::Structural(
+            requirements
+                .iter()
+                .map(|requirement| substitute_member_requirement(requirement, solved))
+                .collect(),
+        ),
         shape => shape.clone(),
+    }
+}
+
+fn substitute_member_requirement(
+    requirement: &MemberRequirement,
+    solved: &[(String, Shape)],
+) -> MemberRequirement {
+    match requirement {
+        MemberRequirement::Field { name, shape } => MemberRequirement::Field {
+            name: name.clone(),
+            shape: shape
+                .as_ref()
+                .map(|shape| substitute_generic_params(shape, solved)),
+        },
+        MemberRequirement::Callable { name, params, ret } => MemberRequirement::Callable {
+            name: name.clone(),
+            params: params
+                .iter()
+                .map(|param| substitute_generic_params(param, solved))
+                .collect(),
+            ret: ret
+                .as_ref()
+                .map(|shape| substitute_generic_params(shape, solved)),
+        },
     }
 }
