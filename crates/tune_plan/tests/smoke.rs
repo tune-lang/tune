@@ -198,9 +198,14 @@ fn plan_ops_contain_bool_and(ops: &[tune_plan::PlanOp]) -> bool {
             rhs_ops,
             span: Some(_),
         } => {
-            lhs_ops.contains(&tune_plan::PlanOp::UnaryOp {
-                op: tune_hir::expr::UnaryOp::Not,
-                shape: tune_shape::Shape::Bool,
+            lhs_ops.iter().any(|op| {
+                matches!(
+                    op,
+                    tune_plan::PlanOp::UnaryOp {
+                        op: tune_hir::expr::UnaryOp::Not,
+                        ..
+                    }
+                )
             }) || plan_ops_contain_bool_and(rhs_ops)
         }
         tune_plan::PlanOp::BinaryOp {
