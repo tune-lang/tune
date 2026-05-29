@@ -76,3 +76,27 @@ profile = "dyno.default"
 
     Ok(())
 }
+
+#[test]
+fn loads_project_sources_from_manifest_path() -> Result<(), String> {
+    let root =
+        std::env::temp_dir().join(format!("dyno-project-source-load-{}", std::process::id()));
+    if root.exists() {
+        std::fs::remove_dir_all(&root).map_err(|error| error.to_string())?;
+    }
+    std::fs::create_dir_all(root.join("src")).map_err(|error| error.to_string())?;
+    let manifest = dyno_project::Manifest::new("demo", "src/main.tn");
+    std::fs::write(root.join("dyno.toml"), manifest.to_toml())
+        .map_err(|error| error.to_string())?;
+    std::fs::write(root.join("src/main.tn"), "let value: Int = 42")
+        .map_err(|error| error.to_string())?;
+
+    let loaded = dyno_project::load_project_manifest(root.join("dyno.toml"))
+        .map_err(|error| format!("{error:?}"))?;
+    std::fs::remove_dir_all(&root).map_err(|error| error.to_string())?;
+
+    assert_eq!(loaded.manifest.name, "demo");
+    assert!(loaded.sources.iter().any(|(path, _)| path == "src/main.tn"));
+
+    Ok(())
+}

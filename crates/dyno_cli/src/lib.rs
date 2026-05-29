@@ -109,56 +109,11 @@ pub struct LoadedProject {
 }
 
 pub fn load_project_from_dir(root: impl AsRef<std::path::Path>) -> Result<LoadedProject, String> {
-    let root = root.as_ref();
-    let manifest_path = root.join("dyno.toml");
-    let manifest_text = std::fs::read_to_string(&manifest_path)
-        .map_err(|error| format!("failed to read {}: {error}", manifest_path.display()))?;
-    let manifest = dyno_project::Manifest::from_toml(&manifest_text)
-        .map_err(|error| format!("failed to parse {}: {error:?}", manifest_path.display()))?;
-    let mut sources = Vec::new();
-    for module_root in &manifest.roots {
-        let dyno_project::ModuleRoot::Source(source_root) = module_root else {
-            continue;
-        };
-        collect_tune_sources(root, &root.join(&source_root.0), &mut sources)?;
-    }
-    if !sources.iter().any(|(path, _)| path == &manifest.entry.0) {
-        let entry = root.join(&manifest.entry.0);
-        let text = std::fs::read_to_string(&entry)
-            .map_err(|error| format!("failed to read entry {}: {error}", entry.display()))?;
-        sources.push((manifest.entry.0.clone(), text));
-    }
-    Ok(LoadedProject { manifest, sources })
-}
-
-fn collect_tune_sources(
-    base: &std::path::Path,
-    path: &std::path::Path,
-    sources: &mut Vec<(String, String)>,
-) -> Result<(), String> {
-    let entries = std::fs::read_dir(path)
-        .map_err(|error| format!("failed to read source root {}: {error}", path.display()))?;
-    for entry in entries {
-        let entry = entry.map_err(|error| error.to_string())?;
-        let path = entry.path();
-        if path.is_dir() {
-            collect_tune_sources(base, &path, sources)?;
-            continue;
-        }
-        if path.extension().and_then(std::ffi::OsStr::to_str) != Some("tn") {
-            continue;
-        }
-        let text = std::fs::read_to_string(&path)
-            .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
-        let project_path = path
-            .strip_prefix(base)
-            .unwrap_or(&path)
-            .to_string_lossy()
-            .trim_start_matches("./")
-            .to_owned();
-        sources.push((project_path, text));
-    }
-    Ok(())
+    let loaded = dyno_project::load_project_dir(root).map_err(|error| format!("{error:?}"))?;
+    Ok(LoadedProject {
+        manifest: loaded.manifest,
+        sources: loaded.sources,
+    })
 }
 
 #[must_use]
@@ -368,6 +323,7 @@ pub fn render_engine_error(error: &tune_engine::EngineError) -> Vec<String> {
             .iter()
             .map(render::render_plain)
             .collect::<Vec<_>>(),
+        tune_engine::EngineError::ProjectLoad(message) => vec![message.clone()],
         _ => vec![format!("execution failed: {error:?}")],
     }
 }

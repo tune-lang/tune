@@ -129,15 +129,8 @@ fn main() {
 }
 
 fn run_project_command(command: dyno_cli::CliCommand) {
-    let loaded = match dyno_cli::load_project_from_dir(".") {
-        Ok(loaded) => loaded,
-        Err(error) => {
-            eprintln!("{error}");
-            std::process::exit(1);
-        }
-    };
     let mut tune = tune_engine::Tune::new();
-    let entry = match tune.load_project_sources(loaded.manifest, loaded.sources) {
+    let entry = match tune.load_project_manifest("dyno.toml") {
         Ok(entry) => entry,
         Err(error) => {
             for diagnostic in dyno_cli::render_engine_error(&error) {
