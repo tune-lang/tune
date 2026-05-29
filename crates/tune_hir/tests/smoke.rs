@@ -179,6 +179,34 @@ fn lowers_callable_type_param_structural_constraints() -> Result<(), &'static st
 }
 
 #[test]
+fn lowers_string_literals_to_segments_and_trims_multiline() -> Result<(), &'static str> {
+    let source = "let message = \"value is {value}\"\nlet text = \"\"\"\n  one\n  two\n  \"\"\"";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let message = module.items[0].body.as_ref().ok_or("expected message")?;
+    let text = module.items[1].body.as_ref().ok_or("expected text")?;
+
+    let tune_hir::expr::ExprKind::Literal(tune_hir::expr::LiteralKind::String(message)) =
+        &message.kind
+    else {
+        return Err("expected string literal");
+    };
+    assert_eq!(message.parts.len(), 2);
+    assert!(matches!(
+        message.parts[1],
+        tune_hir::expr::StringPart::Interpolation(ref name) if name == "value"
+    ));
+
+    let tune_hir::expr::ExprKind::Literal(tune_hir::expr::LiteralKind::String(text)) = &text.kind
+    else {
+        return Err("expected multiline string literal");
+    };
+    assert_eq!(text.plain_text().as_deref(), Some("one\ntwo"));
+
+    Ok(())
+}
+
+#[test]
 fn lowers_shape_annotations_to_hir_shape_exprs() -> Result<(), &'static str> {
     let source = "let value: [Int | String]? = none";
     let parsed = tune_syntax::parse(source);

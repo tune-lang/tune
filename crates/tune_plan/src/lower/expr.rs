@@ -27,9 +27,11 @@ impl LowerContext<'_> {
                 ops.push(PlanOp::ConstBool { value: *value });
             }
             ExprKind::Literal(LiteralKind::String(value)) => {
-                ops.push(PlanOp::ConstString {
-                    value: value.clone(),
-                });
+                if let Some(value) = value.plain_text() {
+                    ops.push(PlanOp::ConstString { value });
+                } else {
+                    ops.push(PlanOp::StringBuild);
+                }
             }
             ExprKind::Literal(_) => {}
             ExprKind::CallableValue { params: _, body } => {

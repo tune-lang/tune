@@ -29,8 +29,15 @@ fn literal_fact(literal: &LiteralKind) -> Option<LiteralFact> {
         LiteralKind::Int(text) | LiteralKind::Float(text) => {
             Some(LiteralFact::Numeric { text: text.clone() })
         }
-        LiteralKind::String(text) => Some(LiteralFact::String {
-            segments: vec![string_literal_body(text).to_owned()],
+        LiteralKind::String(literal) => Some(LiteralFact::String {
+            segments: literal
+                .parts
+                .iter()
+                .map(|part| match part {
+                    tune_hir::expr::StringPart::Text(text)
+                    | tune_hir::expr::StringPart::Interpolation(text) => text.clone(),
+                })
+                .collect(),
         }),
         LiteralKind::Bool(value) => Some(LiteralFact::Bool(*value)),
         LiteralKind::None => Some(LiteralFact::None),
@@ -72,19 +79,6 @@ fn value_shape_hint(expr: &Expr, module: &Module, resolved: &ResolvedModule) -> 
             .map(Shape::Literal)
             .unwrap_or(Shape::Hole)
     })
-}
-
-fn string_literal_body(text: &str) -> &str {
-    if let Some(body) = text
-        .strip_prefix("\"\"\"")
-        .and_then(|s| s.strip_suffix("\"\"\""))
-    {
-        body
-    } else {
-        text.strip_prefix('"')
-            .and_then(|s| s.strip_suffix('"'))
-            .unwrap_or(text)
-    }
 }
 
 fn name_target(expr: &Expr, resolved: &ResolvedModule) -> Option<NameTarget> {

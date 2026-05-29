@@ -8,7 +8,9 @@ mod patterns;
 mod structs;
 
 use super::shapes::lower_shape;
-use crate::expr::{BinaryOp, Expr, ExprKind, ExprParam, LiteralKind, UnaryOp};
+use crate::expr::{
+    BinaryOp, Expr, ExprKind, ExprParam, LiteralKind, StringLiteral, StringPart, UnaryOp,
+};
 use patterns::lower_pattern;
 
 #[derive(Default)]
@@ -244,13 +246,119 @@ fn literal_kind(source: &str, node: LiteralExpr<'_>) -> Option<LiteralKind> {
     match first_token_kind(node.syntax())? {
         TokenKind::IntLiteral => Some(LiteralKind::Int(text.to_owned())),
         TokenKind::FloatLiteral => Some(LiteralKind::Float(text.to_owned())),
-        TokenKind::StringLiteral | TokenKind::MultilineStringLiteral => {
-            Some(LiteralKind::String(text.to_owned()))
+        TokenKind::StringLiteral => Some(LiteralKind::String(parse_string_literal(text))),
+        TokenKind::MultilineStringLiteral => {
+            Some(LiteralKind::String(parse_multiline_string_literal(text)))
         }
         TokenKind::KeywordTrue => Some(LiteralKind::Bool(true)),
         TokenKind::KeywordFalse => Some(LiteralKind::Bool(false)),
         TokenKind::KeywordNone => Some(LiteralKind::None),
         _ => None,
+    }
+}
+
+fn parse_string_literal(text: &str) -> StringLiteral {
+    let body = text
+        .strip_prefix('"')
+        .and_then(|body| body.strip_suffix('"'))
+        .unwrap_or(text);
+    string_literal_from_body(body)
+}
+
+fn parse_multiline_string_literal(text: &str) -> StringLiteral {
+    let body = text
+        .strip_prefix("\"\"\"")
+        .and_then(|body| body.strip_suffix("\"\"\""))
+        .unwrap_or(text);
+    string_literal_from_body(&trim_multiline_string_body(body))
+}
+
+fn trim_multiline_string_body(body: &str) -> String {
+    let (body, closing_indent) = body
+        .rsplit_once('\n')
+        .map(|(body, trailing)| {
+            let indent = trailing
+                .chars()
+                .take_while(|ch| *ch == ' ' || *ch == '\t')
+                .count();
+            (body, indent)
+        })
+        .unwrap_or((body, 0));
+    let body = body.strip_prefix('\n').unwrap_or(body);
+
+    body.lines()
+        .map(|line| strip_indent(line, closing_indent))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn strip_indent(line: &str, indent: usize) -> &str {
+    let mut chars = line.char_indices();
+    let mut bytes = 0usize;
+    for _ in 0..indent {
+        let Some((index, ch)) = chars.next() else {
+            return "";
+        };
+        if ch != ' ' && ch != '\t' {
+            return &line[bytes..];
+        }
+        bytes = index + ch.len_utf8();
+    }
+    &line[bytes..]
+}
+
+fn string_literal_from_body(body: &str) -> StringLiteral {
+    let mut parts = Vec::new();
+    let mut text = String::new();
+    let mut chars = body.char_indices().peekable();
+
+    while let Some((_, ch)) = chars.next() {
+        match ch {
+            '\\' => {
+                if let Some((_, escaped)) = chars.next() {
+                    text.push(unescape_char(escaped));
+                }
+            }
+            '{' if chars.peek().is_some_and(|(_, next)| *next == '{') => {
+                chars.next();
+                text.push('{');
+            }
+            '}' if chars.peek().is_some_and(|(_, next)| *next == '}') => {
+                chars.next();
+                text.push('}');
+            }
+            '{' => {
+                if !text.is_empty() {
+                    parts.push(StringPart::Text(std::mem::take(&mut text)));
+                }
+                let mut interpolation = String::new();
+                for (_, inner) in chars.by_ref() {
+                    if inner == '}' {
+                        break;
+                    }
+                    interpolation.push(inner);
+                }
+                parts.push(StringPart::Interpolation(interpolation.trim().to_owned()));
+            }
+            _ => text.push(ch),
+        }
+    }
+
+    if !text.is_empty() || parts.is_empty() {
+        parts.push(StringPart::Text(text));
+    }
+
+    StringLiteral { parts }
+}
+
+const fn unescape_char(ch: char) -> char {
+    match ch {
+        'n' => '\n',
+        'r' => '\r',
+        't' => '\t',
+        '"' => '"',
+        '\\' => '\\',
+        other => other,
     }
 }
 

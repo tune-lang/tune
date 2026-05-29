@@ -7,9 +7,34 @@ use tune_diagnostics::Span;
 pub enum LiteralKind {
     Int(String),
     Float(String),
-    String(String),
+    String(StringLiteral),
     Bool(bool),
     None,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StringLiteral {
+    pub parts: Vec<StringPart>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StringPart {
+    Text(String),
+    Interpolation(String),
+}
+
+impl StringLiteral {
+    #[must_use]
+    pub fn plain_text(&self) -> Option<String> {
+        let mut text = String::new();
+        for part in &self.parts {
+            match part {
+                StringPart::Text(part) => text.push_str(part),
+                StringPart::Interpolation(_) => return None,
+            }
+        }
+        Some(text)
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -67,7 +67,7 @@ fn run_file_executes_tuple_expression_value() -> Result<(), &'static str> {
         })?,
         tune_runtime::value::Value::Tuple(vec![
             tune_runtime::value::Value::Int(10),
-            tune_runtime::value::Value::String("\"hello\"".into()),
+            tune_runtime::value::Value::String("hello".into()),
         ])
     );
 
