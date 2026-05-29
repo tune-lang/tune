@@ -17,6 +17,13 @@ impl Lowerer {
                     &self.captures,
                 )?
             }
+            NameTarget::Param(param) if self.has_capture(CaptureSource::Param(param)) => {
+                capture_slot(
+                    CaptureSource::Param(param),
+                    &self.module_bindings,
+                    &self.captures,
+                )?
+            }
             NameTarget::Local(local) if self.local_params.contains(&local) => local_param_slot(
                 local,
                 &self.module_bindings,

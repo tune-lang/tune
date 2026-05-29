@@ -26,6 +26,12 @@ pub struct BytecodeCallableSite {
     pub captures: Vec<BytecodeCapture>,
 }
 
+#[derive(Debug, Clone)]
+pub struct BytecodeTaskSite {
+    pub function: u32,
+    pub captures: Vec<BytecodeCapture>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BytecodeCapture {
     pub register: u32,
@@ -147,6 +153,7 @@ pub struct BytecodeFunction {
     pub call_sites: Vec<BytecodeCallSite>,
     pub bound_call_sites: Vec<BytecodeBoundCallSite>,
     pub callable_sites: Vec<BytecodeCallableSite>,
+    pub task_sites: Vec<BytecodeTaskSite>,
     pub struct_sites: Vec<BytecodeStructSite>,
     pub field_sites: Vec<BytecodeFieldSite>,
     pub variant_sites: Vec<BytecodeVariantSite>,

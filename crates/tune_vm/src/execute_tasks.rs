@@ -1,4 +1,4 @@
-use tune_bytecode::function::Instruction;
+use tune_bytecode::function::{BytecodeCaptureMode, Instruction};
 use tune_runtime::{task::TaskJoinOutcome, value::Value};
 
 use crate::execute_support::{read_reg, write_reg};
@@ -9,14 +9,41 @@ impl Vm {
         &self,
         function: usize,
         instruction_index: usize,
-        locals: &[Value],
         registers: &mut [Value],
         instruction: &Instruction,
     ) -> Result<(), VmFault> {
+        let function_artifact = self
+            .artifact
+            .functions
+            .get(function)
+            .ok_or_else(|| VmFault::new(VmError::FunctionOutOfBounds, None))?;
+        let site = function_artifact
+            .task_sites
+            .get(instruction.b as usize)
+            .ok_or_else(|| {
+                self.fault_at(function, instruction_index, VmError::CallSiteOutOfBounds)
+            })?;
+        let args = site
+            .captures
+            .iter()
+            .map(|capture| {
+                self.at(
+                    function,
+                    instruction_index,
+                    read_reg(registers, capture.register),
+                )
+                .and_then(|value| match capture.mode {
+                    BytecodeCaptureMode::Reference => Ok(value),
+                    BytecodeCaptureMode::PrivateSnapshot => {
+                        self.at(function, instruction_index, self.capture_snapshot(&value))
+                    }
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         let task = self.at(
             function,
             instruction_index,
-            self.push_deferred_task(instruction.b, locals),
+            self.push_deferred_task(site.function, args),
         )?;
         self.at(
             function,

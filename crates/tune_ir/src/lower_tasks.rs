@@ -1,22 +1,25 @@
 use tune_diagnostics::Span;
-use tune_plan::PlanOp;
+use tune_plan::{Capture, CaptureMode, CaptureSource, PlanOp};
 
-use crate::IrOp;
 use crate::lower::{IrLowerError, Lowerer};
+use crate::{IrCapture, IrCaptureMode, IrOp};
 
 impl Lowerer {
     pub(super) fn lower_spawn(
         &mut self,
         body_ops: &[PlanOp],
+        captures: &[Capture],
         span: Option<Span>,
     ) -> Result<(), IrLowerError> {
+        let capture_regs = self.lower_spawn_captures(captures)?;
+        let param_count = u32::try_from(captures.len()).map_err(|_| IrLowerError::RegisterLimit)?;
         let mut task = Lowerer {
             next_reg: 0,
-            locals: self.locals,
-            params: self.params.clone(),
-            local_params: self.local_params.clone(),
-            captures: self.captures.clone(),
-            module_bindings: self.module_bindings.clone(),
+            locals: param_count,
+            params: Vec::new(),
+            local_params: Vec::new(),
+            captures: captures.to_vec(),
+            module_bindings: Vec::new(),
             constants: Vec::new(),
             blocks: vec![crate::IrBlock {
                 id: crate::BlockId(0),
@@ -41,7 +44,7 @@ impl Lowerer {
             callable: None,
             name: "<spawn>".to_owned(),
             span,
-            params: 0,
+            params: param_count,
             regs: task.next_reg,
             locals: task.locals,
             constants: task.constants,
@@ -52,10 +55,34 @@ impl Lowerer {
         self.push_op(IrOp::Spawn {
             dst,
             function,
+            captures: capture_regs,
             span,
         });
         self.stack.push(dst);
         Ok(())
+    }
+
+    fn lower_spawn_captures(
+        &mut self,
+        captures: &[Capture],
+    ) -> Result<Vec<IrCapture>, IrLowerError> {
+        let mut capture_regs = Vec::with_capacity(captures.len());
+        for capture in captures {
+            let target = match capture.source {
+                CaptureSource::Local(local) => tune_resolve::NameTarget::Local(local),
+                CaptureSource::Param(param) => tune_resolve::NameTarget::Param(param),
+                CaptureSource::TopLevel(item) => tune_resolve::NameTarget::TopLevel(item),
+            };
+            self.lower_binding_get(target)?;
+            capture_regs.push(IrCapture {
+                reg: self.pop("spawn capture")?,
+                mode: match capture.mode {
+                    CaptureMode::Reference => IrCaptureMode::Reference,
+                    CaptureMode::PrivateSnapshot => IrCaptureMode::PrivateSnapshot,
+                },
+            });
+        }
+        Ok(capture_regs)
     }
 
     pub(super) fn lower_task_join(&mut self, span: Option<Span>) -> Result<(), IrLowerError> {

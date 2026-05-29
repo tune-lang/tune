@@ -93,6 +93,7 @@ fn lower_ir_function_with_constants(
         call_sites: Vec::new(),
         bound_call_sites: Vec::new(),
         callable_sites: Vec::new(),
+        task_sites: Vec::new(),
         struct_sites: Vec::new(),
         field_sites: Vec::new(),
         variant_sites: Vec::new(),
@@ -124,6 +125,7 @@ fn lower_ir_function_with_constants(
         call_sites: lowerer.call_sites,
         bound_call_sites: lowerer.bound_call_sites,
         callable_sites: lowerer.callable_sites,
+        task_sites: lowerer.task_sites,
         struct_sites: lowerer.struct_sites,
         field_sites: lowerer.field_sites,
         variant_sites: lowerer.variant_sites,
@@ -444,7 +446,12 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(())
             }
-            IrOp::Spawn { dst, function, .. } => self.lower_spawn(*dst, *function),
+            IrOp::Spawn {
+                dst,
+                function,
+                captures,
+                ..
+            } => self.lower_spawn(*dst, *function, captures),
             IrOp::TaskJoin { dst, task, .. } => {
                 self.lower_task_join(*dst, *task);
                 Ok(())

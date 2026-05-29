@@ -76,6 +76,7 @@ impl Lowerer {
         for capture in captures {
             let target = match capture.source {
                 CaptureSource::Local(local) => tune_resolve::NameTarget::Local(local),
+                CaptureSource::Param(param) => tune_resolve::NameTarget::Param(param),
                 CaptureSource::TopLevel(item) => tune_resolve::NameTarget::TopLevel(item),
             };
             self.lower_binding_get(target)?;

@@ -26,6 +26,7 @@ pub struct PlanFunction {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CaptureSource {
     Local(LocalId),
+    Param(MemberId),
     TopLevel(HirId),
 }
 
@@ -354,6 +355,7 @@ pub enum PlanOp {
     Spawn {
         body: ExprId,
         body_ops: Vec<PlanOp>,
+        captures: Vec<Capture>,
         span: Option<Span>,
     },
     TaskJoin {

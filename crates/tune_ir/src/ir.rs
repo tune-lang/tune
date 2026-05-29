@@ -463,6 +463,7 @@ pub enum IrOp {
     Spawn {
         dst: Reg,
         function: u32,
+        captures: Vec<IrCapture>,
         span: Option<Span>,
     },
     TaskJoin {

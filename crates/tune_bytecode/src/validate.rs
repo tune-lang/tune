@@ -35,6 +35,10 @@ pub enum BytecodeValidationError {
         function: u32,
         site: u32,
     },
+    TaskSiteOutOfBounds {
+        function: u32,
+        site: u32,
+    },
     StructSiteOutOfBounds {
         function: u32,
         site: u32,
@@ -263,14 +267,7 @@ fn validate_instruction(
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
         }
-        Opcode::SpawnTask => {
-            register(function_id, function, instruction.a)?;
-            artifact.functions.get(instruction.b as usize).ok_or(
-                BytecodeValidationError::FunctionOutOfBounds {
-                    function: instruction.b,
-                },
-            )?;
-        }
+        Opcode::SpawnTask => validate_task(artifact, function_id, function, instruction)?,
         Opcode::Jump => jump(function_id, function, instruction.a)?,
         Opcode::JumpIfFalse => {
             register(function_id, function, instruction.a)?;
@@ -346,6 +343,39 @@ fn validate_string(
     )?;
     for part in &site.parts {
         register(function_id, function, *part)?;
+    }
+    Ok(())
+}
+
+fn validate_task(
+    artifact: &BytecodeArtifact,
+    function_id: u32,
+    function: &BytecodeFunction,
+    instruction: &Instruction,
+) -> Result<(), BytecodeValidationError> {
+    register(function_id, function, instruction.a)?;
+    let site = function.task_sites.get(instruction.b as usize).ok_or(
+        BytecodeValidationError::TaskSiteOutOfBounds {
+            function: function_id,
+            site: instruction.b,
+        },
+    )?;
+    let target = artifact.functions.get(site.function as usize).ok_or(
+        BytecodeValidationError::FunctionOutOfBounds {
+            function: site.function,
+        },
+    )?;
+    let actual = u32::try_from(site.captures.len()).unwrap_or(u32::MAX);
+    if target.param_count != actual {
+        return Err(BytecodeValidationError::CallArityMismatch {
+            function: function_id,
+            target: site.function,
+            expected: target.param_count,
+            actual,
+        });
+    }
+    for capture in &site.captures {
+        register(function_id, function, capture.register)?;
     }
     Ok(())
 }

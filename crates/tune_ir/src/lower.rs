@@ -276,7 +276,12 @@ impl Lowerer {
                 self.stack.push(dst);
                 Ok(())
             }
-            PlanOp::Spawn { body_ops, span, .. } => self.lower_spawn(body_ops, *span),
+            PlanOp::Spawn {
+                body_ops,
+                captures,
+                span,
+                ..
+            } => self.lower_spawn(body_ops, captures, *span),
             PlanOp::TaskJoin { span } => self.lower_task_join(*span),
             PlanOp::If {
                 branches,

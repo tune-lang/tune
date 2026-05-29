@@ -20,7 +20,7 @@ pub(crate) enum VmTask {
     Pending {
         id: TaskId,
         function: u32,
-        locals: Vec<Value>,
+        args: Vec<Value>,
     },
     Ready {
         value: Value,

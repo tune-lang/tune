@@ -79,20 +79,16 @@ impl Vm {
     pub(crate) fn push_deferred_task(
         &self,
         function: u32,
-        locals: &[Value],
+        args: Vec<Value>,
     ) -> Result<Value, VmError> {
-        if let Some(error) = locals.iter().find_map(Value::task_safety_error) {
+        if let Some(error) = args.iter().find_map(Value::task_safety_error) {
             return Err(VmError::TaskUnsafeCapture {
                 resource_type: error.resource_type,
             });
         }
         let mut tasks = self.tasks.borrow_mut();
         let id = TaskId(u64::try_from(tasks.len()).unwrap_or(u64::MAX));
-        tasks.push(VmTask::Pending {
-            id,
-            function,
-            locals: locals.to_vec(),
-        });
+        tasks.push(VmTask::Pending { id, function, args });
         Ok(Value::Task(TaskHandle(id)))
     }
 
@@ -142,9 +138,7 @@ impl Vm {
     pub(crate) fn take_pending_task(&self, id: TaskId) -> Option<(u32, Vec<Value>)> {
         let task = self.tasks.borrow().get(id.0 as usize).cloned()?;
         match task {
-            VmTask::Pending {
-                function, locals, ..
-            } => Some((function, locals)),
+            VmTask::Pending { function, args, .. } => Some((function, args)),
             VmTask::Ready { .. } => None,
         }
     }

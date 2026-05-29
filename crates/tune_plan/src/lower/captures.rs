@@ -63,6 +63,15 @@ fn collect_captured_locals(
                     captures.push(capture);
                 }
             }
+            Some(NameTarget::Param(param)) => {
+                let capture = capture_for(body, context, CaptureSource::Param(param));
+                if !captures
+                    .iter()
+                    .any(|candidate| candidate.source == capture.source)
+                {
+                    captures.push(capture);
+                }
+            }
             Some(NameTarget::TopLevel(item)) if context.top_level_is_value_binding(item) => {
                 let capture = capture_for(body, context, CaptureSource::TopLevel(item));
                 if !captures
@@ -140,6 +149,7 @@ fn expr_capture_source(expr: &Expr, context: &LowerContext<'_>) -> Option<Captur
         Some(NameTarget::Local(local)) if context.local_kind(local) == Some(LocalKind::Let) => {
             Some(CaptureSource::Local(local))
         }
+        Some(NameTarget::Param(param)) => Some(CaptureSource::Param(param)),
         Some(NameTarget::TopLevel(item)) if context.top_level_is_value_binding(item) => {
             Some(CaptureSource::TopLevel(item))
         }

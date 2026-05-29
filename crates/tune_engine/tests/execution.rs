@@ -410,6 +410,33 @@ let result: Int = task.join() + 1
 }
 
 #[test]
+fn run_file_executes_spawn_body_with_captured_param() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let start(seed: Int): Int = {
+  let task: Task<Int> = spawn seed + 1
+  task.join()
+}
+let result: Int = start(4)
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        tune.run_file(file).map_err(|error| {
+            eprintln!("{error:?}");
+            "file entry should run"
+        })?,
+        tune_runtime::value::Value::Int(5)
+    );
+
+    Ok(())
+}
+
+#[test]
 fn run_file_does_not_execute_spawned_work_before_join() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

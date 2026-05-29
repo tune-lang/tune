@@ -18,9 +18,9 @@ impl Vm {
     pub(crate) fn execute_task_function(
         &self,
         function_index: usize,
-        locals: Vec<Value>,
+        args: Vec<Value>,
     ) -> Result<Value, VmFault> {
-        self.execute_function_with_capture_cells(function_index, Vec::new(), Some(locals), &[], 0)
+        self.execute_function_with_capture_cells(function_index, args, None, &[], 0)
     }
 
     fn execute_function_with_capture_cells(
@@ -347,13 +347,7 @@ impl Vm {
                     }
                 }
                 Opcode::SpawnTask => {
-                    self.execute_spawn_task(
-                        function_index,
-                        ip,
-                        &locals,
-                        &mut registers,
-                        instruction,
-                    )?;
+                    self.execute_spawn_task(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::TaskJoin => {
                     self.execute_task_join(function_index, ip, &mut registers, instruction)?;

@@ -43,6 +43,7 @@ fn ir_has_typed_slots_for_core_planned_operations() {
             tune_ir::IrOp::Spawn {
                 dst: tune_ir::Reg(8),
                 function: 0,
+                captures: Vec::new(),
                 span: None,
             },
             tune_ir::IrOp::Return {
