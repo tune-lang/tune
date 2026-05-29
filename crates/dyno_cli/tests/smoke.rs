@@ -10,6 +10,24 @@ fn package_exposes_dyno_binary() {
 }
 
 #[test]
+fn parses_cli_commands_without_special_entry_names() {
+    assert_eq!(
+        dyno_cli::parse_command(&["main.tn".to_owned()]),
+        Ok(dyno_cli::CliCommand::Run {
+            path: "main.tn".to_owned(),
+        })
+    );
+    assert_eq!(
+        dyno_cli::parse_command(&["check".to_owned(), "main.tn".to_owned()]),
+        Ok(dyno_cli::CliCommand::Check {
+            path: "main.tn".to_owned(),
+        })
+    );
+    assert_eq!(dyno_cli::parse_command(&[]), Ok(dyno_cli::CliCommand::Help));
+    assert!(dyno_cli::parse_command(&["bad".to_owned(), "main.tn".to_owned()]).is_err());
+}
+
+#[test]
 fn renders_engine_diagnostics_with_shared_renderer() {
     let span = tune_diagnostics::Span::new(
         tune_diagnostics::FileId(0),
