@@ -61,3 +61,26 @@ let run(): String = "ok"
             .any(|fact| matches!(fact, tune_meta::facts::DeclFact::JsonInvoker))
     );
 }
+
+#[test]
+fn meta_tagged_query_consumes_typed_compiler_tag_facts() {
+    let source = r#"
+tag tool {}
+tag route {}
+let capability = 1
+@tool(capability = capability)
+let run(): String = "ok"
+@route(path = "/")
+let home(): String = "home"
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    let tagged = tune_meta::tagged::tagged_decls("tool", &resolved.facts);
+
+    assert_eq!(tagged.len(), 1);
+    assert_eq!(tagged[0].decl_id, module.items[3].id);
+    assert_eq!(tagged[0].tag.name, "tool");
+    assert_eq!(tagged[0].tag.args[0].name.as_deref(), Some("capability"));
+}
