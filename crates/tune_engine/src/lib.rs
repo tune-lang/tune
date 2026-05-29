@@ -93,7 +93,8 @@ impl Tune {
         let check = self
             .check_file(file)
             .ok_or(EngineError::FileNotFound(file))?;
-        let module_plan = tune_plan::lower_resolved_module_to_plan(&check.module, &check.resolved);
+        let module_plan =
+            tune_plan::lower_analyzed_module_to_plan(&check.module, &check.resolved, &check.shape);
         let functions = module_plan.functions.clone();
 
         Ok(CompileReport {

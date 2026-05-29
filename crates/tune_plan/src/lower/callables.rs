@@ -11,26 +11,30 @@ use crate::plan::{PlanFunction, PlanOp};
 pub(super) fn lower_callable_value_functions<'a>(
     module: &'a Module,
     resolved: &'a ResolvedModule,
+    analyses: &'a [tune_shape::ShapeAnalysis],
     param_shapes: &'a [(tune_hir::MemberId, Shape)],
 ) -> impl Iterator<Item = PlanFunction> + 'a {
-    module.items.iter().flat_map(move |item| {
-        let analysis = tune_shape::analyze_item(module, resolved, item);
-        item.body
-            .iter()
-            .chain(item.struct_members.iter().filter_map(struct_member_body))
-            .flat_map(move |body| {
-                let context = CallableFunctionContext {
-                    module,
-                    resolved,
-                    owner: item,
-                    analysis: &analysis,
-                    param_shapes,
-                };
-                let mut functions = Vec::new();
-                collect_callable_value_functions(&context, body, &mut functions);
-                functions
-            })
-    })
+    module
+        .items
+        .iter()
+        .zip(analyses)
+        .flat_map(move |(item, analysis)| {
+            item.body
+                .iter()
+                .chain(item.struct_members.iter().filter_map(struct_member_body))
+                .flat_map(move |body| {
+                    let context = CallableFunctionContext {
+                        module,
+                        resolved,
+                        owner: item,
+                        analysis,
+                        param_shapes,
+                    };
+                    let mut functions = Vec::new();
+                    collect_callable_value_functions(&context, body, &mut functions);
+                    functions
+                })
+        })
 }
 
 struct CallableFunctionContext<'a> {

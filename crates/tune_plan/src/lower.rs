@@ -18,7 +18,7 @@ use tune_hir::module::Module;
 use tune_resolve::{LocalId, NameTarget, ResolvedModule};
 use tune_shape::MaterializationPlan;
 
-pub use module::lower_resolved_module_to_plan;
+pub use module::{lower_analyzed_module_to_plan, lower_resolved_module_to_plan};
 
 use crate::plan::{PlanFunction, PlanOp, StructEscapeReason};
 

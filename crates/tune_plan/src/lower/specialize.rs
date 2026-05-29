@@ -6,20 +6,20 @@ use tune_shape::Shape;
 
 use super::LowerContext;
 
-pub(super) fn infer_direct_call_param_shapes(
+pub(super) fn infer_direct_call_param_shapes_from_analyses(
     module: &Module,
     resolved: &ResolvedModule,
+    analyses: &[tune_shape::ShapeAnalysis],
 ) -> Vec<(tune_hir::MemberId, Shape)> {
     let mut inferred = Vec::new();
-    for item in &module.items {
+    for (item, analysis) in module.items.iter().zip(analyses) {
         let Some(body) = item.body.as_ref() else {
             continue;
         };
-        let analysis = tune_shape::analyze_item(module, resolved, item);
         let context = LowerContext {
             resolved: Some(resolved),
             module: Some(module),
-            analysis: Some(&analysis),
+            analysis: Some(analysis),
             self_shape: None,
             struct_escape: crate::StructEscapeReason::Local,
             structural_witnesses: Vec::new(),

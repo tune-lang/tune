@@ -7,12 +7,22 @@ use tune_shape::{MaterializationPlan, Shape};
 
 use super::LowerContext;
 use super::callables::lower_callable_value_functions;
-use super::specialize::infer_direct_call_param_shapes;
+use super::specialize::infer_direct_call_param_shapes_from_analyses;
 use crate::plan::{PlanFunction, PlanModule, PlanOp};
 
 #[must_use]
 pub fn lower_resolved_module_to_plan(module: &Module, resolved: &ResolvedModule) -> PlanModule {
-    let param_shapes = infer_direct_call_param_shapes(module, resolved);
+    let analyses = tune_shape::analyze_module(module, resolved);
+    lower_analyzed_module_to_plan(module, resolved, &analyses)
+}
+
+#[must_use]
+pub fn lower_analyzed_module_to_plan(
+    module: &Module,
+    resolved: &ResolvedModule,
+    analyses: &[tune_shape::ShapeAnalysis],
+) -> PlanModule {
+    let param_shapes = infer_direct_call_param_shapes_from_analyses(module, resolved, analyses);
     let module_bindings = module
         .items
         .iter()
@@ -42,6 +52,7 @@ pub fn lower_resolved_module_to_plan(module: &Module, resolved: &ResolvedModule)
                 module,
                 item,
                 resolved,
+                analysis_for_item(module, analyses, item),
                 last_binding,
                 &param_shapes,
                 &mut entry.ops,
@@ -54,15 +65,25 @@ pub fn lower_resolved_module_to_plan(module: &Module, resolved: &ResolvedModule)
         .items
         .iter()
         .filter(|item| item.kind == ItemKind::CallableDecl)
-        .filter_map(|item| lower_module_callable(module, resolved, item, &param_shapes))
+        .filter_map(|item| {
+            lower_module_callable(
+                module,
+                resolved,
+                item,
+                analysis_for_item(module, analyses, item),
+                &param_shapes,
+            )
+        })
         .chain(lower_struct_member_functions(
             module,
             resolved,
+            analyses,
             &param_shapes,
         ))
         .chain(lower_callable_value_functions(
             module,
             resolved,
+            analyses,
             &param_shapes,
         ))
         .collect();
@@ -74,6 +95,7 @@ fn lower_module_item_into_entry(
     module: &Module,
     item: &Item,
     resolved: &ResolvedModule,
+    analysis: Option<&tune_shape::ShapeAnalysis>,
     last_binding: Option<tune_hir::HirId>,
     param_shapes: &[(tune_hir::MemberId, Shape)],
     ops: &mut Vec<PlanOp>,
@@ -81,11 +103,10 @@ fn lower_module_item_into_entry(
     let Some(body) = item.body.as_ref() else {
         return;
     };
-    let analysis = tune_shape::analyze_item(module, resolved, item);
     let context = LowerContext {
         resolved: Some(resolved),
         module: Some(module),
-        analysis: Some(&analysis),
+        analysis,
         self_shape: None,
         struct_escape: crate::StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
@@ -116,10 +137,10 @@ fn lower_module_callable(
     module: &Module,
     resolved: &ResolvedModule,
     item: &Item,
+    analysis: Option<&tune_shape::ShapeAnalysis>,
     param_shapes: &[(tune_hir::MemberId, Shape)],
 ) -> Option<PlanFunction> {
     let body = item.body.as_ref()?;
-    let analysis = tune_shape::analyze_item(module, resolved, item);
     let mut plan = PlanFunction {
         owner: Some(item.id),
         member: None,
@@ -138,7 +159,7 @@ fn lower_module_callable(
     let context = LowerContext {
         resolved: Some(resolved),
         module: Some(module),
-        analysis: Some(&analysis),
+        analysis,
         self_shape: None,
         struct_escape: crate::StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
@@ -155,6 +176,7 @@ fn lower_module_callable(
 fn lower_struct_member_functions<'a>(
     module: &'a Module,
     resolved: &'a ResolvedModule,
+    analyses: &'a [tune_shape::ShapeAnalysis],
     param_shapes: &'a [(tune_hir::MemberId, Shape)],
 ) -> impl Iterator<Item = PlanFunction> + 'a {
     module
@@ -165,18 +187,29 @@ fn lower_struct_member_functions<'a>(
             item.struct_members
                 .iter()
                 .filter_map(move |member| match member {
-                    StructMember::Callable(callable) => {
-                        lower_callable_member(module, resolved, item, callable, param_shapes)
-                    }
-                    StructMember::IndexAccess(access) => {
-                        lower_index_access_member(module, resolved, item, access, param_shapes)
-                    }
+                    StructMember::Callable(callable) => lower_callable_member(
+                        module,
+                        resolved,
+                        item,
+                        callable,
+                        analysis_for_item(module, analyses, item),
+                        param_shapes,
+                    ),
+                    StructMember::IndexAccess(access) => lower_index_access_member(
+                        module,
+                        resolved,
+                        item,
+                        access,
+                        analysis_for_item(module, analyses, item),
+                        param_shapes,
+                    ),
                     StructMember::SequenceMaterializer(materializer) => {
                         lower_sequence_materializer_member(
                             module,
                             resolved,
                             item,
                             materializer,
+                            analysis_for_item(module, analyses, item),
                             param_shapes,
                         )
                     }
@@ -190,10 +223,10 @@ fn lower_callable_member(
     resolved: &ResolvedModule,
     owner: &Item,
     callable: &CallableMember,
+    analysis: Option<&tune_shape::ShapeAnalysis>,
     param_shapes: &[(tune_hir::MemberId, Shape)],
 ) -> Option<PlanFunction> {
     let body = callable.body.as_ref()?;
-    let analysis = tune_shape::analyze_item(module, resolved, owner);
     let mut plan = PlanFunction {
         owner: Some(owner.id),
         member: Some(callable.id),
@@ -215,7 +248,7 @@ fn lower_callable_member(
     let context = LowerContext {
         resolved: Some(resolved),
         module: Some(module),
-        analysis: Some(&analysis),
+        analysis,
         self_shape: owner.name.as_ref().map(|name| Shape::Struct(name.clone())),
         struct_escape: crate::StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
@@ -234,10 +267,10 @@ fn lower_sequence_materializer_member(
     resolved: &ResolvedModule,
     owner: &Item,
     materializer: &SequenceMaterializer,
+    analysis: Option<&tune_shape::ShapeAnalysis>,
     param_shapes: &[(tune_hir::MemberId, Shape)],
 ) -> Option<PlanFunction> {
     let body = materializer.body.as_ref()?;
-    let analysis = tune_shape::analyze_item(module, resolved, owner);
     let mut plan = PlanFunction {
         owner: Some(owner.id),
         member: Some(materializer.id),
@@ -253,7 +286,7 @@ fn lower_sequence_materializer_member(
     let context = LowerContext {
         resolved: Some(resolved),
         module: Some(module),
-        analysis: Some(&analysis),
+        analysis,
         self_shape: owner.name.as_ref().map(|name| Shape::Struct(name.clone())),
         struct_escape: crate::StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
@@ -272,10 +305,10 @@ fn lower_index_access_member(
     resolved: &ResolvedModule,
     owner: &Item,
     access: &IndexAccess,
+    analysis: Option<&tune_shape::ShapeAnalysis>,
     param_shapes: &[(tune_hir::MemberId, Shape)],
 ) -> Option<PlanFunction> {
     let body = access.body.as_ref()?;
-    let analysis = tune_shape::analyze_item(module, resolved, owner);
     let mut plan = PlanFunction {
         owner: Some(owner.id),
         member: Some(access.id),
@@ -291,7 +324,7 @@ fn lower_index_access_member(
     let context = LowerContext {
         resolved: Some(resolved),
         module: Some(module),
-        analysis: Some(&analysis),
+        analysis,
         self_shape: owner.name.as_ref().map(|name| Shape::Struct(name.clone())),
         struct_escape: crate::StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
@@ -303,6 +336,18 @@ fn lower_index_access_member(
         plan.ops.push(PlanOp::Return);
     }
     Some(plan)
+}
+
+fn analysis_for_item<'a>(
+    module: &Module,
+    analyses: &'a [tune_shape::ShapeAnalysis],
+    item: &Item,
+) -> Option<&'a tune_shape::ShapeAnalysis> {
+    module
+        .items
+        .iter()
+        .position(|candidate| candidate.id == item.id)
+        .and_then(|index| analyses.get(index))
 }
 
 pub(super) fn captured_locals_for_body(
