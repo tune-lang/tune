@@ -78,6 +78,7 @@ impl IrOp {
             | Self::CompareFloat { span, .. }
             | Self::GreaterSize { span, .. }
             | Self::CompareSize { span, .. }
+            | Self::ByteBinary { span, .. }
             | Self::GetField { span, .. }
             | Self::SetField { span, .. }
             | Self::VariantConstruct { span, .. }
@@ -319,6 +320,13 @@ pub enum IrOp {
         a: Reg,
         b: Reg,
     },
+    ByteBinary {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        op: IrByteBinary,
+        span: Option<Span>,
+    },
     SeqBuild {
         dst: Reg,
         element_shape: Shape,
@@ -473,6 +481,26 @@ pub enum IrOp {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IrIntComparison {
+    Equal,
+    NotEqual,
+    Less,
+    LessEqual,
+    GreaterEqual,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrByteBinary {
+    SubWrap,
+    MulWrap,
+    Div,
+    Rem,
+    BitNot,
+    BitAnd,
+    BitOr,
+    BitXor,
+    ShiftLeft,
+    ShiftRight,
+    Greater,
     Equal,
     NotEqual,
     Less,

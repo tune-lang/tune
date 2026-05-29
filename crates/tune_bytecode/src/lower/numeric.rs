@@ -1,4 +1,4 @@
-use tune_ir::IrOp;
+use tune_ir::{IrByteBinary, IrOp};
 
 use crate::Opcode;
 use crate::lower::compare::{lower_float_comparison, lower_int_comparison, lower_size_comparison};
@@ -67,6 +67,9 @@ impl FunctionLowerer<'_> {
             IrOp::AddByteWrap { dst, a, b } => {
                 self.push_instruction(Opcode::AddByteWrap, dst.0, a.0, b.0);
             }
+            IrOp::ByteBinary { dst, a, b, op, .. } => {
+                self.push_instruction(lower_byte_binary(*op), dst.0, a.0, b.0);
+            }
             IrOp::NegInt { dst, value, .. } => {
                 self.push_instruction(Opcode::NegInt, dst.0, value.0, 0);
             }
@@ -100,5 +103,26 @@ impl FunctionLowerer<'_> {
             _ => return Err(BytecodeLowerError::UnsupportedIr("numeric ir op")),
         }
         Ok(())
+    }
+}
+
+fn lower_byte_binary(op: IrByteBinary) -> Opcode {
+    match op {
+        IrByteBinary::SubWrap => Opcode::SubByteWrap,
+        IrByteBinary::MulWrap => Opcode::MulByteWrap,
+        IrByteBinary::Div => Opcode::DivByte,
+        IrByteBinary::Rem => Opcode::RemByte,
+        IrByteBinary::BitNot => Opcode::BitNotByte,
+        IrByteBinary::BitAnd => Opcode::BitAndByte,
+        IrByteBinary::BitOr => Opcode::BitOrByte,
+        IrByteBinary::BitXor => Opcode::BitXorByte,
+        IrByteBinary::ShiftLeft => Opcode::ShiftLeftByte,
+        IrByteBinary::ShiftRight => Opcode::ShiftRightByte,
+        IrByteBinary::Greater => Opcode::GreaterByte,
+        IrByteBinary::Equal => Opcode::EqualByte,
+        IrByteBinary::NotEqual => Opcode::NotEqualByte,
+        IrByteBinary::Less => Opcode::LessByte,
+        IrByteBinary::LessEqual => Opcode::LessEqualByte,
+        IrByteBinary::GreaterEqual => Opcode::GreaterEqualByte,
     }
 }

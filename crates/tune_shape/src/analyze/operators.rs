@@ -69,7 +69,20 @@ impl Analyzer<'_> {
             {
                 Shape::Size
             }
-            BinaryOp::Add if Shape::Byte.accepts(&lhs) && Shape::Byte.accepts(&rhs) => Shape::Byte,
+            BinaryOp::Add
+            | BinaryOp::Sub
+            | BinaryOp::Mul
+            | BinaryOp::Div
+            | BinaryOp::Rem
+            | BinaryOp::BitOr
+            | BinaryOp::BitXor
+            | BinaryOp::BitAnd
+            | BinaryOp::ShiftLeft
+            | BinaryOp::ShiftRight
+                if Shape::Byte.accepts(&lhs) && Shape::Byte.accepts(&rhs) =>
+            {
+                Shape::Byte
+            }
             BinaryOp::RangeExclusive | BinaryOp::RangeInclusive
                 if Shape::Int.accepts(&lhs) && Shape::Int.accepts(&rhs) =>
             {
@@ -112,6 +125,16 @@ impl Analyzer<'_> {
             | BinaryOp::Greater
             | BinaryOp::GreaterEqual
                 if Shape::Size.accepts(&lhs) && Shape::Size.accepts(&rhs) =>
+            {
+                Shape::Bool
+            }
+            BinaryOp::Equal
+            | BinaryOp::NotEqual
+            | BinaryOp::Less
+            | BinaryOp::LessEqual
+            | BinaryOp::Greater
+            | BinaryOp::GreaterEqual
+                if Shape::Byte.accepts(&lhs) && Shape::Byte.accepts(&rhs) =>
             {
                 Shape::Bool
             }
@@ -197,7 +220,19 @@ fn binary_operand_expected(op: BinaryOp, expected: &Shape) -> Option<&Shape> {
         return None;
     }
     match (op, expected) {
-        (BinaryOp::Add, Shape::Byte) => Some(expected),
+        (
+            BinaryOp::Add
+            | BinaryOp::Sub
+            | BinaryOp::Mul
+            | BinaryOp::Div
+            | BinaryOp::Rem
+            | BinaryOp::BitOr
+            | BinaryOp::BitXor
+            | BinaryOp::BitAnd
+            | BinaryOp::ShiftLeft
+            | BinaryOp::ShiftRight,
+            Shape::Byte,
+        ) => Some(expected),
         (_, Shape::Byte) => None,
         (_, Shape::Int | Shape::Float | Shape::Size) => Some(expected),
         _ => None,
@@ -246,15 +281,17 @@ fn expected_operands(op: BinaryOp) -> &'static str {
         | BinaryOp::Less
         | BinaryOp::LessEqual
         | BinaryOp::Greater
-        | BinaryOp::GreaterEqual => "`Int`/`Int`, `Float`/`Float`, or `Size`/`Size` operands",
+        | BinaryOp::GreaterEqual => {
+            "`Int`/`Int`, `Float`/`Float`, `Size`/`Size`, or `Byte`/`Byte` operands"
+        }
         BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Rem => {
-            "`Int`/`Int` or `Size`/`Size` operands"
+            "`Int`/`Int`, `Size`/`Size`, or `Byte`/`Byte` operands"
         }
         BinaryOp::BitOr
         | BinaryOp::BitXor
         | BinaryOp::BitAnd
         | BinaryOp::ShiftLeft
-        | BinaryOp::ShiftRight => "`Int` operands",
+        | BinaryOp::ShiftRight => "`Int`/`Int` or `Byte`/`Byte` operands",
     }
 }
 

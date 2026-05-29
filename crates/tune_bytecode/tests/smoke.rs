@@ -6,7 +6,7 @@ fn smoke() {
 
 #[test]
 fn core_opcodes_reserve_dense_bytecode_slots() -> Result<(), &'static str> {
-    assert_eq!(tune_bytecode::Opcode::ALL.len(), 78);
+    assert_eq!(tune_bytecode::Opcode::ALL.len(), 94);
     for (index, opcode) in tune_bytecode::Opcode::ALL.iter().enumerate() {
         let expected = u8::try_from(index).map_err(|_| "opcode index overflow")?;
         assert_eq!(*opcode as u8, expected);
@@ -61,6 +61,22 @@ fn core_opcodes_reserve_dense_bytecode_slots() -> Result<(), &'static str> {
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::LessSize));
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::LessEqualSize));
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::GreaterEqualSize));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::SubByteWrap));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::MulByteWrap));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::DivByte));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::RemByte));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::BitNotByte));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::BitAndByte));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::BitOrByte));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::BitXorByte));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::ShiftLeftByte));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::ShiftRightByte));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::GreaterByte));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::EqualByte));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::NotEqualByte));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::LessByte));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::LessEqualByte));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::GreaterEqualByte));
 
     Ok(())
 }

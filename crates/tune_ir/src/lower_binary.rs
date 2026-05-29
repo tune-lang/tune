@@ -2,7 +2,7 @@ use tune_diagnostics::Span;
 use tune_hir::expr::BinaryOp;
 
 use crate::lower::{IrLowerError, Lowerer};
-use crate::{IrIntComparison, IrOp};
+use crate::{IrByteBinary, IrIntComparison, IrOp};
 
 impl Lowerer {
     pub(super) fn lower_binary(
@@ -17,11 +17,27 @@ impl Lowerer {
             BinaryOp::Mul => self.lower_arithmetic(shape, Arithmetic::Mul, span),
             BinaryOp::Div => self.lower_arithmetic(shape, Arithmetic::Div, span),
             BinaryOp::Rem => self.lower_remainder(shape, span),
-            BinaryOp::BitAnd => self.lower_int_arithmetic(IntArithmetic::BitAnd, span),
-            BinaryOp::BitOr => self.lower_int_arithmetic(IntArithmetic::BitOr, span),
-            BinaryOp::BitXor => self.lower_int_arithmetic(IntArithmetic::BitXor, span),
-            BinaryOp::ShiftLeft => self.lower_int_arithmetic(IntArithmetic::ShiftLeft, span),
-            BinaryOp::ShiftRight => self.lower_int_arithmetic(IntArithmetic::ShiftRight, span),
+            BinaryOp::BitAnd => {
+                self.lower_bit_op(shape, IrByteBinary::BitAnd, IntArithmetic::BitAnd, span)
+            }
+            BinaryOp::BitOr => {
+                self.lower_bit_op(shape, IrByteBinary::BitOr, IntArithmetic::BitOr, span)
+            }
+            BinaryOp::BitXor => {
+                self.lower_bit_op(shape, IrByteBinary::BitXor, IntArithmetic::BitXor, span)
+            }
+            BinaryOp::ShiftLeft => self.lower_bit_op(
+                shape,
+                IrByteBinary::ShiftLeft,
+                IntArithmetic::ShiftLeft,
+                span,
+            ),
+            BinaryOp::ShiftRight => self.lower_bit_op(
+                shape,
+                IrByteBinary::ShiftRight,
+                IntArithmetic::ShiftRight,
+                span,
+            ),
             BinaryOp::RangeExclusive => self.lower_range_int(false, span),
             BinaryOp::RangeInclusive => self.lower_range_int(true, span),
             BinaryOp::Greater => self.lower_greater(shape, span),
@@ -116,6 +132,9 @@ impl Lowerer {
         if matches!(shape, tune_shape::Shape::Size) {
             return self.lower_size_arithmetic(op, span);
         }
+        if matches!(shape, tune_shape::Shape::Byte) {
+            return self.lower_byte_arithmetic(op, span);
+        }
         self.lower_int_arithmetic(op.into(), span)
     }
 
@@ -126,6 +145,9 @@ impl Lowerer {
     ) -> Result<(), IrLowerError> {
         if matches!(shape, tune_shape::Shape::Size) {
             return self.lower_size_rem(span);
+        }
+        if matches!(shape, tune_shape::Shape::Byte) {
+            return self.lower_byte_binary(IrByteBinary::Rem, span);
         }
         self.lower_int_arithmetic(IntArithmetic::Rem, span)
     }
@@ -167,6 +189,9 @@ impl Lowerer {
         }
         if matches!(shape, tune_shape::Shape::Size) {
             return self.lower_greater_size(span);
+        }
+        if matches!(shape, tune_shape::Shape::Byte) {
+            return self.lower_byte_binary(IrByteBinary::Greater, span);
         }
         self.lower_greater_int(span)
     }
@@ -305,6 +330,51 @@ impl Lowerer {
         Ok(())
     }
 
+    fn lower_byte_arithmetic(
+        &mut self,
+        op: Arithmetic,
+        span: Option<Span>,
+    ) -> Result<(), IrLowerError> {
+        let op = match op {
+            Arithmetic::Sub => IrByteBinary::SubWrap,
+            Arithmetic::Mul => IrByteBinary::MulWrap,
+            Arithmetic::Div => IrByteBinary::Div,
+        };
+        self.lower_byte_binary(op, span)
+    }
+
+    fn lower_bit_op(
+        &mut self,
+        shape: &tune_shape::Shape,
+        byte_op: IrByteBinary,
+        int_op: IntArithmetic,
+        span: Option<Span>,
+    ) -> Result<(), IrLowerError> {
+        if matches!(shape, tune_shape::Shape::Byte) {
+            return self.lower_byte_binary(byte_op, span);
+        }
+        self.lower_int_arithmetic(int_op, span)
+    }
+
+    fn lower_byte_binary(
+        &mut self,
+        op: IrByteBinary,
+        span: Option<Span>,
+    ) -> Result<(), IrLowerError> {
+        let rhs = self.pop("binary rhs")?;
+        let lhs = self.pop("binary lhs")?;
+        let dst = self.alloc_reg()?;
+        self.push_op(IrOp::ByteBinary {
+            dst,
+            a: lhs,
+            b: rhs,
+            op,
+            span,
+        });
+        self.stack.push(dst);
+        Ok(())
+    }
+
     fn lower_add_size(&mut self, span: Option<Span>) -> Result<(), IrLowerError> {
         let rhs = self.pop("binary rhs")?;
         let lhs = self.pop("binary lhs")?;
@@ -377,6 +447,16 @@ impl Lowerer {
         }
         if matches!(shape, tune_shape::Shape::Size) {
             return self.lower_compare_size(op, span);
+        }
+        if matches!(shape, tune_shape::Shape::Byte) {
+            let op = match op {
+                IrIntComparison::Equal => IrByteBinary::Equal,
+                IrIntComparison::NotEqual => IrByteBinary::NotEqual,
+                IrIntComparison::Less => IrByteBinary::Less,
+                IrIntComparison::LessEqual => IrByteBinary::LessEqual,
+                IrIntComparison::GreaterEqual => IrByteBinary::GreaterEqual,
+            };
+            return self.lower_byte_binary(op, span);
         }
         self.lower_compare_int(op, span)
     }

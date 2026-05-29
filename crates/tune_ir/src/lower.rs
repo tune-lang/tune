@@ -177,7 +177,7 @@ impl Lowerer {
                 self.stack.push(dst);
                 Ok(())
             }
-            PlanOp::UnaryOp { op } => self.lower_unary(*op),
+            PlanOp::UnaryOp { op, shape } => self.lower_unary(*op, shape),
             PlanOp::SequenceBuild { element_count } => self.lower_sequence_build(*element_count),
             PlanOp::SequencePush => self.lower_sequence_push(),
             PlanOp::TupleBuild { element_count } => self.lower_tuple_build(*element_count),

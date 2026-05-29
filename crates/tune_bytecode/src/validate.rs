@@ -208,7 +208,23 @@ fn validate_instruction(
         | Opcode::NotEqualSize
         | Opcode::LessSize
         | Opcode::LessEqualSize
-        | Opcode::GreaterEqualSize => {
+        | Opcode::GreaterEqualSize
+        | Opcode::SubByteWrap
+        | Opcode::MulByteWrap
+        | Opcode::DivByte
+        | Opcode::RemByte
+        | Opcode::BitNotByte
+        | Opcode::BitAndByte
+        | Opcode::BitOrByte
+        | Opcode::BitXorByte
+        | Opcode::ShiftLeftByte
+        | Opcode::ShiftRightByte
+        | Opcode::GreaterByte
+        | Opcode::EqualByte
+        | Opcode::NotEqualByte
+        | Opcode::LessByte
+        | Opcode::LessEqualByte
+        | Opcode::GreaterEqualByte => {
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
             register(function_id, function, instruction.c)?;

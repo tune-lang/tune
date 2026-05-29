@@ -245,6 +245,7 @@ pub enum PlanOp {
     Assign,
     UnaryOp {
         op: UnaryOp,
+        shape: Shape,
     },
     BinaryOp {
         op: BinaryOp,

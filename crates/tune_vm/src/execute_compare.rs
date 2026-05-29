@@ -76,6 +76,30 @@ impl Vm {
             write_reg(registers, op.a, Value::Bool(result)),
         )
     }
+
+    pub(crate) fn execute_byte_comparison(
+        &self,
+        function: usize,
+        instruction: usize,
+        registers: &mut [Value],
+        op: &Instruction,
+    ) -> Result<(), VmFault> {
+        let left = self.at(function, instruction, read_reg(registers, op.b))?;
+        let right = self.at(function, instruction, read_reg(registers, op.c))?;
+        let (Value::Byte(left), Value::Byte(right)) = (left, right) else {
+            return Err(self.fault_at(
+                function,
+                instruction,
+                VmError::UnsupportedOpcode(op.opcode),
+            ));
+        };
+        let result = self.at(function, instruction, compare_byte(op.opcode, left, right))?;
+        self.at(
+            function,
+            instruction,
+            write_reg(registers, op.a, Value::Bool(result)),
+        )
+    }
 }
 
 fn compare_int(opcode: Opcode, left: i64, right: i64) -> Result<bool, VmError> {
@@ -110,6 +134,18 @@ fn compare_size(opcode: Opcode, left: u64, right: u64) -> Result<bool, VmError> 
         Opcode::LessSize => Ok(left < right),
         Opcode::LessEqualSize => Ok(left <= right),
         Opcode::GreaterEqualSize => Ok(left >= right),
+        _ => Err(VmError::UnsupportedOpcode(opcode)),
+    }
+}
+
+fn compare_byte(opcode: Opcode, left: u8, right: u8) -> Result<bool, VmError> {
+    match opcode {
+        Opcode::GreaterByte => Ok(left > right),
+        Opcode::EqualByte => Ok(left == right),
+        Opcode::NotEqualByte => Ok(left != right),
+        Opcode::LessByte => Ok(left < right),
+        Opcode::LessEqualByte => Ok(left <= right),
+        Opcode::GreaterEqualByte => Ok(left >= right),
         _ => Err(VmError::UnsupportedOpcode(opcode)),
     }
 }

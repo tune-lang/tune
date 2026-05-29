@@ -143,9 +143,10 @@ impl LowerContext<'_> {
             ExprKind::Assign { target, value } => {
                 self.lower_assignment(target, value, ops);
             }
-            ExprKind::Unary { op, expr } => {
-                self.lower_expr(expr, ops);
-                ops.push(PlanOp::UnaryOp { op: *op });
+            ExprKind::Unary { op, expr: inner } => {
+                let shape = self.expr_shape(expr).unwrap_or(Shape::Hole);
+                self.lower_expr_for_shape(inner, Some(shape.clone()), ops);
+                ops.push(PlanOp::UnaryOp { op: *op, shape });
             }
             ExprKind::Binary { op, lhs, rhs } => {
                 if matches!(op, BinaryOp::And | BinaryOp::Or) {
@@ -176,7 +177,10 @@ impl LowerContext<'_> {
                     } else {
                         self.expr_shape(expr).unwrap_or(Shape::Hole)
                     };
-                    if is_contextual_numeric_op(*op) || is_comparison_op(*op) {
+                    if is_contextual_numeric_op(*op)
+                        || is_contextual_bit_op(*op)
+                        || is_comparison_op(*op)
+                    {
                         self.lower_expr_for_shape(lhs, Some(shape.clone()), ops);
                         self.lower_expr_for_shape(rhs, Some(shape.clone()), ops);
                     } else {
@@ -412,6 +416,17 @@ fn is_contextual_numeric_op(op: BinaryOp) -> bool {
     matches!(
         op,
         BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Rem
+    )
+}
+
+fn is_contextual_bit_op(op: BinaryOp) -> bool {
+    matches!(
+        op,
+        BinaryOp::BitOr
+            | BinaryOp::BitXor
+            | BinaryOp::BitAnd
+            | BinaryOp::ShiftLeft
+            | BinaryOp::ShiftRight
     )
 }
 

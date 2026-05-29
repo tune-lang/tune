@@ -142,7 +142,17 @@ impl Vm {
                 | Opcode::MulSizeChecked
                 | Opcode::DivSize
                 | Opcode::RemSize
-                | Opcode::AddByteWrap => {
+                | Opcode::AddByteWrap
+                | Opcode::SubByteWrap
+                | Opcode::MulByteWrap
+                | Opcode::DivByte
+                | Opcode::RemByte
+                | Opcode::BitNotByte
+                | Opcode::BitAndByte
+                | Opcode::BitOrByte
+                | Opcode::BitXorByte
+                | Opcode::ShiftLeftByte
+                | Opcode::ShiftRightByte => {
                     self.execute_add(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::RangeExclusiveInt | Opcode::RangeInclusiveInt => {
@@ -196,6 +206,14 @@ impl Vm {
                 | Opcode::LessEqualSize
                 | Opcode::GreaterEqualSize => {
                     self.execute_size_comparison(function_index, ip, &mut registers, instruction)?;
+                }
+                Opcode::GreaterByte
+                | Opcode::EqualByte
+                | Opcode::NotEqualByte
+                | Opcode::LessByte
+                | Opcode::LessEqualByte
+                | Opcode::GreaterEqualByte => {
+                    self.execute_byte_comparison(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::CallDirect => {
                     let call_site =

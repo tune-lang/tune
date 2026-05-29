@@ -174,24 +174,81 @@ impl Vm {
                 self.write_size(function_index, ip, registers, instruction, value)
             }
             Opcode::AddByteWrap => {
-                let left = self.at(function_index, ip, read_reg(registers, instruction.b))?;
-                let right = self.at(function_index, ip, read_reg(registers, instruction.c))?;
-                let (Value::Byte(left), Value::Byte(right)) = (left, right) else {
+                let (left, right) =
+                    self.read_byte_pair(function_index, ip, registers, instruction)?;
+                self.write_byte(
+                    function_index,
+                    ip,
+                    registers,
+                    instruction,
+                    left.wrapping_add(right),
+                )
+            }
+            Opcode::SubByteWrap => {
+                let (left, right) =
+                    self.read_byte_pair(function_index, ip, registers, instruction)?;
+                self.write_byte(
+                    function_index,
+                    ip,
+                    registers,
+                    instruction,
+                    left.wrapping_sub(right),
+                )
+            }
+            Opcode::MulByteWrap => {
+                let (left, right) =
+                    self.read_byte_pair(function_index, ip, registers, instruction)?;
+                self.write_byte(
+                    function_index,
+                    ip,
+                    registers,
+                    instruction,
+                    left.wrapping_mul(right),
+                )
+            }
+            Opcode::DivByte => {
+                let (left, right) =
+                    self.read_byte_pair(function_index, ip, registers, instruction)?;
+                if right == 0 {
+                    return Err(self.fault_at(function_index, ip, VmError::DivideByZero));
+                }
+                self.write_byte(function_index, ip, registers, instruction, left / right)
+            }
+            Opcode::RemByte => {
+                let (left, right) =
+                    self.read_byte_pair(function_index, ip, registers, instruction)?;
+                if right == 0 {
+                    return Err(self.fault_at(function_index, ip, VmError::DivideByZero));
+                }
+                self.write_byte(function_index, ip, registers, instruction, left % right)
+            }
+            Opcode::BitNotByte => {
+                let value = self.at(function_index, ip, read_reg(registers, instruction.b))?;
+                let Value::Byte(value) = value else {
                     return Err(self.fault_at(
                         function_index,
                         ip,
-                        VmError::UnsupportedOpcode(Opcode::AddByteWrap),
+                        VmError::UnsupportedOpcode(Opcode::BitNotByte),
                     ));
                 };
-                self.at(
-                    function_index,
-                    ip,
-                    write_reg(
-                        registers,
-                        instruction.a,
-                        Value::Byte(left.wrapping_add(right)),
-                    ),
-                )
+                self.write_byte(function_index, ip, registers, instruction, !value)
+            }
+            Opcode::BitAndByte
+            | Opcode::BitOrByte
+            | Opcode::BitXorByte
+            | Opcode::ShiftLeftByte
+            | Opcode::ShiftRightByte => {
+                let (left, right) =
+                    self.read_byte_pair(function_index, ip, registers, instruction)?;
+                let value = match instruction.opcode {
+                    Opcode::BitAndByte => left & right,
+                    Opcode::BitOrByte => left | right,
+                    Opcode::BitXorByte => left ^ right,
+                    Opcode::ShiftLeftByte => left.wrapping_shl(u32::from(right)),
+                    Opcode::ShiftRightByte => left.wrapping_shr(u32::from(right)),
+                    _ => unreachable!(),
+                };
+                self.write_byte(function_index, ip, registers, instruction, value)
             }
             other => Err(self.fault_at(function_index, ip, VmError::UnsupportedOpcode(other))),
         }
@@ -262,6 +319,40 @@ impl Vm {
             function_index,
             ip,
             write_reg(registers, instruction.a, Value::Size(value)),
+        )
+    }
+
+    fn read_byte_pair(
+        &self,
+        function_index: usize,
+        ip: usize,
+        registers: &[Value],
+        instruction: &Instruction,
+    ) -> Result<(u8, u8), VmFault> {
+        let left = self.at(function_index, ip, read_reg(registers, instruction.b))?;
+        let right = self.at(function_index, ip, read_reg(registers, instruction.c))?;
+        let (Value::Byte(left), Value::Byte(right)) = (left, right) else {
+            return Err(self.fault_at(
+                function_index,
+                ip,
+                VmError::UnsupportedOpcode(instruction.opcode),
+            ));
+        };
+        Ok((left, right))
+    }
+
+    fn write_byte(
+        &self,
+        function_index: usize,
+        ip: usize,
+        registers: &mut [Value],
+        instruction: &Instruction,
+        value: u8,
+    ) -> Result<(), VmFault> {
+        self.at(
+            function_index,
+            ip,
+            write_reg(registers, instruction.a, Value::Byte(value)),
         )
     }
 }

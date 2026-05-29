@@ -215,6 +215,34 @@ let result: Int = {
 }
 
 #[test]
+fn run_file_executes_byte_arithmetic_bits_and_comparisons() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let result: Byte = {
+  let x: Byte = 255 + 2
+  let y: Byte = (x * 4) - 1
+  let z: Byte = (y & 15) | 128
+  let w: Byte = (z ^ 3) >> 1
+  let q: Byte = w / 2
+  let inv: Byte = ~0
+  if q >= 32 and inv == 255 {
+    q % 7
+  } else {
+    255
+  }
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, tune_runtime::value::Value::Byte(4));
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_boolean_short_circuit_ops() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

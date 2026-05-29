@@ -420,6 +420,7 @@ impl Analyzer<'_> {
         match op {
             UnaryOp::Not => Shape::Bool,
             UnaryOp::Neg | UnaryOp::BitNot if Shape::Int.accepts(&shape) => Shape::Int,
+            UnaryOp::BitNot if Shape::Byte.accepts(&shape) => Shape::Byte,
             UnaryOp::Neg | UnaryOp::BitNot => Shape::Hole,
         }
     }

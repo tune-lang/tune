@@ -214,7 +214,8 @@ impl FunctionLowerer<'_> {
             | IrOp::GreaterSize { .. }
             | IrOp::CompareInt { .. }
             | IrOp::CompareFloat { .. }
-            | IrOp::CompareSize { .. } => self.lower_numeric_op(op),
+            | IrOp::CompareSize { .. }
+            | IrOp::ByteBinary { .. } => self.lower_numeric_op(op),
             IrOp::RangeInt {
                 dst,
                 start,
