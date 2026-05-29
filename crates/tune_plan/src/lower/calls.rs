@@ -26,15 +26,15 @@ impl LowerContext<'_> {
             return;
         }
 
-        if let ExprKind::Field { base, name } = &callee.kind {
-            if args.is_empty()
-                && name.as_deref() == Some("len")
-                && matches!(self.expr_shape(base), Some(Shape::String))
-            {
-                self.lower_expr(base, ops);
-                ops.push(PlanOp::StringLen { span: callee.span });
-                return;
-            }
+        if matches!(self.call_target(expr), Some(CallTarget::StringLen))
+            && let ExprKind::Field { base, .. } = &callee.kind
+        {
+            self.lower_expr(base, ops);
+            ops.push(PlanOp::StringLen { span: callee.span });
+            return;
+        }
+
+        if let ExprKind::Field { base, .. } = &callee.kind {
             self.lower_expr(base, ops);
             for arg in args {
                 self.lower_expr(arg, ops);
