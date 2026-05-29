@@ -20,6 +20,35 @@ fn analyzer_reports_compile_time_int_overflow() {
 }
 
 #[test]
+fn analyzer_reports_compile_time_int_overflow_with_separators() {
+    let analysis = analyze("let result: Int = 9_223_372_036_854_775_807 + 1");
+
+    assert!(
+        analysis
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == tune_diagnostics::codes::NUMERIC_OVERFLOW),
+        "{:?}",
+        analysis.diagnostics
+    );
+}
+
+#[test]
+fn analyzer_defers_float_to_int_rounding_policy() {
+    let analysis = analyze("let result: Int = 2.5");
+
+    assert!(
+        analysis
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code
+                == tune_diagnostics::codes::ASSIGNMENT_SHAPE_MISMATCH),
+        "{:?}",
+        analysis.diagnostics
+    );
+}
+
+#[test]
 fn analyzer_reports_compile_time_size_underflow() {
     let analysis = analyze("let result: Size = 0 - 1");
 

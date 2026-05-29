@@ -2,7 +2,7 @@ use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::expr::{BinaryOp, Expr};
 
 use super::Analyzer;
-use crate::{LiteralFact, Shape, expr_literal_fact};
+use crate::{LiteralFact, Shape, expr_literal_fact, materialize::integer_value};
 
 impl Analyzer<'_> {
     pub(super) fn analyze_binary(
@@ -310,14 +310,14 @@ fn int_literal(expr: &Expr) -> Option<i64> {
     let LiteralFact::Numeric { text } = expr_literal_fact(expr)? else {
         return None;
     };
-    text.parse().ok()
+    integer_value(&text).and_then(|value| i64::try_from(value).ok())
 }
 
 fn size_literal(expr: &Expr) -> Option<u64> {
     let LiteralFact::Numeric { text } = expr_literal_fact(expr)? else {
         return None;
     };
-    text.parse().ok()
+    integer_value(&text).and_then(|value| u64::try_from(value).ok())
 }
 
 fn valid_int_shift(value: i64) -> bool {

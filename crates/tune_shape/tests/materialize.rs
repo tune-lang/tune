@@ -47,6 +47,28 @@ fn numeric_literals_materialize_by_target_fit() {
 }
 
 #[test]
+fn float_literals_do_not_implicitly_round_to_integer_targets() {
+    let float = tune_shape::LiteralFact::Numeric { text: "2.5".into() };
+
+    assert!(!tune_shape::can_materialize(
+        &float,
+        &tune_shape::Shape::Byte
+    ));
+    assert!(!tune_shape::can_materialize(
+        &float,
+        &tune_shape::Shape::Int
+    ));
+    assert!(!tune_shape::can_materialize(
+        &float,
+        &tune_shape::Shape::Size
+    ));
+    assert!(tune_shape::can_materialize(
+        &float,
+        &tune_shape::Shape::Float
+    ));
+}
+
+#[test]
 fn sequence_literals_materialize_elementwise() {
     let sequence = tune_shape::LiteralFact::Sequence {
         elements: vec![

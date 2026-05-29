@@ -28,13 +28,13 @@ pub fn can_materialize(lit: &LiteralFact, target: &Shape) -> bool {
         (_, Shape::Hole) => true,
         (_, Shape::Never) => false,
         (LiteralFact::Numeric { text }, Shape::Byte) => {
-            numeric_value(text).is_some_and(|n| n <= 255)
+            integer_value(text).is_some_and(|n| n <= 255)
         }
         (LiteralFact::Numeric { text }, Shape::Int) => {
-            numeric_value(text).is_some_and(|n| n <= i64::MAX as u128)
+            integer_value(text).is_some_and(|n| n <= i64::MAX as u128)
         }
         (LiteralFact::Numeric { text }, Shape::Size) => {
-            numeric_value(text).is_some_and(|n| n <= u64::MAX as u128)
+            integer_value(text).is_some_and(|n| n <= u64::MAX as u128)
         }
         (LiteralFact::Numeric { text }, Shape::Float) => float_value(text).is_some(),
         (LiteralFact::String { .. }, Shape::String) => true,
@@ -48,7 +48,7 @@ pub fn can_materialize(lit: &LiteralFact, target: &Shape) -> bool {
     }
 }
 
-fn numeric_value(text: &str) -> Option<u128> {
+pub(crate) fn integer_value(text: &str) -> Option<u128> {
     let mut value = 0u128;
     let mut saw_digit = false;
 
