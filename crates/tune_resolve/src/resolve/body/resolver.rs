@@ -101,7 +101,7 @@ impl<'resolved> BodyResolver<'resolved> {
                     );
                 }
             }
-            ExprKind::Field { base, .. } => self.resolve_expr_names(base),
+            ExprKind::Field { base, name } => self.resolve_field_ref(expr, base, name.as_deref()),
             ExprKind::Index { base, index } => {
                 self.resolve_expr_names(base);
                 self.resolve_expr_names(index);

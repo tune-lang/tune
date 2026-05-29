@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use tune_db::{FileId, TuneDb};
 use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::item::{
-    ExternalItem, ExternalSymbolId, ImportSelector, Item, ItemKind, Param, Visibility,
+    ExternalItem, ExternalSymbolId, ImportSelector, Item, ItemKind, ModuleNamespaceMember, Param,
+    Visibility,
 };
 use tune_hir::module::Module;
 use tune_hir::shape::{ShapeExpr, ShapeExprKind};
@@ -279,7 +280,10 @@ fn append_selected_imports(
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     let names = match selector {
-        ImportSelector::Module => return,
+        ImportSelector::Module => {
+            append_module_import(module, imported, imported_resolved, path, span);
+            return;
+        }
         ImportSelector::Member(name) => vec![name.as_str()],
         ImportSelector::Members(names) => names.iter().map(String::as_str).collect(),
     };
@@ -306,14 +310,87 @@ fn append_selected_imports(
     }
 }
 
-fn append_imported_item(module: &mut Module, mut item: Item) {
+fn append_module_import(
+    module: &mut Module,
+    imported: &Module,
+    imported_resolved: &ResolvedModule,
+    path: &str,
+    span: Option<Span>,
+) {
+    let selected = imported
+        .items
+        .iter()
+        .filter(|item| item.visibility == Visibility::Public && item.kind != ItemKind::Import)
+        .map(|item| item.id)
+        .collect::<Vec<_>>();
+    let closure = selected_import_closure(imported, imported_resolved, &selected);
+    let internal_names = ImportInternalNames::for_closure(imported, path, &[], &closure);
+    let mut members = Vec::new();
+    for item_id in closure {
+        let Some(original) = imported.items.iter().find(|item| item.id == item_id) else {
+            continue;
+        };
+        let item = internalized_import_item(original, imported_resolved, &internal_names);
+        let Some(new_id) = append_imported_item(module, item) else {
+            continue;
+        };
+        if selected.contains(&item_id)
+            && let Some(name) = original.name.clone()
+        {
+            members.push(ModuleNamespaceMember { name, item: new_id });
+        }
+    }
+    append_module_namespace_item(module, module_alias(path), members, span);
+}
+
+fn append_imported_item(module: &mut Module, mut item: Item) -> Option<HirId> {
     if let Ok(index) = u32::try_from(module.items.len()) {
         let old = item.id;
         let new = HirId(index);
         let expr_offset = next_expr_id(module);
         remap_item(&mut item, old, new, expr_offset);
         module.items.push(item);
+        return Some(new);
     }
+    None
+}
+
+fn append_module_namespace_item(
+    module: &mut Module,
+    name: String,
+    members: Vec<ModuleNamespaceMember>,
+    span: Option<Span>,
+) {
+    let Ok(index) = u32::try_from(module.items.len()) else {
+        return;
+    };
+    module.items.push(Item {
+        id: HirId(index),
+        name: Some(name),
+        kind: ItemKind::Import,
+        visibility: Visibility::Private,
+        span,
+        doc: None,
+        tags: Vec::new(),
+        import: None,
+        type_params: Vec::new(),
+        params: Vec::new(),
+        struct_members: Vec::new(),
+        fields: Vec::new(),
+        variants: Vec::new(),
+        shape: None,
+        body: None,
+        external: Some(ExternalItem::ModuleNamespace { members }),
+    });
+}
+
+fn module_alias(path: &str) -> String {
+    std::path::Path::new(path)
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .filter(|stem| !stem.is_empty())
+        .unwrap_or(path)
+        .to_owned()
 }
 
 fn unresolved_import(path: &str, span: Option<Span>) -> Diagnostic {

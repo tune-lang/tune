@@ -122,6 +122,9 @@ impl Analyzer<'_> {
     }
 
     pub(super) fn field_shape(&mut self, base: &Expr, expr: &Expr) -> Shape {
+        if self.binding_key(expr).is_some() {
+            return self.name_shape(expr);
+        }
         let base_shape = self.analyze_expr(base);
         let ExprKind::Field { name, .. } = &expr.kind else {
             return Shape::Hole;

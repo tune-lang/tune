@@ -1,5 +1,6 @@
 use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::expr::{Expr, ExprKind};
+use tune_hir::item::ExternalItem;
 use tune_hir::shape::ShapeExpr;
 
 use crate::locals::{NameRef, NameTarget};
@@ -40,6 +41,33 @@ impl BodyResolver<'_> {
                 format!("unresolved name `{name}`"),
                 expr.span.unwrap_or_else(Span::synthetic),
                 "this name is not in scope",
+            )
+            .build(),
+        );
+    }
+
+    pub(super) fn resolve_field_ref(&mut self, expr: &Expr, base: &Expr, name: Option<&str>) {
+        self.resolve_expr_names(base);
+        let Some(name) = name else {
+            return;
+        };
+        let Some(module) = self.module_namespace(base) else {
+            return;
+        };
+        if let Some(member) = module.iter().find(|member| member.name == name) {
+            self.resolved.name_refs.push(NameRef {
+                expr: expr.id,
+                target: NameTarget::TopLevel(member.item),
+                span: expr.span,
+            });
+            return;
+        }
+        self.resolved.diagnostics.push(
+            Diagnostic::error(
+                codes::UNRESOLVED_NAME,
+                format!("unresolved module member `{name}`"),
+                expr.span.unwrap_or_else(Span::synthetic),
+                "this member is not exported by the imported module",
             )
             .build(),
         );
@@ -105,5 +133,22 @@ impl BodyResolver<'_> {
             .iter()
             .rev()
             .find_map(|scope| scope.get(name).copied())
+    }
+
+    fn module_namespace(&self, base: &Expr) -> Option<&Vec<tune_hir::item::ModuleNamespaceMember>> {
+        let target = self
+            .resolved
+            .name_refs
+            .iter()
+            .find(|name_ref| name_ref.expr == base.id)?
+            .target;
+        let NameTarget::TopLevel(item) = target else {
+            return None;
+        };
+        let item = self.items.iter().find(|candidate| candidate.id == item)?;
+        let Some(ExternalItem::ModuleNamespace { members }) = &item.external else {
+            return None;
+        };
+        Some(members)
     }
 }

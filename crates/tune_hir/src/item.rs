@@ -22,10 +22,17 @@ pub enum Visibility {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExternalItem {
     HostFunction { symbol: ExternalSymbolId },
+    ModuleNamespace { members: Vec<ModuleNamespaceMember> },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ExternalSymbolId(pub u32);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModuleNamespaceMember {
+    pub name: String,
+    pub item: HirId,
+}
 
 #[derive(Debug, Clone)]
 pub struct TagApplication {

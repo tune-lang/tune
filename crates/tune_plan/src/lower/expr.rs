@@ -98,6 +98,12 @@ impl LowerContext<'_> {
                 self.lower_call(expr.id, callee, args, ops);
             }
             ExprKind::Field { base, name } => {
+                if self.name_target(expr.id).is_some() {
+                    ops.push(PlanOp::BindingGet {
+                        source: self.name_target(expr.id),
+                    });
+                    return;
+                }
                 self.lower_expr(base, ops);
                 let field = name.clone().unwrap_or_default();
                 ops.push(PlanOp::FieldGet {

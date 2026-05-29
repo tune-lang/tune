@@ -34,6 +34,17 @@ impl LowerContext<'_> {
             return;
         }
 
+        if matches!(
+            self.name_target(callee.id),
+            Some(NameTarget::TopLevel(_) | NameTarget::Variant(_))
+        ) {
+            for arg in args {
+                self.lower_expr(arg, ops);
+            }
+            ops.push(self.call_op(expr, callee, args.len()));
+            return;
+        }
+
         if let ExprKind::Field { base, .. } = &callee.kind {
             self.lower_expr(base, ops);
             for arg in args {
@@ -81,6 +92,38 @@ impl LowerContext<'_> {
     }
 
     fn call_op(&self, expr: tune_hir::ExprId, callee: &Expr, arg_count: usize) -> PlanOp {
+        if let Some(op) = match self.name_target(callee.id) {
+            Some(NameTarget::TopLevel(target)) => {
+                if let Some(symbol) = self.host_symbol(target) {
+                    Some(PlanOp::HostCall {
+                        symbol,
+                        arg_count,
+                        span: callee.span,
+                    })
+                } else if self.is_callable_decl(target) {
+                    Some(PlanOp::DirectCall {
+                        target,
+                        arg_count,
+                        type_args: self.call_type_args(expr),
+                        span: callee.span,
+                    })
+                } else {
+                    Some(PlanOp::BoundCall {
+                        arg_count,
+                        span: callee.span,
+                    })
+                }
+            }
+            Some(NameTarget::Variant(variant)) => Some(PlanOp::VariantConstruct {
+                variant,
+                arg_count,
+                span: callee.span,
+            }),
+            _ => None,
+        } {
+            return op;
+        }
+
         if let ExprKind::Field { base, name } = &callee.kind {
             let name = name.clone().unwrap_or_default();
             return PlanOp::MemberCall {
@@ -91,37 +134,9 @@ impl LowerContext<'_> {
             };
         }
 
-        match self.name_target(callee.id) {
-            Some(NameTarget::TopLevel(target)) => {
-                if let Some(symbol) = self.host_symbol(target) {
-                    return PlanOp::HostCall {
-                        symbol,
-                        arg_count,
-                        span: callee.span,
-                    };
-                }
-                if self.is_callable_decl(target) {
-                    return PlanOp::DirectCall {
-                        target,
-                        arg_count,
-                        type_args: self.call_type_args(expr),
-                        span: callee.span,
-                    };
-                }
-                PlanOp::BoundCall {
-                    arg_count,
-                    span: callee.span,
-                }
-            }
-            Some(NameTarget::Variant(variant)) => PlanOp::VariantConstruct {
-                variant,
-                arg_count,
-                span: callee.span,
-            },
-            _ => PlanOp::BoundCall {
-                arg_count,
-                span: callee.span,
-            },
+        PlanOp::BoundCall {
+            arg_count,
+            span: callee.span,
         }
     }
 
@@ -138,11 +153,12 @@ impl LowerContext<'_> {
 
     fn host_symbol(&self, target: tune_hir::HirId) -> Option<tune_host::HostSymbolId> {
         let item = self.module?.items.iter().find(|item| item.id == target)?;
-        item.external
-            .as_ref()
-            .map(|tune_hir::item::ExternalItem::HostFunction { symbol }| {
-                tune_host::HostSymbolId(symbol.0)
-            })
+        match item.external.as_ref()? {
+            tune_hir::item::ExternalItem::HostFunction { symbol } => {
+                Some(tune_host::HostSymbolId(symbol.0))
+            }
+            tune_hir::item::ExternalItem::ModuleNamespace { .. } => None,
+        }
     }
 
     fn call_type_args(&self, expr: tune_hir::ExprId) -> Vec<Shape> {
