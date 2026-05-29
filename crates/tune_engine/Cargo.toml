@@ -22,4 +22,5 @@ tune_resolve = { path = "../tune_resolve" }
 tune_runtime = { path = "../tune_runtime" }
 tune_shape = { path = "../tune_shape" }
 tune_syntax = { path = "../tune_syntax" }
+tune_std = { path = "../tune_std" }
 tune_vm = { path = "../tune_vm" }

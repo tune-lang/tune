@@ -263,6 +263,26 @@ fn registered_host_functions_get_stable_engine_symbols() -> Result<(), &'static 
 }
 
 #[test]
+fn engine_registers_default_std_host_modules() {
+    let mut tune = tune_engine::Tune::new();
+    let registration = tune.register_std();
+
+    assert_eq!(registration.module_count, 3);
+    assert_eq!(registration.function_count, 7);
+    assert!(tune.host_modules().iter().any(|module| module.name == "io"));
+    assert!(
+        tune.host_symbols()
+            .iter()
+            .any(|symbol| symbol.module == "parse" && symbol.function == "int")
+    );
+    assert!(
+        tune.host_symbols()
+            .iter()
+            .any(|symbol| symbol.module == "fs" && symbol.function == "read_text")
+    );
+}
+
+#[test]
 fn vm_faults_convert_to_structured_diagnostics() {
     let span = tune_diagnostics::Span::new(
         tune_diagnostics::FileId(3),

@@ -269,6 +269,10 @@ impl Tune {
         self.hosts.register(host)
     }
 
+    pub fn register_std(&mut self) -> HostRegistration {
+        self.register_host(&tune_std::host())
+    }
+
     #[must_use]
     pub fn host_modules(&self) -> &[HostModule] {
         self.hosts.modules()
