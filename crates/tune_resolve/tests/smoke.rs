@@ -33,6 +33,34 @@ struct Counter {}
         &fact.payload,
         tune_resolve::CompilerFactPayload::Visibility(tune_hir::item::Visibility::Private)
     )));
+    assert!(resolved.facts.iter().any(|fact| matches!(
+        &fact.payload,
+        tune_resolve::CompilerFactPayload::Import(tune_resolve::ImportKind::Module { path })
+            if path == "std/json"
+    )));
+}
+
+#[test]
+fn records_import_selector_facts() {
+    let source = r#"
+import "net/http".client
+import "std/json".{parse, stringify}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert!(resolved.diagnostics.is_empty());
+    assert!(resolved.facts.iter().any(|fact| matches!(
+        &fact.payload,
+        tune_resolve::CompilerFactPayload::Import(tune_resolve::ImportKind::One { path, item })
+            if path == "net/http" && item == "client"
+    )));
+    assert!(resolved.facts.iter().any(|fact| matches!(
+        &fact.payload,
+        tune_resolve::CompilerFactPayload::Import(tune_resolve::ImportKind::Many { path, items })
+            if path == "std/json" && items == &vec!["parse".to_owned(), "stringify".to_owned()]
+    )));
 }
 
 #[test]

@@ -3,6 +3,8 @@ use tune_hir::item::Visibility;
 use tune_hir::shape::ShapeExpr;
 use tune_hir::{ExprId, HirId, MemberId};
 
+use crate::imports::ImportKind;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CompilerFactKind {
     Name,
@@ -12,6 +14,7 @@ pub enum CompilerFactKind {
     Return,
     Module,
     Visibility,
+    Import,
     JsonInvoker,
     Fields,
     Variants,
@@ -35,6 +38,7 @@ pub enum CompilerFactPayload {
     Return(ShapeExpr),
     Module(String),
     Visibility(Visibility),
+    Import(ImportKind),
     JsonInvoker(String),
     Fields(Vec<MemberId>),
     Variants(Vec<MemberId>),
@@ -74,6 +78,7 @@ impl CompilerFact {
             CompilerFactPayload::Return(_) => CompilerFactKind::Return,
             CompilerFactPayload::Module(_) => CompilerFactKind::Module,
             CompilerFactPayload::Visibility(_) => CompilerFactKind::Visibility,
+            CompilerFactPayload::Import(_) => CompilerFactKind::Import,
             CompilerFactPayload::JsonInvoker(_) => CompilerFactKind::JsonInvoker,
             CompilerFactPayload::Fields(_) => CompilerFactKind::Fields,
             CompilerFactPayload::Variants(_) => CompilerFactKind::Variants,

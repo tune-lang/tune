@@ -1,7 +1,8 @@
 use tune_diagnostics::{Diagnostic, Span, codes};
-use tune_hir::item::{Item, ItemKind, StructMember};
+use tune_hir::item::{ImportSelector, Item, ItemKind, StructMember};
 
 use crate::facts::{CompilerFact, CompilerFactPayload, FactOwner, TagFact, TagFactArg};
+use crate::imports::ImportKind;
 use crate::scope::BindingKind;
 
 use super::ResolvedModule;
@@ -36,6 +37,16 @@ fn record_item_facts(resolved: &mut ResolvedModule, item: &Item, name: &str) {
         resolved.facts.push(CompilerFact {
             owner: FactOwner::Item(item.id),
             payload: CompilerFactPayload::Doc(doc.clone()),
+            span: item.span,
+        });
+    }
+
+    if item.kind == ItemKind::Import
+        && let Some(import) = &item.import
+    {
+        resolved.facts.push(CompilerFact {
+            owner: FactOwner::Item(item.id),
+            payload: CompilerFactPayload::Import(import_kind(&import.path, &import.selector)),
             span: item.span,
         });
     }
@@ -112,6 +123,22 @@ fn record_item_facts(resolved: &mut ResolvedModule, item: &Item, name: &str) {
 
     for tag in &item.tags {
         record_tag_fact(resolved, item, tag);
+    }
+}
+
+fn import_kind(path: &str, selector: &ImportSelector) -> ImportKind {
+    match selector {
+        ImportSelector::Module => ImportKind::Module {
+            path: path.to_owned(),
+        },
+        ImportSelector::Member(item) => ImportKind::One {
+            path: path.to_owned(),
+            item: item.clone(),
+        },
+        ImportSelector::Members(items) => ImportKind::Many {
+            path: path.to_owned(),
+            items: items.clone(),
+        },
     }
 }
 
