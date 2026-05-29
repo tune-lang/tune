@@ -9,7 +9,9 @@ use crate::PlanOp;
 
 impl LowerContext<'_> {
     pub(super) fn lower_call(&self, callee: &Expr, args: &[Expr], ops: &mut Vec<PlanOp>) {
-        if let Some(base) = task_join_base(callee, args) {
+        if let Some(base) = task_join_base(callee, args)
+            && matches!(self.expr_shape(base), Some(Shape::Task(_)))
+        {
             self.lower_expr(base, ops);
             ops.push(PlanOp::TaskJoin { span: callee.span });
             return;

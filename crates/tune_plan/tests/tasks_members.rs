@@ -1,13 +1,19 @@
 #[test]
 fn task_join_lowers_to_dedicated_plan_op() -> Result<(), &'static str> {
-    let source = "let wait(task) = task.join()";
+    let source = "let wait(task: Task<Int>): Int = task.join()";
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
     let resolved = tune_resolve::resolve_module(&module);
     assert!(resolved.diagnostics.is_empty());
 
-    let plan = tune_plan::lower_resolved_item_to_plan(&module.items[0], &resolved)
-        .ok_or("function body should lower")?;
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+    let plan = tune_plan::lower_analyzed_module_item_to_plan(
+        &module,
+        &module.items[0],
+        &resolved,
+        &analysis,
+    )
+    .ok_or("function body should lower")?;
 
     assert!(
         plan.ops
@@ -18,6 +24,48 @@ fn task_join_lowers_to_dedicated_plan_op() -> Result<(), &'static str> {
         matches!(
             op,
             tune_plan::PlanOp::FieldGet { field, .. } if field == "join"
+        )
+    }));
+
+    Ok(())
+}
+
+#[test]
+fn non_task_join_member_does_not_lower_to_task_join() -> Result<(), &'static str> {
+    let source = r#"
+struct Joiner {
+  join(): Int = 1
+}
+let run(value: Joiner): Int = value.join()
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    assert!(resolved.diagnostics.is_empty());
+
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[1]);
+    let plan = tune_plan::lower_analyzed_module_item_to_plan(
+        &module,
+        &module.items[1],
+        &resolved,
+        &analysis,
+    )
+    .ok_or("function body should lower")?;
+
+    assert!(
+        !plan
+            .ops
+            .iter()
+            .any(|op| matches!(op, tune_plan::PlanOp::TaskJoin { .. }))
+    );
+    assert!(plan.ops.iter().any(|op| {
+        matches!(
+            op,
+            tune_plan::PlanOp::MemberCall {
+                name,
+                member: Some(_),
+                ..
+            } if name == "join"
         )
     }));
 
