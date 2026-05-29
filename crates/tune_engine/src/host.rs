@@ -1,11 +1,10 @@
 use tune_host::Host;
 use tune_host::HostExecutor;
+use tune_host::HostFunction;
+pub use tune_host::HostSymbolId as EngineHostSymbolId;
 use tune_host::module::HostModule;
 
 use crate::Tune;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct EngineHostSymbolId(pub u32);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EngineHostSymbol {
@@ -69,6 +68,28 @@ impl HostRegistry {
 
     pub(crate) fn executors(&self) -> Vec<Option<HostExecutor>> {
         self.executors.clone()
+    }
+
+    pub(crate) fn function(
+        &self,
+        module_name: &str,
+        function_name: &str,
+    ) -> Option<(EngineHostSymbolId, &HostFunction)> {
+        for module in &self.modules {
+            if module.name != module_name {
+                continue;
+            }
+            let function = module
+                .functions
+                .iter()
+                .find(|function| function.name == function_name)?;
+            let symbol = self
+                .symbols
+                .iter()
+                .find(|symbol| symbol.module == module_name && symbol.function == function_name)?;
+            return Some((symbol.id, function));
+        }
+        None
     }
 }
 

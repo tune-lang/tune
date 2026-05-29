@@ -159,6 +159,7 @@ fn lower_import(
         variants: Vec::new(),
         shape: None,
         body: None,
+        external: None,
     }
 }
 
@@ -193,6 +194,7 @@ fn lower_let(
             .shape_annotation()
             .map(|shape| lower_shape(source, shape)),
         body,
+        external: None,
     }
 }
 
@@ -233,6 +235,7 @@ fn lower_struct(
         variants: Vec::new(),
         shape: None,
         body: None,
+        external: None,
     }
 }
 
@@ -259,6 +262,7 @@ fn lower_enum(
         variants: lower_variants(source, node.variants()),
         shape: None,
         body: None,
+        external: None,
     }
 }
 
@@ -286,6 +290,7 @@ fn lower_tag(
         variants: Vec::new(),
         shape: None,
         body: None,
+        external: None,
     }
 }
 

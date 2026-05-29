@@ -129,6 +129,7 @@ version = "0.1.0"
 dependencies = [
  "tune_diagnostics",
  "tune_hir",
+ "tune_host",
  "tune_ir",
  "tune_resolve",
  "tune_shape",
@@ -198,6 +199,7 @@ version = "0.1.0"
 dependencies = [
  "tune_diagnostics",
  "tune_hir",
+ "tune_host",
  "tune_plan",
  "tune_resolve",
  "tune_shape",
@@ -240,6 +242,7 @@ version = "0.1.0"
 dependencies = [
  "tune_diagnostics",
  "tune_hir",
+ "tune_host",
  "tune_resolve",
  "tune_shape",
  "tune_syntax",

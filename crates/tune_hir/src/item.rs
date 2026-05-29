@@ -19,6 +19,14 @@ pub enum Visibility {
     Public,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExternalItem {
+    HostFunction { symbol: ExternalSymbolId },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ExternalSymbolId(pub u32);
+
 #[derive(Debug, Clone)]
 pub struct TagApplication {
     pub name: String,
@@ -138,4 +146,5 @@ pub struct Item {
     pub variants: Vec<Variant>,
     pub shape: Option<ShapeExpr>,
     pub body: Option<Expr>,
+    pub external: Option<ExternalItem>,
 }

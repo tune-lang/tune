@@ -1,5 +1,6 @@
 use tune_diagnostics::Span;
 use tune_hir::{ExprId, HirId, MemberId};
+use tune_host::HostSymbolId;
 use tune_resolve::{LocalId, VariantId};
 use tune_shape::Shape;
 
@@ -14,9 +15,6 @@ pub struct ConstId(pub u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FieldId(pub u32);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct HostSymbolId(pub u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IrCapture {

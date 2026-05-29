@@ -2,10 +2,16 @@ use std::collections::HashMap;
 
 use tune_db::{FileId, TuneDb};
 use tune_diagnostics::{Diagnostic, Span, codes};
-use tune_hir::HirId;
-use tune_hir::item::{ImportSelector, Item};
+use tune_hir::item::{
+    ExternalItem, ExternalSymbolId, ImportSelector, Item, ItemKind, Param, Visibility,
+};
 use tune_hir::module::Module;
+use tune_hir::shape::{ShapeExpr, ShapeExprKind};
+use tune_hir::{HirId, MemberId, MemberKind};
+use tune_host::HostFunction;
+use tune_shape::Shape;
 
+use crate::host::HostRegistry;
 use crate::imports_remap::{next_expr_id, remap_item};
 
 pub(crate) struct LinkedModule {
@@ -14,7 +20,11 @@ pub(crate) struct LinkedModule {
     pub(crate) diagnostics: Vec<Diagnostic>,
 }
 
-pub(crate) fn link_entry_imports(db: &TuneDb, entry: FileId) -> Option<LinkedModule> {
+pub(crate) fn link_entry_imports(
+    db: &TuneDb,
+    entry: FileId,
+    hosts: &HostRegistry,
+) -> Option<LinkedModule> {
     let entry_source = db.source(entry)?;
     let entry_parsed = tune_syntax::parse_with_file(entry, &entry_source.text);
     let mut module = tune_hir::lower::lower_module(&entry_source.text, &entry_parsed.cst);
@@ -34,6 +44,16 @@ pub(crate) fn link_entry_imports(db: &TuneDb, entry: FileId) -> Option<LinkedMod
 
     for (span, import) in imports {
         let Some(imported_file) = sources_by_path.get(import.path.as_str()).copied() else {
+            if append_host_imports(
+                &mut module,
+                hosts,
+                &import.path,
+                &import.selector,
+                span,
+                &mut diagnostics,
+            ) {
+                continue;
+            }
             diagnostics.push(unresolved_import(&import.path, span));
             continue;
         };
@@ -62,6 +82,132 @@ pub(crate) fn link_entry_imports(db: &TuneDb, entry: FileId) -> Option<LinkedMod
         module,
         diagnostics,
     })
+}
+
+fn append_host_imports(
+    module: &mut Module,
+    hosts: &HostRegistry,
+    path: &str,
+    selector: &ImportSelector,
+    span: Option<Span>,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> bool {
+    let names = match selector {
+        ImportSelector::Module => {
+            return hosts.modules().iter().any(|module| module.name == path);
+        }
+        ImportSelector::Member(name) => vec![name.as_str()],
+        ImportSelector::Members(names) => names.iter().map(String::as_str).collect(),
+    };
+    let mut matched_module = false;
+    for name in names {
+        let Some((symbol, function)) = hosts.function(path, name) else {
+            if hosts.modules().iter().any(|module| module.name == path) {
+                matched_module = true;
+                diagnostics.push(unresolved_import_member(name, span));
+            }
+            continue;
+        };
+        matched_module = true;
+        append_host_item(module, symbol, function, span);
+    }
+    matched_module
+}
+
+fn append_host_item(
+    module: &mut Module,
+    symbol: tune_host::HostSymbolId,
+    function: &HostFunction,
+    span: Option<Span>,
+) {
+    let Ok(index) = u32::try_from(module.items.len()) else {
+        return;
+    };
+    let owner = HirId(index);
+    let params = function
+        .params
+        .iter()
+        .enumerate()
+        .filter_map(|(index, param)| {
+            Some(Param {
+                id: MemberId {
+                    owner,
+                    kind: MemberKind::Param,
+                    index: u32::try_from(index).ok()?,
+                },
+                name: Some(param.name.clone()),
+                span,
+                shape: Some(shape_expr(&param.shape)),
+            })
+        })
+        .collect();
+    module.items.push(Item {
+        id: owner,
+        name: Some(function.name.clone()),
+        kind: ItemKind::CallableDecl,
+        visibility: Visibility::Public,
+        span,
+        doc: None,
+        tags: Vec::new(),
+        import: None,
+        type_params: Vec::new(),
+        params,
+        struct_members: Vec::new(),
+        fields: Vec::new(),
+        variants: Vec::new(),
+        shape: Some(shape_expr(&function.ret)),
+        body: None,
+        external: Some(ExternalItem::HostFunction {
+            symbol: ExternalSymbolId(symbol.0),
+        }),
+    });
+}
+
+fn shape_expr(shape: &Shape) -> ShapeExpr {
+    ShapeExpr {
+        kind: shape_expr_kind(shape),
+        span: None,
+    }
+}
+
+fn shape_expr_kind(shape: &Shape) -> ShapeExprKind {
+    match shape {
+        Shape::Hole => ShapeExprKind::Missing,
+        Shape::Never => ShapeExprKind::Named("Never".into()),
+        Shape::Unit => ShapeExprKind::Named("Unit".into()),
+        Shape::Int => ShapeExprKind::Named("Int".into()),
+        Shape::Float => ShapeExprKind::Named("Float".into()),
+        Shape::Size => ShapeExprKind::Named("Size".into()),
+        Shape::Byte => ShapeExprKind::Named("Byte".into()),
+        Shape::Bool => ShapeExprKind::Named("Bool".into()),
+        Shape::String => ShapeExprKind::Named("String".into()),
+        Shape::Sequence(inner) => ShapeExprKind::Sequence(Box::new(shape_expr(inner))),
+        Shape::Tuple(items) => ShapeExprKind::Tuple(items.iter().map(shape_expr).collect()),
+        Shape::Optional(inner) => ShapeExprKind::Optional(Box::new(shape_expr(inner))),
+        Shape::Union(items) => ShapeExprKind::Union(items.iter().map(shape_expr).collect()),
+        Shape::Callable { params, ret } => ShapeExprKind::Callable {
+            params: params.iter().map(shape_expr).collect(),
+            ret: Box::new(shape_expr(ret)),
+        },
+        Shape::Result { ok, err } => ShapeExprKind::Generic {
+            name: "Result".into(),
+            args: vec![shape_expr(ok), shape_expr(err)],
+        },
+        Shape::Task(inner) => ShapeExprKind::Generic {
+            name: "Task".into(),
+            args: vec![shape_expr(inner)],
+        },
+        Shape::Apply { nominal, args } => ShapeExprKind::Generic {
+            name: nominal.name.clone(),
+            args: args.iter().map(shape_expr).collect(),
+        },
+        Shape::Struct(nominal) | Shape::Enum(nominal) => ShapeExprKind::Named(nominal.name.clone()),
+        Shape::Range(inner) => ShapeExprKind::Generic {
+            name: "Range".into(),
+            args: vec![shape_expr(inner)],
+        },
+        Shape::Literal(_) | Shape::Param(_) | Shape::Structural(_) => ShapeExprKind::Missing,
+    }
 }
 
 fn append_selected_imports(

@@ -93,20 +93,29 @@ impl LowerContext<'_> {
         }
 
         match self.name_target(callee.id) {
-            Some(NameTarget::TopLevel(target)) if self.is_callable_decl(target) => {
-                PlanOp::DirectCall {
-                    target,
+            Some(NameTarget::TopLevel(target)) => {
+                if let Some(symbol) = self.host_symbol(target) {
+                    return PlanOp::HostCall {
+                        symbol,
+                        arg_count,
+                        span: callee.span,
+                    };
+                }
+                if self.is_callable_decl(target) {
+                    return PlanOp::DirectCall {
+                        target,
+                        arg_count,
+                        type_args: self.call_type_args(expr),
+                        span: callee.span,
+                    };
+                }
+                PlanOp::BoundCall {
                     arg_count,
-                    type_args: self.call_type_args(expr),
                     span: callee.span,
                 }
             }
             Some(NameTarget::Variant(variant)) => PlanOp::VariantConstruct {
                 variant,
-                arg_count,
-                span: callee.span,
-            },
-            Some(NameTarget::TopLevel(_)) => PlanOp::BoundCall {
                 arg_count,
                 span: callee.span,
             },
@@ -128,6 +137,14 @@ impl LowerContext<'_> {
             .is_some_and(|item| item.kind == tune_hir::item::ItemKind::CallableDecl)
     }
 
+    fn host_symbol(&self, target: tune_hir::HirId) -> Option<tune_host::HostSymbolId> {
+        let item = self.module?.items.iter().find(|item| item.id == target)?;
+        item.external
+            .map(|tune_hir::item::ExternalItem::HostFunction { symbol }| {
+                tune_host::HostSymbolId(symbol.0)
+            })
+    }
+
     fn call_type_args(&self, expr: tune_hir::ExprId) -> Vec<Shape> {
         self.analysis
             .and_then(|analysis| analysis.calls.iter().find(|call| call.expr == expr))
@@ -136,6 +153,7 @@ impl LowerContext<'_> {
 
     fn static_call_target(&self, callee: &Expr) -> bool {
         match self.name_target(callee.id) {
+            Some(NameTarget::TopLevel(target)) if self.host_symbol(target).is_some() => true,
             Some(NameTarget::TopLevel(target)) => self.is_callable_decl(target),
             Some(NameTarget::Variant(_)) => true,
             _ => false,

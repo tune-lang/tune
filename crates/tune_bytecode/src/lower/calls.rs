@@ -101,7 +101,7 @@ impl FunctionLowerer<'_> {
         let site = u32::try_from(self.host_call_sites.len())
             .map_err(|_| BytecodeLowerError::ConstantLimit)?;
         self.host_call_sites.push(BytecodeHostCallSite {
-            symbol: symbol.0,
+            symbol,
             args: args.iter().map(|arg| arg.0).collect(),
         });
         self.instructions.push(Instruction {

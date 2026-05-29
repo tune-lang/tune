@@ -141,7 +141,7 @@ fn lowers_host_call_plan_to_ir() -> Result<(), &'static str> {
         ops: vec![
             tune_plan::PlanOp::ConstString { value: "42".into() },
             tune_plan::PlanOp::HostCall {
-                symbol: 2,
+                symbol: tune_host::HostSymbolId(2),
                 arg_count: 1,
                 span: None,
             },

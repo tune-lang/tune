@@ -18,7 +18,7 @@ pub use profile::{
     StageTiming,
 };
 
-use tune_db::{FileId, ModuleAnalysis, TuneDb};
+use tune_db::{FileId, TuneDb};
 use tune_diagnostics::Diagnostic;
 use tune_host::module::HostModule;
 use tune_runtime::value::Value;
@@ -92,9 +92,29 @@ impl Tune {
 
     #[must_use]
     pub fn check_file(&self, file: FileId) -> Option<CheckReport> {
-        self.db
-            .analyze_file(file)
-            .map(|analysis| report_from_analysis(file, analysis))
+        let linked = imports::link_entry_imports(&self.db, file, &self.hosts)?;
+        let resolved = tune_resolve::resolve_module(&linked.module);
+        let shape = tune_shape::analyze_module(&linked.module, &resolved);
+        let diagnostics = linked
+            .parsed
+            .iter()
+            .flat_map(|parsed| parsed.diagnostics.iter())
+            .chain(linked.diagnostics.iter())
+            .chain(resolved.diagnostics.iter())
+            .chain(
+                shape
+                    .iter()
+                    .flat_map(|analysis| analysis.diagnostics.iter()),
+            )
+            .cloned()
+            .collect();
+        Some(CheckReport {
+            file,
+            diagnostics,
+            module: linked.module,
+            resolved,
+            shape,
+        })
     }
 
     pub fn check_source(
@@ -293,7 +313,7 @@ impl Tune {
         if self.projects.get(entry.project.0 as usize).is_none() {
             return Err(EngineError::NotImplemented("unknown project handle"));
         }
-        let linked = imports::link_entry_imports(&self.db, entry.entry)
+        let linked = imports::link_entry_imports(&self.db, entry.entry, &self.hosts)
             .ok_or(EngineError::FileNotFound(entry.entry))?;
         let resolved = tune_resolve::resolve_module(&linked.module);
         let shape = tune_shape::analyze_module(&linked.module, &resolved);
@@ -355,16 +375,6 @@ impl Tune {
 
     pub const fn db_mut(&mut self) -> &mut TuneDb {
         &mut self.db
-    }
-}
-
-fn report_from_analysis(file: FileId, analysis: ModuleAnalysis) -> CheckReport {
-    CheckReport {
-        file,
-        diagnostics: analysis.diagnostics(),
-        module: analysis.module,
-        resolved: analysis.resolved,
-        shape: analysis.shape,
     }
 }
 

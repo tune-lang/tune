@@ -12,6 +12,7 @@ workspace = true
 [dependencies]
 tune_diagnostics = { path = "../tune_diagnostics" }
 tune_hir = { path = "../tune_hir" }
+tune_host = { path = "../tune_host" }
 tune_plan = { path = "../tune_plan" }
 tune_resolve = { path = "../tune_resolve" }
 tune_shape = { path = "../tune_shape" }

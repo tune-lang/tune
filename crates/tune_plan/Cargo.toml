@@ -14,6 +14,7 @@ tune_hir = { path = "../tune_hir" }
 tune_resolve = { path = "../tune_resolve" }
 tune_shape = { path = "../tune_shape" }
 tune_diagnostics = { path = "../tune_diagnostics" }
+tune_host = { path = "../tune_host" }
 
 [dev-dependencies]
 tune_syntax = { path = "../tune_syntax" }

@@ -1,5 +1,6 @@
 use crate::Opcode;
 use crate::provenance::BytecodeFunctionProvenance;
+use tune_host::HostSymbolId;
 use tune_shape::Shape;
 
 #[derive(Debug, Clone)]
@@ -42,7 +43,7 @@ pub struct BytecodeBoundCallSite {
 
 #[derive(Debug, Clone)]
 pub struct BytecodeHostCallSite {
-    pub symbol: u32,
+    pub symbol: HostSymbolId,
     pub args: Vec<u32>,
 }
 

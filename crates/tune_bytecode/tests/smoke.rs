@@ -388,7 +388,10 @@ fn lowers_host_call_ir_to_host_call_site() -> Result<(), &'static str> {
     tune_bytecode::validate_artifact(&artifact).map_err(|_| "bytecode should validate")?;
 
     assert_eq!(artifact.functions[0].host_call_sites.len(), 1);
-    assert_eq!(artifact.functions[0].host_call_sites[0].symbol, 3);
+    assert_eq!(
+        artifact.functions[0].host_call_sites[0].symbol,
+        tune_host::HostSymbolId(3)
+    );
     assert_eq!(artifact.functions[0].host_call_sites[0].args, vec![0]);
     assert_eq!(
         artifact.functions[0].instructions[1].opcode,

@@ -315,6 +315,36 @@ fn engine_registers_default_std_host_modules() {
 }
 
 #[test]
+fn engine_runs_imported_std_host_function() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new().with_std();
+    let file = tune
+        .add_file(
+            "main.tn",
+            r#"
+import "parse".int
+let value: Result<Int, String> = int("42")
+"#,
+        )
+        .ok_or("source should allocate")?;
+
+    let value = tune.run_file(file).map_err(|error| {
+        eprintln!("{error:?}");
+        "std host import should execute"
+    })?;
+
+    assert_eq!(
+        value,
+        tune_runtime::Value::Variant {
+            variant: tune_runtime::value::RuntimeVariant::ResultOk,
+            fields: vec![tune_runtime::Value::Int(42)],
+            propagation_frames: Vec::new(),
+        }
+    );
+
+    Ok(())
+}
+
+#[test]
 fn vm_faults_convert_to_structured_diagnostics() {
     let span = tune_diagnostics::Span::new(
         tune_diagnostics::FileId(3),

@@ -5,7 +5,7 @@ use tune_plan::{Capture, CaptureSource};
 use tune_shape::Shape;
 
 use crate::lower::{IrLowerError, Lowerer};
-use crate::{HostSymbolId, IrCapture, IrCaptureMode, IrOp};
+use crate::{IrCapture, IrCaptureMode, IrOp};
 
 impl Lowerer {
     pub(super) fn lower_direct_call(
@@ -126,7 +126,7 @@ impl Lowerer {
 
     pub(super) fn lower_host_call(
         &mut self,
-        symbol: u32,
+        symbol: tune_host::HostSymbolId,
         arg_count: usize,
         _span: Option<Span>,
     ) -> Result<(), IrLowerError> {
@@ -136,11 +136,7 @@ impl Lowerer {
         }
         args.reverse();
         let dst = self.alloc_reg()?;
-        self.push_op(IrOp::CallHost {
-            dst,
-            symbol: HostSymbolId(symbol),
-            args,
-        });
+        self.push_op(IrOp::CallHost { dst, symbol, args });
         self.stack.push(dst);
         Ok(())
     }
