@@ -13,7 +13,11 @@ impl Vm {
         registers: &mut [Value],
         instruction: &Instruction,
     ) -> Result<(), VmFault> {
-        let task = self.push_deferred_task(instruction.b, locals);
+        let task = self.at(
+            function,
+            instruction_index,
+            self.push_deferred_task(instruction.b, locals),
+        )?;
         self.at(
             function,
             instruction_index,

@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::resource::ResourceHandle;
 use crate::state::StateHandle;
 use crate::task::TaskId;
 use tune_diagnostics::Span;
@@ -28,6 +29,7 @@ pub enum Value {
         propagation_frames: Vec<PropagationFrame>,
     },
     StructState(StateHandle),
+    Resource(ResourceHandle),
     Callable(CallableValue),
     Task(TaskHandle),
 }
@@ -73,6 +75,7 @@ impl PartialEq for Value {
                     && left_frames == right_frames
             }
             (Self::StructState(left), Self::StructState(right)) => left == right,
+            (Self::Resource(left), Self::Resource(right)) => left == right,
             (Self::Callable(left), Self::Callable(right)) => left == right,
             (Self::Task(left), Self::Task(right)) => left == right,
             _ => false,
@@ -103,6 +106,27 @@ impl Value {
             },
             value => value.clone(),
         }
+    }
+
+    #[must_use]
+    pub fn task_safety_error(&self) -> Option<TaskSafetyError> {
+        match self {
+            Self::Resource(resource) if !resource.task_safe => Some(TaskSafetyError {
+                resource_type: resource.type_name.clone(),
+            }),
+            Self::Sequence(values) | Self::Tuple(values) => {
+                values.iter().find_map(Self::task_safety_error)
+            }
+            Self::Struct { fields, .. } => fields.task_safety_error(),
+            Self::Variant { fields, .. } => fields.iter().find_map(Self::task_safety_error),
+            Self::Callable(callable) => callable.task_safety_error(),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn is_task_safe(&self) -> bool {
+        self.task_safety_error().is_none()
     }
 }
 
@@ -175,6 +199,14 @@ impl StructFields {
                 .collect(),
         )
     }
+
+    #[must_use]
+    pub fn task_safety_error(&self) -> Option<TaskSafetyError> {
+        self.fields
+            .borrow()
+            .iter()
+            .find_map(Value::task_safety_error)
+    }
 }
 
 impl PartialEq for StructFields {
@@ -187,6 +219,16 @@ impl PartialEq for StructFields {
 pub struct CallableValue {
     pub function: u32,
     pub captures: Vec<CapturedValue>,
+}
+
+impl CallableValue {
+    #[must_use]
+    pub fn task_safety_error(&self) -> Option<TaskSafetyError> {
+        self.captures
+            .iter()
+            .map(CapturedValue::get)
+            .find_map(|value| value.task_safety_error())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -247,4 +289,9 @@ pub struct PropagationFrame {
     pub instruction: u32,
     pub function_name: String,
     pub span: Option<Span>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskSafetyError {
+    pub resource_type: String,
 }

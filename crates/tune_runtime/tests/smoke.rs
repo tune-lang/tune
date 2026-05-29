@@ -60,3 +60,33 @@ fn state_handles_record_repr_and_ownership_cost() {
         tune_runtime::ownership::OwnershipPlan::SharedAtomic
     );
 }
+
+#[test]
+fn resource_handles_are_task_unsafe_by_default() {
+    let resource = tune_runtime::Value::Resource(tune_runtime::ResourceHandle::new(
+        tune_runtime::ResourceId(1),
+        "fs.File",
+    ));
+
+    assert_eq!(
+        resource.task_safety_error(),
+        Some(tune_runtime::TaskSafetyError {
+            resource_type: "fs.File".into(),
+        })
+    );
+    assert!(!resource.is_task_safe());
+}
+
+#[test]
+fn resource_task_safety_checks_nested_values() {
+    let resource = tune_runtime::Value::Resource(
+        tune_runtime::ResourceHandle::new(tune_runtime::ResourceId(2), "net.Socket")
+            .task_safe(true),
+    );
+    let value = tune_runtime::Value::Tuple(vec![
+        tune_runtime::Value::Int(1),
+        tune_runtime::Value::Sequence(vec![resource]),
+    ]);
+
+    assert!(value.is_task_safe());
+}

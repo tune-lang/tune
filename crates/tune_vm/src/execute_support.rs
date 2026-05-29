@@ -76,7 +76,16 @@ impl Vm {
         })
     }
 
-    pub(crate) fn push_deferred_task(&self, function: u32, locals: &[Value]) -> Value {
+    pub(crate) fn push_deferred_task(
+        &self,
+        function: u32,
+        locals: &[Value],
+    ) -> Result<Value, VmError> {
+        if let Some(error) = locals.iter().find_map(Value::task_safety_error) {
+            return Err(VmError::TaskUnsafeCapture {
+                resource_type: error.resource_type,
+            });
+        }
         let mut tasks = self.tasks.borrow_mut();
         let id = TaskId(u64::try_from(tasks.len()).unwrap_or(u64::MAX));
         tasks.push(VmTask::Pending {
@@ -84,7 +93,7 @@ impl Vm {
             function,
             locals: locals.to_vec(),
         });
-        Value::Task(TaskHandle(id))
+        Ok(Value::Task(TaskHandle(id)))
     }
 
     pub(crate) fn capture_snapshot(&self, value: &Value) -> Result<Value, VmError> {

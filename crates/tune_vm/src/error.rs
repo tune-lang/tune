@@ -37,6 +37,7 @@ pub enum VmError {
     NumericOverflow,
     DivideByZero,
     SequenceIndexOutOfBounds,
+    TaskUnsafeCapture { resource_type: String },
     UnsupportedStructState,
     Panic(TunePanic),
     InvalidBytecode(BytecodeValidationError),
