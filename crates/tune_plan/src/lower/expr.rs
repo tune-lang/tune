@@ -304,6 +304,7 @@ impl LowerContext<'_> {
                 iterable,
                 body,
             } => {
+                let contract = self.finite_for_contract(iterable);
                 ops.push(PlanOp::FiniteFor {
                     pattern: pattern.clone(),
                     iterable: iterable.id,
@@ -311,14 +312,7 @@ impl LowerContext<'_> {
                     binding: self.for_pattern_binding(pattern),
                     iterable_ops: self.lower_expr_to_ops(iterable),
                     body_ops: self.lower_expr_to_ops(body),
-                    contract: FiniteForContract {
-                        source: iterable.id,
-                        kind: self.finite_for_contract_kind(iterable),
-                        len_member: self.len_member(iterable),
-                        index_member: self.index_member(iterable),
-                        source_evaluated_once: true,
-                        length_evaluated_once: true,
-                    },
+                    contract,
                     span: expr.span,
                 });
             }
@@ -328,6 +322,47 @@ impl LowerContext<'_> {
                 }
             }
         }
+    }
+
+    fn finite_for_contract(&self, iterable: &Expr) -> FiniteForContract {
+        self.analysis
+            .and_then(|analysis| {
+                analysis
+                    .finite_for
+                    .iter()
+                    .find(|check| check.iterable == iterable.id)
+            })
+            .map_or_else(
+                || FiniteForContract {
+                    source: iterable.id,
+                    kind: crate::FiniteForContractKind::Unknown,
+                    len_member: None,
+                    index_member: None,
+                    source_evaluated_once: true,
+                    length_evaluated_once: true,
+                },
+                |check| FiniteForContract {
+                    source: check.iterable,
+                    kind: match check.contract {
+                        tune_shape::FiniteForContractKind::Sequence => {
+                            crate::FiniteForContractKind::Sequence
+                        }
+                        tune_shape::FiniteForContractKind::Range => {
+                            crate::FiniteForContractKind::Range
+                        }
+                        tune_shape::FiniteForContractKind::MemberAccess => {
+                            crate::FiniteForContractKind::MemberAccess
+                        }
+                        tune_shape::FiniteForContractKind::Unknown => {
+                            crate::FiniteForContractKind::Unknown
+                        }
+                    },
+                    len_member: check.len_member,
+                    index_member: check.index_member,
+                    source_evaluated_once: true,
+                    length_evaluated_once: true,
+                },
+            )
     }
 
     pub(super) fn lower_expr_for_binding(

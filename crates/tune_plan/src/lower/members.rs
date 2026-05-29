@@ -6,7 +6,6 @@ use tune_resolve::NameTarget;
 use tune_shape::{Shape, lower_resolved_hir_shape};
 
 use super::{LowerContext, StructuralWitness, StructuralWitnessKind};
-use crate::FiniteForContractKind;
 
 impl LowerContext<'_> {
     pub(super) fn struct_item_id(&self, name: &str) -> Option<tune_hir::HirId> {
@@ -90,20 +89,6 @@ impl LowerContext<'_> {
         self.name_target(base.id)
     }
 
-    pub(super) fn len_member(&self, base: &Expr) -> Option<MemberId> {
-        let shape = self.expr_shape(base)?;
-        let name = self.struct_shape_name(&shape)?;
-        self.struct_item(name)?
-            .struct_members
-            .iter()
-            .find_map(|member| match member {
-                StructMember::Callable(member) if member.name.as_deref() == Some("len") => {
-                    Some(member.id)
-                }
-                _ => None,
-            })
-    }
-
     pub(super) fn index_member(&self, base: &Expr) -> Option<MemberId> {
         let shape = self.expr_shape(base)?;
         let name = self.struct_shape_name(&shape)?;
@@ -114,18 +99,6 @@ impl LowerContext<'_> {
                 StructMember::IndexAccess(member) => Some(member.id),
                 _ => None,
             })
-    }
-
-    pub(super) fn finite_for_contract_kind(&self, base: &Expr) -> FiniteForContractKind {
-        match self.expr_shape(base) {
-            Some(Shape::Range(_)) => FiniteForContractKind::Range,
-            Some(Shape::Sequence(_))
-            | Some(Shape::Literal(tune_shape::LiteralFact::Sequence { .. })) => {
-                FiniteForContractKind::Sequence
-            }
-            Some(Shape::Struct(_) | Shape::Apply { .. }) => FiniteForContractKind::MemberAccess,
-            _ => FiniteForContractKind::Unknown,
-        }
     }
 
     pub(super) fn sequence_materializer(&self, shape: &Shape) -> Option<MemberId> {
