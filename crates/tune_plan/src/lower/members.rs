@@ -34,6 +34,22 @@ impl LowerContext<'_> {
             .collect()
     }
 
+    pub(super) fn struct_field_shape(
+        &self,
+        name: &str,
+        field: MemberId,
+    ) -> Option<tune_shape::Shape> {
+        let scope = &self.resolved?.scope;
+        self.struct_item(name)?
+            .struct_members
+            .iter()
+            .find_map(|member| match member {
+                StructMember::Field(member) if member.id == field => member.shape.as_ref(),
+                _ => None,
+            })
+            .map(|shape| lower_resolved_hir_shape(shape, scope).shape)
+    }
+
     pub(super) fn field_member(&self, base: &Expr, field: &str) -> Option<MemberId> {
         let shape = self.expr_shape(base)?;
         let name = self.struct_shape_name(&shape)?;

@@ -180,7 +180,7 @@ fn run_file_executes_finite_for_over_struct_contract() -> Result<(), &'static st
 struct Window {
   values: [Int]
 
-  len(): Int = 3
+  len(): Size = 3
   Window[index: Size]: Int = self.values[index]
 }
 

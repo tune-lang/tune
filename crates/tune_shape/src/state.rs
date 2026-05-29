@@ -86,6 +86,14 @@ impl BindingState {
         self.materialization = None;
     }
 
+    #[must_use]
+    pub fn with_committed_current(mut self, shape: Shape) -> Self {
+        if shape != Shape::Hole {
+            self.current_shape = shape;
+        }
+        self
+    }
+
     pub fn join_current(&mut self, shape: Shape) {
         self.current_shape = self.current_shape.clone().join(shape);
         self.literal_fact = None;

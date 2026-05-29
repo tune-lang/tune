@@ -259,7 +259,7 @@ let choose(color: Color) = match color { Red => 1 }
 fn analyzer_joins_branch_state_after_if() -> Result<(), &'static str> {
     let source = r#"
 let run(flag) = {
-  let value = 1
+  let value: Int | String = 1
   if flag { value = 2 } else { value = "two" }
   value
 }

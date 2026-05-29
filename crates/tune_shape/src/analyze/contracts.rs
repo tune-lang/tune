@@ -6,6 +6,7 @@ use tune_hir::{ExprId, MemberId};
 use tune_resolve::{LocalId, NameTarget};
 
 use super::{Analyzer, ExprShape, FiniteForContractKind, MaterializerCheck};
+use crate::lower_resolved_hir_shape;
 use crate::{BindingKey, BindingState, LiteralFact, Shape, expr_shape_fact};
 mod effects;
 mod structural;
@@ -103,14 +104,14 @@ impl Analyzer<'_> {
             Shape::Struct(name) | Shape::Apply { name, .. } => {
                 let len = self.callable_member(name, "len");
                 let index = self.index_member(name);
-                if len.is_none() {
+                if len.is_none() || !self.len_member_returns_size(name) {
                     self.diagnostics.push(iter_diag(
                         codes::ITERATION_LEN_MISSING,
                         "finite `for` source has no `len(): Size` contract",
                         span,
                     ));
                 }
-                if index.is_none() {
+                if index.is_none() || !self.index_member_accepts_size(name) {
                     self.diagnostics.push(iter_diag(
                         codes::ITERATION_INDEX_MISSING,
                         "finite `for` source has no indexed access contract",
@@ -139,9 +140,20 @@ impl Analyzer<'_> {
         let Some(key) = self.binding_key(expr) else {
             return expr_shape_fact(expr, self.module, self.resolved).unwrap_or(Shape::Hole);
         };
-        self.frame
-            .get(key)
-            .map_or(Shape::Hole, |binding| binding.current_shape.clone())
+        if let Some(binding) = self.frame.get(key) {
+            return binding.current_shape.clone();
+        }
+        match key {
+            BindingKey::TopLevel(item_id) => self
+                .module
+                .items
+                .iter()
+                .find(|item| item.id == item_id)
+                .and_then(|item| item.shape.as_ref())
+                .map(|shape| lower_resolved_hir_shape(shape, &self.resolved.scope).shape)
+                .unwrap_or(Shape::Hole),
+            _ => Shape::Hole,
+        }
     }
 
     pub(super) fn bind_pattern(&mut self, pattern: &Pattern, shape: Shape) {
@@ -322,6 +334,32 @@ impl Analyzer<'_> {
                 StructMember::IndexAccess(access) => Some(access.id),
                 _ => None,
             })
+    }
+
+    fn len_member_returns_size(&mut self, struct_name: &str) -> bool {
+        self.struct_item(struct_name)
+            .and_then(|item| {
+                item.struct_members.iter().find_map(|member| match member {
+                    StructMember::Callable(callable) if callable.name.as_deref() == Some("len") => {
+                        callable.shape.as_ref()
+                    }
+                    _ => None,
+                })
+            })
+            .map(|shape| lower_resolved_hir_shape(shape, &self.resolved.scope).shape == Shape::Size)
+            .unwrap_or(false)
+    }
+
+    fn index_member_accepts_size(&mut self, struct_name: &str) -> bool {
+        self.struct_item(struct_name)
+            .and_then(|item| {
+                item.struct_members.iter().find_map(|member| match member {
+                    StructMember::IndexAccess(access) => access.index_shape.as_ref(),
+                    _ => None,
+                })
+            })
+            .map(|shape| lower_resolved_hir_shape(shape, &self.resolved.scope).shape == Shape::Size)
+            .unwrap_or(false)
     }
 
     pub(super) fn sequence_materializer(&self, shape: &Shape) -> Option<MemberId> {

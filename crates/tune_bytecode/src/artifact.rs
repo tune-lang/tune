@@ -24,9 +24,12 @@ impl BytecodeArtifact {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BytecodeConst {
     Int(i64),
+    Float(f64),
+    Size(u64),
+    Byte(u8),
     Bool(bool),
     String(String),
 }

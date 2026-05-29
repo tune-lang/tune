@@ -1,5 +1,5 @@
 use tune_hir::expr::{BinaryOp, Expr, ExprKind, LiteralKind};
-use tune_shape::MaterializationPlan;
+use tune_shape::{MaterializationPlan, Shape};
 
 use super::LowerContext;
 use super::values::{expr_produces_value, if_produces_value};
@@ -18,9 +18,10 @@ impl LowerContext<'_> {
                 });
             }
             ExprKind::Literal(LiteralKind::Int(text)) => {
-                if let Ok(value) = text.parse::<i64>() {
-                    ops.push(PlanOp::ConstInt { value });
-                }
+                self.lower_numeric_literal(text, None, ops);
+            }
+            ExprKind::Literal(LiteralKind::Float(text)) => {
+                self.lower_numeric_literal(text, Some(&Shape::Float), ops);
             }
             ExprKind::Literal(LiteralKind::Bool(value)) => {
                 ops.push(PlanOp::ConstBool { value: *value });
@@ -49,8 +50,8 @@ impl LowerContext<'_> {
             }
             ExprKind::Struct { name, fields } => {
                 let ordered = self.struct_field_inits(name, fields);
-                for (_, value) in &ordered {
-                    self.lower_expr(value, ops);
+                for (field, value) in &ordered {
+                    self.lower_expr_for_shape(value, self.struct_field_shape(name, *field), ops);
                 }
                 if let Some(item) = self.struct_item_id(name) {
                     ops.push(PlanOp::StructConstruct {
@@ -93,7 +94,7 @@ impl LowerContext<'_> {
                     } else {
                         self.clone_context()
                     };
-                    context.lower_expr(value, ops);
+                    context.lower_expr_for_binding(value, shape.as_ref(), ops);
                     if matches!(value.kind, ExprKind::Sequence(_))
                         && let Some(target) = context.lower_shape(shape.as_ref())
                     {
@@ -137,10 +138,17 @@ impl LowerContext<'_> {
                         });
                     }
                 } else {
-                    self.lower_expr(lhs, ops);
-                    self.lower_expr(rhs, ops);
+                    let shape = self.expr_shape(expr).unwrap_or(Shape::Hole);
+                    if matches!(op, BinaryOp::Add) {
+                        self.lower_expr_for_shape(lhs, Some(shape.clone()), ops);
+                        self.lower_expr_for_shape(rhs, Some(shape.clone()), ops);
+                    } else {
+                        self.lower_expr(lhs, ops);
+                        self.lower_expr(rhs, ops);
+                    }
                     ops.push(PlanOp::BinaryOp {
                         op: *op,
+                        shape,
                         span: expr.span,
                     });
                 }
@@ -266,4 +274,85 @@ impl LowerContext<'_> {
             }
         }
     }
+
+    pub(super) fn lower_expr_for_binding(
+        &self,
+        expr: &Expr,
+        shape: Option<&tune_hir::shape::ShapeExpr>,
+        ops: &mut Vec<PlanOp>,
+    ) {
+        if let Some(target) = self.lower_shape(shape)
+            && let ExprKind::Literal(LiteralKind::Int(text) | LiteralKind::Float(text)) = &expr.kind
+            && self.lower_numeric_literal(text, Some(&target), ops)
+        {
+            return;
+        }
+        self.lower_expr(expr, ops);
+    }
+
+    pub(super) fn lower_expr_for_shape(
+        &self,
+        expr: &Expr,
+        shape: Option<Shape>,
+        ops: &mut Vec<PlanOp>,
+    ) {
+        if let Some(target) = shape.as_ref()
+            && let ExprKind::Literal(LiteralKind::Int(text) | LiteralKind::Float(text)) = &expr.kind
+            && self.lower_numeric_literal(text, Some(target), ops)
+        {
+            return;
+        }
+        self.lower_expr(expr, ops);
+    }
+
+    fn lower_numeric_literal(
+        &self,
+        text: &str,
+        expected: Option<&Shape>,
+        ops: &mut Vec<PlanOp>,
+    ) -> bool {
+        match expected {
+            Some(Shape::Float) => parse_float(text).is_some_and(|value| {
+                ops.push(PlanOp::ConstFloat {
+                    bits: value.to_bits(),
+                });
+                true
+            }),
+            Some(Shape::Size) => parse_unsigned(text).is_some_and(|value| {
+                if let Ok(value) = u64::try_from(value) {
+                    ops.push(PlanOp::ConstSize { value });
+                    true
+                } else {
+                    false
+                }
+            }),
+            Some(Shape::Byte) => parse_unsigned(text).is_some_and(|value| {
+                if let Ok(value) = u8::try_from(value) {
+                    ops.push(PlanOp::ConstByte { value });
+                    true
+                } else {
+                    false
+                }
+            }),
+            _ => {
+                if let Ok(value) = text.replace('_', "").parse::<i64>() {
+                    ops.push(PlanOp::ConstInt { value });
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    }
+}
+
+fn parse_unsigned(text: &str) -> Option<u128> {
+    text.replace('_', "").parse::<u128>().ok()
+}
+
+fn parse_float(text: &str) -> Option<f64> {
+    text.replace('_', "")
+        .parse::<f64>()
+        .ok()
+        .filter(|value| value.is_finite())
 }

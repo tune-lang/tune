@@ -2,6 +2,7 @@ use tune_hir::expr::{Expr, ExprKind};
 use tune_resolve::{LocalId, LocalKind, NameTarget};
 
 use super::LowerContext;
+use crate::CaptureSource;
 
 impl LowerContext<'_> {
     pub(super) fn captured_locals_in_callable_values(&self, body: &Expr) -> Vec<LocalId> {
@@ -10,7 +11,7 @@ impl LowerContext<'_> {
         captures
     }
 
-    pub(super) fn callable_value_captures(&self, body: &Expr) -> Vec<LocalId> {
+    pub(super) fn callable_value_captures(&self, body: &Expr) -> Vec<CaptureSource> {
         let mut declared = Vec::new();
         collect_declared_locals(body, self, &mut declared);
 
@@ -27,6 +28,9 @@ fn collect_callable_value_captures(
 ) {
     if let ExprKind::CallableValue { body, .. } = &expr.kind {
         for capture in context.callable_value_captures(body) {
+            let CaptureSource::Local(capture) = capture else {
+                continue;
+            };
             if !captures.contains(&capture) {
                 captures.push(capture);
             }
@@ -42,15 +46,27 @@ fn collect_captured_locals(
     expr: &Expr,
     context: &LowerContext<'_>,
     declared: &[LocalId],
-    captures: &mut Vec<LocalId>,
+    captures: &mut Vec<CaptureSource>,
 ) {
-    if let ExprKind::Name(_) = expr.kind
-        && let Some(NameTarget::Local(local)) = context.name_target(expr.id)
-        && !declared.contains(&local)
-        && context.local_kind(local) == Some(LocalKind::Let)
-        && !captures.contains(&local)
-    {
-        captures.push(local);
+    if let ExprKind::Name(_) = expr.kind {
+        match context.name_target(expr.id) {
+            Some(NameTarget::Local(local))
+                if !declared.contains(&local)
+                    && context.local_kind(local) == Some(LocalKind::Let) =>
+            {
+                let capture = CaptureSource::Local(local);
+                if !captures.contains(&capture) {
+                    captures.push(capture);
+                }
+            }
+            Some(NameTarget::TopLevel(item)) => {
+                let capture = CaptureSource::TopLevel(item);
+                if !captures.contains(&capture) {
+                    captures.push(capture);
+                }
+            }
+            _ => {}
+        }
     }
 
     walk_expr(expr, &mut |child| {

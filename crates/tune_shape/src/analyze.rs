@@ -1,3 +1,4 @@
+use crate::LiteralFact;
 use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::expr::{Expr, ExprKind};
 mod callable;
@@ -380,17 +381,26 @@ impl Analyzer<'_> {
                 },
                 |literal| {
                     let storage_shape = if expected == Shape::Hole {
-                        literal.storage_shape()
+                        if literal.is_numeric() {
+                            Shape::Hole
+                        } else {
+                            literal.storage_shape()
+                        }
                     } else {
                         expected.clone()
                     };
-                    BindingState::literal(
+                    let binding = BindingState::literal(
                         BindingKey::Local(local),
                         self.local_name(local),
-                        storage_shape,
+                        storage_shape.clone(),
                         literal,
                         expr.span,
-                    )
+                    );
+                    if expected == Shape::Hole {
+                        binding
+                    } else {
+                        binding.with_committed_current(storage_shape)
+                    }
                 },
             );
             self.frame.define(binding);
@@ -402,10 +412,7 @@ impl Analyzer<'_> {
     fn analyze_assign(&mut self, target: &Expr, value: &Expr) -> Shape {
         let actual = self.analyze_expr(value);
         if let Some(key) = self.binding_key(target) {
-            let expected = self
-                .frame
-                .get(key)
-                .map_or(Shape::Hole, |binding| binding.storage_shape.clone());
+            let expected = self.assignment_expected_shape(key, &actual);
             self.check_value_against(&expected, &actual, value.span);
             self.assignments.push(AssignmentCheck {
                 target: key,
@@ -418,6 +425,35 @@ impl Analyzer<'_> {
             self.analyze_expr(target);
         }
         actual
+    }
+
+    fn assignment_expected_shape(&mut self, key: BindingKey, actual: &Shape) -> Shape {
+        let Some(binding) = self.frame.get(key) else {
+            return Shape::Hole;
+        };
+        if binding.storage_shape != Shape::Hole {
+            return binding.storage_shape.clone();
+        }
+        let Some(literal) = binding.literal_fact.as_ref() else {
+            return Shape::Hole;
+        };
+        if !literal.is_numeric() {
+            return literal.storage_shape();
+        }
+        if let Shape::Literal(next) = actual
+            && next.is_numeric()
+        {
+            let solved = if matches!(next, LiteralFact::Numeric { text } if text.contains('.')) {
+                Shape::Float
+            } else {
+                Shape::Int
+            };
+            if let Some(binding) = self.frame.get_mut(key) {
+                binding.storage_shape = solved.clone();
+            }
+            return solved;
+        }
+        Shape::Int
     }
 
     fn check_value_against(&mut self, expected: &Shape, actual: &Shape, span: Option<Span>) {

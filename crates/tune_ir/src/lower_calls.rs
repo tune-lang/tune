@@ -1,6 +1,7 @@
 use tune_hir::{HirId, MemberId};
 
 use tune_diagnostics::Span;
+use tune_plan::CaptureSource;
 
 use crate::IrOp;
 use crate::lower::{IrLowerError, Lowerer};
@@ -68,12 +69,16 @@ impl Lowerer {
     pub(super) fn lower_callable_value(
         &mut self,
         callable: tune_hir::ExprId,
-        captures: &[tune_resolve::LocalId],
+        captures: &[CaptureSource],
         span: Option<Span>,
     ) -> Result<(), IrLowerError> {
         let mut capture_regs = Vec::with_capacity(captures.len());
         for capture in captures {
-            self.lower_binding_get(tune_resolve::NameTarget::Local(*capture))?;
+            let target = match capture {
+                CaptureSource::Local(local) => tune_resolve::NameTarget::Local(*local),
+                CaptureSource::TopLevel(item) => tune_resolve::NameTarget::TopLevel(*item),
+            };
+            self.lower_binding_get(target)?;
             capture_regs.push(self.pop("callable capture")?);
         }
         let dst = self.alloc_reg()?;

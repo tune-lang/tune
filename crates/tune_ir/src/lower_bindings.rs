@@ -1,3 +1,4 @@
+use tune_plan::CaptureSource;
 use tune_resolve::NameTarget;
 
 use crate::lower::Lowerer;
@@ -9,8 +10,12 @@ use crate::{IrLowerError, IrOp};
 impl Lowerer {
     pub(super) fn lower_binding_get(&mut self, source: NameTarget) -> Result<(), IrLowerError> {
         let local = match source {
-            NameTarget::Local(local) if self.captures.contains(&local) => {
-                capture_slot(local, &self.module_bindings, &self.captures)?
+            NameTarget::Local(local) if self.captures.contains(&CaptureSource::Local(local)) => {
+                capture_slot(
+                    CaptureSource::Local(local),
+                    &self.module_bindings,
+                    &self.captures,
+                )?
             }
             NameTarget::Local(local) if self.local_params.contains(&local) => local_param_slot(
                 local,
@@ -29,6 +34,15 @@ impl Lowerer {
             )?,
             NameTarget::Param(param) => param_slot(param, &self.module_bindings, &self.params)?,
             NameTarget::SelfValue => tune_resolve::LocalId(0),
+            NameTarget::TopLevel(item)
+                if self.captures.contains(&CaptureSource::TopLevel(item)) =>
+            {
+                capture_slot(
+                    CaptureSource::TopLevel(item),
+                    &self.module_bindings,
+                    &self.captures,
+                )?
+            }
             NameTarget::TopLevel(item) if self.module_bindings.contains(&item) => {
                 module_slot(item, &self.module_bindings)?
             }
@@ -140,8 +154,12 @@ impl Lowerer {
         &self,
         local: tune_resolve::LocalId,
     ) -> Result<tune_resolve::LocalId, IrLowerError> {
-        if self.captures.contains(&local) {
-            return capture_slot(local, &self.module_bindings, &self.captures);
+        if self.captures.contains(&CaptureSource::Local(local)) {
+            return capture_slot(
+                CaptureSource::Local(local),
+                &self.module_bindings,
+                &self.captures,
+            );
         }
         if self.local_params.contains(&local) {
             return local_param_slot(

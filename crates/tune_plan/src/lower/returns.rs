@@ -66,7 +66,7 @@ impl LowerContext<'_> {
         }
     }
 
-    fn lower_return_expr_to_ops(&self, expr: &Expr) -> Vec<PlanOp> {
+    pub(super) fn lower_return_expr_to_ops(&self, expr: &Expr) -> Vec<PlanOp> {
         let mut ops = Vec::new();
         self.lower_return_expr(expr, &mut ops);
         ops

@@ -5,7 +5,7 @@ use tune_hir::MemberId;
 use tune_hir::expr::{BinaryOp, UnaryOp};
 use tune_hir::pattern::Pattern;
 use tune_resolve::{LocalId, NameTarget, VariantId};
-use tune_shape::MaterializationPlan;
+use tune_shape::{MaterializationPlan, Shape};
 
 use crate::meta::MetaPlan;
 
@@ -18,9 +18,15 @@ pub struct PlanFunction {
     pub span: Option<Span>,
     pub params: Vec<MemberId>,
     pub local_params: Vec<LocalId>,
-    pub captures: Vec<LocalId>,
+    pub captures: Vec<CaptureSource>,
     pub module_bindings: Vec<HirId>,
     pub ops: Vec<PlanOp>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CaptureSource {
+    Local(LocalId),
+    TopLevel(HirId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -149,6 +155,15 @@ pub enum PlanOp {
     ConstInt {
         value: i64,
     },
+    ConstFloat {
+        bits: u64,
+    },
+    ConstSize {
+        value: u64,
+    },
+    ConstByte {
+        value: u8,
+    },
     ConstBool {
         value: bool,
     },
@@ -172,6 +187,10 @@ pub enum PlanOp {
         fields: Vec<MemberId>,
         span: Option<Span>,
     },
+    StructIs {
+        item: HirId,
+        span: Option<Span>,
+    },
     BoundCall {
         arg_count: usize,
         span: Option<Span>,
@@ -184,7 +203,7 @@ pub enum PlanOp {
     },
     CallableValue {
         callable: ExprId,
-        captures: Vec<LocalId>,
+        captures: Vec<CaptureSource>,
         span: Option<Span>,
     },
     WitnessCall,
@@ -209,6 +228,7 @@ pub enum PlanOp {
     },
     BinaryOp {
         op: BinaryOp,
+        shape: Shape,
         span: Option<Span>,
     },
     BoolAnd {

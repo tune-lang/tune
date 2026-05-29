@@ -142,6 +142,18 @@ impl FunctionLowerer<'_> {
                 self.push_instruction(Opcode::AddInt, dst.0, a.0, b.0);
                 Ok(())
             }
+            IrOp::AddFloat { dst, a, b } => {
+                self.push_instruction(Opcode::AddFloat, dst.0, a.0, b.0);
+                Ok(())
+            }
+            IrOp::AddSizeChecked { dst, a, b, .. } => {
+                self.push_instruction(Opcode::AddSizeChecked, dst.0, a.0, b.0);
+                Ok(())
+            }
+            IrOp::AddByteWrap { dst, a, b } => {
+                self.push_instruction(Opcode::AddByteWrap, dst.0, a.0, b.0);
+                Ok(())
+            }
             IrOp::RangeInt {
                 dst,
                 start,
@@ -318,6 +330,17 @@ impl FunctionLowerer<'_> {
                     a: dst.0,
                     b: site,
                     c: 0,
+                });
+                Ok(())
+            }
+            IrOp::StructIs {
+                dst, value, item, ..
+            } => {
+                self.instructions.push(Instruction {
+                    opcode: Opcode::StructIs,
+                    a: dst.0,
+                    b: value.0,
+                    c: item.0,
                 });
                 Ok(())
             }

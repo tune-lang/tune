@@ -83,6 +83,36 @@ impl PartialEq for Value {
     }
 }
 
+impl Value {
+    #[must_use]
+    pub fn capture_snapshot(&self) -> Self {
+        match self {
+            Self::Struct {
+                owner,
+                state,
+                fields,
+            } => Self::Struct {
+                owner: *owner,
+                state: *state,
+                fields: fields.snapshot(),
+            },
+            Self::Sequence(values) => {
+                Self::Sequence(values.iter().map(Self::capture_snapshot).collect())
+            }
+            Self::Variant {
+                variant,
+                fields,
+                propagation_frames,
+            } => Self::Variant {
+                variant: *variant,
+                fields: fields.iter().map(Self::capture_snapshot).collect(),
+                propagation_frames: propagation_frames.clone(),
+            },
+            value => value.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RangeValue {
     pub start: i128,
@@ -117,6 +147,17 @@ impl StructFields {
         *field = value;
         Some(())
     }
+
+    #[must_use]
+    pub fn snapshot(&self) -> Self {
+        Self::new(
+            self.0
+                .borrow()
+                .iter()
+                .map(Value::capture_snapshot)
+                .collect(),
+        )
+    }
 }
 
 impl PartialEq for StructFields {
@@ -128,7 +169,32 @@ impl PartialEq for StructFields {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CallableValue {
     pub function: u32,
-    pub captures: Vec<Value>,
+    pub captures: Vec<CapturedValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CapturedValue(Rc<RefCell<Value>>);
+
+impl CapturedValue {
+    #[must_use]
+    pub fn new(value: Value) -> Self {
+        Self(Rc::new(RefCell::new(value)))
+    }
+
+    #[must_use]
+    pub fn get(&self) -> Value {
+        self.0.borrow().clone()
+    }
+
+    pub fn set(&self, value: Value) {
+        *self.0.borrow_mut() = value;
+    }
+}
+
+impl PartialEq for CapturedValue {
+    fn eq(&self, other: &Self) -> bool {
+        *self.0.borrow() == *other.0.borrow()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

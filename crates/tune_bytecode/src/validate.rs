@@ -158,6 +158,9 @@ fn validate_instruction(
             register(function_id, function, instruction.b)?;
         }
         Opcode::AddInt
+        | Opcode::AddFloat
+        | Opcode::AddSizeChecked
+        | Opcode::AddByteWrap
         | Opcode::RangeExclusiveInt
         | Opcode::RangeInclusiveInt
         | Opcode::GreaterInt
@@ -171,6 +174,10 @@ fn validate_instruction(
             register(function_id, function, instruction.c)?;
         }
         Opcode::StructConstruct => validate_struct(function_id, function, instruction)?,
+        Opcode::StructIs => {
+            register(function_id, function, instruction.a)?;
+            register(function_id, function, instruction.b)?;
+        }
         Opcode::FieldGet => {
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;

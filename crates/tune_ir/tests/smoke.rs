@@ -96,6 +96,7 @@ fn lowers_integer_add_plan_to_ir() -> Result<(), &'static str> {
             tune_plan::PlanOp::ConstInt { value: 2 },
             tune_plan::PlanOp::BinaryOp {
                 op: tune_hir::expr::BinaryOp::Add,
+                shape: tune_shape::Shape::Int,
                 span: Some(add_span),
             },
             tune_plan::PlanOp::Return,
@@ -144,6 +145,7 @@ fn lowers_local_binding_plan_to_ir_loads_and_stores() -> Result<(), &'static str
             tune_plan::PlanOp::ConstInt { value: 2 },
             tune_plan::PlanOp::BinaryOp {
                 op: tune_hir::expr::BinaryOp::Add,
+                shape: tune_shape::Shape::Int,
                 span: None,
             },
             tune_plan::PlanOp::Return,

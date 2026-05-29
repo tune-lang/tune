@@ -76,13 +76,19 @@ impl LowerContext<'_> {
         }
 
         match self.name_target(callee.id) {
-            Some(NameTarget::TopLevel(target)) => PlanOp::DirectCall {
-                target,
+            Some(NameTarget::TopLevel(target)) if self.is_callable_decl(target) => {
+                PlanOp::DirectCall {
+                    target,
+                    arg_count,
+                    span: callee.span,
+                }
+            }
+            Some(NameTarget::Variant(variant)) => PlanOp::VariantConstruct {
+                variant,
                 arg_count,
                 span: callee.span,
             },
-            Some(NameTarget::Variant(variant)) => PlanOp::VariantConstruct {
-                variant,
+            Some(NameTarget::TopLevel(_)) => PlanOp::BoundCall {
                 arg_count,
                 span: callee.span,
             },
@@ -93,10 +99,22 @@ impl LowerContext<'_> {
         }
     }
 
+    fn is_callable_decl(&self, target: tune_hir::HirId) -> bool {
+        let Some(module) = self.module else {
+            return true;
+        };
+        module
+            .items
+            .iter()
+            .find(|item| item.id == target)
+            .is_some_and(|item| item.kind == tune_hir::item::ItemKind::CallableDecl)
+    }
+
     fn static_call_target(&self, callee: &Expr) -> bool {
-        matches!(
-            self.name_target(callee.id),
-            Some(NameTarget::TopLevel(_) | NameTarget::Variant(_))
-        )
+        match self.name_target(callee.id) {
+            Some(NameTarget::TopLevel(target)) => self.is_callable_decl(target),
+            Some(NameTarget::Variant(_)) => true,
+            _ => false,
+        }
     }
 }

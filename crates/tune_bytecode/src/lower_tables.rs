@@ -25,6 +25,9 @@ pub(super) fn push_artifact_const(
     let index = u32::try_from(constants.len()).map_err(|_| BytecodeLowerError::ConstantLimit)?;
     match constant {
         IrConst::Int(value) => constants.push(BytecodeConst::Int(*value)),
+        IrConst::Float(value) => constants.push(BytecodeConst::Float(*value)),
+        IrConst::Size(value) => constants.push(BytecodeConst::Size(*value)),
+        IrConst::Byte(value) => constants.push(BytecodeConst::Byte(*value)),
         IrConst::Bool(value) => constants.push(BytecodeConst::Bool(*value)),
         IrConst::String(value) => constants.push(BytecodeConst::String(value.clone())),
     }

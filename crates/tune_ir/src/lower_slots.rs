@@ -1,4 +1,5 @@
 use tune_hir::HirId;
+use tune_plan::CaptureSource;
 use tune_resolve::LocalId;
 
 use crate::lower::IrLowerError;
@@ -7,7 +8,7 @@ pub(super) fn local_offset(
     module_bindings: &[HirId],
     params: &[tune_hir::MemberId],
     local_params: &[LocalId],
-    captures: &[LocalId],
+    captures: &[CaptureSource],
 ) -> u32 {
     let offset = module_bindings
         .len()
@@ -57,7 +58,7 @@ pub(super) fn param_slot(
 pub(super) fn local_param_slot(
     param: LocalId,
     module_bindings: &[HirId],
-    captures: &[LocalId],
+    captures: &[CaptureSource],
     local_params: &[LocalId],
 ) -> Result<LocalId, IrLowerError> {
     let index = local_params
@@ -75,9 +76,9 @@ pub(super) fn local_param_slot(
 }
 
 pub(super) fn capture_slot(
-    capture: LocalId,
+    capture: CaptureSource,
     module_bindings: &[HirId],
-    captures: &[LocalId],
+    captures: &[CaptureSource],
 ) -> Result<LocalId, IrLowerError> {
     let index = captures
         .iter()

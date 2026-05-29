@@ -12,6 +12,11 @@ pub enum LiteralFact {
 
 impl LiteralFact {
     #[must_use]
+    pub const fn is_numeric(&self) -> bool {
+        matches!(self, Self::Numeric { .. })
+    }
+
+    #[must_use]
     pub fn storage_shape(&self) -> Shape {
         match self {
             Self::Numeric { .. } => Shape::Int,

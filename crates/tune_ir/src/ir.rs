@@ -37,6 +37,7 @@ impl IrOp {
     pub const fn provenance_span(&self) -> Option<Span> {
         match self {
             Self::AddInt { span, .. }
+            | Self::AddSizeChecked { span, .. }
             | Self::RangeInt { span, .. }
             | Self::NegInt { span, .. }
             | Self::NotBool { span, .. }
@@ -46,6 +47,7 @@ impl IrOp {
             | Self::SetField { span, .. }
             | Self::VariantConstruct { span, .. }
             | Self::StructConstruct { span, .. }
+            | Self::StructIs { span, .. }
             | Self::CallDirect { span, .. }
             | Self::CallMember { span, .. }
             | Self::CallableValue { span, .. }
@@ -60,9 +62,12 @@ impl IrOp {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum IrConst {
     Int(i64),
+    Float(f64),
+    Size(u64),
+    Byte(u8),
     Bool(bool),
     String(String),
 }
@@ -133,6 +138,12 @@ pub enum IrOp {
         a: Reg,
         b: Reg,
     },
+    AddSizeChecked {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
     AddByteWrap {
         dst: Reg,
         a: Reg,
@@ -181,6 +192,12 @@ pub enum IrOp {
         item: HirId,
         state: IrStructState,
         fields: Vec<StructField>,
+        span: Option<Span>,
+    },
+    StructIs {
+        dst: Reg,
+        value: Reg,
+        item: HirId,
         span: Option<Span>,
     },
     VariantField {

@@ -44,6 +44,11 @@ impl Analyzer<'_> {
             {
                 Shape::Int
             }
+            BinaryOp::Add if Shape::Float.accepts(&lhs) && Shape::Float.accepts(&rhs) => {
+                Shape::Float
+            }
+            BinaryOp::Add if Shape::Size.accepts(&lhs) && Shape::Size.accepts(&rhs) => Shape::Size,
+            BinaryOp::Add if Shape::Byte.accepts(&lhs) && Shape::Byte.accepts(&rhs) => Shape::Byte,
             BinaryOp::RangeExclusive | BinaryOp::RangeInclusive
                 if Shape::Int.accepts(&lhs) && Shape::Int.accepts(&rhs) =>
             {

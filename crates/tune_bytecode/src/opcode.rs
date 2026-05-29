@@ -47,6 +47,7 @@ pub enum Opcode {
     RangeExclusiveInt = 43,
     RangeInclusiveInt = 44,
     CallableValue = 45,
+    StructIs = 46,
 }
 
 impl Opcode {
@@ -97,5 +98,6 @@ impl Opcode {
         Self::RangeExclusiveInt,
         Self::RangeInclusiveInt,
         Self::CallableValue,
+        Self::StructIs,
     ];
 }

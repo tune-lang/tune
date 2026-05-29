@@ -113,7 +113,7 @@ fn lower_module_item_into_entry(
         param_shapes: param_shapes.to_vec(),
         captured_locals: captured_locals_for_body(resolved, body),
     };
-    context.lower_expr(body, ops);
+    context.lower_expr_for_binding(body, item.shape.as_ref(), ops);
     if matches!(body.kind, tune_hir::expr::ExprKind::Sequence(_))
         && let Some(target) = context.lower_shape(item.shape.as_ref())
     {

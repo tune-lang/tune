@@ -1,5 +1,5 @@
 use tune_hir::HirId;
-use tune_plan::{PlanFunction, PlanOp};
+use tune_plan::{CaptureSource, PlanFunction, PlanOp};
 use tune_shape::Shape;
 
 use crate::{BlockId, ConstId, IrBlock, IrConst, IrFunction, IrOp, Reg};
@@ -61,7 +61,7 @@ pub(super) struct Lowerer {
     pub(super) locals: u32,
     pub(super) params: Vec<tune_hir::MemberId>,
     pub(super) local_params: Vec<tune_resolve::LocalId>,
-    pub(super) captures: Vec<tune_resolve::LocalId>,
+    pub(super) captures: Vec<CaptureSource>,
     pub(super) module_bindings: Vec<HirId>,
     pub(super) constants: Vec<IrConst>,
     pub(super) blocks: Vec<IrBlock>,
@@ -81,6 +81,39 @@ impl Lowerer {
                     dst,
                     constant,
                     shape: Shape::Int,
+                });
+                self.stack.push(dst);
+                Ok(())
+            }
+            PlanOp::ConstFloat { bits } => {
+                let dst = self.alloc_reg()?;
+                let constant = self.push_const(IrConst::Float(f64::from_bits(*bits)))?;
+                self.push_op(IrOp::LoadConst {
+                    dst,
+                    constant,
+                    shape: Shape::Float,
+                });
+                self.stack.push(dst);
+                Ok(())
+            }
+            PlanOp::ConstSize { value } => {
+                let dst = self.alloc_reg()?;
+                let constant = self.push_const(IrConst::Size(*value))?;
+                self.push_op(IrOp::LoadConst {
+                    dst,
+                    constant,
+                    shape: Shape::Size,
+                });
+                self.stack.push(dst);
+                Ok(())
+            }
+            PlanOp::ConstByte { value } => {
+                let dst = self.alloc_reg()?;
+                let constant = self.push_const(IrConst::Byte(*value))?;
+                self.push_op(IrOp::LoadConst {
+                    dst,
+                    constant,
+                    shape: Shape::Byte,
                 });
                 self.stack.push(dst);
                 Ok(())
@@ -107,7 +140,7 @@ impl Lowerer {
                 self.stack.push(dst);
                 Ok(())
             }
-            PlanOp::BinaryOp { op, span } => self.lower_binary(*op, *span),
+            PlanOp::BinaryOp { op, shape, span } => self.lower_binary(*op, shape, *span),
             PlanOp::BoolAnd {
                 lhs_ops,
                 rhs_ops,
@@ -177,6 +210,18 @@ impl Lowerer {
                 fields,
                 span,
             } => self.lower_struct_construct(*item, *state, fields, *span),
+            PlanOp::StructIs { item, span } => {
+                let value = self.pop("struct test value")?;
+                let dst = self.alloc_reg()?;
+                self.push_op(IrOp::StructIs {
+                    dst,
+                    value,
+                    item: *item,
+                    span: *span,
+                });
+                self.stack.push(dst);
+                Ok(())
+            }
             PlanOp::FieldGet { member, span, .. } => self.lower_field_get(*member, *span),
             PlanOp::FieldSet {
                 member,

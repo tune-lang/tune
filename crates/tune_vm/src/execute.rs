@@ -1,7 +1,7 @@
 use tune_bytecode::{Opcode, artifact::BytecodeConst};
 use tune_runtime::{
     task::TaskJoinOutcome,
-    value::{CallableValue, RangeItemKind, RangeValue, StructFields, Value},
+    value::{CallableValue, CapturedValue, RangeItemKind, RangeValue, StructFields, Value},
 };
 
 use crate::execute_support::{read_reg, runtime_variant, write_reg};
@@ -12,6 +12,16 @@ impl Vm {
         &self,
         function_index: usize,
         args: Vec<Value>,
+    ) -> Result<Value, VmFault> {
+        self.execute_function_with_capture_cells(function_index, args, &[], 0)
+    }
+
+    fn execute_function_with_capture_cells(
+        &self,
+        function_index: usize,
+        args: Vec<Value>,
+        capture_cells: &[CapturedValue],
+        capture_count: usize,
     ) -> Result<Value, VmFault> {
         let function = self
             .artifact
@@ -40,6 +50,9 @@ impl Vm {
                             self.fault_at(function_index, ip, VmError::ConstantOutOfBounds)
                         })? {
                         BytecodeConst::Int(value) => Value::Int(*value),
+                        BytecodeConst::Float(value) => Value::Float(*value),
+                        BytecodeConst::Size(value) => Value::Size(*value),
+                        BytecodeConst::Byte(value) => Value::Byte(*value),
                         BytecodeConst::Bool(value) => Value::Bool(*value),
                         BytecodeConst::String(value) => Value::String(value.clone()),
                     };
@@ -135,6 +148,16 @@ impl Vm {
                         }
                     }
                 }
+                Opcode::StructIs => {
+                    let value = self.at(function_index, ip, read_reg(&registers, instruction.b))?;
+                    let result =
+                        matches!(value, Value::Struct { owner, .. } if owner == instruction.c);
+                    self.at(
+                        function_index,
+                        ip,
+                        write_reg(&mut registers, instruction.a, Value::Bool(result)),
+                    )?;
+                }
                 Opcode::FieldSet => {
                     match self.at(function_index, ip, read_reg(&registers, instruction.a))? {
                         Value::Struct { fields, .. } => {
@@ -153,24 +176,11 @@ impl Vm {
                         }
                     }
                 }
-                Opcode::AddInt => {
-                    let left = self.at(function_index, ip, read_reg(&registers, instruction.b))?;
-                    let right = self.at(function_index, ip, read_reg(&registers, instruction.c))?;
-                    let (Value::Int(left), Value::Int(right)) = (left, right) else {
-                        return Err(self.fault_at(
-                            function_index,
-                            ip,
-                            VmError::UnsupportedOpcode(Opcode::AddInt),
-                        ));
-                    };
-                    let value = left.checked_add(right).ok_or_else(|| {
-                        self.fault_at(function_index, ip, VmError::NumericOverflow)
-                    })?;
-                    self.at(
-                        function_index,
-                        ip,
-                        write_reg(&mut registers, instruction.a, Value::Int(value)),
-                    )?;
+                Opcode::AddInt
+                | Opcode::AddFloat
+                | Opcode::AddSizeChecked
+                | Opcode::AddByteWrap => {
+                    self.execute_add(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::RangeExclusiveInt | Opcode::RangeInclusiveInt => {
                     let start = self.at(function_index, ip, read_reg(&registers, instruction.b))?;
@@ -238,7 +248,10 @@ impl Vm {
                     let captures = site
                         .captures
                         .iter()
-                        .map(|capture| self.at(function_index, ip, read_reg(&registers, *capture)))
+                        .map(|capture| {
+                            self.at(function_index, ip, read_reg(&registers, *capture))
+                                .map(|value| CapturedValue::new(value.capture_snapshot()))
+                        })
                         .collect::<Result<Vec<_>, _>>()?;
                     self.at(
                         function_index,
@@ -274,9 +287,17 @@ impl Vm {
                         .iter()
                         .map(|arg| self.at(function_index, ip, read_reg(&registers, *arg)))
                         .collect::<Result<Vec<_>, _>>()?;
-                    let value = self.execute_function(
+                    let capture_count = callable.captures.len();
+                    let capture_cells = callable.captures;
+                    let captured_args = capture_cells
+                        .iter()
+                        .map(CapturedValue::get)
+                        .collect::<Vec<_>>();
+                    let value = self.execute_function_with_capture_cells(
                         callable.function as usize,
-                        callable.captures.into_iter().chain(args).collect(),
+                        captured_args.into_iter().chain(args).collect(),
+                        &capture_cells,
+                        capture_count,
                     )?;
                     self.at(
                         function_index,
@@ -342,6 +363,7 @@ impl Vm {
                         instruction.a,
                         result,
                     )? {
+                        write_back_captures(&locals, capture_cells, capture_count);
                         return Ok(value);
                     }
                 }
@@ -472,9 +494,12 @@ impl Vm {
                 }
                 Opcode::Return => {
                     if instruction.b == 0 {
+                        write_back_captures(&locals, capture_cells, capture_count);
                         return Ok(Value::Unit);
                     }
-                    return self.at(function_index, ip, read_reg(&registers, instruction.a));
+                    let value = self.at(function_index, ip, read_reg(&registers, instruction.a))?;
+                    write_back_captures(&locals, capture_cells, capture_count);
+                    return Ok(value);
                 }
                 Opcode::Nop => {}
                 other => {
@@ -487,7 +512,16 @@ impl Vm {
             }
             ip += 1;
         }
+        write_back_captures(&locals, capture_cells, capture_count);
         Ok(Value::Unit)
+    }
+}
+
+fn write_back_captures(locals: &[Value], capture_cells: &[CapturedValue], capture_count: usize) {
+    for (index, cell) in capture_cells.iter().take(capture_count).enumerate() {
+        if let Some(value) = locals.get(index) {
+            cell.set(value.capture_snapshot());
+        }
     }
 }
 
