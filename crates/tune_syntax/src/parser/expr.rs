@@ -341,12 +341,34 @@ impl Parser<'_> {
                 }
             }
             Some(TokenKind::LeftParen) => {
-                self.start_node(SyntaxKind::Expr);
+                self.start_node(SyntaxKind::TupleExpr);
                 self.bump();
                 self.skip_trivia();
-                if !self.at(TokenKind::RightParen) {
+
+                if self.at(TokenKind::RightParen) {
+                    self.bump();
+                    self.finish_node();
+                    return;
+                }
+
+                self.parse_expr();
+                self.skip_trivia();
+
+                if self.at(TokenKind::Comma) {
+                    while self.at(TokenKind::Comma) {
+                        self.bump();
+                        self.skip_trivia();
+                        if self.at(TokenKind::RightParen) {
+                            break;
+                        }
+                        self.parse_expr();
+                        self.skip_trivia();
+                    }
+                } else if !self.at(TokenKind::RightParen) {
+                    self.error_at_current("expected `,` or `)` after parenthesized expression");
                     self.parse_expr();
                 }
+
                 self.expect(TokenKind::RightParen, "expected `)`");
                 self.finish_node();
             }

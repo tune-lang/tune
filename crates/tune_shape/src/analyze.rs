@@ -247,7 +247,9 @@ impl Analyzer<'_> {
     fn analyze_expr(&mut self, expr: &Expr) -> Shape {
         let shape = match &expr.kind {
             ExprKind::Missing => Shape::Hole,
-            ExprKind::Literal(_) | ExprKind::Sequence(_) => self.literal_or_sequence_shape(expr),
+            ExprKind::Literal(_) | ExprKind::Sequence(_) | ExprKind::Tuple(_) => {
+                self.literal_or_sequence_shape(expr)
+            }
             ExprKind::Struct { name, fields } => {
                 for field in fields {
                     let expected = self.struct_field_shape(name, &field.name);
@@ -330,6 +332,9 @@ impl Analyzer<'_> {
             for element in elements {
                 self.analyze_expr(element);
             }
+        }
+        if let ExprKind::Tuple(items) = &expr.kind {
+            return Shape::Tuple(items.iter().map(|item| self.analyze_expr(item)).collect());
         }
         expr_literal_fact(expr).map_or(Shape::Hole, Shape::Literal)
     }

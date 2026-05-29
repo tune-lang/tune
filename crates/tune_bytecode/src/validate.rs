@@ -55,6 +55,10 @@ pub enum BytecodeValidationError {
         function: u32,
         site: u32,
     },
+    TupleSiteOutOfBounds {
+        function: u32,
+        site: u32,
+    },
     JumpOutOfBounds {
         function: u32,
         target: u32,
@@ -188,6 +192,7 @@ fn validate_instruction(
         }
         Opcode::CallDirect => validate_call(artifact, function_id, function, instruction)?,
         Opcode::CallBound => validate_bound_call(function_id, function, instruction)?,
+        Opcode::TupleBuild => validate_tuple(function_id, function, instruction)?,
         Opcode::CallableValue => validate_callable(artifact, function_id, function, instruction)?,
         Opcode::VariantConstruct => validate_variant(function_id, function, instruction)?,
         Opcode::VariantField | Opcode::ResultPropagate | Opcode::SpawnTask | Opcode::TaskJoin => {
@@ -233,6 +238,24 @@ fn validate_bound_call(
         })?;
     for arg in &site.args {
         register(function_id, function, *arg)?;
+    }
+    Ok(())
+}
+
+fn validate_tuple(
+    function_id: u32,
+    function: &BytecodeFunction,
+    instruction: &Instruction,
+) -> Result<(), BytecodeValidationError> {
+    register(function_id, function, instruction.a)?;
+    let site = function.tuple_sites.get(instruction.b as usize).ok_or(
+        BytecodeValidationError::TupleSiteOutOfBounds {
+            function: function_id,
+            site: instruction.b,
+        },
+    )?;
+    for item in &site.items {
+        register(function_id, function, *item)?;
     }
     Ok(())
 }

@@ -8,6 +8,7 @@ use super::text::direct_ident_text;
 pub enum Expr<'tree> {
     Missing(&'tree CstNode),
     Group(GroupExpr<'tree>),
+    Tuple(TupleExpr<'tree>),
     Literal(LiteralExpr<'tree>),
     Sequence(SequenceExpr<'tree>),
     Struct(StructExpr<'tree>),
@@ -39,6 +40,7 @@ impl<'tree> Expr<'tree> {
     pub fn cast(node: &'tree CstNode) -> Option<Self> {
         match node.kind {
             SyntaxKind::LiteralExpr => LiteralExpr::cast(node).map(Self::Literal),
+            SyntaxKind::TupleExpr => TupleExpr::cast(node).map(Self::Tuple),
             SyntaxKind::SequenceExpr => SequenceExpr::cast(node).map(Self::Sequence),
             SyntaxKind::StructExpr => StructExpr::cast(node).map(Self::Struct),
             SyntaxKind::NameExpr => NameExpr::cast(node).map(Self::Name),
@@ -73,6 +75,7 @@ impl<'tree> Expr<'tree> {
         match self {
             Self::Missing(node) => node,
             Self::Group(node) => node.syntax(),
+            Self::Tuple(node) => node.syntax(),
             Self::Literal(node) => node.syntax(),
             Self::Sequence(node) => node.syntax(),
             Self::Struct(node) => node.syntax(),
@@ -129,6 +132,7 @@ macro_rules! expr_node {
 
 expr_node!(LiteralExpr, SyntaxKind::LiteralExpr);
 expr_node!(GroupExpr, SyntaxKind::Expr);
+expr_node!(TupleExpr, SyntaxKind::TupleExpr);
 expr_node!(SequenceExpr, SyntaxKind::SequenceExpr);
 expr_node!(StructExpr, SyntaxKind::StructExpr);
 expr_node!(StructFieldInit, SyntaxKind::StructFieldInit);

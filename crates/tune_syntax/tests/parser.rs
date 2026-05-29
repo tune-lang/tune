@@ -333,6 +333,22 @@ let forever = loop { break }
 }
 
 #[test]
+fn parses_tuple_expression_nodes() {
+    let parsed = parse(r#"let pair = (10, "hello")"#);
+    let kinds = nested_node_kinds(&parsed.cst);
+
+    assert!(kinds.contains(&SyntaxKind::TupleExpr));
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| **kind == SyntaxKind::LiteralExpr)
+            .count(),
+        2
+    );
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
 fn reports_missing_block_expression_separator() {
     let parsed = parse("let block = { a b }");
 

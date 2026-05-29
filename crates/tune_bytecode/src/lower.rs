@@ -10,7 +10,7 @@ use crate::Opcode;
 use crate::artifact::{BytecodeArtifact, BytecodeConst};
 use crate::function::{
     BytecodeFunction, BytecodePanicSite, BytecodeStructField, BytecodeStructSite,
-    BytecodeVariantSite, Instruction,
+    BytecodeTupleSite, BytecodeVariantSite, Instruction,
 };
 use crate::lower_tables::{
     block_offsets, callable_function_indices, function_indices, lower_variant,
@@ -88,6 +88,7 @@ fn lower_ir_function_with_constants(
         match_sites: Vec::new(),
         for_sites: Vec::new(),
         panic_sites: Vec::new(),
+        tuple_sites: Vec::new(),
         instructions: Vec::new(),
         instruction_spans: Vec::new(),
     };
@@ -116,6 +117,7 @@ fn lower_ir_function_with_constants(
         match_sites: lowerer.match_sites,
         for_sites: lowerer.for_sites,
         panic_sites: lowerer.panic_sites,
+        tuple_sites: lowerer.tuple_sites,
         instructions: lowerer.instructions,
     })
 }
@@ -244,6 +246,20 @@ impl FunctionLowerer<'_> {
                     opcode: Opcode::StoreLocal,
                     a: local.0,
                     b: value.0,
+                    c: 0,
+                });
+                Ok(())
+            }
+            IrOp::TupleBuild { dst, items } => {
+                let site = u32::try_from(self.tuple_sites.len())
+                    .map_err(|_| BytecodeLowerError::ConstantLimit)?;
+                self.tuple_sites.push(BytecodeTupleSite {
+                    items: items.iter().map(|item| item.0).collect(),
+                });
+                self.instructions.push(Instruction {
+                    opcode: Opcode::TupleBuild,
+                    a: dst.0,
+                    b: site,
                     c: 0,
                 });
                 Ok(())

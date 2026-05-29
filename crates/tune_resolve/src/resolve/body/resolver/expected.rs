@@ -160,9 +160,11 @@ fn shape_for_item_param(item: &Item, param: MemberId) -> Option<ShapeExpr> {
 fn shape_for_let_expr(expr: &Expr, target: tune_hir::ExprId) -> Option<ShapeExpr> {
     match &expr.kind {
         ExprKind::Let { shape, .. } if expr.id == target => shape.clone(),
-        ExprKind::Sequence(elements) | ExprKind::Block(elements) => elements
-            .iter()
-            .find_map(|element| shape_for_let_expr(element, target)),
+        ExprKind::Tuple(elements) | ExprKind::Sequence(elements) | ExprKind::Block(elements) => {
+            elements
+                .iter()
+                .find_map(|element| shape_for_let_expr(element, target))
+        }
         ExprKind::Struct { fields, .. } => fields
             .iter()
             .find_map(|field| shape_for_let_expr(&field.value, target)),

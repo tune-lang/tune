@@ -15,6 +15,7 @@ pub enum Value {
     Bool(bool),
     String(String),
     Sequence(Vec<Value>),
+    Tuple(Vec<Value>),
     Range(RangeValue),
     Struct {
         owner: u32,
@@ -42,6 +43,7 @@ impl PartialEq for Value {
             (Self::Bool(left), Self::Bool(right)) => left == right,
             (Self::String(left), Self::String(right)) => left == right,
             (Self::Sequence(left), Self::Sequence(right)) => left == right,
+            (Self::Tuple(left), Self::Tuple(right)) => left == right,
             (Self::Range(left), Self::Range(right)) => left == right,
             (
                 Self::Struct {
@@ -99,6 +101,7 @@ impl Value {
             Self::Sequence(values) => {
                 Self::Sequence(values.iter().map(Self::capture_snapshot).collect())
             }
+            Self::Tuple(values) => Self::Tuple(values.iter().map(Self::capture_snapshot).collect()),
             Self::Variant {
                 variant,
                 fields,

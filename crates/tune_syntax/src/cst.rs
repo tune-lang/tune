@@ -37,6 +37,7 @@ pub enum SyntaxKind {
     Expr,
     LetExpr,
     LiteralExpr,
+    TupleExpr,
     SequenceExpr,
     StructExpr,
     StructFieldInit,

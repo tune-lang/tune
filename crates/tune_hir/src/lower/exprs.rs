@@ -23,6 +23,7 @@ impl ExprLowerer {
         let kind = match expr {
             AstExpr::Missing(_) => ExprKind::Missing,
             AstExpr::Group(_) => self.lower_group(source, expr),
+            AstExpr::Tuple(_) => self.lower_tuple(source, expr),
             AstExpr::Literal(node) => {
                 literal_kind(source, node).map_or(ExprKind::Missing, ExprKind::Literal)
             }
@@ -83,6 +84,19 @@ impl ExprLowerer {
         };
 
         self.lower(source, inner).kind
+    }
+
+    fn lower_tuple(&mut self, source: &str, expr: AstExpr<'_>) -> ExprKind {
+        let items = expr
+            .child_exprs()
+            .into_iter()
+            .map(|child| self.lower(source, child))
+            .collect::<Vec<_>>();
+        match items.as_slice() {
+            [] => ExprKind::Tuple(Vec::new()),
+            [only] => only.kind.clone(),
+            _ => ExprKind::Tuple(items),
+        }
     }
 
     fn lower_callable_value(&mut self, source: &str, expr: AstExpr<'_>) -> ExprKind {

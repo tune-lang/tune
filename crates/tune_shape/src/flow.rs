@@ -146,7 +146,9 @@ impl PropagatedErrorCollector {
             }
             ExprKind::CallableValue { .. } => {}
             ExprKind::Spawn(body) | ExprKind::Loop(body) => self.collect(body, module, resolved),
-            ExprKind::Sequence(elements) | ExprKind::Block(elements) => {
+            ExprKind::Tuple(elements)
+            | ExprKind::Sequence(elements)
+            | ExprKind::Block(elements) => {
                 for element in elements {
                     self.collect(element, module, resolved);
                 }

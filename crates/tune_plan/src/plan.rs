@@ -277,6 +277,9 @@ pub enum PlanOp {
     SequenceBuild {
         element_count: usize,
     },
+    TupleBuild {
+        element_count: usize,
+    },
     Materialize {
         plan: MaterializationPlan,
         materializer: Option<MemberId>,

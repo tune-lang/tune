@@ -154,6 +154,7 @@ impl Lowerer {
             PlanOp::UnaryOp { op } => self.lower_unary(*op),
             PlanOp::SequenceBuild { element_count } => self.lower_sequence_build(*element_count),
             PlanOp::SequencePush => self.lower_sequence_push(),
+            PlanOp::TupleBuild { element_count } => self.lower_tuple_build(*element_count),
             PlanOp::SequenceGet { checked, .. } => self.lower_sequence_get(*checked),
             PlanOp::SequenceSet { checked, base, .. } => self.lower_sequence_set(*checked, *base),
             PlanOp::BindingGet {

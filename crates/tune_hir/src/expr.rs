@@ -16,6 +16,7 @@ pub enum LiteralKind {
 pub enum ExprKind {
     Missing,
     Literal(LiteralKind),
+    Tuple(Vec<Expr>),
     Sequence(Vec<Expr>),
     Struct {
         name: String,

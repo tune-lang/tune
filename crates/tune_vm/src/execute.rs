@@ -97,6 +97,24 @@ impl Vm {
                 | Opcode::SeqSetUnchecked => {
                     self.execute_sequence(function_index, ip, &mut registers, instruction)?;
                 }
+                Opcode::TupleBuild => {
+                    let site = function
+                        .tuple_sites
+                        .get(instruction.b as usize)
+                        .ok_or_else(|| {
+                            self.fault_at(function_index, ip, VmError::CallSiteOutOfBounds)
+                        })?;
+                    let values = site
+                        .items
+                        .iter()
+                        .map(|item| self.at(function_index, ip, read_reg(&registers, *item)))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    self.at(
+                        function_index,
+                        ip,
+                        write_reg(&mut registers, instruction.a, Value::Tuple(values)),
+                    )?;
+                }
                 Opcode::StructConstruct => {
                     let site = function
                         .struct_sites

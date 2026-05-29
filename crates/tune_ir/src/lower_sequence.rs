@@ -26,6 +26,18 @@ impl Lowerer {
         Ok(())
     }
 
+    pub(super) fn lower_tuple_build(&mut self, element_count: usize) -> Result<(), IrLowerError> {
+        let mut items = Vec::with_capacity(element_count);
+        for _ in 0..element_count {
+            items.push(self.pop("tuple item")?);
+        }
+        items.reverse();
+        let dst = self.alloc_reg()?;
+        self.push_op(IrOp::TupleBuild { dst, items });
+        self.stack.push(dst);
+        Ok(())
+    }
+
     pub(super) fn lower_sequence_get(&mut self, checked: bool) -> Result<(), IrLowerError> {
         let index = self.pop("sequence index")?;
         let seq = self.pop("sequence base")?;

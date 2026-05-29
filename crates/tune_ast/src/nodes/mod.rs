@@ -19,7 +19,7 @@ pub use exprs::{
     AssignExpr, BinaryExpr, BlockExpr, BreakExpr, CallExpr, CallableValue, ContinueExpr, Expr,
     FieldExpr, ForExpr, GroupExpr, IfExpr, IndexExpr, LetExpr, LiteralExpr, LoopExpr, MatchArm,
     MatchExpr, NameExpr, PanicExpr, PropagateExpr, ReturnExpr, SequenceExpr, SpawnExpr, StructExpr,
-    StructFieldInit, UnaryExpr, WhileExpr,
+    StructFieldInit, TupleExpr, UnaryExpr, WhileExpr,
 };
 pub use imports::ImportDecl;
 pub use items::{DocumentedItem, Item, PubDecl, Root};

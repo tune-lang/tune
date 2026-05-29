@@ -15,6 +15,11 @@ pub fn expr_literal_fact(expr: &Expr) -> Option<LiteralFact> {
             .map(expr_literal_fact)
             .collect::<Option<Vec<_>>>()
             .map(|elements| LiteralFact::Sequence { elements }),
+        ExprKind::Tuple(elements) => elements
+            .iter()
+            .map(expr_literal_fact)
+            .collect::<Option<Vec<_>>>()
+            .map(|elements| LiteralFact::Tuple { elements }),
         _ => None,
     }
 }

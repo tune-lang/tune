@@ -54,6 +54,27 @@ fn run_file_executes_top_level_value_bindings_in_order() -> Result<(), &'static 
 }
 
 #[test]
+fn run_file_executes_tuple_expression_value() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(r#"app.tn"#, r#"let pair = (10, "hello")"#)
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        tune.run_file(file).map_err(|error| {
+            eprintln!("{error:?}");
+            "file entry should run"
+        })?,
+        tune_runtime::value::Value::Tuple(vec![
+            tune_runtime::value::Value::Int(10),
+            tune_runtime::value::Value::String("\"hello\"".into()),
+        ])
+    );
+
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_direct_callable_invocation() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

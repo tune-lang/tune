@@ -88,6 +88,31 @@ fn lowers_is_phrases_to_canonical_equality_ops() -> Result<(), &'static str> {
 }
 
 #[test]
+fn lowers_tuple_expressions_and_normalizes_grouping() -> Result<(), &'static str> {
+    let source = r#"let pair = (10, "hello")
+let grouped = (10)"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+
+    let pair = module.items[0].body.as_ref().ok_or("expected pair body")?;
+    assert!(matches!(
+        pair.kind,
+        tune_hir::expr::ExprKind::Tuple(ref items) if items.len() == 2
+    ));
+
+    let grouped = module.items[1]
+        .body
+        .as_ref()
+        .ok_or("expected grouped body")?;
+    assert!(matches!(
+        grouped.kind,
+        tune_hir::expr::ExprKind::Literal(tune_hir::expr::LiteralKind::Int(_))
+    ));
+
+    Ok(())
+}
+
+#[test]
 fn lowers_shape_annotations_to_hir_shape_exprs() -> Result<(), &'static str> {
     let source = "let value: [Int | String]? = none";
     let parsed = tune_syntax::parse(source);

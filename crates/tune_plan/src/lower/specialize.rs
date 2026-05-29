@@ -71,7 +71,10 @@ fn collect_direct_call_param_shapes(
                 collect_direct_call_param_shapes(arg, context, module, inferred);
             }
         }
-        ExprKind::Sequence(items) | ExprKind::Block(items) | ExprKind::Panic(items) => {
+        ExprKind::Tuple(items)
+        | ExprKind::Sequence(items)
+        | ExprKind::Block(items)
+        | ExprKind::Panic(items) => {
             for item in items {
                 collect_direct_call_param_shapes(item, context, module, inferred);
             }

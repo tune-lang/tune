@@ -11,7 +11,7 @@ pub(super) fn expr_has_materializer_effect(expr: &Expr) -> bool {
         | ExprKind::Propagate(_)
         | ExprKind::Panic(_) => true,
         ExprKind::CallableValue { .. } => false,
-        ExprKind::Sequence(elements) | ExprKind::Block(elements) => {
+        ExprKind::Tuple(elements) | ExprKind::Sequence(elements) | ExprKind::Block(elements) => {
             elements.iter().any(expr_has_materializer_effect)
         }
         ExprKind::Struct { fields, .. } => fields
@@ -73,9 +73,11 @@ pub(super) fn expr_assigns_binding(
                 || expr_assigns_binding(value, source, analyzer)
         }
         ExprKind::CallableValue { .. } => false,
-        ExprKind::Sequence(elements) | ExprKind::Block(elements) => elements
-            .iter()
-            .any(|element| expr_assigns_binding(element, source, analyzer)),
+        ExprKind::Tuple(elements) | ExprKind::Sequence(elements) | ExprKind::Block(elements) => {
+            elements
+                .iter()
+                .any(|element| expr_assigns_binding(element, source, analyzer))
+        }
         ExprKind::Struct { fields, .. } => fields
             .iter()
             .any(|field| expr_assigns_binding(&field.value, source, analyzer)),

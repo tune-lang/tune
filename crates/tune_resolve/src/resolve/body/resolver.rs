@@ -48,7 +48,7 @@ impl<'resolved> BodyResolver<'resolved> {
     ) {
         match &expr.kind {
             ExprKind::Missing | ExprKind::Literal(_) => {}
-            ExprKind::Sequence(elements) => {
+            ExprKind::Tuple(elements) | ExprKind::Sequence(elements) => {
                 for element in elements {
                     self.resolve_expr_names(element);
                 }

@@ -165,6 +165,10 @@ pub enum IrOp {
         dst: Reg,
         element_shape: Shape,
     },
+    TupleBuild {
+        dst: Reg,
+        items: Vec<Reg>,
+    },
     SeqPush {
         seq: Reg,
         value: Reg,

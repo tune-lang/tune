@@ -5,6 +5,7 @@ pub enum LiteralFact {
     Numeric { text: String },
     String { segments: Vec<String> },
     Sequence { elements: Vec<LiteralFact> },
+    Tuple { elements: Vec<LiteralFact> },
     Bool(bool),
     None,
     Unit,
@@ -24,6 +25,9 @@ impl LiteralFact {
             Self::Sequence { elements } => Shape::Sequence(Box::new(Shape::join_all(
                 elements.iter().map(Self::storage_shape),
             ))),
+            Self::Tuple { elements } => {
+                Shape::Tuple(elements.iter().map(Self::storage_shape).collect())
+            }
             Self::Bool(_) => Shape::Bool,
             Self::None => Shape::Optional(Box::new(Shape::Hole)),
             Self::Unit => Shape::Unit,
@@ -42,6 +46,9 @@ impl LiteralFact {
             Shape::Optional(_) => Some(Self::None),
             Shape::Sequence(_) => Some(Self::Sequence {
                 elements: Vec::new(),
+            }),
+            Shape::Tuple(elements) => Some(Self::Tuple {
+                elements: elements.iter().filter_map(Self::default_for).collect(),
             }),
             Shape::Literal(fact) => Some(fact.clone()),
             _ => None,

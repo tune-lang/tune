@@ -43,6 +43,7 @@ pub(super) fn expr_produces_value(expr: &Expr) -> bool {
             else_branch,
         } => if_produces_value(branches, else_branch.as_deref()),
         ExprKind::Literal(_)
+        | ExprKind::Tuple(_)
         | ExprKind::Sequence(_)
         | ExprKind::Struct { .. }
         | ExprKind::Name(_)

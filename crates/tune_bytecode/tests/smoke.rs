@@ -6,13 +6,14 @@ fn smoke() {
 
 #[test]
 fn core_opcodes_reserve_dense_bytecode_slots() -> Result<(), &'static str> {
-    assert_eq!(tune_bytecode::Opcode::ALL.len(), 47);
+    assert_eq!(tune_bytecode::Opcode::ALL.len(), 48);
     for (index, opcode) in tune_bytecode::Opcode::ALL.iter().enumerate() {
         let expected = u8::try_from(index).map_err(|_| "opcode index overflow")?;
         assert_eq!(*opcode as u8, expected);
     }
 
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::SeqSetChecked));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::TupleBuild));
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::VariantConstruct));
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::StructConstruct));
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::MatchVariant));
@@ -297,6 +298,7 @@ fn validation_rejects_call_arity_mismatch() {
                 match_sites: Vec::new(),
                 for_sites: Vec::new(),
                 panic_sites: Vec::new(),
+                tuple_sites: Vec::new(),
                 instructions: vec![tune_bytecode::function::Instruction {
                     opcode: tune_bytecode::Opcode::CallDirect,
                     a: 0,
@@ -318,6 +320,7 @@ fn validation_rejects_call_arity_mismatch() {
                 match_sites: Vec::new(),
                 for_sites: Vec::new(),
                 panic_sites: Vec::new(),
+                tuple_sites: Vec::new(),
                 instructions: vec![tune_bytecode::function::Instruction {
                     opcode: tune_bytecode::Opcode::Return,
                     a: 0,
@@ -358,6 +361,7 @@ fn validation_rejects_register_out_of_bounds() {
             match_sites: Vec::new(),
             for_sites: Vec::new(),
             panic_sites: Vec::new(),
+            tuple_sites: Vec::new(),
             instructions: vec![tune_bytecode::function::Instruction {
                 opcode: tune_bytecode::Opcode::LoadConst,
                 a: 1,

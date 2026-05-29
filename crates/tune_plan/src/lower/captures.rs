@@ -162,7 +162,10 @@ fn collect_declared_locals(expr: &Expr, context: &LowerContext<'_>, declared: &m
 
 fn walk_expr(expr: &Expr, visit: &mut impl FnMut(&Expr)) {
     match &expr.kind {
-        ExprKind::Sequence(items) | ExprKind::Block(items) | ExprKind::Panic(items) => {
+        ExprKind::Tuple(items)
+        | ExprKind::Sequence(items)
+        | ExprKind::Block(items)
+        | ExprKind::Panic(items) => {
             for item in items {
                 visit(item);
             }

@@ -48,6 +48,14 @@ impl LowerContext<'_> {
                     ops.push(PlanOp::SequencePush);
                 }
             }
+            ExprKind::Tuple(elements) => {
+                for element in elements {
+                    self.lower_expr(element, ops);
+                }
+                ops.push(PlanOp::TupleBuild {
+                    element_count: elements.len(),
+                });
+            }
             ExprKind::Struct { name, fields } => {
                 let ordered = self.struct_field_inits(name, fields);
                 for (field, value) in &ordered {

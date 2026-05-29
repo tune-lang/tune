@@ -128,7 +128,10 @@ fn callable_param_local(
 
 fn walk_expr(expr: &Expr, visit: &mut impl FnMut(&Expr)) {
     match &expr.kind {
-        ExprKind::Sequence(items) | ExprKind::Block(items) | ExprKind::Panic(items) => {
+        ExprKind::Tuple(items)
+        | ExprKind::Sequence(items)
+        | ExprKind::Block(items)
+        | ExprKind::Panic(items) => {
             for item in items {
                 visit(item);
             }
