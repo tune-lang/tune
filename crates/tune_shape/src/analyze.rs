@@ -146,9 +146,7 @@ pub fn analyze_item(module: &Module, resolved: &ResolvedModule, item: &Item) -> 
     analyzer.check_public_api_shape(item);
     if let Some(body) = &item.body {
         if let Some(shape) = &item.shape {
-            let lowered = lower_resolved_hir_shape(shape, &resolved.scope);
-            let expected = lowered.shape;
-            analyzer.diagnostics.extend(lowered.diagnostics);
+            let expected = analyzer.lower_item_shape_or_hole(item, Some(shape));
             let actual = analyzer.analyze_expr_expected(body, &expected);
             analyzer.infer_item_signature(item, &actual);
             analyzer.check_result_propagation(item, body, &expected);
@@ -221,7 +219,7 @@ impl Analyzer<'_> {
         let ret = item
             .shape
             .as_ref()
-            .map(|shape| lower_resolved_hir_shape(shape, &self.resolved.scope))
+            .map(|shape| self.lower_item_shape_or_hole(item, Some(shape)))
             .map_or_else(
                 || {
                     Shape::join_all(
@@ -230,10 +228,7 @@ impl Analyzer<'_> {
                             .chain(self.returns.iter().map(|returned| returned.shape.clone())),
                     )
                 },
-                |lowered| {
-                    self.diagnostics.extend(lowered.diagnostics);
-                    lowered.shape
-                },
+                |shape| shape,
             );
         let params = item
             .params
