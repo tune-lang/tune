@@ -7,6 +7,7 @@ mod contracts;
 mod control;
 mod diagnostics;
 mod fields;
+mod generics;
 mod operators;
 mod values;
 
@@ -136,12 +137,12 @@ pub fn analyze_item(module: &Module, resolved: &ResolvedModule, item: &Item) -> 
     analyzer.seed_item(item);
     analyzer.check_public_api_shape(item);
     if let Some(body) = &item.body {
-        let actual = analyzer.analyze_expr(body);
-        analyzer.infer_item_signature(item, &actual);
         if let Some(shape) = &item.shape {
             let lowered = lower_resolved_hir_shape(shape, &resolved.scope);
             let expected = lowered.shape;
             analyzer.diagnostics.extend(lowered.diagnostics);
+            let actual = analyzer.analyze_expr_expected(body, &expected);
+            analyzer.infer_item_signature(item, &actual);
             analyzer.check_result_propagation(item, body, &expected);
             analyzer.check_returns_against(&expected);
             if matches!(body.kind, ExprKind::Sequence(_)) {
@@ -154,6 +155,8 @@ pub fn analyze_item(module: &Module, resolved: &ResolvedModule, item: &Item) -> 
                 analyzer.check_value_against(&expected, &actual, body.span);
             }
         } else {
+            let actual = analyzer.analyze_expr(body);
+            analyzer.infer_item_signature(item, &actual);
             analyzer.check_untyped_result_propagation(item, body);
         }
     }
@@ -389,6 +392,30 @@ impl Analyzer<'_> {
         if matches!(expected, Shape::Hole) {
             return self.analyze_expr(expr);
         }
+        let scoped_shape = match &expr.kind {
+            ExprKind::Block(exprs) => {
+                let Some((last, prefix)) = exprs.split_last() else {
+                    return Shape::Unit;
+                };
+                for expr in prefix {
+                    self.analyze_expr(expr);
+                }
+                Some(self.analyze_expr_expected(last, expected))
+            }
+            ExprKind::If {
+                branches,
+                else_branch,
+            } => Some(self.analyze_if_expected(branches, else_branch.as_deref(), expected)),
+            ExprKind::Match { scrutinee, arms } => {
+                Some(self.analyze_match_expected(expr, scrutinee, arms, expected))
+            }
+            _ => None,
+        };
+        if let Some(shape) = scoped_shape {
+            self.record_expr_shape(expr.id, shape.clone());
+            return shape;
+        }
+
         self.expected_stack.push(expected.clone());
         let shape = self.analyze_expr(expr);
         self.expected_stack.pop();

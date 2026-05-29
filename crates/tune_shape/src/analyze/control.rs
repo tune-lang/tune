@@ -27,6 +27,29 @@ impl Analyzer<'_> {
         join_continuing_shapes(shapes)
     }
 
+    pub(super) fn analyze_match_expected(
+        &mut self,
+        expr: &Expr,
+        scrutinee: &Expr,
+        arms: &[tune_hir::expr::MatchArm],
+        expected: &Shape,
+    ) -> Shape {
+        let scrutinee_shape = self.analyze_expr(scrutinee);
+        self.check_match_exhaustive(expr, &scrutinee_shape, arms);
+        let entry = self.frame.clone();
+        let mut frames = Vec::new();
+        let mut shapes = Vec::new();
+        for arm in arms {
+            self.frame = entry.clone();
+            self.apply_structural_pattern(scrutinee, &arm.pattern, &scrutinee_shape);
+            self.bind_pattern(&arm.pattern, Shape::Hole);
+            shapes.push(self.analyze_expr_expected(&arm.body, expected));
+            frames.push(self.frame.clone());
+        }
+        self.join_branch_frames(entry, frames);
+        join_continuing_shapes(shapes)
+    }
+
     pub(super) fn analyze_for(
         &mut self,
         expr: &Expr,
@@ -76,6 +99,37 @@ impl Analyzer<'_> {
                 self.apply_condition_narrowing(&branch.condition, false);
             }
             shapes.push(self.analyze_expr(else_branch));
+            frames.push(self.frame.clone());
+        } else {
+            shapes.push(Shape::Hole);
+            frames.push(entry.clone());
+        }
+        self.join_branch_frames(entry, frames);
+        join_continuing_shapes(shapes)
+    }
+
+    pub(super) fn analyze_if_expected(
+        &mut self,
+        branches: &[tune_hir::expr::IfBranch],
+        else_branch: Option<&Expr>,
+        expected: &Shape,
+    ) -> Shape {
+        let entry = self.frame.clone();
+        let mut frames = Vec::new();
+        let mut shapes = Vec::new();
+        for branch in branches {
+            self.frame = entry.clone();
+            self.analyze_expr(&branch.condition);
+            self.apply_condition_narrowing(&branch.condition, true);
+            shapes.push(self.analyze_expr_expected(&branch.body, expected));
+            frames.push(self.frame.clone());
+        }
+        if let Some(else_branch) = else_branch {
+            self.frame = entry.clone();
+            for branch in branches {
+                self.apply_condition_narrowing(&branch.condition, false);
+            }
+            shapes.push(self.analyze_expr_expected(else_branch, expected));
             frames.push(self.frame.clone());
         } else {
             shapes.push(Shape::Hole);

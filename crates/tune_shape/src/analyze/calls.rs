@@ -4,7 +4,9 @@ use tune_hir::item::{Item, ItemKind, StructMember, Variant};
 use tune_hir::shape::{ShapeExpr, ShapeExprKind, StructuralShapeRequirementKind};
 use tune_resolve::{NameTarget, PreludeVariant, VariantId};
 
-use super::{Analyzer, CallCheck, CallSignature, CallTarget};
+use super::{
+    Analyzer, CallCheck, CallSignature, CallTarget, generics::solve_generic_call_signature,
+};
 use crate::{MemberRequirement, NominalShape, Shape, builtin::builtin_shape, expr_shape_fact};
 
 impl Analyzer<'_> {
@@ -16,7 +18,9 @@ impl Analyzer<'_> {
             .iter()
             .map(|arg| self.analyze_expr(arg))
             .collect::<Vec<_>>();
-        let signature = self.call_signature(callee);
+        let signature = self.call_signature(callee).map(|signature| {
+            solve_generic_call_signature(signature, &arg_shapes, self.expected_shape())
+        });
         let ret = signature.as_ref().map_or_else(
             || expr_shape_fact(expr, self.module, self.resolved).unwrap_or(Shape::Hole),
             |signature| {

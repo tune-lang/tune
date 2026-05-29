@@ -9,17 +9,75 @@ let run(): Int = add("bad")
     let resolved = tune_resolve::resolve_module(&module);
     let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[1]);
 
-    assert!(analysis.calls.iter().any(|call| {
-        matches!(
-            call.target,
-            tune_shape::CallTarget::TopLevel(tune_hir::HirId(0))
-        ) && call.params == vec![tune_shape::Shape::Int]
-            && call.ret == tune_shape::Shape::Int
-    }));
+    assert!(
+        analysis.calls.iter().any(|call| {
+            matches!(
+                call.target,
+                tune_shape::CallTarget::TopLevel(tune_hir::HirId(0))
+            ) && call.params == vec![tune_shape::Shape::Int]
+                && call.ret == tune_shape::Shape::Int
+        }),
+        "{:?}",
+        analysis.calls
+    );
     assert!(analysis.diagnostics.iter().any(|diagnostic| {
         diagnostic.code == tune_diagnostics::codes::CALLABLE_MISMATCH
             && diagnostic.title == "call argument does not match callable parameter shape"
     }));
+
+    Ok(())
+}
+
+#[test]
+fn analyzer_solves_generic_callable_params_from_arguments() -> Result<(), &'static str> {
+    let source = r#"
+let id<T>(value: T): T = value
+let result = id(1)
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[1]);
+
+    assert!(analysis.diagnostics.is_empty());
+    assert!(analysis.calls.iter().any(|call| {
+        matches!(
+            call.target,
+            tune_shape::CallTarget::TopLevel(tune_hir::HirId(0))
+        ) && matches!(
+            call.params.as_slice(),
+            [tune_shape::Shape::Literal(tune_shape::LiteralFact::Numeric { text })] if text == "1"
+        ) && matches!(
+            call.ret,
+            tune_shape::Shape::Literal(tune_shape::LiteralFact::Numeric { ref text }) if text == "1"
+        )
+    }));
+
+    Ok(())
+}
+
+#[test]
+fn analyzer_solves_generic_callable_params_from_expected_return() -> Result<(), &'static str> {
+    let source = r#"
+let id<T>(value: T): T = value
+let result: Int = id(1)
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[1]);
+
+    assert!(
+        analysis.calls.iter().any(|call| {
+            matches!(
+                call.target,
+                tune_shape::CallTarget::TopLevel(tune_hir::HirId(0))
+            ) && call.params == vec![tune_shape::Shape::Int]
+                && call.ret == tune_shape::Shape::Int
+        }),
+        "{:?}",
+        analysis.calls
+    );
 
     Ok(())
 }
