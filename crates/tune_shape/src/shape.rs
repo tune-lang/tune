@@ -29,7 +29,7 @@ impl ShapeStore {
         Self::default()
     }
 
-    pub fn intern(&mut self, shape: Shape, origin: ShapeOrigin) -> Option<ShapeId> {
+    pub fn alloc(&mut self, shape: Shape, origin: ShapeOrigin) -> Option<ShapeId> {
         let index = u32::try_from(self.facts.len()).ok()?;
         let id = ShapeId(index);
         self.facts.push(ShapeFact { id, shape, origin });

@@ -345,10 +345,10 @@ fn shape_store_keeps_stable_ids_and_origins() -> Result<(), &'static str> {
     );
 
     let int_id = store
-        .intern(tune_shape::Shape::Int, tune_shape::ShapeOrigin::Builtin)
+        .alloc(tune_shape::Shape::Int, tune_shape::ShapeOrigin::Builtin)
         .ok_or("builtin shape should allocate")?;
     let annotation_id = store
-        .intern(
+        .alloc(
             tune_shape::Shape::String,
             tune_shape::ShapeOrigin::Annotation(span),
         )
@@ -369,7 +369,7 @@ fn shape_store_keeps_stable_ids_and_origins() -> Result<(), &'static str> {
 }
 
 #[test]
-fn interns_hir_shape_annotations_with_provenance() -> Result<(), &'static str> {
+fn allocates_hir_shape_annotations_with_provenance() -> Result<(), &'static str> {
     let source = "let value: [Int | String]? = none";
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
@@ -379,7 +379,7 @@ fn interns_hir_shape_annotations_with_provenance() -> Result<(), &'static str> {
         .ok_or("expected HIR shape annotation")?;
     let mut store = tune_shape::ShapeStore::new();
 
-    let id = tune_shape::intern_hir_shape(&mut store, hir_shape)
+    let id = tune_shape::alloc_hir_shape(&mut store, hir_shape)
         .ok_or("shape store should allocate HIR shape")?;
     let fact = store.get(id).ok_or("shape fact should be retrievable")?;
 
@@ -423,7 +423,7 @@ fn resolved_hir_shape_reports_unknown_names() -> Result<(), &'static str> {
     let mut store = tune_shape::ShapeStore::new();
 
     let (id, diagnostics) =
-        tune_shape::intern_resolved_hir_shape(&mut store, hir_shape, &resolved.scope);
+        tune_shape::alloc_resolved_hir_shape(&mut store, hir_shape, &resolved.scope);
 
     assert!(id.is_some());
     assert_eq!(diagnostics.len(), 1);

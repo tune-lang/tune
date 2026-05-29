@@ -10,16 +10,16 @@ pub struct LoweredShape {
     pub diagnostics: Vec<Diagnostic>,
 }
 
-pub fn intern_hir_shape(store: &mut ShapeStore, expr: &ShapeExpr) -> Option<ShapeId> {
+pub fn alloc_hir_shape(store: &mut ShapeStore, expr: &ShapeExpr) -> Option<ShapeId> {
     let shape = lower_hir_shape(expr);
     let origin = expr
         .span
         .map(ShapeOrigin::Annotation)
         .unwrap_or(ShapeOrigin::Synthetic);
-    store.intern(shape, origin)
+    store.alloc(shape, origin)
 }
 
-pub fn intern_resolved_hir_shape(
+pub fn alloc_resolved_hir_shape(
     store: &mut ShapeStore,
     expr: &ShapeExpr,
     scope: &Scope,
@@ -29,7 +29,7 @@ pub fn intern_resolved_hir_shape(
         .span
         .map(ShapeOrigin::Annotation)
         .unwrap_or(ShapeOrigin::Synthetic);
-    let id = store.intern(lowered.shape, origin);
+    let id = store.alloc(lowered.shape, origin);
     (id, lowered.diagnostics)
 }
 

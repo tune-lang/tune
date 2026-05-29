@@ -16,7 +16,7 @@ pub use analyze::{
 pub use expr::{expr_literal_fact, expr_shape_fact};
 pub use flow::{expr_propagated_error_shape_fact, expr_result_constructor_shape_fact};
 pub use hir::{
-    LoweredShape, intern_hir_shape, intern_resolved_hir_shape, lower_hir_shape,
+    LoweredShape, alloc_hir_shape, alloc_resolved_hir_shape, lower_hir_shape,
     lower_resolved_hir_shape,
 };
 pub use literal::LiteralFact;
