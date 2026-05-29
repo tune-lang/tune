@@ -237,7 +237,9 @@ pub enum PlanOp {
     },
     WitnessCall,
     HostCall {
-        symbol: String,
+        symbol: u32,
+        arg_count: usize,
+        span: Option<Span>,
     },
     BindingGet {
         source: Option<NameTarget>,

@@ -126,6 +126,44 @@ fn lowers_integer_add_plan_to_ir() -> Result<(), &'static str> {
 }
 
 #[test]
+fn lowers_host_call_plan_to_ir() -> Result<(), &'static str> {
+    let plan = tune_plan::PlanFunction {
+        name: "main".into(),
+        span: None,
+        owner: None,
+        member: None,
+        callable: None,
+        params: Vec::new(),
+        local_params: Vec::new(),
+        captures: Vec::new(),
+        module_bindings: Vec::new(),
+        struct_layouts: Vec::new(),
+        ops: vec![
+            tune_plan::PlanOp::ConstString { value: "42".into() },
+            tune_plan::PlanOp::HostCall {
+                symbol: 2,
+                arg_count: 1,
+                span: None,
+            },
+            tune_plan::PlanOp::Return,
+        ],
+    };
+
+    let ir = tune_ir::lower_plan_function(&plan).map_err(|_| "plan should lower")?;
+
+    assert!(matches!(
+        &ir.blocks[0].ops[1],
+        tune_ir::IrOp::CallHost {
+            symbol: tune_ir::HostSymbolId(2),
+            args,
+            ..
+        } if args == &vec![tune_ir::Reg(0)]
+    ));
+
+    Ok(())
+}
+
+#[test]
 fn lowers_local_binding_plan_to_ir_loads_and_stores() -> Result<(), &'static str> {
     let plan = tune_plan::PlanFunction {
         owner: None,

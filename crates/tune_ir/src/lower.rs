@@ -244,6 +244,11 @@ impl Lowerer {
                 span,
             } => self.lower_callable_value(*callable, captures, *span),
             PlanOp::BoundCall { arg_count, span } => self.lower_bound_call(*arg_count, *span),
+            PlanOp::HostCall {
+                symbol,
+                arg_count,
+                span,
+            } => self.lower_host_call(*symbol, *arg_count, *span),
             PlanOp::Materialize {
                 materializer: Some(member),
                 ..
@@ -347,7 +352,6 @@ impl Lowerer {
             PlanOp::StringGet { span } => self.lower_string_get(*span),
             PlanOp::BindingGet { .. }
             | PlanOp::WitnessCall
-            | PlanOp::HostCall { .. }
             | PlanOp::Assign
             | PlanOp::Meta { .. } => Err(IrLowerError::UnsupportedOp("plan op")),
         }
