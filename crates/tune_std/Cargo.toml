@@ -11,5 +11,6 @@ workspace = true
 
 [dependencies]
 tune_host = { path = "../tune_host" }
+tune_shape = { path = "../tune_shape" }
 tune_runtime = { path = "../tune_runtime" }
 tune_meta = { path = "../tune_meta" }
