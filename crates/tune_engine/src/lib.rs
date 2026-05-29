@@ -24,16 +24,29 @@ use tune_db::{FileId, TuneDb};
 use tune_diagnostics::Diagnostic;
 use tune_host::Authority;
 use tune_host::module::HostModule;
+use tune_runtime::TaskExecutionMode;
 use tune_runtime::value::Value;
 
 use crate::reachable::reachable_functions;
 
-#[derive(Default)]
 pub struct Tune {
     db: TuneDb,
     hosts: host::HostRegistry,
     authorities: Vec<Authority>,
+    task_execution: TaskExecutionMode,
     projects: Vec<dyno_project::manifest::Manifest>,
+}
+
+impl Default for Tune {
+    fn default() -> Self {
+        Self {
+            db: TuneDb::default(),
+            hosts: host::HostRegistry::default(),
+            authorities: Vec::new(),
+            task_execution: TaskExecutionMode::DeferredUntilJoin,
+            projects: Vec::new(),
+        }
+    }
 }
 
 pub struct CheckReport {
@@ -163,6 +176,7 @@ impl Tune {
     pub fn run_entry(&self, entry: EntryPoint) -> Result<Value, EngineError> {
         let executable = self.executable_entry(entry)?;
         let mut vm = tune_vm::Vm::new(executable.bytecode)
+            .with_task_execution(self.task_execution)
             .with_host_executor_slots(self.hosts.executors())
             .with_host_authority_slots(self.hosts.authorities())
             .with_authorities(self.authorities.clone());
@@ -280,6 +294,7 @@ impl Tune {
         }
         let executable = self.executable_project_entry(entry)?;
         let mut vm = tune_vm::Vm::new(executable.bytecode)
+            .with_task_execution(self.task_execution)
             .with_host_executor_slots(self.hosts.executors())
             .with_host_authority_slots(self.hosts.authorities())
             .with_authorities(self.authorities.clone());
@@ -388,6 +403,16 @@ impl Tune {
         for authority in authorities {
             self.grant_authority(authority);
         }
+        self
+    }
+
+    pub fn set_task_execution(&mut self, mode: TaskExecutionMode) {
+        self.task_execution = mode;
+    }
+
+    #[must_use]
+    pub fn with_task_execution(mut self, mode: TaskExecutionMode) -> Self {
+        self.set_task_execution(mode);
         self
     }
 

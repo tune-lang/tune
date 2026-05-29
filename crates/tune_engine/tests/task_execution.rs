@@ -73,6 +73,35 @@ let result: Int = 1
 }
 
 #[test]
+fn run_file_can_execute_spawned_work_immediately() -> Result<(), &'static str> {
+    let mut tune =
+        tune_engine::Tune::new().with_task_execution(tune_runtime::TaskExecutionMode::Immediate);
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let task: Task<Int> = spawn panic("immediate")
+let result: Int = 1
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_file(file) else {
+        return Err("immediate task mode should report spawned panic at spawn");
+    };
+
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic
+            .facts
+            .iter()
+            .flat_map(|fact| &fact.entries)
+            .any(|entry| entry.message.contains("immediate"))
+    }));
+
+    Ok(())
+}
+
+#[test]
 fn run_file_reports_spawned_panic_at_join() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
