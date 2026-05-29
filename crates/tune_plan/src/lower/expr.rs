@@ -176,7 +176,7 @@ impl LowerContext<'_> {
                     } else {
                         self.expr_shape(expr).unwrap_or(Shape::Hole)
                     };
-                    if matches!(op, BinaryOp::Add) {
+                    if is_contextual_numeric_op(*op) || is_comparison_op(*op) {
                         self.lower_expr_for_shape(lhs, Some(shape.clone()), ops);
                         self.lower_expr_for_shape(rhs, Some(shape.clone()), ops);
                     } else {
@@ -405,6 +405,13 @@ fn is_comparison_op(op: BinaryOp) -> bool {
             | BinaryOp::LessEqual
             | BinaryOp::Greater
             | BinaryOp::GreaterEqual
+    )
+}
+
+fn is_contextual_numeric_op(op: BinaryOp) -> bool {
+    matches!(
+        op,
+        BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Rem
     )
 }
 

@@ -129,6 +129,7 @@ pub fn analyze_item(module: &Module, resolved: &ResolvedModule, item: &Item) -> 
         materializers: Vec::new(),
         diagnostics: Vec::new(),
         inferred_signature: None,
+        expected_stack: Vec::new(),
     };
     analyzer.seed_item(item);
     analyzer.check_public_api_shape(item);
@@ -179,6 +180,7 @@ struct Analyzer<'a> {
     materializers: Vec<MaterializerCheck>,
     diagnostics: Vec<Diagnostic>,
     inferred_signature: Option<CallSignature>,
+    expected_stack: Vec<Shape>,
 }
 
 impl Analyzer<'_> {
@@ -297,7 +299,7 @@ impl Analyzer<'_> {
             ExprKind::Struct { name, fields } => {
                 for field in fields {
                     let expected = self.struct_field_shape(name, &field.name);
-                    let actual = self.analyze_expr(&field.value);
+                    let actual = self.analyze_expr_expected(&field.value, &expected);
                     self.constrain_expr_to_shape(&field.value, &expected);
                     self.check_value_against(&expected, &actual, field.value.span);
                 }
@@ -375,6 +377,23 @@ impl Analyzer<'_> {
         shape
     }
 
+    pub(super) fn analyze_expr_expected(&mut self, expr: &Expr, expected: &Shape) -> Shape {
+        if matches!(expected, Shape::Hole) {
+            return self.analyze_expr(expr);
+        }
+        self.expected_stack.push(expected.clone());
+        let shape = self.analyze_expr(expr);
+        self.expected_stack.pop();
+        shape
+    }
+
+    pub(super) fn expected_shape(&self) -> Option<&Shape> {
+        self.expected_stack
+            .iter()
+            .rev()
+            .find(|shape| !matches!(shape, Shape::Hole))
+    }
+
     fn literal_or_sequence_shape(&mut self, expr: &Expr) -> Shape {
         if let ExprKind::Sequence(elements) = &expr.kind {
             for element in elements {
@@ -384,7 +403,16 @@ impl Analyzer<'_> {
         if let ExprKind::Tuple(items) = &expr.kind {
             return Shape::Tuple(items.iter().map(|item| self.analyze_expr(item)).collect());
         }
-        expr_literal_fact(expr).map_or(Shape::Hole, Shape::Literal)
+        let Some(literal) = expr_literal_fact(expr) else {
+            return Shape::Hole;
+        };
+        if literal.is_numeric()
+            && let Some(expected) = self.expected_shape()
+            && expected.accepts(&Shape::Literal(literal.clone()))
+        {
+            return expected.clone();
+        }
+        Shape::Literal(literal)
     }
 
     fn analyze_unary(&mut self, op: UnaryOp, expr: &Expr) -> Shape {
@@ -420,7 +448,7 @@ impl Analyzer<'_> {
         }
 
         let actual = value
-            .map(|value| self.analyze_expr(value))
+            .map(|value| self.analyze_expr_expected(value, &expected))
             .unwrap_or(Shape::Hole);
         if let Some(value) = value {
             if matches!(value.kind, ExprKind::Sequence(_)) {

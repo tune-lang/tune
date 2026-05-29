@@ -12,8 +12,20 @@ impl Analyzer<'_> {
         lhs: &Expr,
         rhs: &Expr,
     ) -> Shape {
-        let lhs = self.analyze_expr(lhs);
-        let rhs = self.analyze_expr(rhs);
+        let expected = self
+            .expected_shape()
+            .and_then(|expected| binary_operand_expected(op, expected))
+            .cloned();
+        let lhs = if let Some(shape) = expected.as_ref() {
+            self.analyze_expr_expected(lhs, shape)
+        } else {
+            self.analyze_expr(lhs)
+        };
+        let rhs = if let Some(shape) = expected.as_ref() {
+            self.analyze_expr_expected(rhs, shape)
+        } else {
+            self.analyze_expr(rhs)
+        };
         match op {
             BinaryOp::Or | BinaryOp::And
                 if Shape::Bool.accepts(&lhs) && Shape::Bool.accepts(&rhs) =>
@@ -141,6 +153,21 @@ impl Analyzer<'_> {
                 Shape::Hole
             }
         }
+    }
+}
+
+fn binary_operand_expected(op: BinaryOp, expected: &Shape) -> Option<&Shape> {
+    if !matches!(
+        op,
+        BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Rem
+    ) {
+        return None;
+    }
+    match (op, expected) {
+        (BinaryOp::Add, Shape::Byte) => Some(expected),
+        (_, Shape::Byte) => None,
+        (_, Shape::Int | Shape::Float | Shape::Size) => Some(expected),
+        _ => None,
     }
 }
 
