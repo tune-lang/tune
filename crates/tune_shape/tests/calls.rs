@@ -287,6 +287,94 @@ let make(seed) = Counter {
 }
 
 #[test]
+fn generic_struct_field_access_substitutes_owner_args() -> Result<(), &'static str> {
+    let source = r#"
+struct Box<T> {
+  value: T
+}
+let read(boxed: Box<Int>): Int = boxed.value
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[1]);
+
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    assert!(analysis.expr_shapes.iter().any(|expr| {
+        expr.shape == tune_shape::Shape::Int
+            && matches!(
+                module.items[1].body.as_ref().map(|body| body.id),
+                Some(id) if id == expr.expr
+            )
+    }));
+
+    Ok(())
+}
+
+#[test]
+fn generic_struct_member_calls_substitute_owner_args() -> Result<(), &'static str> {
+    let source = r#"
+struct Box<T> {
+  value: T
+  get(): T = self.value
+}
+let read(boxed: Box<Int>): Int = boxed.get()
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[1]);
+
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    assert!(analysis.calls.iter().any(|call| {
+        matches!(call.target, tune_shape::CallTarget::Member(_))
+            && call.params.is_empty()
+            && call.ret == tune_shape::Shape::Int
+    }));
+
+    Ok(())
+}
+
+#[test]
+fn generic_struct_literal_uses_expected_owner_args_for_fields() -> Result<(), &'static str> {
+    let source = r#"
+struct Box<T> {
+  value: T
+}
+let boxed: Box<Int> = Box { value = 1 }
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[1]);
+
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let body = module.items[1].body.as_ref().ok_or("expected body")?;
+    assert!(analysis.expr_shapes.iter().any(|expr| {
+        expr.expr == body.id
+            && expr.shape
+                == tune_shape::Shape::Apply {
+                    nominal: tune_shape::NominalShape::new(module.items[0].id, "Box"),
+                    args: vec![tune_shape::Shape::Int],
+                }
+    }));
+
+    Ok(())
+}
+
+#[test]
 fn explicit_structural_type_param_allows_member_call() -> Result<(), &'static str> {
     let source = r#"
 struct Duck {

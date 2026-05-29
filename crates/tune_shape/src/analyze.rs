@@ -8,6 +8,7 @@ mod control;
 mod diagnostics;
 mod fields;
 mod generics;
+mod item_shapes;
 mod operators;
 mod values;
 
@@ -15,7 +16,7 @@ use tune_hir::item::{Item, ItemKind};
 use tune_hir::module::Module;
 use tune_hir::shape::{ShapeExpr, ShapeExprKind};
 use tune_hir::{ExprId, MemberId};
-use tune_resolve::{BindingKind, ResolvedModule, VariantId};
+use tune_resolve::{ResolvedModule, VariantId};
 
 use crate::{
     BindingKey, BindingState, Shape, StateFrame, expr_literal_fact, lower_resolved_hir_shape,
@@ -276,7 +277,7 @@ impl Analyzer<'_> {
                 .map(|constraint| self.lower_structural_shape(constraint))
                 .unwrap_or_else(|| Shape::Param(name.clone()));
         }
-        let lowered = lower_resolved_hir_shape(shape, &self.resolved.scope);
+        let lowered = item_shapes::lower_item_shape_expr(shape, item, &self.resolved.scope);
         self.diagnostics.extend(lowered.diagnostics);
         lowered.shape
     }
@@ -301,15 +302,7 @@ impl Analyzer<'_> {
             ExprKind::Literal(_) | ExprKind::Sequence(_) | ExprKind::Tuple(_) => {
                 self.literal_or_sequence_shape(expr)
             }
-            ExprKind::Struct { name, fields } => {
-                for field in fields {
-                    let expected = self.struct_field_shape(name, &field.name);
-                    let actual = self.analyze_expr_expected(&field.value, &expected);
-                    self.constrain_expr_to_shape(&field.value, &expected);
-                    self.check_value_against(&expected, &actual, field.value.span);
-                }
-                self.struct_literal_shape(name)
-            }
+            ExprKind::Struct { name, fields } => self.analyze_struct_literal(name, fields),
             ExprKind::Name(_) => self.name_shape(expr),
             ExprKind::Call { callee, args } => self.analyze_call(expr, callee, args),
             ExprKind::Let { shape, value, .. } => {
@@ -427,15 +420,6 @@ impl Analyzer<'_> {
             .iter()
             .rev()
             .find(|shape| !matches!(shape, Shape::Hole))
-    }
-
-    fn struct_literal_shape(&self, name: &str) -> Shape {
-        match self.resolved.scope.get(name) {
-            Some(binding) if binding.kind == BindingKind::Struct => {
-                Shape::Struct(crate::NominalShape::new(binding.id, name))
-            }
-            _ => Shape::Hole,
-        }
     }
 
     fn analyze_let(

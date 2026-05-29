@@ -1,13 +1,13 @@
 use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::expr::{Expr, ExprKind};
 use tune_hir::item::{Item, ItemKind, StructMember, Variant};
-use tune_hir::shape::{ShapeExpr, ShapeExprKind, StructuralShapeRequirementKind};
 use tune_resolve::{NameTarget, PreludeVariant, VariantId};
 
 use super::{
-    Analyzer, CallCheck, CallSignature, CallTarget, generics::solve_generic_call_signature,
+    Analyzer, CallCheck, CallSignature, CallTarget,
+    generics::{item_type_param_solution, solve_generic_call_signature, substitute_generic_params},
 };
-use crate::{MemberRequirement, NominalShape, Shape, builtin::builtin_shape, expr_shape_fact};
+use crate::{MemberRequirement, NominalShape, Shape, expr_shape_fact};
 
 impl Analyzer<'_> {
     pub(super) fn analyze_call(&mut self, expr: &Expr, callee: &Expr, args: &[Expr]) -> Shape {
@@ -153,14 +153,24 @@ impl Analyzer<'_> {
                     _ => None,
                 })
             })?;
+        let mut params = callable
+            .params
+            .iter()
+            .map(|param| self.lower_item_shape_or_hole(item, param.shape.as_ref()))
+            .collect::<Vec<_>>();
+        let mut ret = self.lower_item_shape_or_hole(item, callable.shape.as_ref());
+        if let Shape::Apply { args, .. } = &base_shape {
+            let solved = item_type_param_solution(item, args);
+            params = params
+                .iter()
+                .map(|param| substitute_generic_params(param, &solved))
+                .collect();
+            ret = substitute_generic_params(&ret, &solved);
+        }
         Some(CallSignature {
             target: CallTarget::Member(callable.id),
-            params: callable
-                .params
-                .iter()
-                .map(|param| self.lower_item_shape_or_hole(item, param.shape.as_ref()))
-                .collect(),
-            ret: self.lower_item_shape_or_hole(item, callable.shape.as_ref()),
+            params,
+            ret,
             receiver: Some(base_shape),
             span: callable.span,
         })
@@ -197,16 +207,31 @@ impl Analyzer<'_> {
                 span: None,
             }),
             VariantId::Member(id) => {
-                let item = self.module.items.iter().find(|item| item.id == id.owner)?;
-                let variant_item = item.variants.iter().find(|variant| variant.id == id)?;
+                let item = self
+                    .module
+                    .items
+                    .iter()
+                    .find(|item| item.id == id.owner)?
+                    .clone();
+                let variant_item = item
+                    .variants
+                    .iter()
+                    .find(|variant| variant.id == id)?
+                    .clone();
+                let mut params = Vec::new();
+                for payload in &variant_item.payload {
+                    let lowered = super::item_shapes::lower_item_shape_expr(
+                        payload,
+                        &item,
+                        &self.resolved.scope,
+                    );
+                    params.push(lowered.shape);
+                    self.diagnostics.extend(lowered.diagnostics);
+                }
                 Some(CallSignature {
                     target: CallTarget::Variant(variant),
-                    params: variant_item
-                        .payload
-                        .iter()
-                        .map(|payload| lower_payload_shape(payload, item))
-                        .collect(),
-                    ret: variant_return_shape(item, variant_item),
+                    params,
+                    ret: variant_return_shape(&item, &variant_item),
                     receiver: None,
                     span: variant_item.span,
                 })
@@ -269,68 +294,6 @@ fn variant_return_shape(item: &Item, variant: &Variant) -> Shape {
     }
 }
 
-fn lower_payload_shape(shape: &ShapeExpr, item: &Item) -> Shape {
-    match &shape.kind {
-        ShapeExprKind::Named(name)
-            if item
-                .type_params
-                .iter()
-                .any(|param| param.name.as_deref() == Some(name.as_str())) =>
-        {
-            Shape::Hole
-        }
-        ShapeExprKind::Named(name) => named_payload_shape(name),
-        ShapeExprKind::Sequence(element) => {
-            Shape::Sequence(Box::new(lower_payload_shape(element, item)))
-        }
-        ShapeExprKind::Tuple(items) => Shape::Tuple(
-            items
-                .iter()
-                .map(|item_shape| lower_payload_shape(item_shape, item))
-                .collect(),
-        ),
-        ShapeExprKind::Optional(inner) => {
-            Shape::Optional(Box::new(lower_payload_shape(inner, item)))
-        }
-        ShapeExprKind::Union(items) => Shape::Union(
-            items
-                .iter()
-                .map(|item_shape| lower_payload_shape(item_shape, item))
-                .collect(),
-        ),
-        ShapeExprKind::Structural(requirements) => Shape::Structural(
-            requirements
-                .iter()
-                .map(|requirement| match &requirement.kind {
-                    StructuralShapeRequirementKind::Field { shape } => MemberRequirement::Field {
-                        name: requirement.name.clone(),
-                        shape: shape.as_ref().map(|shape| lower_payload_shape(shape, item)),
-                    },
-                    StructuralShapeRequirementKind::Callable { params, ret } => {
-                        MemberRequirement::Callable {
-                            name: requirement.name.clone(),
-                            params: params
-                                .iter()
-                                .map(|param| lower_payload_shape(param, item))
-                                .collect(),
-                            ret: ret.as_ref().map(|ret| lower_payload_shape(ret, item)),
-                        }
-                    }
-                })
-                .collect(),
-        ),
-        ShapeExprKind::Generic { .. } => Shape::Hole,
-        ShapeExprKind::Callable { params, ret } => Shape::Callable {
-            params: params
-                .iter()
-                .map(|param| lower_payload_shape(param, item))
-                .collect(),
-            ret: Box::new(lower_payload_shape(ret, item)),
-        },
-        ShapeExprKind::Missing => Shape::Hole,
-    }
-}
-
 fn non_callable_call(shape: &Shape, span: Option<Span>) -> Diagnostic {
     Diagnostic::error(
         codes::CALLABLE_MISMATCH,
@@ -339,8 +302,4 @@ fn non_callable_call(shape: &Shape, span: Option<Span>) -> Diagnostic {
         format!("this value has shape `{shape:?}`, which cannot be called"),
     )
     .build()
-}
-
-fn named_payload_shape(name: &str) -> Shape {
-    builtin_shape(name).unwrap_or(Shape::Hole)
 }

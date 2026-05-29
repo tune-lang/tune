@@ -1,5 +1,9 @@
 use super::CallSignature;
-use crate::Shape;
+use tune_hir::item::Item;
+
+use crate::{MemberRequirement, Shape};
+
+type GenericSolution = Vec<(String, Shape)>;
 
 pub(super) fn solve_generic_call_signature(
     signature: CallSignature,
@@ -29,10 +33,18 @@ pub(super) fn solve_generic_call_signature(
     }
 }
 
-fn collect_generic_shape_constraints(
+pub(super) fn item_type_param_solution(item: &Item, args: &[Shape]) -> GenericSolution {
+    item.type_params
+        .iter()
+        .zip(args)
+        .filter_map(|(param, arg)| Some((param.name.clone()?, arg.clone())))
+        .collect()
+}
+
+pub(super) fn collect_generic_shape_constraints(
     expected: &Shape,
     actual: &Shape,
-    solved: &mut Vec<(String, Shape)>,
+    solved: &mut GenericSolution,
 ) {
     match (expected, actual) {
         (Shape::Param(name), actual) => merge_generic_solution(name, actual.clone(), solved),
@@ -86,7 +98,35 @@ fn collect_generic_shape_constraints(
     }
 }
 
-fn merge_generic_solution(name: &str, shape: Shape, solved: &mut Vec<(String, Shape)>) {
+pub(super) fn shape_has_type_params(shape: &Shape) -> bool {
+    match shape {
+        Shape::Param(_) => true,
+        Shape::Sequence(inner)
+        | Shape::Range(inner)
+        | Shape::Optional(inner)
+        | Shape::Task(inner) => shape_has_type_params(inner),
+        Shape::Tuple(items) | Shape::Union(items) => items.iter().any(shape_has_type_params),
+        Shape::Callable { params, ret } => {
+            params.iter().any(shape_has_type_params) || shape_has_type_params(ret)
+        }
+        Shape::Result { ok, err } => shape_has_type_params(ok) || shape_has_type_params(err),
+        Shape::Apply { args, .. } => args.iter().any(shape_has_type_params),
+        Shape::Structural(requirements) => {
+            requirements.iter().any(|requirement| match requirement {
+                MemberRequirement::Field { shape, .. } => {
+                    shape.as_ref().is_some_and(shape_has_type_params)
+                }
+                MemberRequirement::Callable { params, ret, .. } => {
+                    params.iter().any(shape_has_type_params)
+                        || ret.as_ref().is_some_and(shape_has_type_params)
+                }
+            })
+        }
+        _ => false,
+    }
+}
+
+fn merge_generic_solution(name: &str, shape: Shape, solved: &mut GenericSolution) {
     if let Some((_, existing)) = solved.iter_mut().find(|(param, _)| param == name) {
         if shape.accepts(existing) {
             *existing = shape;
@@ -98,7 +138,7 @@ fn merge_generic_solution(name: &str, shape: Shape, solved: &mut Vec<(String, Sh
     }
 }
 
-fn substitute_generic_params(shape: &Shape, solved: &[(String, Shape)]) -> Shape {
+pub(super) fn substitute_generic_params(shape: &Shape, solved: &[(String, Shape)]) -> Shape {
     match shape {
         Shape::Param(name) => solved
             .iter()

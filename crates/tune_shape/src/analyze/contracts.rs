@@ -307,7 +307,7 @@ impl Analyzer<'_> {
             .find(|item| item.kind == ItemKind::Enum && item.id == id)
     }
 
-    fn struct_item(&self, id: tune_hir::HirId) -> Option<&Item> {
+    pub(super) fn struct_item(&self, id: tune_hir::HirId) -> Option<&Item> {
         self.module
             .items
             .iter()
