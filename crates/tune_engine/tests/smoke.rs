@@ -20,6 +20,26 @@ let run(input: String): String = input
 }
 
 #[test]
+fn checks_source_from_path_through_engine_facade() -> Result<(), String> {
+    let root = std::env::temp_dir().join(format!("tune-engine-path-{}", std::process::id()));
+    if root.exists() {
+        std::fs::remove_dir_all(&root).map_err(|error| error.to_string())?;
+    }
+    std::fs::create_dir_all(&root).map_err(|error| error.to_string())?;
+    let path = root.join("main.tn");
+    std::fs::write(&path, "let value: Int = 42").map_err(|error| error.to_string())?;
+
+    let mut tune = tune_engine::Tune::new();
+    let report = tune
+        .check_path(&path)
+        .map_err(|error| format!("{error:?}"))?;
+    std::fs::remove_dir_all(&root).map_err(|error| error.to_string())?;
+
+    assert!(report.diagnostics.is_empty());
+    Ok(())
+}
+
+#[test]
 fn compile_source_returns_semantic_plans() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let report = tune
@@ -225,6 +245,18 @@ fn registers_host_modules_and_project_manifests() -> Result<(), &'static str> {
 }
 
 #[test]
+fn builder_style_host_registration_is_available() {
+    struct EmptyHost;
+
+    impl tune_host::Host for EmptyHost {}
+
+    let tune = tune_engine::Tune::new().with_host(&EmptyHost);
+
+    assert!(tune.host_modules().is_empty());
+    assert!(tune.host_symbols().is_empty());
+}
+
+#[test]
 fn registered_host_functions_get_stable_engine_symbols() -> Result<(), &'static str> {
     struct FsHost;
 
@@ -267,8 +299,8 @@ fn engine_registers_default_std_host_modules() {
     let mut tune = tune_engine::Tune::new();
     let registration = tune.register_std();
 
-    assert_eq!(registration.module_count, 3);
-    assert_eq!(registration.function_count, 7);
+    assert_eq!(registration.module_count, 4);
+    assert_eq!(registration.function_count, 11);
     assert!(tune.host_modules().iter().any(|module| module.name == "io"));
     assert!(
         tune.host_symbols()

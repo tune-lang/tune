@@ -2,6 +2,8 @@ use tune_host::Host;
 use tune_host::HostExecutor;
 use tune_host::module::HostModule;
 
+use crate::Tune;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct EngineHostSymbolId(pub u32);
 
@@ -67,5 +69,19 @@ impl HostRegistry {
 
     pub(crate) fn executors(&self) -> Vec<Option<HostExecutor>> {
         self.executors.clone()
+    }
+}
+
+impl Tune {
+    #[must_use]
+    pub fn with_host(mut self, host: &impl Host) -> Self {
+        self.register_host(host);
+        self
+    }
+
+    #[must_use]
+    pub fn with_std(mut self) -> Self {
+        self.register_std();
+        self
     }
 }

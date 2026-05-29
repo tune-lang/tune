@@ -2,6 +2,7 @@ mod diagnostics;
 mod host;
 mod imports;
 mod imports_remap;
+mod paths;
 mod profile;
 mod reachable;
 
@@ -75,6 +76,7 @@ pub enum EngineError {
     MissingEntry,
     ProjectEntryNotFound(String),
     ProjectLoad(String),
+    SourceLoad(String),
     NotImplemented(&'static str),
 }
 

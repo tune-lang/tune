@@ -324,6 +324,7 @@ pub fn render_engine_error(error: &tune_engine::EngineError) -> Vec<String> {
             .map(render::render_plain)
             .collect::<Vec<_>>(),
         tune_engine::EngineError::ProjectLoad(message) => vec![message.clone()],
+        tune_engine::EngineError::SourceLoad(message) => vec![message.clone()],
         _ => vec![format!("execution failed: {error:?}")],
     }
 }
