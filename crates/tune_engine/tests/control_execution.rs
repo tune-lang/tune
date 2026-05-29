@@ -60,7 +60,7 @@ let result: Int = ((20 - 4) * 3 / 2) % 10
 }
 
 #[test]
-fn run_file_reports_integer_divide_by_zero_as_vm_fault() -> Result<(), &'static str> {
+fn run_file_reports_proven_integer_divide_by_zero_before_execution() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
         .add_file("app.tn", "let result: Int = 1 / 0")
@@ -71,11 +71,10 @@ fn run_file_reports_integer_divide_by_zero_as_vm_fault() -> Result<(), &'static 
     };
 
     assert_eq!(diagnostics.len(), 1);
-    assert!(diagnostics[0].facts.iter().any(|fact| {
-        fact.entries
-            .iter()
-            .any(|entry| entry.message.contains("DivideByZero"))
-    }));
+    assert_eq!(
+        diagnostics[0].code,
+        tune_diagnostics::codes::NUMERIC_OVERFLOW
+    );
 
     Ok(())
 }
