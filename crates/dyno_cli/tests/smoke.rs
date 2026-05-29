@@ -23,6 +23,18 @@ fn parses_cli_commands_without_special_entry_names() {
             path: "main.tn".to_owned(),
         })
     );
+    assert_eq!(
+        dyno_cli::parse_command(&["profile".to_owned(), "main.tn".to_owned()]),
+        Ok(dyno_cli::CliCommand::Profile {
+            path: "main.tn".to_owned(),
+        })
+    );
+    assert_eq!(
+        dyno_cli::parse_command(&["new".to_owned(), "app".to_owned()]),
+        Ok(dyno_cli::CliCommand::New {
+            name: "app".to_owned(),
+        })
+    );
     assert_eq!(dyno_cli::parse_command(&[]), Ok(dyno_cli::CliCommand::Help));
     assert!(dyno_cli::parse_command(&["bad".to_owned(), "main.tn".to_owned()]).is_err());
 }
@@ -78,6 +90,48 @@ fn renders_unhandled_result_error_at_runtime_boundary() -> Result<(), &'static s
     let rendered = dyno_cli::render_runtime_boundary_with_sources(&value, &db);
     assert_eq!(rendered.len(), 1);
     assert!(rendered[0].contains("propagated through `load` at `load()!`"));
+
+    Ok(())
+}
+
+#[test]
+fn creates_new_project_scaffold() -> Result<(), String> {
+    let root = std::env::temp_dir().join(format!("dyno-cli-new-project-{}", std::process::id()));
+    if root.exists() {
+        std::fs::remove_dir_all(&root).map_err(|error| error.to_string())?;
+    }
+    std::fs::create_dir_all(&root).map_err(|error| error.to_string())?;
+
+    let project = dyno_cli::create_project_in(&root, "demo_app")?;
+    let manifest = std::fs::read_to_string(&project.manifest).map_err(|error| error.to_string())?;
+    let entry = std::fs::read_to_string(&project.entry).map_err(|error| error.to_string())?;
+
+    std::fs::remove_dir_all(&root).map_err(|error| error.to_string())?;
+
+    assert_eq!(project.name, "demo_app");
+    assert!(manifest.contains("[project]"));
+    assert!(manifest.contains("entry = \"src/main.tn\""));
+    assert!(entry.contains("let message"));
+
+    Ok(())
+}
+
+#[test]
+fn renders_profile_report_sections() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file("main.tn", "let value: Int = 40 + 2")
+        .ok_or("source should allocate")?;
+    let report = tune
+        .profile_file(file)
+        .map_err(|_| "profile should be produced")?;
+    let rendered = dyno_cli::render_profile_report(&report);
+
+    assert!(rendered.contains("compile stages:"));
+    assert!(rendered.contains("plan quality:"));
+    assert!(rendered.contains("ir quality:"));
+    assert!(rendered.contains("bytecode quality:"));
+    assert!(report.stop_reason.is_none());
 
     Ok(())
 }

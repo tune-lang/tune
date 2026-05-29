@@ -2,6 +2,7 @@ mod diagnostics;
 mod host;
 mod imports;
 mod imports_remap;
+mod profile;
 mod reachable;
 
 use diagnostics::{diagnostic_from_bytecode_lower_error, diagnostic_from_ir_lower_error};
@@ -11,6 +12,10 @@ pub use diagnostics::{
     diagnostics_from_runtime_value, diagnostics_from_runtime_value_with_sources,
 };
 pub use host::{EngineHostSymbol, EngineHostSymbolId, HostRegistration};
+pub use profile::{
+    BytecodeQuality, IrQuality, OpcodeCount, OptimizerQuality, PlanQuality, ProfileReport,
+    StageTiming,
+};
 
 use tune_db::{FileId, ModuleAnalysis, TuneDb};
 use tune_diagnostics::Diagnostic;

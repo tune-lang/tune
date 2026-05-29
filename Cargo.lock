@@ -164,6 +164,7 @@ dependencies = [
  "tune_hir",
  "tune_host",
  "tune_ir",
+ "tune_opt",
  "tune_plan",
  "tune_resolve",
  "tune_runtime",

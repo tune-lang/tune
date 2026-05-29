@@ -8,8 +8,26 @@ fn main() {
             std::process::exit(2);
         }
     };
+    if let dyno_cli::CliCommand::New { name } = command {
+        match dyno_cli::create_project(&name) {
+            Ok(project) => {
+                println!("created {}", project.root.display());
+                println!("  {}", project.manifest.display());
+                println!("  {}", project.entry.display());
+            }
+            Err(error) => {
+                eprintln!("{error}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+
     let path = match command {
-        dyno_cli::CliCommand::Check { ref path } | dyno_cli::CliCommand::Run { ref path } => path,
+        dyno_cli::CliCommand::Check { ref path }
+        | dyno_cli::CliCommand::Run { ref path }
+        | dyno_cli::CliCommand::Profile { ref path } => path,
+        dyno_cli::CliCommand::New { .. } => unreachable!(),
         dyno_cli::CliCommand::Help => {
             println!("{}", dyno_cli::usage());
             return;
@@ -31,6 +49,30 @@ fn main() {
             std::process::exit(1);
         }
     };
+
+    if matches!(command, dyno_cli::CliCommand::Profile { .. }) {
+        match tune.profile_file(file) {
+            Ok(report) => {
+                print!("{}", dyno_cli::render_profile_report(&report));
+                if !report.diagnostics.is_empty() {
+                    for diagnostic in &report.diagnostics {
+                        eprintln!("{}", tune_diagnostics::render::render_plain(diagnostic));
+                    }
+                    std::process::exit(1);
+                }
+                if report.stop_reason.is_some() {
+                    std::process::exit(1);
+                }
+            }
+            Err(error) => {
+                for diagnostic in dyno_cli::render_engine_error(&error) {
+                    eprintln!("{diagnostic}");
+                }
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
 
     if matches!(command, dyno_cli::CliCommand::Check { .. }) {
         let Some(report) = tune.check_file(file) else {

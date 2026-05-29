@@ -16,6 +16,7 @@ tune_hir = { path = "../tune_hir" }
 tune_host = { path = "../tune_host" }
 tune_ir = { path = "../tune_ir" }
 tune_bytecode = { path = "../tune_bytecode" }
+tune_opt = { path = "../tune_opt" }
 tune_plan = { path = "../tune_plan" }
 tune_resolve = { path = "../tune_resolve" }
 tune_runtime = { path = "../tune_runtime" }
