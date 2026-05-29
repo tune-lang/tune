@@ -220,16 +220,13 @@ impl Analyzer<'_> {
             .shape
             .as_ref()
             .map(|shape| self.lower_item_shape_or_hole(item, Some(shape)))
-            .map_or_else(
-                || {
-                    Shape::join_all(
-                        [actual.clone()]
-                            .into_iter()
-                            .chain(self.returns.iter().map(|returned| returned.shape.clone())),
-                    )
-                },
-                |shape| shape,
-            );
+            .unwrap_or_else(|| {
+                Shape::join_all(
+                    [actual.clone()]
+                        .into_iter()
+                        .chain(self.returns.iter().map(|returned| returned.shape.clone())),
+                )
+            });
         let params = item
             .params
             .iter()
