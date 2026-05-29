@@ -2,21 +2,21 @@ use tune_runtime::value::{RangeItemKind, RangeValue, Value};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct RangeItem {
-    pub index: i64,
+    pub index: u64,
     pub value: Value,
 }
 
-pub(crate) fn range_len(range: RangeValue) -> Option<i64> {
+pub(crate) fn range_len(range: RangeValue) -> Option<u64> {
     let exclusive_end = if range.inclusive {
         range.end.checked_add(1)?
     } else {
         range.end
     };
-    i64::try_from(exclusive_end.saturating_sub(range.start).max(0)).ok()
+    u64::try_from(exclusive_end.saturating_sub(range.start).max(0)).ok()
 }
 
-pub(crate) fn range_item(range: RangeValue, index: i64) -> Option<RangeItem> {
-    if index < 0 || index >= range_len(range)? {
+pub(crate) fn range_item(range: RangeValue, index: u64) -> Option<RangeItem> {
+    if index >= range_len(range)? {
         return None;
     }
     let value = range.start.checked_add(i128::from(index))?;

@@ -97,18 +97,18 @@ impl Lowerer {
         let body_block = self.alloc_block();
         let done_block = self.alloc_block();
 
-        self.load_int_into(iterator, 0)?;
+        self.load_size_into(iterator, 0)?;
         self.push_op(IrOp::CallMember {
             dst: len,
             member: len_member,
             args: vec![iterable],
             span,
         });
-        self.load_int_into(one, 1)?;
+        self.load_size_into(one, 1)?;
         self.push_op(IrOp::Jump { target: next_block });
 
         self.switch_to_block(next_block);
-        self.push_op(IrOp::CompareInt {
+        self.push_op(IrOp::CompareSize {
             dst: condition,
             a: iterator,
             b: len,
@@ -136,7 +136,7 @@ impl Lowerer {
         }
         self.loop_targets.pop();
         if !self.current_block_terminates() {
-            self.push_op(IrOp::AddInt {
+            self.push_op(IrOp::AddSizeChecked {
                 dst: iterator,
                 a: iterator,
                 b: one,
@@ -150,12 +150,12 @@ impl Lowerer {
         Ok(())
     }
 
-    fn load_int_into(&mut self, dst: Reg, value: i64) -> Result<(), IrLowerError> {
-        let constant: ConstId = self.push_const(IrConst::Int(value))?;
+    fn load_size_into(&mut self, dst: Reg, value: u64) -> Result<(), IrLowerError> {
+        let constant: ConstId = self.push_const(IrConst::Size(value))?;
         self.push_op(IrOp::LoadConst {
             dst,
             constant,
-            shape: tune_shape::Shape::Int,
+            shape: tune_shape::Shape::Size,
         });
         Ok(())
     }

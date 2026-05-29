@@ -258,7 +258,7 @@ fn lower_callable_member(
         param_shapes: param_shapes.to_vec(),
         captured_locals: captured_locals_for_body(resolved, body),
     };
-    context.lower_return_expr(body, &mut plan.ops);
+    context.lower_expr_for_binding(body, callable.shape.as_ref(), &mut plan.ops);
     if super::falls_through(body) {
         plan.ops.push(PlanOp::Return);
     }

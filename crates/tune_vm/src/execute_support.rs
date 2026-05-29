@@ -260,12 +260,12 @@ impl Vm {
         self.at(
             function,
             instruction,
-            write_reg(registers, op.a, Value::Int(0)),
+            write_reg(registers, op.a, Value::Size(0)),
         )?;
         self.at(
             function,
             instruction,
-            write_reg(registers, op.c, Value::Int(len)),
+            write_reg(registers, op.c, Value::Size(len)),
         )
     }
 
@@ -285,7 +285,7 @@ impl Vm {
             )
         })?;
         let iterator = self.at(function_index, instruction_index, read_reg(registers, op.a))?;
-        let Value::Int(iterator) = iterator else {
+        let Value::Size(iterator) = iterator else {
             return Err(self.fault_at(
                 function_index,
                 instruction_index,
@@ -297,7 +297,7 @@ impl Vm {
             instruction_index,
             read_reg(registers, site.len),
         )?;
-        let Value::Int(len) = len else {
+        let Value::Size(len) = len else {
             return Err(self.fault_at(
                 function_index,
                 instruction_index,
@@ -322,7 +322,7 @@ impl Vm {
         self.at(
             function_index,
             instruction_index,
-            write_reg(registers, site.index, Value::Int(iterator)),
+            write_reg(registers, site.index, Value::Size(iterator)),
         )?;
         self.at(
             function_index,
@@ -332,7 +332,13 @@ impl Vm {
         self.at(
             function_index,
             instruction_index,
-            write_reg(registers, op.a, Value::Int(iterator + 1)),
+            write_reg(
+                registers,
+                op.a,
+                Value::Size(iterator.checked_add(1).ok_or_else(|| {
+                    self.fault_at(function_index, instruction_index, VmError::NumericOverflow)
+                })?),
+            ),
         )?;
         Ok(site.body as usize)
     }
@@ -368,14 +374,14 @@ impl Vm {
     }
 }
 
-fn finite_iter_len(iterable: Value) -> Option<i64> {
+fn finite_iter_len(iterable: Value) -> Option<u64> {
     match iterable {
-        Value::Sequence(values) => i64::try_from(values.len()).ok(),
+        Value::Sequence(values) => u64::try_from(values.len()).ok(),
         value => value_range(value).and_then(range_len),
     }
 }
 
-fn finite_iter_item(iterable: Value, iterator: i64) -> Option<Value> {
+fn finite_iter_item(iterable: Value, iterator: u64) -> Option<Value> {
     match iterable {
         Value::Sequence(values) => {
             let index = usize::try_from(iterator).ok()?;
