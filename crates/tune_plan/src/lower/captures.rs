@@ -63,7 +63,7 @@ fn collect_captured_locals(
                     captures.push(capture);
                 }
             }
-            Some(NameTarget::TopLevel(item)) => {
+            Some(NameTarget::TopLevel(item)) if context.top_level_is_value_binding(item) => {
                 let capture = capture_for(body, context, CaptureSource::TopLevel(item));
                 if !captures
                     .iter()
@@ -101,9 +101,12 @@ fn capture_is_mutated(body: &Expr, context: &LowerContext<'_>, source: CaptureSo
                 mutated =
                     target_capture_source(target, context).is_some_and(|target| target == source);
             }
-            ExprKind::Call { callee, .. } => {
+            ExprKind::Call { callee, args } => {
                 mutated =
                     member_receiver_source(callee, context).is_some_and(|target| target == source);
+                mutated |= args.iter().any(|arg| {
+                    call_arg_capture_source(arg, context).is_some_and(|target| target == source)
+                });
             }
             _ => {}
         }
@@ -128,12 +131,18 @@ fn member_receiver_source(expr: &Expr, context: &LowerContext<'_>) -> Option<Cap
     expr_capture_source(base, context)
 }
 
+fn call_arg_capture_source(expr: &Expr, context: &LowerContext<'_>) -> Option<CaptureSource> {
+    target_capture_source(expr, context)
+}
+
 fn expr_capture_source(expr: &Expr, context: &LowerContext<'_>) -> Option<CaptureSource> {
     match context.name_target(expr.id) {
         Some(NameTarget::Local(local)) if context.local_kind(local) == Some(LocalKind::Let) => {
             Some(CaptureSource::Local(local))
         }
-        Some(NameTarget::TopLevel(item)) => Some(CaptureSource::TopLevel(item)),
+        Some(NameTarget::TopLevel(item)) if context.top_level_is_value_binding(item) => {
+            Some(CaptureSource::TopLevel(item))
+        }
         _ => None,
     }
 }

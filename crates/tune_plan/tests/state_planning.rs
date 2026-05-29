@@ -127,6 +127,36 @@ let make(seed: Int) = {
 }
 
 #[test]
+fn captured_struct_call_arguments_are_private_snapshot_mode() -> Result<(), &'static str> {
+    let plan = lower_callable(
+        r#"
+struct Counter {
+  value: Int
+  bump(): Int = {
+    self.value = self.value + 1
+    self.value
+  }
+}
+let make(seed: Int) = {
+  let counter: Counter = Counter {
+    value = seed
+  }
+  _(): Int = touch(counter)
+}
+let touch(counter: Counter): Int = counter.bump()
+"#,
+    )?;
+
+    assert!(plan.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::CallableValue { captures, .. }
+            if captures.iter().any(|capture| capture.mode == tune_plan::CaptureMode::PrivateSnapshot)
+    )));
+
+    Ok(())
+}
+
+#[test]
 fn range_for_records_range_contract_kind() -> Result<(), &'static str> {
     let source = r#"
 let sum(): Int = {

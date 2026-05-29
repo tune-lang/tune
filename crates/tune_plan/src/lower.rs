@@ -175,4 +175,10 @@ impl LowerContext<'_> {
             .find(|binding| binding.id == local)
             .map(|binding| binding.kind)
     }
+
+    pub(super) fn top_level_is_value_binding(&self, item: tune_hir::HirId) -> bool {
+        self.module
+            .and_then(|module| module.items.iter().find(|candidate| candidate.id == item))
+            .is_none_or(|item| item.kind == tune_hir::item::ItemKind::Let)
+    }
 }

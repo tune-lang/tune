@@ -1,7 +1,10 @@
 use tune_bytecode::{Opcode, artifact::BytecodeConst, function::BytecodeCaptureMode};
 use tune_runtime::{
     task::TaskJoinOutcome,
-    value::{CallableValue, CapturedValue, RangeItemKind, RangeValue, StructFields, Value},
+    value::{
+        CallableValue, CaptureStorageMode, CapturedValue, RangeItemKind, RangeValue, StructFields,
+        Value,
+    },
 };
 
 use crate::execute_support::{read_reg, runtime_variant, write_reg};
@@ -251,10 +254,13 @@ impl Vm {
                         .map(|capture| {
                             self.at(function_index, ip, read_reg(&registers, capture.register))
                                 .map(|value| match capture.mode {
-                                    BytecodeCaptureMode::Reference => CapturedValue::new(value),
-                                    BytecodeCaptureMode::PrivateSnapshot => {
-                                        CapturedValue::new(value.capture_snapshot())
+                                    BytecodeCaptureMode::Reference => {
+                                        CapturedValue::new(value, CaptureStorageMode::Reference)
                                     }
+                                    BytecodeCaptureMode::PrivateSnapshot => CapturedValue::new(
+                                        value.capture_snapshot(),
+                                        CaptureStorageMode::PrivateSnapshot,
+                                    ),
                                 })
                         })
                         .collect::<Result<Vec<_>, _>>()?;
@@ -524,6 +530,9 @@ impl Vm {
 
 fn write_back_captures(locals: &[Value], capture_cells: &[CapturedValue], capture_count: usize) {
     for (index, cell) in capture_cells.iter().take(capture_count).enumerate() {
+        if cell.mode() != CaptureStorageMode::PrivateSnapshot {
+            continue;
+        }
         if let Some(value) = locals.get(index) {
             cell.set(value.capture_snapshot());
         }

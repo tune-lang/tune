@@ -173,27 +173,44 @@ pub struct CallableValue {
 }
 
 #[derive(Debug, Clone)]
-pub struct CapturedValue(Rc<RefCell<Value>>);
+pub struct CapturedValue {
+    mode: CaptureStorageMode,
+    value: Rc<RefCell<Value>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CaptureStorageMode {
+    Reference,
+    PrivateSnapshot,
+}
 
 impl CapturedValue {
     #[must_use]
-    pub fn new(value: Value) -> Self {
-        Self(Rc::new(RefCell::new(value)))
+    pub fn new(value: Value, mode: CaptureStorageMode) -> Self {
+        Self {
+            mode,
+            value: Rc::new(RefCell::new(value)),
+        }
+    }
+
+    #[must_use]
+    pub const fn mode(&self) -> CaptureStorageMode {
+        self.mode
     }
 
     #[must_use]
     pub fn get(&self) -> Value {
-        self.0.borrow().clone()
+        self.value.borrow().clone()
     }
 
     pub fn set(&self, value: Value) {
-        *self.0.borrow_mut() = value;
+        *self.value.borrow_mut() = value;
     }
 }
 
 impl PartialEq for CapturedValue {
     fn eq(&self, other: &Self) -> bool {
-        *self.0.borrow() == *other.0.borrow()
+        self.mode == other.mode && *self.value.borrow() == *other.value.borrow()
     }
 }
 

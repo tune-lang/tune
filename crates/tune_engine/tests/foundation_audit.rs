@@ -132,6 +132,61 @@ let result: Int = f()
 }
 
 #[test]
+fn run_file_keeps_read_only_struct_captures_referenced_after_calls() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+struct Counter {
+  value: Int
+  bump(): Int = {
+    self.value = self.value + 1
+    self.value
+  }
+}
+let c: Counter = Counter { value = 0 }
+let f = _(): Int = c.value
+let before: Int = f()
+let ignored: Int = c.bump()
+let after: Int = f()
+let result: Int = before + after
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, Value::Int(1));
+    Ok(())
+}
+
+#[test]
+fn run_file_snapshots_captured_structs_passed_to_calls() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+struct Counter {
+  value: Int
+  bump(): Int = {
+    self.value = self.value + 1
+    self.value
+  }
+}
+let touch(counter: Counter): Int = counter.bump()
+let c: Counter = Counter { value = 0 }
+let f = _(): Int = touch(c)
+let inner: Int = f()
+let result: Int = c.value + inner
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, Value::Int(1));
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_mixed_structural_match_calls() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
