@@ -5,6 +5,7 @@ use tune_hir::pattern::{Pattern, PatternKind, StructuralRequirementKind};
 use tune_hir::{ExprId, MemberId};
 use tune_resolve::{LocalId, NameTarget};
 
+use super::generics::{item_type_param_solution, substitute_generic_params};
 use super::{Analyzer, ExprShape, FiniteForContractKind, MaterializerCheck};
 use crate::lower_resolved_hir_shape;
 use crate::{BindingKey, BindingState, LiteralFact, Shape, expr_shape_fact};
@@ -53,15 +54,26 @@ impl Analyzer<'_> {
         scrutinee_shape: &Shape,
         arms: &[tune_hir::expr::MatchArm],
     ) {
-        let Some(nominal) = scrutinee_shape.nominal() else {
-            return;
-        };
         if arms
             .iter()
             .any(|arm| matches!(arm.pattern.kind, PatternKind::Else))
         {
             return;
         }
+        match scrutinee_shape {
+            Shape::Result { .. } => {
+                self.check_result_match_exhaustive(expr, arms);
+                return;
+            }
+            Shape::Optional(_) => {
+                self.check_optional_match_exhaustive(expr, arms);
+                return;
+            }
+            _ => {}
+        }
+        let Some(nominal) = scrutinee_shape.nominal() else {
+            return;
+        };
         let Some(id) = nominal.id else {
             return;
         };
@@ -87,6 +99,57 @@ impl Analyzer<'_> {
                 .build(),
             );
         }
+    }
+
+    fn check_result_match_exhaustive(&mut self, expr: &Expr, arms: &[tune_hir::expr::MatchArm]) {
+        let mut covers_ok = false;
+        let mut covers_error = false;
+        for arm in arms {
+            match self.pattern_variant(arm.pattern.id) {
+                Some(tune_resolve::VariantId::Prelude(tune_resolve::PreludeVariant::Ok)) => {
+                    covers_ok = true;
+                }
+                Some(tune_resolve::VariantId::Prelude(tune_resolve::PreludeVariant::Error)) => {
+                    covers_error = true;
+                }
+                _ => {}
+            }
+        }
+        if covers_ok && covers_error {
+            return;
+        }
+        self.diagnostics.push(
+            Diagnostic::error(
+                codes::MATCH_NOT_EXHAUSTIVE,
+                "match is not exhaustive",
+                expr.span.unwrap_or_else(Span::synthetic),
+                "not every Result variant is covered",
+            )
+            .with_help("add the missing `Ok`/`Error` arms or an `else` arm")
+            .build(),
+        );
+    }
+
+    fn check_optional_match_exhaustive(&mut self, expr: &Expr, arms: &[tune_hir::expr::MatchArm]) {
+        let covers_none = arms
+            .iter()
+            .any(|arm| matches!(arm.pattern.kind, PatternKind::None));
+        let covers_present = arms
+            .iter()
+            .any(|arm| matches!(arm.pattern.kind, PatternKind::Binding(_)));
+        if covers_none && covers_present {
+            return;
+        }
+        self.diagnostics.push(
+            Diagnostic::error(
+                codes::MATCH_NOT_EXHAUSTIVE,
+                "match is not exhaustive",
+                expr.span.unwrap_or_else(Span::synthetic),
+                "not every optional case is covered",
+            )
+            .with_help("add both a `none` arm and a present-value arm, or add an `else` arm")
+            .build(),
+        );
     }
 
     pub(super) fn iteration_contract(
@@ -160,15 +223,30 @@ impl Analyzer<'_> {
 
     pub(super) fn bind_pattern(&mut self, pattern: &Pattern, shape: Shape) {
         match &pattern.kind {
-            PatternKind::Binding(name) => self.bind_named_pattern(name, pattern, shape),
+            PatternKind::Binding(name) => {
+                let shape = match shape {
+                    Shape::Optional(inner) => inner.as_ref().clone(),
+                    shape => shape,
+                };
+                self.bind_named_pattern(name, pattern, shape);
+            }
             PatternKind::Tuple(items) => {
-                for item in items {
-                    self.bind_pattern(item, Shape::Hole);
+                let shapes = match shape {
+                    Shape::Tuple(shapes) => shapes,
+                    Shape::Unit => Vec::new(),
+                    _ => Vec::new(),
+                };
+                for (index, item) in items.iter().enumerate() {
+                    self.bind_pattern(item, shapes.get(index).cloned().unwrap_or(Shape::Hole));
                 }
             }
             PatternKind::Variant { args, .. } => {
-                for arg in args {
-                    self.bind_pattern(arg, Shape::Hole);
+                let payload_shapes = self.pattern_variant_payload_shapes(pattern, &shape);
+                for (index, arg) in args.iter().enumerate() {
+                    self.bind_pattern(
+                        arg,
+                        payload_shapes.get(index).cloned().unwrap_or(Shape::Hole),
+                    );
                 }
             }
             PatternKind::StructuralShape(requirements) => {
@@ -201,6 +279,59 @@ impl Analyzer<'_> {
             }
             PatternKind::Hole | PatternKind::None | PatternKind::Unit | PatternKind::Else => {}
         }
+    }
+
+    fn pattern_variant_payload_shapes(&mut self, pattern: &Pattern, shape: &Shape) -> Vec<Shape> {
+        let Some(variant) = self.pattern_variant(pattern.id) else {
+            return Vec::new();
+        };
+        match variant {
+            tune_resolve::VariantId::Prelude(tune_resolve::PreludeVariant::Ok) => match shape {
+                Shape::Result { ok, .. } => vec![ok.as_ref().clone()],
+                _ => vec![Shape::Hole],
+            },
+            tune_resolve::VariantId::Prelude(tune_resolve::PreludeVariant::Error) => match shape {
+                Shape::Result { err, .. } => vec![err.as_ref().clone()],
+                _ => vec![Shape::Hole],
+            },
+            tune_resolve::VariantId::Member(id) => {
+                let Some(item) = self.enum_item(id.owner).cloned() else {
+                    return Vec::new();
+                };
+                let Some(variant) = item.variants.iter().find(|variant| variant.id == id) else {
+                    return Vec::new();
+                };
+                let mut payloads = Vec::new();
+                for payload in &variant.payload {
+                    let lowered = super::item_shapes::lower_item_shape_expr(
+                        payload,
+                        &item,
+                        &self.resolved.scope,
+                    );
+                    payloads.push(lowered.shape);
+                    self.diagnostics.extend(lowered.diagnostics);
+                }
+                let Shape::Apply { nominal, args } = shape else {
+                    return payloads;
+                };
+                if nominal.id != Some(item.id) {
+                    return payloads;
+                }
+                let solved = item_type_param_solution(&item, args);
+                payloads
+                    .iter()
+                    .map(|payload| substitute_generic_params(payload, &solved))
+                    .collect()
+            }
+        }
+    }
+
+    fn pattern_variant(&self, pattern: ExprId) -> Option<tune_resolve::VariantId> {
+        self.resolved
+            .variant_pattern_refs
+            .iter()
+            .find(|variant_ref| variant_ref.pattern == pattern)
+            .map(|variant_ref| variant_ref.variant)
     }
 
     pub(super) fn check_iteration_source_mutation(

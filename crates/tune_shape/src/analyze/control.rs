@@ -20,7 +20,7 @@ impl Analyzer<'_> {
             self.frame = entry.clone();
             self.apply_structural_pattern(scrutinee, &arm.pattern, &scrutinee_shape);
             self.apply_none_pattern(scrutinee, &arm.pattern);
-            self.bind_pattern(&arm.pattern, Shape::Hole);
+            self.bind_pattern(&arm.pattern, scrutinee_shape.clone());
             let shape = self.analyze_expr(&arm.body);
             if shape != Shape::Never {
                 frames.push(self.frame.clone());
@@ -47,7 +47,7 @@ impl Analyzer<'_> {
             self.frame = entry.clone();
             self.apply_structural_pattern(scrutinee, &arm.pattern, &scrutinee_shape);
             self.apply_none_pattern(scrutinee, &arm.pattern);
-            self.bind_pattern(&arm.pattern, Shape::Hole);
+            self.bind_pattern(&arm.pattern, scrutinee_shape.clone());
             let shape = self.analyze_expr_expected(&arm.body, expected);
             if shape != Shape::Never {
                 frames.push(self.frame.clone());
@@ -227,6 +227,9 @@ fn optional_none_narrowings(
     truthy: bool,
     analyzer: &Analyzer<'_>,
 ) -> Vec<(BindingKey, Shape)> {
+    if let Some(narrowing) = optional_truthiness_narrowing(condition, truthy, analyzer) {
+        return vec![narrowing];
+    }
     let ExprKind::Binary { op, lhs, rhs } = &condition.kind else {
         return Vec::new();
     };
@@ -262,12 +265,35 @@ fn optional_none_narrowings(
     };
 
     let narrows_to_payload = is_not_equal == truthy;
-    let narrowed = if narrows_to_payload {
-        payload.as_ref().clone()
+    let narrowed = optional_narrowed_shape(payload, narrows_to_payload, &binding.current_shape);
+    vec![(key, narrowed)]
+}
+
+fn optional_truthiness_narrowing(
+    condition: &Expr,
+    truthy: bool,
+    analyzer: &Analyzer<'_>,
+) -> Option<(BindingKey, Shape)> {
+    let key = analyzer.binding_key(condition)?;
+    let binding = analyzer.frame.get(key)?;
+    let Shape::Optional(payload) = &binding.current_shape else {
+        return None;
+    };
+    Some((
+        key,
+        optional_narrowed_shape(payload, truthy, &binding.current_shape),
+    ))
+}
+
+fn optional_narrowed_shape(payload: &Shape, present: bool, fallback: &Shape) -> Shape {
+    if present {
+        return payload.clone();
+    }
+    if matches!(payload, Shape::Bool) {
+        fallback.clone()
     } else {
         Shape::Literal(LiteralFact::None)
-    };
-    vec![(key, narrowed)]
+    }
 }
 
 fn is_none_literal(expr: &Expr) -> bool {
