@@ -1,7 +1,7 @@
 use tune_bytecode::{Opcode, function::Instruction};
 use tune_runtime::value::Value;
 
-use crate::execute_support::{read_reg, write_reg};
+use crate::execute_support::{read_reg_ref, write_reg};
 use crate::{Vm, VmError, VmFault};
 
 impl Vm {
@@ -12,14 +12,29 @@ impl Vm {
         registers: &mut [Value],
         op: &Instruction,
     ) -> Result<(), VmFault> {
-        let left = self.at(function, instruction, read_reg(registers, op.b))?;
-        let right = self.at(function, instruction, read_reg(registers, op.c))?;
-        let (Value::Int(left), Value::Int(right)) = (left, right) else {
-            return Err(self.fault_at(
-                function,
-                instruction,
-                VmError::UnsupportedOpcode(op.opcode),
-            ));
+        let left = read_reg_ref(registers, op.b)
+            .map_err(|error| self.fault_at(function, instruction, error))?;
+        let right = read_reg_ref(registers, op.c)
+            .map_err(|error| self.fault_at(function, instruction, error))?;
+        let left = match left {
+            Value::Int(left) => *left,
+            _ => {
+                return Err(self.fault_at(
+                    function,
+                    instruction,
+                    VmError::UnsupportedOpcode(op.opcode),
+                ));
+            }
+        };
+        let right = match right {
+            Value::Int(right) => *right,
+            _ => {
+                return Err(self.fault_at(
+                    function,
+                    instruction,
+                    VmError::UnsupportedOpcode(op.opcode),
+                ));
+            }
         };
         let result = self.at(function, instruction, compare_int(op.opcode, left, right))?;
         self.at(
@@ -36,14 +51,29 @@ impl Vm {
         registers: &mut [Value],
         op: &Instruction,
     ) -> Result<(), VmFault> {
-        let left = self.at(function, instruction, read_reg(registers, op.b))?;
-        let right = self.at(function, instruction, read_reg(registers, op.c))?;
-        let (Value::Float(left), Value::Float(right)) = (left, right) else {
-            return Err(self.fault_at(
-                function,
-                instruction,
-                VmError::UnsupportedOpcode(op.opcode),
-            ));
+        let left = read_reg_ref(registers, op.b)
+            .map_err(|error| self.fault_at(function, instruction, error))?;
+        let right = read_reg_ref(registers, op.c)
+            .map_err(|error| self.fault_at(function, instruction, error))?;
+        let left = match left {
+            Value::Float(left) => *left,
+            _ => {
+                return Err(self.fault_at(
+                    function,
+                    instruction,
+                    VmError::UnsupportedOpcode(op.opcode),
+                ));
+            }
+        };
+        let right = match right {
+            Value::Float(right) => *right,
+            _ => {
+                return Err(self.fault_at(
+                    function,
+                    instruction,
+                    VmError::UnsupportedOpcode(op.opcode),
+                ));
+            }
         };
         let result = self.at(function, instruction, compare_float(op.opcode, left, right))?;
         self.at(
@@ -60,14 +90,29 @@ impl Vm {
         registers: &mut [Value],
         op: &Instruction,
     ) -> Result<(), VmFault> {
-        let left = self.at(function, instruction, read_reg(registers, op.b))?;
-        let right = self.at(function, instruction, read_reg(registers, op.c))?;
-        let (Value::Size(left), Value::Size(right)) = (left, right) else {
-            return Err(self.fault_at(
-                function,
-                instruction,
-                VmError::UnsupportedOpcode(op.opcode),
-            ));
+        let left = read_reg_ref(registers, op.b)
+            .map_err(|error| self.fault_at(function, instruction, error))?;
+        let right = read_reg_ref(registers, op.c)
+            .map_err(|error| self.fault_at(function, instruction, error))?;
+        let left = match left {
+            Value::Size(left) => *left,
+            _ => {
+                return Err(self.fault_at(
+                    function,
+                    instruction,
+                    VmError::UnsupportedOpcode(op.opcode),
+                ));
+            }
+        };
+        let right = match right {
+            Value::Size(right) => *right,
+            _ => {
+                return Err(self.fault_at(
+                    function,
+                    instruction,
+                    VmError::UnsupportedOpcode(op.opcode),
+                ));
+            }
         };
         let result = self.at(function, instruction, compare_size(op.opcode, left, right))?;
         self.at(
@@ -84,14 +129,29 @@ impl Vm {
         registers: &mut [Value],
         op: &Instruction,
     ) -> Result<(), VmFault> {
-        let left = self.at(function, instruction, read_reg(registers, op.b))?;
-        let right = self.at(function, instruction, read_reg(registers, op.c))?;
-        let (Value::Byte(left), Value::Byte(right)) = (left, right) else {
-            return Err(self.fault_at(
-                function,
-                instruction,
-                VmError::UnsupportedOpcode(op.opcode),
-            ));
+        let left = read_reg_ref(registers, op.b)
+            .map_err(|error| self.fault_at(function, instruction, error))?;
+        let right = read_reg_ref(registers, op.c)
+            .map_err(|error| self.fault_at(function, instruction, error))?;
+        let left = match left {
+            Value::Byte(left) => *left,
+            _ => {
+                return Err(self.fault_at(
+                    function,
+                    instruction,
+                    VmError::UnsupportedOpcode(op.opcode),
+                ));
+            }
+        };
+        let right = match right {
+            Value::Byte(right) => *right,
+            _ => {
+                return Err(self.fault_at(
+                    function,
+                    instruction,
+                    VmError::UnsupportedOpcode(op.opcode),
+                ));
+            }
         };
         let result = self.at(function, instruction, compare_byte(op.opcode, left, right))?;
         self.at(

@@ -26,6 +26,9 @@ pub enum TaskJoinOutcome {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TaskExecutionMode {
+    /// Evaluate spawned work at the point of spawn.
+    Immediate,
+    /// Defer spawned work until join.
     DeferredUntilJoin,
 }
 

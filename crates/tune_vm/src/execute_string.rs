@@ -1,7 +1,7 @@
 use tune_bytecode::function::Instruction;
 use tune_runtime::value::Value;
 
-use crate::execute_support::{read_reg, write_reg};
+use crate::execute_support::{read_reg_ref, write_reg};
 use crate::{Vm, VmError, VmFault};
 
 impl Vm {
@@ -23,8 +23,9 @@ impl Vm {
             })?;
         let mut output = String::new();
         for part in &site.parts {
-            let value = self.at(function, instruction_index, read_reg(registers, *part))?;
-            append_string_part(&mut output, &value);
+            let value = read_reg_ref(registers, *part)
+                .map_err(|error| self.fault_at(function, instruction_index, error))?;
+            append_string_part(&mut output, value);
         }
         self.at(
             function,
@@ -40,11 +41,8 @@ impl Vm {
         registers: &mut [Value],
         instruction: &Instruction,
     ) -> Result<(), VmFault> {
-        let value = self.at(
-            function,
-            instruction_index,
-            read_reg(registers, instruction.b),
-        )?;
+        let value = read_reg_ref(registers, instruction.b)
+            .map_err(|error| self.fault_at(function, instruction_index, error))?;
         let Value::String(value) = value else {
             return Err(self.fault_at(
                 function,
@@ -68,16 +66,10 @@ impl Vm {
         registers: &mut [Value],
         instruction: &Instruction,
     ) -> Result<(), VmFault> {
-        let value = self.at(
-            function,
-            instruction_index,
-            read_reg(registers, instruction.b),
-        )?;
-        let index = self.at(
-            function,
-            instruction_index,
-            read_reg(registers, instruction.c),
-        )?;
+        let value = read_reg_ref(registers, instruction.b)
+            .map_err(|error| self.fault_at(function, instruction_index, error))?;
+        let index = read_reg_ref(registers, instruction.c)
+            .map_err(|error| self.fault_at(function, instruction_index, error))?;
         let (Value::String(value), Value::Size(index)) = (value, index) else {
             return Err(self.fault_at(
                 function,
@@ -85,7 +77,7 @@ impl Vm {
                 VmError::UnsupportedOpcode(instruction.opcode),
             ));
         };
-        let Some(value) = usize::try_from(index)
+        let Some(value) = usize::try_from(*index)
             .ok()
             .and_then(|index| value.chars().nth(index))
         else {

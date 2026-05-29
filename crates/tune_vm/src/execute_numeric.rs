@@ -1,7 +1,7 @@
 use tune_bytecode::{Opcode, function::Instruction};
 use tune_runtime::value::Value;
 
-use crate::execute_support::{read_reg, write_reg};
+use crate::execute_support::{read_reg_ref, write_reg};
 use crate::{Vm, VmError, VmFault};
 
 impl Vm {
@@ -93,8 +93,10 @@ impl Vm {
                 self.write_int(function_index, ip, registers, instruction, value)
             }
             Opcode::AddFloat => {
-                let left = self.at(function_index, ip, read_reg(registers, instruction.b))?;
-                let right = self.at(function_index, ip, read_reg(registers, instruction.c))?;
+                let left = read_reg_ref(registers, instruction.b)
+                    .map_err(|error| self.fault_at(function_index, ip, error))?;
+                let right = read_reg_ref(registers, instruction.c)
+                    .map_err(|error| self.fault_at(function_index, ip, error))?;
                 let (Value::Float(left), Value::Float(right)) = (left, right) else {
                     return Err(self.fault_at(
                         function_index,
@@ -109,8 +111,10 @@ impl Vm {
                 )
             }
             Opcode::SubFloat | Opcode::MulFloat | Opcode::DivFloat => {
-                let left = self.at(function_index, ip, read_reg(registers, instruction.b))?;
-                let right = self.at(function_index, ip, read_reg(registers, instruction.c))?;
+                let left = read_reg_ref(registers, instruction.b)
+                    .map_err(|error| self.fault_at(function_index, ip, error))?;
+                let right = read_reg_ref(registers, instruction.c)
+                    .map_err(|error| self.fault_at(function_index, ip, error))?;
                 let (Value::Float(left), Value::Float(right)) = (left, right) else {
                     return Err(self.fault_at(
                         function_index,
@@ -223,7 +227,8 @@ impl Vm {
                 self.write_byte(function_index, ip, registers, instruction, left % right)
             }
             Opcode::BitNotByte => {
-                let value = self.at(function_index, ip, read_reg(registers, instruction.b))?;
+                let value = read_reg_ref(registers, instruction.b)
+                    .map_err(|error| self.fault_at(function_index, ip, error))?;
                 let Value::Byte(value) = value else {
                     return Err(self.fault_at(
                         function_index,
@@ -261,14 +266,29 @@ impl Vm {
         registers: &[Value],
         instruction: &Instruction,
     ) -> Result<(i64, i64), VmFault> {
-        let left = self.at(function_index, ip, read_reg(registers, instruction.b))?;
-        let right = self.at(function_index, ip, read_reg(registers, instruction.c))?;
-        let (Value::Int(left), Value::Int(right)) = (left, right) else {
-            return Err(self.fault_at(
-                function_index,
-                ip,
-                VmError::UnsupportedOpcode(instruction.opcode),
-            ));
+        let left = read_reg_ref(registers, instruction.b)
+            .map_err(|error| self.fault_at(function_index, ip, error))?;
+        let right = read_reg_ref(registers, instruction.c)
+            .map_err(|error| self.fault_at(function_index, ip, error))?;
+        let left = match left {
+            Value::Int(left) => *left,
+            _ => {
+                return Err(self.fault_at(
+                    function_index,
+                    ip,
+                    VmError::UnsupportedOpcode(instruction.opcode),
+                ));
+            }
+        };
+        let right = match right {
+            Value::Int(right) => *right,
+            _ => {
+                return Err(self.fault_at(
+                    function_index,
+                    ip,
+                    VmError::UnsupportedOpcode(instruction.opcode),
+                ));
+            }
         };
         Ok((left, right))
     }
@@ -295,14 +315,29 @@ impl Vm {
         registers: &[Value],
         instruction: &Instruction,
     ) -> Result<(u64, u64), VmFault> {
-        let left = self.at(function_index, ip, read_reg(registers, instruction.b))?;
-        let right = self.at(function_index, ip, read_reg(registers, instruction.c))?;
-        let (Value::Size(left), Value::Size(right)) = (left, right) else {
-            return Err(self.fault_at(
-                function_index,
-                ip,
-                VmError::UnsupportedOpcode(instruction.opcode),
-            ));
+        let left = read_reg_ref(registers, instruction.b)
+            .map_err(|error| self.fault_at(function_index, ip, error))?;
+        let right = read_reg_ref(registers, instruction.c)
+            .map_err(|error| self.fault_at(function_index, ip, error))?;
+        let left = match left {
+            Value::Size(left) => *left,
+            _ => {
+                return Err(self.fault_at(
+                    function_index,
+                    ip,
+                    VmError::UnsupportedOpcode(instruction.opcode),
+                ));
+            }
+        };
+        let right = match right {
+            Value::Size(right) => *right,
+            _ => {
+                return Err(self.fault_at(
+                    function_index,
+                    ip,
+                    VmError::UnsupportedOpcode(instruction.opcode),
+                ));
+            }
         };
         Ok((left, right))
     }
@@ -329,14 +364,29 @@ impl Vm {
         registers: &[Value],
         instruction: &Instruction,
     ) -> Result<(u8, u8), VmFault> {
-        let left = self.at(function_index, ip, read_reg(registers, instruction.b))?;
-        let right = self.at(function_index, ip, read_reg(registers, instruction.c))?;
-        let (Value::Byte(left), Value::Byte(right)) = (left, right) else {
-            return Err(self.fault_at(
-                function_index,
-                ip,
-                VmError::UnsupportedOpcode(instruction.opcode),
-            ));
+        let left = read_reg_ref(registers, instruction.b)
+            .map_err(|error| self.fault_at(function_index, ip, error))?;
+        let right = read_reg_ref(registers, instruction.c)
+            .map_err(|error| self.fault_at(function_index, ip, error))?;
+        let left = match left {
+            Value::Byte(left) => *left,
+            _ => {
+                return Err(self.fault_at(
+                    function_index,
+                    ip,
+                    VmError::UnsupportedOpcode(instruction.opcode),
+                ));
+            }
+        };
+        let right = match right {
+            Value::Byte(right) => *right,
+            _ => {
+                return Err(self.fault_at(
+                    function_index,
+                    ip,
+                    VmError::UnsupportedOpcode(instruction.opcode),
+                ));
+            }
         };
         Ok((left, right))
     }

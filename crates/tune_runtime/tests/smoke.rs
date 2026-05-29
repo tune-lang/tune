@@ -21,8 +21,8 @@ fn task_join_preserves_pending_and_ready_states() {
 
 #[test]
 fn task_execution_mode_names_scheduler_boundary() {
-    assert_eq!(
-        tune_runtime::TaskExecutionMode::DeferredUntilJoin,
+    assert_ne!(
+        tune_runtime::TaskExecutionMode::Immediate,
         tune_runtime::TaskExecutionMode::DeferredUntilJoin
     );
 }

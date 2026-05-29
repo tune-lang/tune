@@ -1,5 +1,8 @@
 use tune_bytecode::function::{BytecodeCaptureMode, Instruction};
-use tune_runtime::{task::TaskJoinOutcome, value::Value};
+use tune_runtime::{
+    task::{TaskExecutionMode, TaskJoinOutcome},
+    value::Value,
+};
 
 use crate::execute_support::{read_reg, write_reg};
 use crate::{Vm, VmError, VmFault};
@@ -40,11 +43,24 @@ impl Vm {
                 })
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let task = self.at(
-            function,
-            instruction_index,
-            self.push_deferred_task(site.function, args),
-        )?;
+        if let Some(resource_type) = self.validate_task_args(&args) {
+            return Err(self.fault_at(
+                function,
+                instruction_index,
+                VmError::TaskUnsafeCapture { resource_type },
+            ));
+        }
+        let task = match self.task_execution {
+            TaskExecutionMode::Immediate => {
+                let value = self.execute_task_function(site.function as usize, args)?;
+                self.push_ready_task(value)
+            }
+            TaskExecutionMode::DeferredUntilJoin => self.at(
+                function,
+                instruction_index,
+                self.push_deferred_task(site.function, args),
+            )?,
+        };
         self.at(
             function,
             instruction_index,

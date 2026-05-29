@@ -76,20 +76,38 @@ impl Vm {
         })
     }
 
+    pub(crate) fn validate_task_args<'a>(
+        &self,
+        args: impl IntoIterator<Item = &'a Value>,
+    ) -> Option<String> {
+        args.into_iter()
+            .find_map(|arg| arg.task_safety_error().map(|error| error.resource_type))
+    }
+
     pub(crate) fn push_deferred_task(
         &self,
         function: u32,
         args: Vec<Value>,
     ) -> Result<Value, VmError> {
-        if let Some(error) = args.iter().find_map(Value::task_safety_error) {
-            return Err(VmError::TaskUnsafeCapture {
-                resource_type: error.resource_type,
-            });
+        if let Some(resource_type) = self.validate_task_args(&args) {
+            return Err(VmError::TaskUnsafeCapture { resource_type });
         }
-        let mut tasks = self.tasks.borrow_mut();
-        let id = TaskId(u64::try_from(tasks.len()).unwrap_or(u64::MAX));
-        tasks.push(VmTask::Pending { id, function, args });
+        let id = self.next_task_id();
+        self.tasks
+            .borrow_mut()
+            .push(VmTask::Pending { id, function, args });
         Ok(Value::Task(TaskHandle(id)))
+    }
+
+    pub(crate) fn push_ready_task(&self, value: Value) -> Value {
+        let id = self.next_task_id();
+        self.tasks.borrow_mut().push(VmTask::Ready { value });
+        Value::Task(TaskHandle(id))
+    }
+
+    fn next_task_id(&self) -> TaskId {
+        let tasks = self.tasks.borrow_mut();
+        TaskId(u64::try_from(tasks.len()).unwrap_or(u64::MAX))
     }
 
     pub(crate) fn capture_snapshot(&self, value: &Value) -> Result<Value, VmError> {
@@ -402,6 +420,12 @@ pub(crate) fn read_reg(registers: &[Value], reg: u32) -> Result<Value, VmError> 
     registers
         .get(reg as usize)
         .cloned()
+        .ok_or(VmError::RegisterOutOfBounds)
+}
+
+pub(crate) fn read_reg_ref(registers: &[Value], reg: u32) -> Result<&Value, VmError> {
+    registers
+        .get(reg as usize)
         .ok_or(VmError::RegisterOutOfBounds)
 }
 

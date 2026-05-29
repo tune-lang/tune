@@ -1,7 +1,7 @@
 use tune_bytecode::{Opcode, function::Instruction};
 use tune_runtime::value::{StructFields, Value};
 
-use crate::execute_support::{read_reg, runtime_variant, write_reg};
+use crate::execute_support::{read_reg, read_reg_ref, runtime_variant, write_reg};
 use crate::{Vm, VmError, VmFault};
 
 impl Vm {
@@ -54,8 +54,12 @@ impl Vm {
             .iter()
             .map(|field| field.field)
             .max()
-            .unwrap_or(0);
-        let mut fields = vec![Value::Unit; max_field as usize + 1];
+            .unwrap_or(u32::MAX);
+        let mut fields = if max_field == u32::MAX {
+            Vec::new()
+        } else {
+            vec![Value::Unit; max_field as usize + 1]
+        };
         for field in &site.fields {
             fields[field.field as usize] =
                 self.at(function_index, ip, read_reg(registers, field.value))?;
@@ -82,8 +86,9 @@ impl Vm {
         registers: &mut [Value],
         instruction: &Instruction,
     ) -> Result<(), VmFault> {
-        let value = self.at(function_index, ip, read_reg(registers, instruction.b))?;
-        let result = matches!(value, Value::Struct { owner, .. } if owner == instruction.c);
+        let value = read_reg_ref(registers, instruction.b)
+            .map_err(|error| self.fault_at(function_index, ip, error))?;
+        let result = matches!(value, Value::Struct { owner, .. } if *owner == instruction.c);
         self.at(
             function_index,
             ip,
@@ -99,8 +104,10 @@ impl Vm {
         instruction: &Instruction,
     ) -> Result<(), VmFault> {
         let site = self.field_site(function_index, ip, instruction.c)?;
-        match self.at(function_index, ip, read_reg(registers, instruction.b))? {
-            Value::Struct { owner, fields } if owner == site.owner => {
+        let value = read_reg_ref(registers, instruction.b)
+            .map_err(|error| self.fault_at(function_index, ip, error))?;
+        match value {
+            Value::Struct { owner, fields } if *owner == site.owner => {
                 let value = fields.get(site.field as usize).ok_or_else(|| {
                     self.fault_at(function_index, ip, VmError::RegisterOutOfBounds)
                 })?;
@@ -197,7 +204,9 @@ impl Vm {
         registers: &mut [Value],
         instruction: &Instruction,
     ) -> Result<(), VmFault> {
-        match self.at(function_index, ip, read_reg(registers, instruction.b))? {
+        let value = read_reg_ref(registers, instruction.b)
+            .map_err(|error| self.fault_at(function_index, ip, error))?;
+        match value {
             Value::Variant { fields, .. } => {
                 let value = fields.get(instruction.c as usize).cloned().ok_or_else(|| {
                     self.fault_at(function_index, ip, VmError::RegisterOutOfBounds)
@@ -223,7 +232,9 @@ impl Vm {
         registers: &mut [Value],
         instruction: &Instruction,
     ) -> Result<(), VmFault> {
-        match self.at(function_index, ip, read_reg(registers, instruction.b))? {
+        let value = read_reg_ref(registers, instruction.b)
+            .map_err(|error| self.fault_at(function_index, ip, error))?;
+        match value {
             Value::Tuple(fields) => {
                 let value = fields.get(instruction.c as usize).cloned().ok_or_else(|| {
                     self.fault_at(function_index, ip, VmError::RegisterOutOfBounds)
@@ -249,9 +260,9 @@ impl Vm {
         registers: &[Value],
         instruction: &Instruction,
     ) -> Result<usize, VmFault> {
-        let Value::Variant { variant, .. } =
-            self.at(function_index, ip, read_reg(registers, instruction.a))?
-        else {
+        let value = read_reg_ref(registers, instruction.a)
+            .map_err(|error| self.fault_at(function_index, ip, error))?;
+        let Value::Variant { variant, .. } = value else {
             return Err(self.fault_at(
                 function_index,
                 ip,
@@ -270,7 +281,7 @@ impl Vm {
         if let Some(arm) = match_site
             .arms
             .iter()
-            .find(|arm| runtime_variant(arm.variant) == variant)
+            .find(|arm| runtime_variant(arm.variant) == *variant)
         {
             return Ok(arm.target as usize);
         }

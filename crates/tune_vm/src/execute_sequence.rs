@@ -37,9 +37,11 @@ impl Vm {
         registers: &mut [Value],
         op: &Instruction,
     ) -> Result<(), VmFault> {
-        let seq = self.at(function, instruction, read_reg(registers, op.a))?;
         let value = self.at(function, instruction, read_reg(registers, op.b))?;
-        let Value::Sequence(mut values) = seq else {
+        let Value::Sequence(values) = registers
+            .get_mut(op.a as usize)
+            .ok_or_else(|| self.fault_at(function, instruction, VmError::RegisterOutOfBounds))?
+        else {
             return Err(self.fault_at(
                 function,
                 instruction,
@@ -47,11 +49,7 @@ impl Vm {
             ));
         };
         values.push(value);
-        self.at(
-            function,
-            instruction,
-            write_reg(registers, op.a, Value::Sequence(values)),
-        )
+        Ok(())
     }
 
     fn execute_sequence_get(
@@ -76,13 +74,26 @@ impl Vm {
         registers: &mut [Value],
         op: &Instruction,
     ) -> Result<(), VmFault> {
-        let seq = self.at(function, instruction, read_reg(registers, op.a))?;
         let index = self.at(function, instruction, read_reg(registers, op.b))?;
         let value = self.at(function, instruction, read_reg(registers, op.c))?;
-        let seq = sequence_set(op.opcode, seq, index, value).ok_or_else(|| {
+        let Value::Sequence(values) = registers
+            .get_mut(op.a as usize)
+            .ok_or_else(|| self.fault_at(function, instruction, VmError::RegisterOutOfBounds))?
+        else {
+            return Err(self.fault_at(
+                function,
+                instruction,
+                VmError::UnsupportedOpcode(op.opcode),
+            ));
+        };
+        let index = sequence_index(index).ok_or_else(|| {
             self.fault_at(function, instruction, VmError::UnsupportedOpcode(op.opcode))
         })?;
-        self.at(function, instruction, write_reg(registers, op.a, seq))
+        let Some(slot) = values.get_mut(index) else {
+            return Err(self.fault_at(function, instruction, VmError::RegisterOutOfBounds));
+        };
+        *slot = value;
+        Ok(())
     }
 }
 
@@ -93,21 +104,6 @@ fn sequence_get(opcode: Opcode, seq: Value, index: Value) -> Option<Value> {
     let index = sequence_index(index)?;
     match opcode {
         Opcode::SeqGetChecked | Opcode::SeqGetUnchecked => values.get(index).cloned(),
-        _ => None,
-    }
-}
-
-fn sequence_set(opcode: Opcode, seq: Value, index: Value, value: Value) -> Option<Value> {
-    let Value::Sequence(mut values) = seq else {
-        return None;
-    };
-    let index = sequence_index(index)?;
-    match opcode {
-        Opcode::SeqSetChecked | Opcode::SeqSetUnchecked => {
-            let slot = values.get_mut(index)?;
-            *slot = value;
-            Some(Value::Sequence(values))
-        }
         _ => None,
     }
 }
