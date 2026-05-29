@@ -261,16 +261,6 @@ fn record_tag_fact(
                 }),
                 span: tag.span,
             });
-            if tag.name == "tool" {
-                resolved.facts.push(CompilerFact {
-                    owner: FactOwner::Item(item.id),
-                    payload: CompilerFactPayload::JsonInvoker(format!(
-                        "__json_invoker_{}",
-                        item.id.0
-                    )),
-                    span: tag.span,
-                });
-            }
         }
         Some(binding) => {
             let span = tag.span.or(item.span).unwrap_or_else(Span::synthetic);

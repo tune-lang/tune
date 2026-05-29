@@ -55,7 +55,7 @@ let run(): String = "ok"
         })
     );
     assert!(
-        facts
+        !facts
             .facts
             .iter()
             .any(|fact| matches!(fact, tune_meta::facts::DeclFact::JsonInvoker))
