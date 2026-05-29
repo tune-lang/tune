@@ -54,10 +54,16 @@ impl IrOp {
             | Self::MulInt { span, .. }
             | Self::DivInt { span, .. }
             | Self::RemInt { span, .. }
+            | Self::BitAndInt { span, .. }
+            | Self::BitOrInt { span, .. }
+            | Self::BitXorInt { span, .. }
+            | Self::ShiftLeftInt { span, .. }
+            | Self::ShiftRightInt { span, .. }
             | Self::AddSizeChecked { span, .. }
             | Self::RangeInt { span, .. }
             | Self::NegInt { span, .. }
             | Self::NotBool { span, .. }
+            | Self::BitNotInt { span, .. }
             | Self::GreaterInt { span, .. }
             | Self::CompareInt { span, .. }
             | Self::GetField { span, .. }
@@ -144,6 +150,36 @@ pub enum IrOp {
         b: Reg,
         span: Option<Span>,
     },
+    BitAndInt {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    BitOrInt {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    BitXorInt {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    ShiftLeftInt {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    ShiftRightInt {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
     RangeInt {
         dst: Reg,
         start: Reg,
@@ -157,6 +193,11 @@ pub enum IrOp {
         span: Option<Span>,
     },
     NotBool {
+        dst: Reg,
+        value: Reg,
+        span: Option<Span>,
+    },
+    BitNotInt {
         dst: Reg,
         value: Reg,
         span: Option<Span>,

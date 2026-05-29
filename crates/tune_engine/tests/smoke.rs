@@ -118,27 +118,20 @@ fn engine_loads_and_runs_manifest_entry_source() -> Result<(), &'static str> {
 }
 
 #[test]
-fn executable_lowering_failures_use_structured_diagnostics() -> Result<(), &'static str> {
+fn executable_lowering_stops_on_structured_frontend_diagnostics() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file("main.tn", "let value: Int = ~1")
+        .add_file("main.tn", "let value: Int = true & false")
         .ok_or("source should allocate")?;
 
     let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.executable_file(file) else {
-        return Err("unsupported executable lowering should report diagnostics");
+        return Err("frontend diagnostics should stop executable lowering");
     };
 
-    assert_eq!(diagnostics.len(), 1);
-    assert_eq!(
-        diagnostics[0].code,
-        tune_diagnostics::codes::EXECUTABLE_LOWERING_ERROR
-    );
     assert!(
-        diagnostics[0]
-            .facts
+        diagnostics
             .iter()
-            .flat_map(|fact| &fact.entries)
-            .any(|entry| entry.message.contains("UnsupportedOp"))
+            .any(|diagnostic| diagnostic.code == tune_diagnostics::codes::SHAPE_MISMATCH)
     );
 
     Ok(())

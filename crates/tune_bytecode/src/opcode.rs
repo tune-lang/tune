@@ -53,6 +53,12 @@ pub enum Opcode {
     MulInt = 49,
     DivInt = 50,
     RemInt = 51,
+    BitNotInt = 52,
+    BitAndInt = 53,
+    BitOrInt = 54,
+    BitXorInt = 55,
+    ShiftLeftInt = 56,
+    ShiftRightInt = 57,
 }
 
 impl Opcode {
@@ -109,5 +115,11 @@ impl Opcode {
         Self::MulInt,
         Self::DivInt,
         Self::RemInt,
+        Self::BitNotInt,
+        Self::BitAndInt,
+        Self::BitOrInt,
+        Self::BitXorInt,
+        Self::ShiftLeftInt,
+        Self::ShiftRightInt,
     ];
 }

@@ -205,6 +205,26 @@ impl FunctionLowerer<'_> {
                 self.push_instruction(Opcode::RemInt, dst.0, a.0, b.0);
                 Ok(())
             }
+            IrOp::BitAndInt { dst, a, b, .. } => {
+                self.push_instruction(Opcode::BitAndInt, dst.0, a.0, b.0);
+                Ok(())
+            }
+            IrOp::BitOrInt { dst, a, b, .. } => {
+                self.push_instruction(Opcode::BitOrInt, dst.0, a.0, b.0);
+                Ok(())
+            }
+            IrOp::BitXorInt { dst, a, b, .. } => {
+                self.push_instruction(Opcode::BitXorInt, dst.0, a.0, b.0);
+                Ok(())
+            }
+            IrOp::ShiftLeftInt { dst, a, b, .. } => {
+                self.push_instruction(Opcode::ShiftLeftInt, dst.0, a.0, b.0);
+                Ok(())
+            }
+            IrOp::ShiftRightInt { dst, a, b, .. } => {
+                self.push_instruction(Opcode::ShiftRightInt, dst.0, a.0, b.0);
+                Ok(())
+            }
             IrOp::AddFloat { dst, a, b } => {
                 self.push_instruction(Opcode::AddFloat, dst.0, a.0, b.0);
                 Ok(())
@@ -274,6 +294,10 @@ impl FunctionLowerer<'_> {
             }
             IrOp::NotBool { dst, value, .. } => {
                 self.push_instruction(Opcode::NotBool, dst.0, value.0, 0);
+                Ok(())
+            }
+            IrOp::BitNotInt { dst, value, .. } => {
+                self.push_instruction(Opcode::BitNotInt, dst.0, value.0, 0);
                 Ok(())
             }
             IrOp::GreaterInt { dst, a, b, .. } => {

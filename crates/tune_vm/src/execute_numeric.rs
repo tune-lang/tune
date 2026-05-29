@@ -53,6 +53,45 @@ impl Vm {
                     .ok_or_else(|| self.fault_at(function_index, ip, divide_error(right)))?;
                 self.write_int(function_index, ip, registers, instruction, value)
             }
+            Opcode::BitAndInt => {
+                let (left, right) =
+                    self.read_int_pair(function_index, ip, registers, instruction)?;
+                self.write_int(function_index, ip, registers, instruction, left & right)
+            }
+            Opcode::BitOrInt => {
+                let (left, right) =
+                    self.read_int_pair(function_index, ip, registers, instruction)?;
+                self.write_int(function_index, ip, registers, instruction, left | right)
+            }
+            Opcode::BitXorInt => {
+                let (left, right) =
+                    self.read_int_pair(function_index, ip, registers, instruction)?;
+                self.write_int(function_index, ip, registers, instruction, left ^ right)
+            }
+            Opcode::ShiftLeftInt => {
+                let (left, right) =
+                    self.read_int_pair(function_index, ip, registers, instruction)?;
+                let shift = u32::try_from(right)
+                    .ok()
+                    .filter(|shift| *shift < i64::BITS)
+                    .ok_or_else(|| self.fault_at(function_index, ip, VmError::NumericOverflow))?;
+                let value = left
+                    .checked_shl(shift)
+                    .ok_or_else(|| self.fault_at(function_index, ip, VmError::NumericOverflow))?;
+                self.write_int(function_index, ip, registers, instruction, value)
+            }
+            Opcode::ShiftRightInt => {
+                let (left, right) =
+                    self.read_int_pair(function_index, ip, registers, instruction)?;
+                let shift = u32::try_from(right)
+                    .ok()
+                    .filter(|shift| *shift < i64::BITS)
+                    .ok_or_else(|| self.fault_at(function_index, ip, VmError::NumericOverflow))?;
+                let value = left
+                    .checked_shr(shift)
+                    .ok_or_else(|| self.fault_at(function_index, ip, VmError::NumericOverflow))?;
+                self.write_int(function_index, ip, registers, instruction, value)
+            }
             Opcode::AddFloat => {
                 let left = self.at(function_index, ip, read_reg(registers, instruction.b))?;
                 let right = self.at(function_index, ip, read_reg(registers, instruction.c))?;

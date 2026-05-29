@@ -15,11 +15,7 @@ impl Analyzer<'_> {
         let lhs = self.analyze_expr(lhs);
         let rhs = self.analyze_expr(rhs);
         match op {
-            BinaryOp::Or
-            | BinaryOp::And
-            | BinaryOp::BitOr
-            | BinaryOp::BitXor
-            | BinaryOp::BitAnd
+            BinaryOp::Or | BinaryOp::And
                 if Shape::Bool.accepts(&lhs) && Shape::Bool.accepts(&rhs) =>
             {
                 Shape::Bool
@@ -75,8 +71,13 @@ impl Analyzer<'_> {
             | BinaryOp::LessEqual
             | BinaryOp::Greater
             | BinaryOp::GreaterEqual => {
-                self.diagnostics
-                    .push(operator_mismatch(op, &lhs, &rhs, expr.span));
+                self.diagnostics.push(operator_mismatch(
+                    op,
+                    expected_operands(op),
+                    &lhs,
+                    &rhs,
+                    expr.span,
+                ));
                 Shape::Bool
             }
             BinaryOp::Add
@@ -92,32 +93,91 @@ impl Analyzer<'_> {
             | BinaryOp::ShiftLeft
             | BinaryOp::ShiftRight
             | BinaryOp::RangeExclusive
-            | BinaryOp::RangeInclusive => Shape::Hole,
+            | BinaryOp::RangeInclusive => {
+                if can_diagnose_operands(&lhs, &rhs) {
+                    self.diagnostics.push(operator_mismatch(
+                        op,
+                        expected_operands(op),
+                        &lhs,
+                        &rhs,
+                        expr.span,
+                    ));
+                }
+                Shape::Hole
+            }
         }
     }
 }
 
-fn operator_mismatch(op: BinaryOp, lhs: &Shape, rhs: &Shape, span: Option<Span>) -> Diagnostic {
+fn operator_mismatch(
+    op: BinaryOp,
+    expected: &'static str,
+    lhs: &Shape,
+    rhs: &Shape,
+    span: Option<Span>,
+) -> Diagnostic {
     Diagnostic::error(
         codes::SHAPE_MISMATCH,
-        "operator operands do not match executable integer operation",
+        "operator operands do not match an executable operation",
         span.unwrap_or_else(Span::synthetic),
         format!(
-            "operator `{}` expected `Int` operands, got `{lhs:?}` and `{rhs:?}`",
+            "operator `{}` expected {expected}, got `{lhs:?}` and `{rhs:?}`",
             op_name(op)
         ),
     )
     .build()
 }
 
+fn can_diagnose_operands(lhs: &Shape, rhs: &Shape) -> bool {
+    !matches!(lhs, Shape::Hole | Shape::Never) && !matches!(rhs, Shape::Hole | Shape::Never)
+}
+
+fn expected_operands(op: BinaryOp) -> &'static str {
+    match op {
+        BinaryOp::Or | BinaryOp::And => "`Bool`/`Bool` or `Int`/`Int` operands",
+        BinaryOp::Add => "compatible numeric operands",
+        BinaryOp::RangeExclusive | BinaryOp::RangeInclusive => {
+            "`Int`/`Int` or `Size`/`Size` endpoints"
+        }
+        BinaryOp::Equal
+        | BinaryOp::NotEqual
+        | BinaryOp::Less
+        | BinaryOp::LessEqual
+        | BinaryOp::Greater
+        | BinaryOp::GreaterEqual
+        | BinaryOp::Sub
+        | BinaryOp::Mul
+        | BinaryOp::Div
+        | BinaryOp::Rem
+        | BinaryOp::BitOr
+        | BinaryOp::BitXor
+        | BinaryOp::BitAnd
+        | BinaryOp::ShiftLeft
+        | BinaryOp::ShiftRight => "`Int` operands",
+    }
+}
+
 fn op_name(op: BinaryOp) -> &'static str {
     match op {
+        BinaryOp::Or => "or",
+        BinaryOp::And => "and",
+        BinaryOp::BitOr => "|",
+        BinaryOp::BitXor => "^",
+        BinaryOp::BitAnd => "&",
+        BinaryOp::Add => "+",
+        BinaryOp::Sub => "-",
+        BinaryOp::Mul => "*",
+        BinaryOp::Div => "/",
+        BinaryOp::Rem => "%",
+        BinaryOp::ShiftLeft => "<<",
+        BinaryOp::ShiftRight => ">>",
+        BinaryOp::RangeExclusive => "..",
+        BinaryOp::RangeInclusive => "..=",
         BinaryOp::Equal => "==",
         BinaryOp::NotEqual => "~=",
         BinaryOp::Less => "<",
         BinaryOp::LessEqual => "<=",
         BinaryOp::Greater => ">",
         BinaryOp::GreaterEqual => ">=",
-        _ => "<operator>",
     }
 }

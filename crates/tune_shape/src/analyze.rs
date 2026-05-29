@@ -1,6 +1,6 @@
 use crate::LiteralFact;
 use tune_diagnostics::{Diagnostic, Span, codes};
-use tune_hir::expr::{Expr, ExprKind, LiteralKind, StringPart};
+use tune_hir::expr::{Expr, ExprKind, LiteralKind, StringPart, UnaryOp};
 mod callable;
 mod calls;
 mod contracts;
@@ -367,7 +367,7 @@ impl Analyzer<'_> {
             ExprKind::CallableValue { params, body } => self.analyze_callable_value(params, body),
             ExprKind::Loop(body) => self.analyze_loop(body),
             ExprKind::While { condition, body } => self.analyze_while(condition, body),
-            ExprKind::Unary { expr, .. } => self.analyze_expr(expr),
+            ExprKind::Unary { op, expr } => self.analyze_unary(*op, expr),
             ExprKind::Binary { op, lhs, rhs } => self.analyze_binary(*op, expr, lhs, rhs),
             ExprKind::Break | ExprKind::Continue => Shape::Never,
         };
@@ -385,6 +385,15 @@ impl Analyzer<'_> {
             return Shape::Tuple(items.iter().map(|item| self.analyze_expr(item)).collect());
         }
         expr_literal_fact(expr).map_or(Shape::Hole, Shape::Literal)
+    }
+
+    fn analyze_unary(&mut self, op: UnaryOp, expr: &Expr) -> Shape {
+        let shape = self.analyze_expr(expr);
+        match op {
+            UnaryOp::Not => Shape::Bool,
+            UnaryOp::Neg | UnaryOp::BitNot if Shape::Int.accepts(&shape) => Shape::Int,
+            UnaryOp::Neg | UnaryOp::BitNot => Shape::Hole,
+        }
     }
 
     fn struct_literal_shape(&self, name: &str) -> Shape {

@@ -212,6 +212,11 @@ impl Vm {
                 | Opcode::MulInt
                 | Opcode::DivInt
                 | Opcode::RemInt
+                | Opcode::BitAndInt
+                | Opcode::BitOrInt
+                | Opcode::BitXorInt
+                | Opcode::ShiftLeftInt
+                | Opcode::ShiftRightInt
                 | Opcode::AddFloat
                 | Opcode::AddSizeChecked
                 | Opcode::AddByteWrap => {
@@ -242,7 +247,7 @@ impl Vm {
                         ),
                     )?;
                 }
-                Opcode::NegInt | Opcode::NotBool => {
+                Opcode::NegInt | Opcode::NotBool | Opcode::BitNotInt => {
                     self.execute_unary(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::GreaterInt

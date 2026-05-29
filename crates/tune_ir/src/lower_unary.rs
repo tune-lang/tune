@@ -8,7 +8,7 @@ impl Lowerer {
         match op {
             UnaryOp::Neg => self.lower_neg_int(),
             UnaryOp::Not => self.lower_not_bool(),
-            UnaryOp::BitNot => Err(IrLowerError::UnsupportedOp("unary op")),
+            UnaryOp::BitNot => self.lower_bit_not_int(),
         }
     }
 
@@ -28,6 +28,18 @@ impl Lowerer {
         let value = self.pop("unary value")?;
         let dst = self.alloc_reg()?;
         self.push_op(IrOp::NotBool {
+            dst,
+            value,
+            span: None,
+        });
+        self.stack.push(dst);
+        Ok(())
+    }
+
+    fn lower_bit_not_int(&mut self) -> Result<(), IrLowerError> {
+        let value = self.pop("unary value")?;
+        let dst = self.alloc_reg()?;
+        self.push_op(IrOp::BitNotInt {
             dst,
             value,
             span: None,

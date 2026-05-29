@@ -245,6 +245,7 @@ impl Vm {
         let result = match (op.opcode, value) {
             (Opcode::NegInt, Value::Int(value)) => value.checked_neg().map(Value::Int),
             (Opcode::NotBool, Value::Bool(value)) => Some(Value::Bool(!value)),
+            (Opcode::BitNotInt, Value::Int(value)) => Some(Value::Int(!value)),
             _ => None,
         }
         .ok_or_else(|| {

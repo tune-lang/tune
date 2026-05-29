@@ -131,6 +131,41 @@ let result: Int = gate + offset
 }
 
 #[test]
+fn run_file_executes_integer_bit_not() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file("app.tn", "let result: Int = ~1")
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, tune_runtime::value::Value::Int(!1));
+
+    Ok(())
+}
+
+#[test]
+fn run_file_executes_integer_bit_ops_and_shifts() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let result: Int = {
+  let a: Int = 6 & 3
+  let b: Int = a | 8
+  let c: Int = 1 << 2
+  let d: Int = 16 >> 2
+  (b ^ c) + d
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, tune_runtime::value::Value::Int(18));
+
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_boolean_short_circuit_ops() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
