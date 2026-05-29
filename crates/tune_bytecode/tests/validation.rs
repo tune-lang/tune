@@ -7,6 +7,7 @@ fn empty_function(
         param_count: 0,
         name: name.into(),
         provenance: tune_bytecode::BytecodeFunctionProvenance::default(),
+        generic_param_count: 0,
         register_count: registers,
         local_count: locals,
         frame: tune_bytecode::function::BytecodeFrameLayout::unknown(0, registers, locals),
@@ -73,6 +74,56 @@ fn rejects_call_arity_mismatch() {
             expected: 1,
             actual: 0,
         })
+    );
+}
+
+#[test]
+fn rejects_generic_arg_arity_mismatch() {
+    let mut entry = empty_function("<entry>", 1, 0);
+    entry
+        .call_sites
+        .push(tune_bytecode::function::BytecodeCallSite {
+            function: 1,
+            args: Vec::new(),
+            type_args: Vec::new(),
+        });
+    entry
+        .instructions
+        .push(tune_bytecode::function::Instruction {
+            opcode: tune_bytecode::Opcode::CallDirect,
+            a: 0,
+            b: 0,
+            c: 0,
+        });
+
+    let mut callee = empty_function("id", 1, 0);
+    callee.generic_param_count = 1;
+    callee
+        .instructions
+        .push(tune_bytecode::function::Instruction {
+            opcode: tune_bytecode::Opcode::Return,
+            a: 0,
+            b: 0,
+            c: 0,
+        });
+
+    let artifact = tune_bytecode::artifact::BytecodeArtifact {
+        entry_function: Some(0),
+        constants: Vec::new(),
+        struct_layouts: Vec::new(),
+        functions: vec![entry, callee],
+    };
+
+    assert_eq!(
+        tune_bytecode::validate_artifact(&artifact),
+        Err(
+            tune_bytecode::BytecodeValidationError::GenericArgArityMismatch {
+                function: 0,
+                target: 1,
+                expected: 1,
+                actual: 0,
+            }
+        )
     );
 }
 

@@ -44,6 +44,7 @@ impl Lowerer {
             member: None,
             callable: None,
             name: "<spawn>".to_owned(),
+            type_params: Vec::new(),
             span,
             params: param_count,
             regs: task.next_reg,

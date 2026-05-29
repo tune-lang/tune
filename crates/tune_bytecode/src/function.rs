@@ -180,6 +180,7 @@ pub enum BytecodeVariant {
 pub struct BytecodeFunction {
     pub name: String,
     pub provenance: BytecodeFunctionProvenance,
+    pub generic_param_count: u32,
     pub param_count: u32,
     pub register_count: u32,
     pub local_count: u32,

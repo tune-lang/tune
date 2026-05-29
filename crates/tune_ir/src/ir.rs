@@ -34,6 +34,7 @@ pub struct IrFunction {
     pub member: Option<MemberId>,
     pub callable: Option<ExprId>,
     pub name: String,
+    pub type_params: Vec<String>,
     pub span: Option<Span>,
     pub params: u32,
     pub regs: u32,

@@ -91,6 +91,7 @@ fn lower_callable_value_function(
         member: None,
         callable: Some(expr.id),
         name: format!("<callable:{}>", expr.id.0),
+        type_params: Vec::new(),
         span: expr.span,
         params: Vec::new(),
         local_params: params

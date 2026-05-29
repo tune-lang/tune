@@ -5,9 +5,9 @@ use tune_hir::module::Module;
 use tune_resolve::ResolvedModule;
 use tune_shape::{MaterializationPlan, Shape};
 
-use super::LowerContext;
 use super::callables::lower_callable_value_functions;
 use super::specialize::infer_direct_call_param_shapes_from_analyses;
+use super::{LowerContext, item_type_param_names};
 use crate::plan::{PlanFunction, PlanModule, PlanOp};
 
 #[must_use]
@@ -36,6 +36,7 @@ pub fn lower_analyzed_module_to_plan(
             member: None,
             callable: None,
             name: "<entry>".to_owned(),
+            type_params: Vec::new(),
             span: module.items.first().and_then(|item| item.span),
             params: Vec::new(),
             local_params: Vec::new(),
@@ -150,6 +151,7 @@ fn lower_module_callable(
             .name
             .clone()
             .unwrap_or_else(|| "<anonymous>".to_owned()),
+        type_params: item_type_param_names(item),
         span: item.span,
         params: item.params.iter().map(|param| param.id).collect(),
         local_params: Vec::new(),
@@ -238,6 +240,7 @@ fn lower_callable_member(
             owner.name.as_deref().unwrap_or("<anonymous>"),
             callable.name.as_deref().unwrap_or("<anonymous>")
         ),
+        type_params: item_type_param_names(owner),
         span: callable.span,
         params: std::iter::once(callable.id)
             .chain(callable.params.iter().map(|param| param.id))
@@ -282,6 +285,7 @@ fn lower_sequence_materializer_member(
         member: Some(materializer.id),
         callable: None,
         name: format!("{}.[items]", owner.name.as_deref().unwrap_or("<anonymous>")),
+        type_params: item_type_param_names(owner),
         span: materializer.span,
         params: vec![materializer.id],
         local_params: Vec::new(),
@@ -324,6 +328,7 @@ fn lower_index_access_member(
         member: Some(access.id),
         callable: None,
         name: format!("{}.[index]", owner.name.as_deref().unwrap_or("<anonymous>")),
+        type_params: item_type_param_names(owner),
         span: access.span,
         params: vec![access.id, access.index_param_id],
         local_params: Vec::new(),

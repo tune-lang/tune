@@ -41,6 +41,42 @@ let result: String = "{int_value}:{string_value}"
     Ok(())
 }
 
+#[test]
+fn executable_preserves_generic_function_arity_metadata() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let id<T>(value: T): T = value
+let result: Int = id(2)
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    let executable = tune.executable_file(file).map_err(|error| {
+        eprintln!("{error:?}");
+        "file should compile"
+    })?;
+    let generic = executable
+        .bytecode
+        .functions
+        .iter()
+        .find(|function| function.name == "id")
+        .ok_or("generic function should lower")?;
+    assert_eq!(generic.generic_param_count, 1);
+    assert!(
+        executable
+            .bytecode
+            .functions
+            .iter()
+            .flat_map(|function| &function.call_sites)
+            .any(|site| site.type_args == vec![tune_shape::Shape::Int])
+    );
+
+    Ok(())
+}
+
 fn run_file(tune: &tune_engine::Tune, file: tune_db::FileId) -> Result<Value, &'static str> {
     tune.run_file(file).map_err(|error| {
         eprintln!("{error:?}");

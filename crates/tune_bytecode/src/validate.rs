@@ -103,6 +103,12 @@ pub enum BytecodeValidationError {
         expected: u32,
         actual: u32,
     },
+    GenericArgArityMismatch {
+        function: u32,
+        target: u32,
+        expected: u32,
+        actual: u32,
+    },
 }
 
 pub fn validate_artifact(artifact: &BytecodeArtifact) -> Result<(), BytecodeValidationError> {
@@ -500,6 +506,22 @@ fn validate_call(
             target: site.function,
             expected: target.param_count,
             actual,
+        });
+    }
+    let type_arg_count = u32::try_from(site.type_args.len()).map_err(|_| {
+        BytecodeValidationError::GenericArgArityMismatch {
+            function: function_id,
+            target: site.function,
+            expected: target.generic_param_count,
+            actual: u32::MAX,
+        }
+    })?;
+    if type_arg_count != target.generic_param_count {
+        return Err(BytecodeValidationError::GenericArgArityMismatch {
+            function: function_id,
+            target: site.function,
+            expected: target.generic_param_count,
+            actual: type_arg_count,
         });
     }
     for arg in &site.args {

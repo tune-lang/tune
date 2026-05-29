@@ -50,6 +50,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
         member: plan.member,
         callable: plan.callable,
         name: plan.name.clone(),
+        type_params: plan.type_params.clone(),
         span: plan.span,
         params: param_count,
         regs: lowerer.next_reg,

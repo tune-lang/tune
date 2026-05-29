@@ -142,6 +142,8 @@ fn lower_ir_function_with_constants(
             span: function.span,
             instruction_spans: lowerer.instruction_spans,
         },
+        generic_param_count: u32::try_from(function.type_params.len())
+            .map_err(|_| BytecodeLowerError::ConstantLimit)?,
         param_count: function.params,
         register_count: function.regs,
         local_count: function.locals,

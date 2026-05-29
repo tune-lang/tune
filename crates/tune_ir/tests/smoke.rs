@@ -57,6 +57,7 @@ fn ir_has_typed_slots_for_core_planned_operations() {
         member: None,
         callable: None,
         name: "run".into(),
+        type_params: Vec::new(),
         span: None,
         regs: 10,
         locals: 0,
@@ -86,6 +87,7 @@ fn lowers_integer_add_plan_to_ir() -> Result<(), &'static str> {
     );
     let plan = tune_plan::PlanFunction {
         name: "main".into(),
+        type_params: Vec::new(),
         span: None,
         owner: None,
         member: None,
@@ -129,6 +131,7 @@ fn lowers_integer_add_plan_to_ir() -> Result<(), &'static str> {
 fn lowers_host_call_plan_to_ir() -> Result<(), &'static str> {
     let plan = tune_plan::PlanFunction {
         name: "main".into(),
+        type_params: Vec::new(),
         span: None,
         owner: None,
         member: None,
@@ -167,6 +170,7 @@ fn lowers_host_call_plan_to_ir() -> Result<(), &'static str> {
 fn rejects_unsupported_match_patterns_without_tests() -> Result<(), &'static str> {
     let plan = tune_plan::PlanFunction {
         name: "main".into(),
+        type_params: Vec::new(),
         span: None,
         owner: None,
         member: None,
@@ -211,6 +215,7 @@ fn rejects_unsupported_match_patterns_without_tests() -> Result<(), &'static str
 fn tuple_pattern_bindings_lower_to_tuple_field_ops() -> Result<(), &'static str> {
     let plan = tune_plan::PlanFunction {
         name: "main".into(),
+        type_params: Vec::new(),
         span: None,
         owner: None,
         member: None,
@@ -273,6 +278,7 @@ fn lowers_local_binding_plan_to_ir_loads_and_stores() -> Result<(), &'static str
         member: None,
         callable: None,
         name: "entry".into(),
+        type_params: Vec::new(),
         span: None,
         params: Vec::new(),
         local_params: Vec::new(),
@@ -331,6 +337,7 @@ fn lowers_struct_state_plan_to_ir() -> Result<(), &'static str> {
         member: None,
         callable: None,
         name: "entry".into(),
+        type_params: Vec::new(),
         span: None,
         params: Vec::new(),
         local_params: Vec::new(),
@@ -378,6 +385,7 @@ fn lowers_direct_call_plan_to_ir_with_param_slots() -> Result<(), &'static str> 
         member: None,
         callable: None,
         name: "id".into(),
+        type_params: Vec::new(),
         span: None,
         params: vec![param],
         local_params: Vec::new(),
@@ -409,6 +417,7 @@ fn lowers_direct_call_plan_to_ir_with_param_slots() -> Result<(), &'static str> 
         member: None,
         callable: None,
         name: "<entry>".into(),
+        type_params: Vec::new(),
         span: None,
         params: Vec::new(),
         local_params: Vec::new(),

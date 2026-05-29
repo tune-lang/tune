@@ -15,6 +15,7 @@ pub struct PlanFunction {
     pub member: Option<MemberId>,
     pub callable: Option<ExprId>,
     pub name: String,
+    pub type_params: Vec<String>,
     pub span: Option<Span>,
     pub params: Vec<MemberId>,
     pub local_params: Vec<LocalId>,

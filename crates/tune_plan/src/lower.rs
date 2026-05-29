@@ -32,6 +32,7 @@ pub fn lower_to_plan(name: &str) -> PlanFunction {
         member: None,
         callable: None,
         name: name.into(),
+        type_params: Vec::new(),
         span: None,
         params: Vec::new(),
         local_params: Vec::new(),
@@ -86,6 +87,7 @@ fn lower_item_with_context(
             .name
             .clone()
             .unwrap_or_else(|| "<anonymous>".to_owned()),
+        type_params: item_type_param_names(item),
         span: item.span,
         params: item.params.iter().map(|param| param.id).collect(),
         local_params: Vec::new(),
@@ -128,6 +130,13 @@ fn lower_item_with_context(
         plan.ops.push(PlanOp::Return);
     }
     Some(plan)
+}
+
+pub(super) fn item_type_param_names(item: &Item) -> Vec<String> {
+    item.type_params
+        .iter()
+        .filter_map(|param| param.name.clone())
+        .collect()
 }
 
 pub(super) fn struct_layouts(module: &Module) -> Vec<PlanStructLayout> {
