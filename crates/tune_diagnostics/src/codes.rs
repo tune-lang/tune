@@ -26,6 +26,7 @@ pub const UNRESOLVED_NAME: DiagnosticCode = DiagnosticCode::new("T0201");
 pub const DUPLICATE_NAME: DiagnosticCode = DiagnosticCode::new("T0202");
 pub const INVALID_ASSIGNMENT_TARGET: DiagnosticCode = DiagnosticCode::new("T0203");
 pub const ASSIGNMENT_SHAPE_MISMATCH: DiagnosticCode = DiagnosticCode::new("T0204");
+pub const IMPORT_NOT_VISIBLE: DiagnosticCode = DiagnosticCode::new("T0205");
 pub const SHAPE_MISMATCH: DiagnosticCode = DiagnosticCode::new("T0301");
 pub const MATERIALIZATION_FAILED: DiagnosticCode = DiagnosticCode::new("T0302");
 pub const NUMERIC_OVERFLOW: DiagnosticCode = DiagnosticCode::new("T0401");

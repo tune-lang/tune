@@ -289,6 +289,10 @@ fn append_selected_imports(
             diagnostics.push(unresolved_import_member(name, span));
             continue;
         };
+        if item.visibility != Visibility::Public {
+            diagnostics.push(private_import_member(name, span, item.span));
+            continue;
+        }
         selected.push(item.id);
     }
 
@@ -340,4 +344,23 @@ fn unresolved_import_member(name: &str, span: Option<Span>) -> Diagnostic {
         "this selector does not name a declaration in the imported source",
     )
     .build()
+}
+
+fn private_import_member(
+    name: &str,
+    span: Option<Span>,
+    declaration_span: Option<Span>,
+) -> Diagnostic {
+    let mut diagnostic = Diagnostic::error(
+        codes::IMPORT_NOT_VISIBLE,
+        format!("import member `{name}` is private"),
+        span.unwrap_or_else(Span::synthetic),
+        "this selector names a private declaration",
+    );
+    if let Some(declaration_span) = declaration_span {
+        diagnostic = diagnostic.with_secondary(declaration_span, "declaration is private here");
+    }
+    diagnostic
+        .with_help("mark the declaration `pub` to import it from another source")
+        .build()
 }
