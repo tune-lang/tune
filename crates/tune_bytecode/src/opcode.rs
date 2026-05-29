@@ -60,6 +60,15 @@ pub enum Opcode {
     ShiftLeftInt = 56,
     ShiftRightInt = 57,
     NoneCheck = 58,
+    SubFloat = 59,
+    MulFloat = 60,
+    DivFloat = 61,
+    GreaterFloat = 62,
+    EqualFloat = 63,
+    NotEqualFloat = 64,
+    LessFloat = 65,
+    LessEqualFloat = 66,
+    GreaterEqualFloat = 67,
 }
 
 impl Opcode {
@@ -123,5 +132,14 @@ impl Opcode {
         Self::ShiftLeftInt,
         Self::ShiftRightInt,
         Self::NoneCheck,
+        Self::SubFloat,
+        Self::MulFloat,
+        Self::DivFloat,
+        Self::GreaterFloat,
+        Self::EqualFloat,
+        Self::NotEqualFloat,
+        Self::LessFloat,
+        Self::LessEqualFloat,
+        Self::GreaterEqualFloat,
     ];
 }

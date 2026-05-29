@@ -108,6 +108,31 @@ impl Vm {
                     write_reg(registers, instruction.a, Value::Float(left + right)),
                 )
             }
+            Opcode::SubFloat | Opcode::MulFloat | Opcode::DivFloat => {
+                let left = self.at(function_index, ip, read_reg(registers, instruction.b))?;
+                let right = self.at(function_index, ip, read_reg(registers, instruction.c))?;
+                let (Value::Float(left), Value::Float(right)) = (left, right) else {
+                    return Err(self.fault_at(
+                        function_index,
+                        ip,
+                        VmError::UnsupportedOpcode(instruction.opcode),
+                    ));
+                };
+                let value = match instruction.opcode {
+                    Opcode::SubFloat => left - right,
+                    Opcode::MulFloat => left * right,
+                    Opcode::DivFloat => left / right,
+                    _ => unreachable!(),
+                };
+                if !value.is_finite() {
+                    return Err(self.fault_at(function_index, ip, VmError::NumericOverflow));
+                }
+                self.at(
+                    function_index,
+                    ip,
+                    write_reg(registers, instruction.a, Value::Float(value)),
+                )
+            }
             Opcode::AddSizeChecked => {
                 let left = self.at(function_index, ip, read_reg(registers, instruction.b))?;
                 let right = self.at(function_index, ip, read_reg(registers, instruction.c))?;

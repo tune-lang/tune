@@ -67,6 +67,11 @@ impl IrOp {
             | Self::NoneCheck { span, .. }
             | Self::GreaterInt { span, .. }
             | Self::CompareInt { span, .. }
+            | Self::SubFloat { span, .. }
+            | Self::MulFloat { span, .. }
+            | Self::DivFloat { span, .. }
+            | Self::GreaterFloat { span, .. }
+            | Self::CompareFloat { span, .. }
             | Self::GetField { span, .. }
             | Self::SetField { span, .. }
             | Self::VariantConstruct { span, .. }
@@ -227,6 +232,38 @@ pub enum IrOp {
         dst: Reg,
         a: Reg,
         b: Reg,
+        span: Option<Span>,
+    },
+    SubFloat {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    MulFloat {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    DivFloat {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    GreaterFloat {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    CompareFloat {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        op: IrIntComparison,
+        span: Option<Span>,
     },
     AddSizeChecked {
         dst: Reg,

@@ -21,7 +21,7 @@ use crate::provenance::BytecodeFunctionProvenance;
 use tune_hir::{HirId, MemberId};
 use tune_ir::{IrFunction, IrOp};
 
-use self::compare::lower_int_comparison;
+use self::compare::{lower_float_comparison, lower_int_comparison};
 pub(crate) use self::context::FunctionLowerer;
 use self::control::FiniteForNextLowering;
 pub use self::error::BytecodeLowerError;
@@ -225,8 +225,20 @@ impl FunctionLowerer<'_> {
                 self.push_instruction(Opcode::ShiftRightInt, dst.0, a.0, b.0);
                 Ok(())
             }
-            IrOp::AddFloat { dst, a, b } => {
+            IrOp::AddFloat { dst, a, b, .. } => {
                 self.push_instruction(Opcode::AddFloat, dst.0, a.0, b.0);
+                Ok(())
+            }
+            IrOp::SubFloat { dst, a, b, .. } => {
+                self.push_instruction(Opcode::SubFloat, dst.0, a.0, b.0);
+                Ok(())
+            }
+            IrOp::MulFloat { dst, a, b, .. } => {
+                self.push_instruction(Opcode::MulFloat, dst.0, a.0, b.0);
+                Ok(())
+            }
+            IrOp::DivFloat { dst, a, b, .. } => {
+                self.push_instruction(Opcode::DivFloat, dst.0, a.0, b.0);
                 Ok(())
             }
             IrOp::AddSizeChecked { dst, a, b, .. } => {
@@ -310,8 +322,16 @@ impl FunctionLowerer<'_> {
                 self.push_instruction(Opcode::GreaterInt, dst.0, a.0, b.0);
                 Ok(())
             }
+            IrOp::GreaterFloat { dst, a, b, .. } => {
+                self.push_instruction(Opcode::GreaterFloat, dst.0, a.0, b.0);
+                Ok(())
+            }
             IrOp::CompareInt { dst, a, b, op, .. } => {
                 self.push_instruction(lower_int_comparison(*op), dst.0, a.0, b.0);
+                Ok(())
+            }
+            IrOp::CompareFloat { dst, a, b, op, .. } => {
+                self.push_instruction(lower_float_comparison(*op), dst.0, a.0, b.0);
                 Ok(())
             }
             IrOp::Move { dst, src } => {

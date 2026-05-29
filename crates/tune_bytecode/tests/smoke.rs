@@ -6,7 +6,7 @@ fn smoke() {
 
 #[test]
 fn core_opcodes_reserve_dense_bytecode_slots() -> Result<(), &'static str> {
-    assert_eq!(tune_bytecode::Opcode::ALL.len(), 59);
+    assert_eq!(tune_bytecode::Opcode::ALL.len(), 68);
     for (index, opcode) in tune_bytecode::Opcode::ALL.iter().enumerate() {
         let expected = u8::try_from(index).map_err(|_| "opcode index overflow")?;
         assert_eq!(*opcode as u8, expected);
@@ -42,6 +42,15 @@ fn core_opcodes_reserve_dense_bytecode_slots() -> Result<(), &'static str> {
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::ShiftLeftInt));
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::ShiftRightInt));
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::NoneCheck));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::SubFloat));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::MulFloat));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::DivFloat));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::GreaterFloat));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::EqualFloat));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::NotEqualFloat));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::LessFloat));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::LessEqualFloat));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::GreaterEqualFloat));
 
     Ok(())
 }

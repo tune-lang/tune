@@ -219,6 +219,9 @@ impl Vm {
                 | Opcode::ShiftLeftInt
                 | Opcode::ShiftRightInt
                 | Opcode::AddFloat
+                | Opcode::SubFloat
+                | Opcode::MulFloat
+                | Opcode::DivFloat
                 | Opcode::AddSizeChecked
                 | Opcode::AddByteWrap => {
                     self.execute_add(function_index, ip, &mut registers, instruction)?;
@@ -258,6 +261,14 @@ impl Vm {
                 | Opcode::LessEqualInt
                 | Opcode::GreaterEqualInt => {
                     self.execute_int_comparison(function_index, ip, &mut registers, instruction)?;
+                }
+                Opcode::GreaterFloat
+                | Opcode::EqualFloat
+                | Opcode::NotEqualFloat
+                | Opcode::LessFloat
+                | Opcode::LessEqualFloat
+                | Opcode::GreaterEqualFloat => {
+                    self.execute_float_comparison(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::CallDirect => {
                     let call_site =

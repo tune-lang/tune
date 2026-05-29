@@ -180,6 +180,9 @@ fn validate_instruction(
         | Opcode::ShiftLeftInt
         | Opcode::ShiftRightInt
         | Opcode::AddFloat
+        | Opcode::SubFloat
+        | Opcode::MulFloat
+        | Opcode::DivFloat
         | Opcode::AddSizeChecked
         | Opcode::AddByteWrap
         | Opcode::RangeExclusiveInt
@@ -189,7 +192,13 @@ fn validate_instruction(
         | Opcode::NotEqualInt
         | Opcode::LessInt
         | Opcode::LessEqualInt
-        | Opcode::GreaterEqualInt => {
+        | Opcode::GreaterEqualInt
+        | Opcode::GreaterFloat
+        | Opcode::EqualFloat
+        | Opcode::NotEqualFloat
+        | Opcode::LessFloat
+        | Opcode::LessEqualFloat
+        | Opcode::GreaterEqualFloat => {
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
             register(function_id, function, instruction.c)?;

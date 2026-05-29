@@ -43,6 +43,11 @@ impl Analyzer<'_> {
             BinaryOp::Add if Shape::Float.accepts(&lhs) && Shape::Float.accepts(&rhs) => {
                 Shape::Float
             }
+            BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div
+                if Shape::Float.accepts(&lhs) && Shape::Float.accepts(&rhs) =>
+            {
+                Shape::Float
+            }
             BinaryOp::Add if Shape::Size.accepts(&lhs) && Shape::Size.accepts(&rhs) => Shape::Size,
             BinaryOp::Add if Shape::Byte.accepts(&lhs) && Shape::Byte.accepts(&rhs) => Shape::Byte,
             BinaryOp::RangeExclusive | BinaryOp::RangeInclusive
@@ -67,6 +72,16 @@ impl Analyzer<'_> {
             | BinaryOp::Greater
             | BinaryOp::GreaterEqual
                 if Shape::Int.accepts(&lhs) && Shape::Int.accepts(&rhs) =>
+            {
+                Shape::Bool
+            }
+            BinaryOp::Equal
+            | BinaryOp::NotEqual
+            | BinaryOp::Less
+            | BinaryOp::LessEqual
+            | BinaryOp::Greater
+            | BinaryOp::GreaterEqual
+                if Shape::Float.accepts(&lhs) && Shape::Float.accepts(&rhs) =>
             {
                 Shape::Bool
             }

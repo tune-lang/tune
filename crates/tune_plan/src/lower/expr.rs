@@ -171,7 +171,11 @@ impl LowerContext<'_> {
                         span: expr.span,
                     });
                 } else {
-                    let shape = self.expr_shape(expr).unwrap_or(Shape::Hole);
+                    let shape = if is_comparison_op(*op) {
+                        self.expr_shape(lhs).unwrap_or(Shape::Hole)
+                    } else {
+                        self.expr_shape(expr).unwrap_or(Shape::Hole)
+                    };
                     if matches!(op, BinaryOp::Add) {
                         self.lower_expr_for_shape(lhs, Some(shape.clone()), ops);
                         self.lower_expr_for_shape(rhs, Some(shape.clone()), ops);
@@ -390,6 +394,18 @@ fn none_check_operand<'a>(op: BinaryOp, lhs: &'a Expr, rhs: &'a Expr) -> Option<
         BinaryOp::NotEqual if is_none_literal(lhs) => Some((rhs, true)),
         _ => None,
     }
+}
+
+fn is_comparison_op(op: BinaryOp) -> bool {
+    matches!(
+        op,
+        BinaryOp::Equal
+            | BinaryOp::NotEqual
+            | BinaryOp::Less
+            | BinaryOp::LessEqual
+            | BinaryOp::Greater
+            | BinaryOp::GreaterEqual
+    )
 }
 
 fn is_none_literal(expr: &Expr) -> bool {
