@@ -17,6 +17,24 @@ pub struct BytecodeCallSite {
     pub type_args: Vec<Shape>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BytecodeFrameLayout {
+    pub params: Vec<Shape>,
+    pub locals: Vec<Shape>,
+    pub registers: Vec<Shape>,
+}
+
+impl BytecodeFrameLayout {
+    #[must_use]
+    pub fn unknown(param_count: u32, register_count: u32, local_count: u32) -> Self {
+        Self {
+            params: vec![Shape::Hole; param_count as usize],
+            locals: vec![Shape::Hole; local_count as usize],
+            registers: vec![Shape::Hole; register_count as usize],
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct BytecodeBoundCallSite {
     pub args: Vec<u32>,
@@ -152,6 +170,7 @@ pub struct BytecodeFunction {
     pub param_count: u32,
     pub register_count: u32,
     pub local_count: u32,
+    pub frame: BytecodeFrameLayout,
     pub call_sites: Vec<BytecodeCallSite>,
     pub bound_call_sites: Vec<BytecodeBoundCallSite>,
     pub callable_sites: Vec<BytecodeCallableSite>,

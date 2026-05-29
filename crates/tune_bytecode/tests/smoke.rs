@@ -125,6 +125,14 @@ fn lowers_typed_local_ir_to_bytecode() -> Result<(), &'static str> {
 
     assert_eq!(artifact.functions[0].local_count, 1);
     assert_eq!(
+        artifact.functions[0].frame.locals,
+        vec![tune_shape::Shape::Int]
+    );
+    assert_eq!(
+        artifact.functions[0].frame.registers,
+        vec![tune_shape::Shape::Int, tune_shape::Shape::Int]
+    );
+    assert_eq!(
         artifact.functions[0].instructions[1].opcode,
         tune_bytecode::Opcode::StoreLocal
     );
@@ -345,6 +353,7 @@ fn validation_rejects_call_arity_mismatch() {
                 provenance: tune_bytecode::BytecodeFunctionProvenance::default(),
                 register_count: 1,
                 local_count: 0,
+                frame: tune_bytecode::function::BytecodeFrameLayout::unknown(0, 1, 0),
                 call_sites: vec![tune_bytecode::function::BytecodeCallSite {
                     function: 1,
                     args: Vec::new(),
@@ -374,6 +383,7 @@ fn validation_rejects_call_arity_mismatch() {
                 provenance: tune_bytecode::BytecodeFunctionProvenance::default(),
                 register_count: 1,
                 local_count: 1,
+                frame: tune_bytecode::function::BytecodeFrameLayout::unknown(1, 1, 1),
                 call_sites: Vec::new(),
                 bound_call_sites: Vec::new(),
                 callable_sites: Vec::new(),
@@ -418,6 +428,7 @@ fn validation_rejects_register_out_of_bounds() {
             provenance: tune_bytecode::BytecodeFunctionProvenance::default(),
             register_count: 1,
             local_count: 0,
+            frame: tune_bytecode::function::BytecodeFrameLayout::unknown(0, 1, 0),
             call_sites: Vec::new(),
             bound_call_sites: Vec::new(),
             callable_sites: Vec::new(),
@@ -461,6 +472,7 @@ fn validation_rejects_unknown_field_index() {
             provenance: tune_bytecode::BytecodeFunctionProvenance::default(),
             register_count: 2,
             local_count: 0,
+            frame: tune_bytecode::function::BytecodeFrameLayout::unknown(0, 2, 0),
             call_sites: Vec::new(),
             bound_call_sites: Vec::new(),
             callable_sites: Vec::new(),

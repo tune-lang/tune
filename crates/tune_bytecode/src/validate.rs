@@ -80,6 +80,9 @@ pub enum BytecodeValidationError {
         instructions: u32,
         spans: u32,
     },
+    FrameLayoutMismatch {
+        function: u32,
+    },
     CallArityMismatch {
         function: u32,
         target: u32,
@@ -109,6 +112,14 @@ fn validate_function(
 ) -> Result<(), BytecodeValidationError> {
     if function.param_count > function.local_count {
         return Err(BytecodeValidationError::ParamCountExceedsLocals {
+            function: function_id,
+        });
+    }
+    if function.frame.params.len() != function.param_count as usize
+        || function.frame.locals.len() != function.local_count as usize
+        || function.frame.registers.len() != function.register_count as usize
+    {
+        return Err(BytecodeValidationError::FrameLayoutMismatch {
             function: function_id,
         });
     }

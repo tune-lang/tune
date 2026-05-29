@@ -5,6 +5,7 @@ mod compare;
 mod context;
 mod control;
 mod error;
+mod frame;
 mod numeric;
 mod string;
 
@@ -122,6 +123,7 @@ fn lower_ir_function_with_constants(
         param_count: function.params,
         register_count: function.regs,
         local_count: function.locals,
+        frame: frame::infer_frame_layout(function),
         call_sites: lowerer.call_sites,
         bound_call_sites: lowerer.bound_call_sites,
         callable_sites: lowerer.callable_sites,
