@@ -11,5 +11,6 @@ workspace = true
 
 [dependencies]
 tune_bytecode = { path = "../tune_bytecode" }
-tune_runtime = { path = "../tune_runtime" }
 tune_diagnostics = { path = "../tune_diagnostics" }
+tune_host = { path = "../tune_host" }
+tune_runtime = { path = "../tune_runtime" }

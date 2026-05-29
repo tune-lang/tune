@@ -294,6 +294,7 @@ version = "0.1.0"
 dependencies = [
  "tune_bytecode",
  "tune_diagnostics",
+ "tune_host",
  "tune_runtime",
 ]
 

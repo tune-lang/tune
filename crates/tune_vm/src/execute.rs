@@ -321,6 +321,39 @@ impl Vm {
                         write_reg(&mut registers, instruction.a, value),
                     )?;
                 }
+                Opcode::CallHost => {
+                    let site = function
+                        .host_call_sites
+                        .get(instruction.b as usize)
+                        .ok_or_else(|| {
+                            self.fault_at(function_index, ip, VmError::CallSiteOutOfBounds)
+                        })?;
+                    let executor =
+                        self.host_executors
+                            .get(site.symbol as usize)
+                            .ok_or_else(|| {
+                                self.fault_at(function_index, ip, VmError::HostSymbolOutOfBounds)
+                            })?;
+                    let args = site
+                        .args
+                        .iter()
+                        .map(|arg| self.at(function_index, ip, read_reg(&registers, *arg)))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let value = executor.call(&args).map_err(|error| {
+                        self.fault_at(
+                            function_index,
+                            ip,
+                            VmError::HostCallFailed {
+                                message: error.message,
+                            },
+                        )
+                    })?;
+                    self.at(
+                        function_index,
+                        ip,
+                        write_reg(&mut registers, instruction.a, value),
+                    )?;
+                }
                 Opcode::VariantConstruct => {
                     self.execute_variant_construct(
                         function_index,

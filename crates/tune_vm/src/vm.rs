@@ -11,6 +11,7 @@ use crate::{VmError, VmFault};
 pub struct Vm {
     pub artifact: BytecodeArtifact,
     pub task_execution: TaskExecutionMode,
+    pub(crate) host_executors: Vec<tune_host::HostExecutor>,
     pub(crate) next_state_id: Cell<u64>,
     pub(crate) tasks: RefCell<Vec<VmTask>>,
 }
@@ -41,6 +42,7 @@ impl Vm {
         Self {
             artifact,
             task_execution: TaskExecutionMode::DeferredUntilJoin,
+            host_executors: Vec::new(),
             next_state_id: Cell::new(0),
             tasks: RefCell::new(Vec::new()),
         }
@@ -49,6 +51,12 @@ impl Vm {
     #[must_use]
     pub fn with_task_execution(mut self, mode: TaskExecutionMode) -> Self {
         self.task_execution = mode;
+        self
+    }
+
+    #[must_use]
+    pub fn with_host_executors(mut self, executors: Vec<tune_host::HostExecutor>) -> Self {
+        self.host_executors = executors;
         self
     }
 
