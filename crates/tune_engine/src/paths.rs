@@ -5,6 +5,14 @@ use tune_runtime::value::Value;
 use crate::{CheckReport, CompileReport, EngineError, ExecutableReport, ProfileReport, Tune};
 
 impl Tune {
+    pub fn profile_frontend_path(
+        &mut self,
+        path: impl AsRef<Path>,
+    ) -> Result<ProfileReport, EngineError> {
+        let file = self.add_path(path)?;
+        self.profile_file_frontend(file)
+    }
+
     pub fn check_path(&mut self, path: impl AsRef<Path>) -> Result<CheckReport, EngineError> {
         let file = self.add_path(path)?;
         self.check_file(file).ok_or(EngineError::FileNotFound(file))
