@@ -107,10 +107,22 @@ impl Tune {
         let mut timings = Vec::new();
         let (check, duration) = timed(|| self.check_project_entry(entry));
         timings.push(stage("project-check", duration));
-        finish_profile(check?, timings)
+        finish_profile(check?, timings, ProfileScope::Full)
+    }
+
+    pub fn profile_file_frontend(&self, file: FileId) -> Result<ProfileReport, EngineError> {
+        self.profile_file_with_scope(file, ProfileScope::Frontend)
     }
 
     pub fn profile_file(&self, file: FileId) -> Result<ProfileReport, EngineError> {
+        self.profile_file_with_scope(file, ProfileScope::Full)
+    }
+
+    fn profile_file_with_scope(
+        &self,
+        file: FileId,
+        scope: ProfileScope,
+    ) -> Result<ProfileReport, EngineError> {
         let source = self
             .db()
             .source(file)
@@ -150,6 +162,7 @@ impl Tune {
                 shape,
             },
             timings,
+            scope,
         )
     }
 }
@@ -157,6 +170,7 @@ impl Tune {
 fn finish_profile(
     check: CheckReport,
     mut timings: Vec<StageTiming>,
+    scope: ProfileScope,
 ) -> Result<ProfileReport, EngineError> {
     let (module_plan, duration) = timed(|| {
         tune_plan::lower_analyzed_module_to_plan(&check.module, &check.resolved, &check.shape)
@@ -231,6 +245,19 @@ fn finish_profile(
     let (optimizer_quality, duration) = timed(|| optimizer_quality(&mut ir.clone()));
     timings.push(stage("opt", duration));
 
+    if scope == ProfileScope::Frontend {
+        return Ok(ProfileReport {
+            file: check.file,
+            diagnostics: check.diagnostics,
+            timings,
+            plan: plan_quality,
+            ir: ir_quality,
+            optimizer: optimizer_quality,
+            bytecode: BytecodeQuality::default(),
+            stop_reason: Some("frontend profiling skipped bytecode".to_owned()),
+        });
+    }
+
     let (bytecode_result, duration) = timed(|| tune_bytecode::lower_ir_functions(&ir));
     timings.push(stage("bytecode", duration));
     let mut bytecode = match bytecode_result {
@@ -267,6 +294,12 @@ fn finish_profile(
         bytecode: bytecode_quality,
         stop_reason,
     })
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProfileScope {
+    Frontend,
+    Full,
 }
 
 fn timed<T>(f: impl FnOnce() -> T) -> (T, Duration) {
