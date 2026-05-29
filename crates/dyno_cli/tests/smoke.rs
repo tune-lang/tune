@@ -5,6 +5,11 @@ fn smoke() {
 }
 
 #[test]
+fn package_exposes_dyno_binary() {
+    assert!(option_env!("CARGO_BIN_EXE_dyno").is_some());
+}
+
+#[test]
 fn renders_engine_diagnostics_with_shared_renderer() {
     let span = tune_diagnostics::Span::new(
         tune_diagnostics::FileId(0),
