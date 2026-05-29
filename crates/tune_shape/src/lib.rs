@@ -22,7 +22,7 @@ pub use hir::{
     lower_resolved_hir_shape,
 };
 pub use literal::LiteralFact;
-pub use materialize::{Commitment, MaterializationPlan, can_materialize};
+pub use materialize::{Commitment, ExprMaterialization, MaterializationPlan, can_materialize};
 pub use shape::{
     MemberRequirement, NominalShape, Shape, ShapeFact, ShapeId, ShapeOrigin, ShapeStore,
 };

@@ -19,7 +19,8 @@ use tune_hir::{ExprId, MemberId};
 use tune_resolve::{ResolvedModule, VariantId};
 
 use crate::{
-    BindingKey, BindingState, Shape, StateFrame, expr_literal_fact, lower_resolved_hir_shape,
+    BindingKey, BindingState, ExprMaterialization, Shape, StateFrame, expr_literal_fact,
+    lower_resolved_hir_shape,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -115,6 +116,7 @@ pub struct ShapeAnalysis {
     pub finite_for: Vec<FiniteForCheck>,
     pub spawn: Vec<SpawnCheck>,
     pub materializers: Vec<MaterializerCheck>,
+    pub materializations: Vec<ExprMaterialization>,
     pub diagnostics: Vec<Diagnostic>,
 }
 
@@ -131,6 +133,7 @@ pub fn analyze_item(module: &Module, resolved: &ResolvedModule, item: &Item) -> 
         finite_for: Vec::new(),
         spawn: Vec::new(),
         materializers: Vec::new(),
+        materializations: Vec::new(),
         diagnostics: Vec::new(),
         inferred_signature: None,
         expected_stack: Vec::new(),
@@ -184,6 +187,7 @@ struct Analyzer<'a> {
     finite_for: Vec<FiniteForCheck>,
     spawn: Vec<SpawnCheck>,
     materializers: Vec<MaterializerCheck>,
+    materializations: Vec<ExprMaterialization>,
     diagnostics: Vec<Diagnostic>,
     inferred_signature: Option<CallSignature>,
     expected_stack: Vec<Shape>,
@@ -201,6 +205,7 @@ impl Analyzer<'_> {
             finite_for: self.finite_for,
             spawn: self.spawn,
             materializers: self.materializers,
+            materializations: self.materializations,
             diagnostics: self.diagnostics,
         }
     }

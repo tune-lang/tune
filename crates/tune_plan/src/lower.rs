@@ -4,6 +4,7 @@ mod callables;
 mod calls;
 mod captures;
 mod expr;
+mod materialization;
 mod members;
 mod module;
 mod patterns;

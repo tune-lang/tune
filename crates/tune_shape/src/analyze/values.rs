@@ -1,7 +1,9 @@
 use tune_hir::expr::{Expr, ExprKind, UnaryOp};
 
 use super::Analyzer;
-use crate::{Shape, expr_literal_fact};
+use crate::{
+    Commitment, ExprMaterialization, MaterializationPlan, Shape, can_materialize, expr_literal_fact,
+};
 
 impl Analyzer<'_> {
     pub(super) fn literal_or_sequence_shape(&mut self, expr: &Expr) -> Shape {
@@ -18,9 +20,18 @@ impl Analyzer<'_> {
         };
         if literal.is_numeric()
             && let Some(expected) = self.expected_shape()
-            && expected.accepts(&Shape::Literal(literal.clone()))
+            && can_materialize(&literal, expected)
         {
-            return expected.clone();
+            let target = expected.clone();
+            self.materializations.push(ExprMaterialization {
+                expr: expr.id,
+                plan: MaterializationPlan {
+                    target: target.clone(),
+                    commitment: Commitment::PerUse,
+                },
+                span: expr.span,
+            });
+            return target;
         }
         Shape::Literal(literal)
     }

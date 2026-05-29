@@ -1,3 +1,6 @@
+use tune_diagnostics::Span;
+use tune_hir::ExprId;
+
 use crate::{LiteralFact, Shape};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -10,6 +13,13 @@ pub enum Commitment {
 pub struct MaterializationPlan {
     pub target: Shape,
     pub commitment: Commitment,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExprMaterialization {
+    pub expr: ExprId,
+    pub plan: MaterializationPlan,
+    pub span: Option<Span>,
 }
 
 #[must_use]

@@ -116,3 +116,28 @@ let values = [1, 2, 3]
 
     Ok(())
 }
+
+#[test]
+fn analysis_records_expression_materialization_target() -> Result<(), &'static str> {
+    let source = "let result: Size = 3";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analyses = tune_shape::analyze_module(&module, &resolved);
+    let body = module.items[0].body.as_ref().ok_or("expected body")?;
+
+    assert!(analyses[0].diagnostics.is_empty());
+    assert_eq!(
+        analyses[0].materializations,
+        vec![tune_shape::ExprMaterialization {
+            expr: body.id,
+            plan: tune_shape::MaterializationPlan {
+                target: tune_shape::Shape::Size,
+                commitment: tune_shape::Commitment::PerUse,
+            },
+            span: body.span,
+        }]
+    );
+
+    Ok(())
+}

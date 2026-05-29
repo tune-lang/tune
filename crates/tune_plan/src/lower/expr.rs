@@ -18,10 +18,14 @@ impl LowerContext<'_> {
                 });
             }
             ExprKind::Literal(LiteralKind::Int(text)) => {
-                self.lower_numeric_literal(text, None, ops);
+                if !self.lower_materialized_numeric_expr(expr, ops) {
+                    self.lower_numeric_literal(text, None, ops);
+                }
             }
             ExprKind::Literal(LiteralKind::Float(text)) => {
-                self.lower_numeric_literal(text, Some(&Shape::Float), ops);
+                if !self.lower_materialized_numeric_expr(expr, ops) {
+                    self.lower_numeric_literal(text, Some(&Shape::Float), ops);
+                }
             }
             ExprKind::Literal(LiteralKind::Bool(value)) => {
                 ops.push(PlanOp::ConstBool { value: *value });
@@ -331,9 +335,11 @@ impl LowerContext<'_> {
         shape: Option<&tune_hir::shape::ShapeExpr>,
         ops: &mut Vec<PlanOp>,
     ) {
+        if self.lower_materialized_numeric_expr(expr, ops) {
+            return;
+        }
         if let Some(target) = self.lower_shape(shape)
-            && let ExprKind::Literal(LiteralKind::Int(text) | LiteralKind::Float(text)) = &expr.kind
-            && self.lower_numeric_literal(text, Some(&target), ops)
+            && self.lower_numeric_expr_for_target(expr, &target, ops)
         {
             return;
         }
@@ -346,53 +352,15 @@ impl LowerContext<'_> {
         shape: Option<Shape>,
         ops: &mut Vec<PlanOp>,
     ) {
+        if self.lower_materialized_numeric_expr(expr, ops) {
+            return;
+        }
         if let Some(target) = shape.as_ref()
-            && let ExprKind::Literal(LiteralKind::Int(text) | LiteralKind::Float(text)) = &expr.kind
-            && self.lower_numeric_literal(text, Some(target), ops)
+            && self.lower_numeric_expr_for_target(expr, target, ops)
         {
             return;
         }
         self.lower_expr(expr, ops);
-    }
-
-    fn lower_numeric_literal(
-        &self,
-        text: &str,
-        expected: Option<&Shape>,
-        ops: &mut Vec<PlanOp>,
-    ) -> bool {
-        match expected {
-            Some(Shape::Float) => parse_float(text).is_some_and(|value| {
-                ops.push(PlanOp::ConstFloat {
-                    bits: value.to_bits(),
-                });
-                true
-            }),
-            Some(Shape::Size) => parse_unsigned(text).is_some_and(|value| {
-                if let Ok(value) = u64::try_from(value) {
-                    ops.push(PlanOp::ConstSize { value });
-                    true
-                } else {
-                    false
-                }
-            }),
-            Some(Shape::Byte) => parse_unsigned(text).is_some_and(|value| {
-                if let Ok(value) = u8::try_from(value) {
-                    ops.push(PlanOp::ConstByte { value });
-                    true
-                } else {
-                    false
-                }
-            }),
-            _ => {
-                if let Ok(value) = text.replace('_', "").parse::<i64>() {
-                    ops.push(PlanOp::ConstInt { value });
-                    true
-                } else {
-                    false
-                }
-            }
-        }
     }
 }
 
@@ -438,15 +406,4 @@ fn is_contextual_bit_op(op: BinaryOp) -> bool {
 
 fn is_none_literal(expr: &Expr) -> bool {
     matches!(expr.kind, ExprKind::Literal(LiteralKind::None))
-}
-
-fn parse_unsigned(text: &str) -> Option<u128> {
-    text.replace('_', "").parse::<u128>().ok()
-}
-
-fn parse_float(text: &str) -> Option<f64> {
-    text.replace('_', "")
-        .parse::<f64>()
-        .ok()
-        .filter(|value| value.is_finite())
 }
