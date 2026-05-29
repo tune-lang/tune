@@ -82,6 +82,23 @@ let bare_set: Set = none
 }
 
 #[test]
+fn resolved_hir_shape_normalizes_empty_product_to_unit() -> Result<(), &'static str> {
+    let source = "let result: () = none";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let shape = module.items[0]
+        .shape
+        .as_ref()
+        .ok_or("shape annotation should lower")?;
+    let lowered = tune_shape::lower_resolved_hir_shape(shape, &resolved.scope);
+
+    assert_eq!(lowered.shape, tune_shape::Shape::Unit);
+
+    Ok(())
+}
+
+#[test]
 fn resolved_hir_shape_lowers_bare_user_generics_to_holey_apply() -> Result<(), &'static str> {
     let source = r#"
 struct Box<T> {

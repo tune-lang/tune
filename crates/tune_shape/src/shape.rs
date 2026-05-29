@@ -139,6 +139,15 @@ pub enum Shape {
 
 impl Shape {
     #[must_use]
+    pub fn product(items: Vec<Self>) -> Self {
+        match items.as_slice() {
+            [] => Self::Unit,
+            [item] => item.clone(),
+            _ => Self::Tuple(items),
+        }
+    }
+
+    #[must_use]
     pub const fn nominal(&self) -> Option<&NominalShape> {
         match self {
             Self::Struct(nominal) | Self::Enum(nominal) | Self::Apply { nominal, .. } => {

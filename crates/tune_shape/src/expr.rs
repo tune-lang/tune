@@ -211,7 +211,7 @@ fn lower_declared_shape(expr: &ShapeExpr, item: &Item, module: &Module) -> Shape
         ShapeExprKind::Sequence(element) => {
             Shape::Sequence(Box::new(lower_declared_shape(element, item, module)))
         }
-        ShapeExprKind::Tuple(items) => Shape::Tuple(
+        ShapeExprKind::Tuple(items) => Shape::product(
             items
                 .iter()
                 .map(|item_shape| lower_declared_shape(item_shape, item, module))

@@ -7,6 +7,7 @@ pub enum StdCoreShape {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum StdCoreFunction {
+    Print,
     Some,
     None,
 }
@@ -21,7 +22,11 @@ pub struct StdCoreRegistry {
 pub fn stdcore() -> StdCoreRegistry {
     StdCoreRegistry {
         shapes: vec![StdCoreShape::Result, StdCoreShape::Map, StdCoreShape::Set],
-        functions: vec![StdCoreFunction::Some, StdCoreFunction::None],
+        functions: vec![
+            StdCoreFunction::Print,
+            StdCoreFunction::Some,
+            StdCoreFunction::None,
+        ],
     }
 }
 

@@ -345,6 +345,34 @@ let value: Result<Int, String> = int("42")
 }
 
 #[test]
+fn engine_exposes_stdcore_print_without_import() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new().with_std();
+    let file = tune
+        .add_file(
+            "main.tn",
+            r#"
+let result: () = print("hello")
+"#,
+        )
+        .ok_or("source should allocate")?;
+
+    let executable = tune.executable_file(file).map_err(|error| {
+        eprintln!("{error:?}");
+        "stdcore print should compile through the normal pipeline"
+    })?;
+
+    assert!(
+        executable
+            .bytecode
+            .functions
+            .iter()
+            .any(|function| !function.host_call_sites.is_empty())
+    );
+
+    Ok(())
+}
+
+#[test]
 fn vm_faults_convert_to_structured_diagnostics() {
     let span = tune_diagnostics::Span::new(
         tune_diagnostics::FileId(3),

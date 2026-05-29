@@ -29,7 +29,7 @@ pub(super) fn lower_item_shape_expr(shape: &ShapeExpr, item: &Item, scope: &Scop
                 diagnostics: lowered.diagnostics,
             }
         }
-        ShapeExprKind::Tuple(items) => lower_many_item_shapes(items, item, scope, Shape::Tuple),
+        ShapeExprKind::Tuple(items) => lower_many_item_shapes(items, item, scope, Shape::product),
         ShapeExprKind::Optional(inner) => {
             let lowered = lower_item_shape_expr(inner, item, scope);
             LoweredShape {

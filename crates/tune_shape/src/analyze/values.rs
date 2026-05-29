@@ -13,7 +13,7 @@ impl Analyzer<'_> {
             }
         }
         if let ExprKind::Tuple(items) = &expr.kind {
-            return Shape::Tuple(items.iter().map(|item| self.analyze_expr(item)).collect());
+            return Shape::product(items.iter().map(|item| self.analyze_expr(item)).collect());
         }
         let Some(literal) = expr_literal_fact(expr) else {
             return Shape::Hole;

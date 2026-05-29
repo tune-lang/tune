@@ -45,7 +45,7 @@ pub fn lower_hir_shape(expr: &ShapeExpr) -> Shape {
             generic_shape(name, args.iter().map(lower_hir_shape).collect())
         }
         ShapeExprKind::Sequence(element) => Shape::Sequence(Box::new(lower_hir_shape(element))),
-        ShapeExprKind::Tuple(items) => Shape::Tuple(items.iter().map(lower_hir_shape).collect()),
+        ShapeExprKind::Tuple(items) => Shape::product(items.iter().map(lower_hir_shape).collect()),
         ShapeExprKind::Optional(inner) => Shape::Optional(Box::new(lower_hir_shape(inner))),
         ShapeExprKind::Union(items) => Shape::Union(items.iter().map(lower_hir_shape).collect()),
         ShapeExprKind::Structural(requirements) => Shape::Structural(
@@ -89,7 +89,7 @@ pub fn lower_resolved_hir_shape(expr: &ShapeExpr, scope: &Scope) -> LoweredShape
                 diagnostics: lowered.diagnostics,
             }
         }
-        ShapeExprKind::Tuple(items) => lower_many(items, scope, Shape::Tuple),
+        ShapeExprKind::Tuple(items) => lower_many(items, scope, Shape::product),
         ShapeExprKind::Optional(inner) => {
             let lowered = lower_resolved_hir_shape(inner, scope);
             LoweredShape {

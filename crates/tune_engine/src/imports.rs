@@ -76,12 +76,27 @@ pub(crate) fn link_entry_imports(
             &mut diagnostics,
         );
     }
+    append_stdcore_prelude(&mut module, hosts);
 
     Some(LinkedModule {
         parsed,
         module,
         diagnostics,
     })
+}
+
+fn append_stdcore_prelude(module: &mut Module, hosts: &HostRegistry) {
+    if module
+        .items
+        .iter()
+        .any(|item| item.name.as_deref() == Some("print"))
+    {
+        return;
+    }
+    let Some((symbol, function)) = hosts.function("io", "print") else {
+        return;
+    };
+    append_host_item(module, symbol, function, None);
 }
 
 fn append_host_imports(

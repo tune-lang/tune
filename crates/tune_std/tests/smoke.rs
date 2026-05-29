@@ -23,6 +23,11 @@ fn stdcore_registry_includes_auto_included_core_shapes() {
             .shapes
             .contains(&tune_std::prelude::StdCoreShape::Set)
     );
+    assert!(
+        registry
+            .functions
+            .contains(&tune_std::prelude::StdCoreFunction::Print)
+    );
 }
 
 #[test]
