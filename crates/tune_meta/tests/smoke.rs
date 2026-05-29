@@ -49,11 +49,15 @@ let run(): String = "ok"
     let resolved = tune_resolve::resolve_module(&module);
     let facts = tune_meta::facts::from_compiler_facts(module.items[1].id, &resolved.facts);
 
-    assert!(facts.facts.iter().any(|fact| {
-        matches!(fact, tune_meta::facts::DeclFact::Name(name) if name == "run")
-    }));
-    assert!(facts
-        .facts
-        .iter()
-        .any(|fact| matches!(fact, tune_meta::facts::DeclFact::JsonInvoker)));
+    assert!(
+        facts.facts.iter().any(|fact| {
+            matches!(fact, tune_meta::facts::DeclFact::Name(name) if name == "run")
+        })
+    );
+    assert!(
+        facts
+            .facts
+            .iter()
+            .any(|fact| matches!(fact, tune_meta::facts::DeclFact::JsonInvoker))
+    );
 }

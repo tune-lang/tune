@@ -27,19 +27,14 @@ pub struct DeclFacts {
 }
 
 #[must_use]
-pub fn from_compiler_facts(
-    decl_id: HirId,
-    facts: &[tune_resolve::CompilerFact],
-) -> DeclFacts {
+pub fn from_compiler_facts(decl_id: HirId, facts: &[tune_resolve::CompilerFact]) -> DeclFacts {
     DeclFacts {
         decl_id,
         facts: facts
             .iter()
             .filter(|fact| fact.owner == tune_resolve::FactOwner::Item(decl_id))
             .filter_map(|fact| match &fact.payload {
-                tune_resolve::CompilerFactPayload::Name(name) => {
-                    Some(DeclFact::Name(name.clone()))
-                }
+                tune_resolve::CompilerFactPayload::Name(name) => Some(DeclFact::Name(name.clone())),
                 tune_resolve::CompilerFactPayload::Doc(doc) => Some(DeclFact::Doc(doc.clone())),
                 tune_resolve::CompilerFactPayload::Return(shape) => {
                     Some(DeclFact::Return(tune_shape::lower_hir_shape(shape)))
