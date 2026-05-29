@@ -1,6 +1,8 @@
 use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::pattern::{Pattern, PatternKind};
 
+use crate::resolve::reserved;
+
 use super::BodyResolver;
 
 impl BodyResolver<'_> {
@@ -20,19 +22,30 @@ impl BodyResolver<'_> {
     }
 
     pub(super) fn validate_user_name(&mut self, name: &str, span: Option<Span>, kind: &str) {
-        if !name.starts_with("__") {
-            return;
+        if name.starts_with("__") {
+            self.resolved.diagnostics.push(
+                Diagnostic::error(
+                    codes::COMPILER_RESERVED_NAME,
+                    format!("compiler-reserved {kind} name `{name}`"),
+                    span.unwrap_or_else(Span::synthetic),
+                    "`__` names are owned by compiler facts and generated helpers",
+                )
+                .with_help("rename this symbol without the leading `__` prefix")
+                .build(),
+            );
         }
 
-        self.resolved.diagnostics.push(
-            Diagnostic::error(
-                codes::COMPILER_RESERVED_NAME,
-                format!("compiler-reserved {kind} name `{name}`"),
-                span.unwrap_or_else(Span::synthetic),
-                "`__` names are owned by compiler facts and generated helpers",
-            )
-            .with_help("rename this symbol without the leading `__` prefix")
-            .build(),
-        );
+        if reserved::is_stdcore_name(name) {
+            self.resolved.diagnostics.push(
+                Diagnostic::error(
+                    codes::COMPILER_RESERVED_NAME,
+                    format!("stdcore-reserved {kind} name `{name}`"),
+                    span.unwrap_or_else(Span::synthetic),
+                    "this name is owned by Tune's auto-included core world",
+                )
+                .with_help("choose a project-local name that does not shadow stdcore meaning")
+                .build(),
+            );
+        }
     }
 }

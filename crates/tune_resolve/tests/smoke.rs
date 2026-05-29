@@ -244,7 +244,13 @@ import "pkg".__hidden
                 diagnostic.code == tune_diagnostics::codes::COMPILER_RESERVED_NAME
             })
             .count(),
-        9
+        10
+    );
+    assert!(
+        resolved
+            .diagnostics
+            .iter()
+            .any(|diagnostic| { diagnostic.title == "stdcore-reserved declaration name `Result`" })
     );
 }
 

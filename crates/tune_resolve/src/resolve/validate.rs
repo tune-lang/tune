@@ -4,6 +4,7 @@ use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::item::{ImportSelector, Item, StructMember};
 
 use super::ResolvedModule;
+use super::reserved;
 
 pub(super) fn validate_member_names(resolved: &mut ResolvedModule, item: &Item) {
     if let Some(name) = &item.name {
@@ -137,18 +138,29 @@ fn validate_named_members<'name>(
 }
 
 fn validate_user_name(resolved: &mut ResolvedModule, name: &str, span: Option<Span>, kind: &str) {
-    if !name.starts_with("__") {
-        return;
+    if name.starts_with("__") {
+        resolved.diagnostics.push(
+            Diagnostic::error(
+                codes::COMPILER_RESERVED_NAME,
+                format!("compiler-reserved {kind} name `{name}`"),
+                span.unwrap_or_else(Span::synthetic),
+                "`__` names are owned by compiler facts and generated helpers",
+            )
+            .with_help("rename this symbol without the leading `__` prefix")
+            .build(),
+        );
     }
 
-    resolved.diagnostics.push(
-        Diagnostic::error(
-            codes::COMPILER_RESERVED_NAME,
-            format!("compiler-reserved {kind} name `{name}`"),
-            span.unwrap_or_else(Span::synthetic),
-            "`__` names are owned by compiler facts and generated helpers",
-        )
-        .with_help("rename this symbol without the leading `__` prefix")
-        .build(),
-    );
+    if reserved::is_stdcore_name(name) {
+        resolved.diagnostics.push(
+            Diagnostic::error(
+                codes::COMPILER_RESERVED_NAME,
+                format!("stdcore-reserved {kind} name `{name}`"),
+                span.unwrap_or_else(Span::synthetic),
+                "this name is owned by Tune's auto-included core world",
+            )
+            .with_help("choose a project-local name that does not shadow stdcore meaning")
+            .build(),
+        );
+    }
 }
