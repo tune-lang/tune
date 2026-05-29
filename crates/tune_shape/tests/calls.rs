@@ -444,3 +444,20 @@ let result: String = read(Box { value = "ok" }, 1)
 
     Ok(())
 }
+
+#[test]
+fn analyzer_records_task_join_call_target() -> Result<(), &'static str> {
+    let source = "let wait(task: Task<Int>): Int = task.join()";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert!(analysis.calls.iter().any(|call| {
+        call.target == tune_shape::CallTarget::TaskJoin
+            && call.params.is_empty()
+            && call.ret == tune_shape::Shape::Int
+    }));
+
+    Ok(())
+}

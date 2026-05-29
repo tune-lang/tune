@@ -141,6 +141,19 @@ impl Analyzer<'_> {
                 span: base.span,
             });
         }
+        if let Shape::Task(inner) = &base_shape
+            && member_name == Some("join")
+        {
+            return Some(CallSignature {
+                target: CallTarget::TaskJoin,
+                params: Vec::new(),
+                ret: inner.as_ref().clone(),
+                type_params: Vec::new(),
+                type_args: Vec::new(),
+                receiver: Some(base_shape),
+                span: base.span,
+            });
+        }
         if let Some(signature) =
             structural_member_call_signature(&base_shape, member_name, base.span)
         {

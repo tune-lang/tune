@@ -1,10 +1,9 @@
 use tune_hir::expr::{Expr, ExprKind};
 use tune_resolve::NameTarget;
-use tune_shape::Shape;
+use tune_shape::{CallTarget, Shape};
 
 use super::LowerContext;
 use super::StructuralWitnessKind;
-use super::values::task_join_base;
 use crate::PlanOp;
 
 impl LowerContext<'_> {
@@ -15,8 +14,8 @@ impl LowerContext<'_> {
         args: &[Expr],
         ops: &mut Vec<PlanOp>,
     ) {
-        if let Some(base) = task_join_base(callee, args)
-            && matches!(self.expr_shape(base), Some(Shape::Task(_)))
+        if matches!(self.call_target(expr), Some(CallTarget::TaskJoin))
+            && let ExprKind::Field { base, .. } = &callee.kind
         {
             self.lower_expr(base, ops);
             ops.push(PlanOp::TaskJoin { span: callee.span });
@@ -150,6 +149,12 @@ impl LowerContext<'_> {
         self.analysis
             .and_then(|analysis| analysis.calls.iter().find(|call| call.expr == expr))
             .map_or_else(Vec::new, |call| call.type_args.clone())
+    }
+
+    fn call_target(&self, expr: tune_hir::ExprId) -> Option<CallTarget> {
+        self.analysis
+            .and_then(|analysis| analysis.calls.iter().find(|call| call.expr == expr))
+            .map(|call| call.target)
     }
 
     fn static_call_target(&self, callee: &Expr) -> bool {
