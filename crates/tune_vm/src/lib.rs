@@ -6,6 +6,7 @@ mod execute_range;
 mod execute_sequence;
 mod execute_string;
 mod execute_support;
+mod execute_tasks;
 pub mod frame;
 pub mod vm;
 mod vm_state;

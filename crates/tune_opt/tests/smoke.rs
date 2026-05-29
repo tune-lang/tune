@@ -17,6 +17,7 @@ fn optimizer_runs_ordered_semantic_passes_over_ir() {
         locals: 0,
         constants: Vec::new(),
         blocks: Vec::new(),
+        task_functions: Vec::new(),
     };
 
     let report = tune_opt::optimize(&mut function);

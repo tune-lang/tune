@@ -42,7 +42,7 @@ fn ir_has_typed_slots_for_core_planned_operations() {
             },
             tune_ir::IrOp::Spawn {
                 dst: tune_ir::Reg(8),
-                callable: tune_ir::Reg(9),
+                function: 0,
                 span: None,
             },
             tune_ir::IrOp::Return {
@@ -61,6 +61,7 @@ fn ir_has_typed_slots_for_core_planned_operations() {
         locals: 0,
         constants: vec![tune_ir::IrConst::Int(1)],
         blocks: vec![block],
+        task_functions: Vec::new(),
     };
 
     assert_eq!(function.blocks.len(), 1);

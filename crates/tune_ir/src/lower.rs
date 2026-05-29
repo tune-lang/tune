@@ -36,6 +36,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
         next_block: 1,
         stack: Vec::new(),
         loop_targets: Vec::new(),
+        task_functions: Vec::new(),
     };
 
     for op in &plan.ops {
@@ -53,6 +54,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
         locals: lowerer.locals,
         constants: lowerer.constants,
         blocks: lowerer.blocks,
+        task_functions: lowerer.task_functions,
     })
 }
 
@@ -69,6 +71,7 @@ pub(super) struct Lowerer {
     pub(super) next_block: u32,
     pub(super) stack: Vec<Reg>,
     pub(super) loop_targets: Vec<(BlockId, BlockId)>,
+    pub(super) task_functions: Vec<IrFunction>,
 }
 
 impl Lowerer {

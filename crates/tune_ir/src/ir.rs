@@ -42,6 +42,7 @@ pub struct IrFunction {
     pub locals: u32,
     pub constants: Vec<IrConst>,
     pub blocks: Vec<IrBlock>,
+    pub task_functions: Vec<IrFunction>,
 }
 
 impl IrOp {
@@ -292,7 +293,7 @@ pub enum IrOp {
     },
     Spawn {
         dst: Reg,
-        callable: Reg,
+        function: u32,
         span: Option<Span>,
     },
     TaskJoin {

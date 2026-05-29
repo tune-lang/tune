@@ -1,14 +1,38 @@
 use std::cell::{Cell, RefCell};
 
 use tune_bytecode::{artifact::BytecodeArtifact, validate_artifact};
-use tune_runtime::{task::Task, value::Value};
+use tune_runtime::{
+    task::{TaskId, TaskJoinOutcome},
+    value::Value,
+};
 
 use crate::{VmError, VmFault};
 
 pub struct Vm {
     pub artifact: BytecodeArtifact,
     pub(crate) next_state_id: Cell<u64>,
-    pub(crate) tasks: RefCell<Vec<Task>>,
+    pub(crate) tasks: RefCell<Vec<VmTask>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum VmTask {
+    Pending {
+        id: TaskId,
+        function: u32,
+        locals: Vec<Value>,
+    },
+    Ready {
+        value: Value,
+    },
+}
+
+impl VmTask {
+    pub(crate) fn join(self) -> TaskJoinOutcome {
+        match self {
+            Self::Pending { id, .. } => TaskJoinOutcome::Pending(id),
+            Self::Ready { value } => TaskJoinOutcome::Ready(value),
+        }
+    }
 }
 
 impl Vm {

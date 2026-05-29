@@ -1,10 +1,7 @@
 use tune_bytecode::{Opcode, artifact::BytecodeConst, function::BytecodeCaptureMode};
-use tune_runtime::{
-    task::TaskJoinOutcome,
-    value::{
-        CallableValue, CaptureStorageMode, CapturedValue, RangeItemKind, RangeValue, StructFields,
-        Value,
-    },
+use tune_runtime::value::{
+    CallableValue, CaptureStorageMode, CapturedValue, RangeItemKind, RangeValue, StructFields,
+    Value,
 };
 
 use crate::execute_support::{read_reg, runtime_variant, write_reg};
@@ -16,13 +13,22 @@ impl Vm {
         function_index: usize,
         args: Vec<Value>,
     ) -> Result<Value, VmFault> {
-        self.execute_function_with_capture_cells(function_index, args, &[], 0)
+        self.execute_function_with_capture_cells(function_index, args, None, &[], 0)
+    }
+
+    pub(crate) fn execute_task_function(
+        &self,
+        function_index: usize,
+        locals: Vec<Value>,
+    ) -> Result<Value, VmFault> {
+        self.execute_function_with_capture_cells(function_index, Vec::new(), Some(locals), &[], 0)
     }
 
     fn execute_function_with_capture_cells(
         &self,
         function_index: usize,
         args: Vec<Value>,
+        initial_locals: Option<Vec<Value>>,
         capture_cells: &[CapturedValue],
         capture_count: usize,
     ) -> Result<Value, VmFault> {
@@ -32,7 +38,9 @@ impl Vm {
             .get(function_index)
             .ok_or_else(|| VmFault::new(VmError::FunctionOutOfBounds, None))?;
         let mut registers = vec![Value::Unit; function.register_count as usize];
-        let mut locals = vec![Value::Unit; function.local_count as usize];
+        let mut locals =
+            initial_locals.unwrap_or_else(|| vec![Value::Unit; function.local_count as usize]);
+        locals.resize(function.local_count as usize, Value::Unit);
         if args.len() != function.param_count as usize
             || function.param_count > function.local_count
         {
@@ -331,6 +339,7 @@ impl Vm {
                     let value = self.execute_function_with_capture_cells(
                         callable.function as usize,
                         captured_args.into_iter().chain(args).collect(),
+                        None,
                         &capture_cells,
                         capture_count,
                     )?;
@@ -403,54 +412,16 @@ impl Vm {
                     }
                 }
                 Opcode::SpawnTask => {
-                    let value = self.at(function_index, ip, read_reg(&registers, instruction.b))?;
-                    let task = self.push_ready_task(value);
-                    self.at(
+                    self.execute_spawn_task(
                         function_index,
                         ip,
-                        write_reg(&mut registers, instruction.a, task),
+                        &locals,
+                        &mut registers,
+                        instruction,
                     )?;
                 }
                 Opcode::TaskJoin => {
-                    match self.at(function_index, ip, read_reg(&registers, instruction.b))? {
-                        Value::Task(handle) => match self.join_task(handle.0) {
-                            Some(TaskJoinOutcome::Ready(value)) => {
-                                self.at(
-                                    function_index,
-                                    ip,
-                                    write_reg(&mut registers, instruction.a, value),
-                                )?;
-                            }
-                            Some(TaskJoinOutcome::Pending(_)) => {
-                                return Err(self.fault_at(
-                                    function_index,
-                                    ip,
-                                    VmError::UnsupportedOpcode(Opcode::TaskJoin),
-                                ));
-                            }
-                            Some(TaskJoinOutcome::UnrecoverablePanic(_)) => {
-                                return Err(self.fault_at(
-                                    function_index,
-                                    ip,
-                                    VmError::UnsupportedOpcode(Opcode::TaskJoin),
-                                ));
-                            }
-                            None => {
-                                return Err(self.fault_at(
-                                    function_index,
-                                    ip,
-                                    VmError::RegisterOutOfBounds,
-                                ));
-                            }
-                        },
-                        _ => {
-                            return Err(self.fault_at(
-                                function_index,
-                                ip,
-                                VmError::UnsupportedOpcode(Opcode::TaskJoin),
-                            ));
-                        }
-                    }
+                    self.execute_task_join(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::Jump => {
                     ip = instruction.a as usize;

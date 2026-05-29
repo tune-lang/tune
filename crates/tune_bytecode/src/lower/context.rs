@@ -16,6 +16,7 @@ pub(crate) struct FunctionLowerer<'a> {
     pub(super) function_indices: &'a HashMap<HirId, u32>,
     pub(super) member_indices: &'a HashMap<MemberId, u32>,
     pub(super) callable_indices: &'a HashMap<ExprId, u32>,
+    pub(crate) task_indices: &'a [u32],
     pub(super) block_offsets: HashMap<BlockId, u32>,
     pub(super) constants: &'a mut Vec<BytecodeConst>,
     pub(super) call_sites: Vec<BytecodeCallSite>,

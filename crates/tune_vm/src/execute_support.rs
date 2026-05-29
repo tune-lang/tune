@@ -5,12 +5,12 @@ use tune_bytecode::function::{
 use tune_runtime::{
     TunePanic,
     state::{StateHandle, StateId},
-    task::{Task, TaskJoinOutcome},
-    value::{PropagationFrame, RuntimeVariant, Value},
+    task::{TaskId, TaskJoinOutcome},
+    value::{PropagationFrame, RuntimeVariant, TaskHandle, Value},
 };
 
 use crate::execute_range::{range_item, range_len, value_range};
-use crate::{Vm, VmError, VmFault, VmLocation};
+use crate::{Vm, VmError, VmFault, VmLocation, vm::VmTask};
 
 impl Vm {
     pub(crate) fn at<T>(
@@ -76,11 +76,15 @@ impl Vm {
         })
     }
 
-    pub(crate) fn push_ready_task(&self, value: Value) -> Value {
+    pub(crate) fn push_deferred_task(&self, function: u32, locals: &[Value]) -> Value {
         let mut tasks = self.tasks.borrow_mut();
-        let id = tune_runtime::TaskId(u64::try_from(tasks.len()).unwrap_or(u64::MAX));
-        tasks.push(Task::ready(id, value));
-        Value::Task(tune_runtime::TaskHandle(id))
+        let id = TaskId(u64::try_from(tasks.len()).unwrap_or(u64::MAX));
+        tasks.push(VmTask::Pending {
+            id,
+            function,
+            locals: locals.to_vec(),
+        });
+        Value::Task(TaskHandle(id))
     }
 
     pub(crate) fn capture_snapshot(&self, value: &Value) -> Result<Value, VmError> {
@@ -122,11 +126,24 @@ impl Vm {
     }
 
     pub(crate) fn join_task(&self, id: tune_runtime::TaskId) -> Option<TaskJoinOutcome> {
-        self.tasks
-            .borrow()
-            .get(id.0 as usize)
-            .cloned()
-            .map(Task::join)
+        let task = self.tasks.borrow().get(id.0 as usize).cloned()?;
+        Some(task.join())
+    }
+
+    pub(crate) fn take_pending_task(&self, id: TaskId) -> Option<(u32, Vec<Value>)> {
+        let task = self.tasks.borrow().get(id.0 as usize).cloned()?;
+        match task {
+            VmTask::Pending {
+                function, locals, ..
+            } => Some((function, locals)),
+            VmTask::Ready { .. } => None,
+        }
+    }
+
+    pub(crate) fn finish_task(&self, id: TaskId, value: Value) {
+        if let Some(task) = self.tasks.borrow_mut().get_mut(id.0 as usize) {
+            *task = VmTask::Ready { value };
+        }
     }
 
     pub(crate) fn propagate_result(

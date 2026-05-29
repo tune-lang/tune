@@ -29,18 +29,24 @@ pub use self::error::BytecodeLowerError;
 pub fn lower_ir_functions(
     functions: &[IrFunction],
 ) -> Result<BytecodeArtifact, BytecodeLowerError> {
-    let function_indices = function_indices(functions)?;
-    let member_indices = member_function_indices(functions)?;
-    let callable_indices = callable_function_indices(functions)?;
+    let flat = flatten_functions(functions)?;
+    let flat_functions = flat
+        .iter()
+        .map(|function| function.function.clone())
+        .collect::<Vec<_>>();
+    let function_indices = function_indices(&flat_functions)?;
+    let member_indices = member_function_indices(&flat_functions)?;
+    let callable_indices = callable_function_indices(&flat_functions)?;
     let mut constants = Vec::new();
-    let functions = functions
+    let functions = flat
         .iter()
         .map(|function| {
             lower_ir_function_with_constants(
-                function,
+                &function.function,
                 &function_indices,
                 &member_indices,
                 &callable_indices,
+                &function.task_indices,
                 &mut constants,
             )
         })
@@ -62,6 +68,7 @@ pub fn lower_ir_function(function: &IrFunction) -> Result<BytecodeFunction, Byte
         &function_indices,
         &member_indices,
         &callable_indices,
+        &[],
         &mut constants,
     )
 }
@@ -71,6 +78,7 @@ fn lower_ir_function_with_constants(
     function_indices: &HashMap<HirId, u32>,
     member_indices: &HashMap<MemberId, u32>,
     callable_indices: &HashMap<tune_hir::ExprId, u32>,
+    task_indices: &[u32],
     constants: &mut Vec<BytecodeConst>,
 ) -> Result<BytecodeFunction, BytecodeLowerError> {
     let block_offsets = block_offsets(function)?;
@@ -79,6 +87,7 @@ fn lower_ir_function_with_constants(
         function_indices,
         member_indices,
         callable_indices,
+        task_indices,
         block_offsets,
         constants,
         call_sites: Vec::new(),
@@ -123,6 +132,39 @@ fn lower_ir_function_with_constants(
         string_sites: lowerer.string_sites,
         instructions: lowerer.instructions,
     })
+}
+
+#[derive(Clone)]
+struct FlatFunction {
+    function: IrFunction,
+    task_indices: Vec<u32>,
+}
+
+fn flatten_functions(functions: &[IrFunction]) -> Result<Vec<FlatFunction>, BytecodeLowerError> {
+    let mut flat = Vec::new();
+    for function in functions {
+        flatten_function(function, &mut flat)?;
+    }
+    Ok(flat)
+}
+
+fn flatten_function(
+    function: &IrFunction,
+    flat: &mut Vec<FlatFunction>,
+) -> Result<u32, BytecodeLowerError> {
+    let index = u32::try_from(flat.len()).map_err(|_| BytecodeLowerError::ConstantLimit)?;
+    let mut stripped = function.clone();
+    let task_functions = std::mem::take(&mut stripped.task_functions);
+    flat.push(FlatFunction {
+        function: stripped,
+        task_indices: Vec::new(),
+    });
+    let mut task_indices = Vec::new();
+    for task in &task_functions {
+        task_indices.push(flatten_function(task, flat)?);
+    }
+    flat[index as usize].task_indices = task_indices;
+    Ok(index)
 }
 
 impl FunctionLowerer<'_> {
@@ -381,10 +423,7 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(())
             }
-            IrOp::Spawn { dst, callable, .. } => {
-                self.lower_spawn(*dst, *callable);
-                Ok(())
-            }
+            IrOp::Spawn { dst, function, .. } => self.lower_spawn(*dst, *function),
             IrOp::TaskJoin { dst, task, .. } => {
                 self.lower_task_join(*dst, *task);
                 Ok(())

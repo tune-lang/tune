@@ -68,6 +68,7 @@ fn lowers_typed_local_ir_to_bytecode() -> Result<(), &'static str> {
                 },
             ],
         }],
+        task_functions: Vec::new(),
     };
 
     let artifact =
@@ -123,6 +124,7 @@ fn lowers_integer_add_ir_to_bytecode() -> Result<(), &'static str> {
                 },
             ],
         }],
+        task_functions: Vec::new(),
     };
 
     let artifact =
@@ -183,6 +185,7 @@ fn lowers_struct_construct_with_explicit_local_state_plan() -> Result<(), &'stat
                 },
             ],
         }],
+        task_functions: Vec::new(),
     };
 
     let artifact =
@@ -234,6 +237,7 @@ fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
                 },
             ],
         }],
+        task_functions: Vec::new(),
     };
     let callee = tune_ir::IrFunction {
         params: 1,
@@ -257,6 +261,7 @@ fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
                 },
             ],
         }],
+        task_functions: Vec::new(),
     };
 
     let artifact = tune_bytecode::lower_ir_functions(&[entry, callee])
@@ -466,6 +471,7 @@ fn lowering_preserves_function_and_instruction_provenance() -> Result<(), &'stat
                 },
             ],
         }],
+        task_functions: Vec::new(),
     };
 
     let artifact =
