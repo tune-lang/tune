@@ -132,6 +132,17 @@ impl Lowerer {
                 self.stack.push(dst);
                 Ok(())
             }
+            PlanOp::ConstNone => {
+                let dst = self.alloc_reg()?;
+                let constant = self.push_const(IrConst::None)?;
+                self.push_op(IrOp::LoadConst {
+                    dst,
+                    constant,
+                    shape: Shape::Optional(Box::new(Shape::Hole)),
+                });
+                self.stack.push(dst);
+                Ok(())
+            }
             PlanOp::ConstString { value } => {
                 let dst = self.alloc_reg()?;
                 let constant = self.push_const(IrConst::String(value.clone()))?;

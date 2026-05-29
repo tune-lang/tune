@@ -8,6 +8,7 @@ use tune_diagnostics::Span;
 #[derive(Debug, Clone)]
 pub enum Value {
     Unit,
+    None,
     Int(i64),
     Float(f64),
     Size(u64),
@@ -35,6 +36,7 @@ impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Unit, Self::Unit) => true,
+            (Self::None, Self::None) => true,
             (Self::Int(left), Self::Int(right)) => left == right,
             (Self::Float(left), Self::Float(right)) => left == right,
             (Self::Size(left), Self::Size(right)) => left == right,

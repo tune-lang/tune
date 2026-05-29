@@ -65,6 +65,7 @@ impl Vm {
                         BytecodeConst::Size(value) => Value::Size(*value),
                         BytecodeConst::Byte(value) => Value::Byte(*value),
                         BytecodeConst::Bool(value) => Value::Bool(*value),
+                        BytecodeConst::None => Value::None,
                         BytecodeConst::String(value) => Value::String(value.clone()),
                     };
                     self.at(

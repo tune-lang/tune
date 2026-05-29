@@ -26,6 +26,9 @@ impl LowerContext<'_> {
             ExprKind::Literal(LiteralKind::Bool(value)) => {
                 ops.push(PlanOp::ConstBool { value: *value });
             }
+            ExprKind::Literal(LiteralKind::None) => {
+                ops.push(PlanOp::ConstNone);
+            }
             ExprKind::Literal(LiteralKind::String(value)) => {
                 if let Some(value) = value.plain_text() {
                     ops.push(PlanOp::ConstString { value });
@@ -48,7 +51,6 @@ impl LowerContext<'_> {
                     ops.push(PlanOp::StringBuild { part_count });
                 }
             }
-            ExprKind::Literal(_) => {}
             ExprKind::CallableValue { params: _, body } => {
                 ops.push(PlanOp::CallableValue {
                     callable: expr.id,

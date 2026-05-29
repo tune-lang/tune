@@ -29,6 +29,7 @@ pub(super) fn push_artifact_const(
         IrConst::Size(value) => constants.push(BytecodeConst::Size(*value)),
         IrConst::Byte(value) => constants.push(BytecodeConst::Byte(*value)),
         IrConst::Bool(value) => constants.push(BytecodeConst::Bool(*value)),
+        IrConst::None => constants.push(BytecodeConst::None),
         IrConst::String(value) => constants.push(BytecodeConst::String(value.clone())),
     }
     Ok(index)

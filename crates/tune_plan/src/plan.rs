@@ -179,6 +179,7 @@ pub enum PlanOp {
     ConstBool {
         value: bool,
     },
+    ConstNone,
     ConstString {
         value: String,
     },

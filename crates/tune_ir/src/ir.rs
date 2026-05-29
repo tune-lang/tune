@@ -92,6 +92,7 @@ pub enum IrConst {
     Size(u64),
     Byte(u8),
     Bool(bool),
+    None,
     String(String),
 }
 
