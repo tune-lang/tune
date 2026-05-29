@@ -328,12 +328,13 @@ impl Vm {
                         .ok_or_else(|| {
                             self.fault_at(function_index, ip, VmError::CallSiteOutOfBounds)
                         })?;
-                    let executor =
-                        self.host_executors
-                            .get(site.symbol as usize)
-                            .ok_or_else(|| {
-                                self.fault_at(function_index, ip, VmError::HostSymbolOutOfBounds)
-                            })?;
+                    let executor = self
+                        .host_executors
+                        .get(site.symbol as usize)
+                        .and_then(Option::as_ref)
+                        .ok_or_else(|| {
+                            self.fault_at(function_index, ip, VmError::HostSymbolOutOfBounds)
+                        })?;
                     let args = site
                         .args
                         .iter()

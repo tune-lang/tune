@@ -1,4 +1,5 @@
 use tune_host::Host;
+use tune_host::HostExecutor;
 use tune_host::module::HostModule;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -21,6 +22,7 @@ pub struct HostRegistration {
 pub(crate) struct HostRegistry {
     modules: Vec<HostModule>,
     symbols: Vec<EngineHostSymbol>,
+    executors: Vec<Option<HostExecutor>>,
 }
 
 impl HostRegistry {
@@ -40,6 +42,7 @@ impl HostRegistry {
                     module: module.name.clone(),
                     function: function.name.clone(),
                 });
+                self.executors.push(function.executor.clone());
             }
         }
 
@@ -60,5 +63,9 @@ impl HostRegistry {
 
     pub(crate) fn symbol(&self, id: EngineHostSymbolId) -> Option<&EngineHostSymbol> {
         self.symbols.get(id.0 as usize)
+    }
+
+    pub(crate) fn executors(&self) -> Vec<Option<HostExecutor>> {
+        self.executors.clone()
     }
 }

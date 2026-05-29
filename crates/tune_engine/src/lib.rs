@@ -74,6 +74,7 @@ pub enum EngineError {
     BytecodeLower(String),
     MissingEntry,
     ProjectEntryNotFound(String),
+    ProjectLoad(String),
     NotImplemented(&'static str),
 }
 
@@ -135,7 +136,8 @@ impl Tune {
 
     pub fn run_entry(&self, entry: EntryPoint) -> Result<Value, EngineError> {
         let executable = self.executable_entry(entry)?;
-        let mut vm = tune_vm::Vm::new(executable.bytecode);
+        let mut vm =
+            tune_vm::Vm::new(executable.bytecode).with_host_executor_slots(self.hosts.executors());
         vm.run_entry().map_err(|fault| {
             EngineError::Diagnostics(vec![diagnostic_from_vm_fault_with_sources(
                 &fault, &self.db,
@@ -194,12 +196,63 @@ impl Tune {
         Ok(ProjectEntry { project, entry })
     }
 
+    pub fn load_project_manifest(
+        &mut self,
+        manifest_path: impl AsRef<std::path::Path>,
+    ) -> Result<ProjectEntry, EngineError> {
+        let loaded = dyno_project::load_project_manifest(manifest_path)
+            .map_err(|error| EngineError::ProjectLoad(format!("{error:?}")))?;
+        self.load_project_sources(loaded.manifest, loaded.sources)
+    }
+
+    pub fn load_project_dir(
+        &mut self,
+        root: impl AsRef<std::path::Path>,
+    ) -> Result<ProjectEntry, EngineError> {
+        let loaded = dyno_project::load_project_dir(root)
+            .map_err(|error| EngineError::ProjectLoad(format!("{error:?}")))?;
+        self.load_project_sources(loaded.manifest, loaded.sources)
+    }
+
+    pub fn check_project(
+        &mut self,
+        manifest_path: impl AsRef<std::path::Path>,
+    ) -> Result<CheckReport, EngineError> {
+        let entry = self.load_project_manifest(manifest_path)?;
+        self.check_project_entry(entry)
+    }
+
+    pub fn compile_project(
+        &mut self,
+        manifest_path: impl AsRef<std::path::Path>,
+    ) -> Result<CompileReport, EngineError> {
+        let entry = self.load_project_manifest(manifest_path)?;
+        self.compile_project_entry(entry)
+    }
+
+    pub fn executable_project(
+        &mut self,
+        manifest_path: impl AsRef<std::path::Path>,
+    ) -> Result<ExecutableReport, EngineError> {
+        let entry = self.load_project_manifest(manifest_path)?;
+        self.executable_project_entry(entry)
+    }
+
+    pub fn run_project(
+        &mut self,
+        manifest_path: impl AsRef<std::path::Path>,
+    ) -> Result<Value, EngineError> {
+        let entry = self.load_project_manifest(manifest_path)?;
+        self.run_project_entry(entry)
+    }
+
     pub fn run_project_entry(&self, entry: ProjectEntry) -> Result<Value, EngineError> {
         if self.projects.get(entry.project.0 as usize).is_none() {
             return Err(EngineError::NotImplemented("unknown project handle"));
         }
         let executable = self.executable_project_entry(entry)?;
-        let mut vm = tune_vm::Vm::new(executable.bytecode);
+        let mut vm =
+            tune_vm::Vm::new(executable.bytecode).with_host_executor_slots(self.hosts.executors());
         vm.run_entry().map_err(|fault| {
             EngineError::Diagnostics(vec![diagnostic_from_vm_fault_with_sources(
                 &fault, &self.db,

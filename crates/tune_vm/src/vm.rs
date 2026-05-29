@@ -11,7 +11,7 @@ use crate::{VmError, VmFault};
 pub struct Vm {
     pub artifact: BytecodeArtifact,
     pub task_execution: TaskExecutionMode,
-    pub(crate) host_executors: Vec<tune_host::HostExecutor>,
+    pub(crate) host_executors: Vec<Option<tune_host::HostExecutor>>,
     pub(crate) next_state_id: Cell<u64>,
     pub(crate) tasks: RefCell<Vec<VmTask>>,
 }
@@ -55,7 +55,19 @@ impl Vm {
     }
 
     #[must_use]
-    pub fn with_host_executors(mut self, executors: Vec<tune_host::HostExecutor>) -> Self {
+    pub fn with_host_executors(
+        mut self,
+        executors: impl IntoIterator<Item = tune_host::HostExecutor>,
+    ) -> Self {
+        self.host_executors = executors.into_iter().map(Some).collect();
+        self
+    }
+
+    #[must_use]
+    pub fn with_host_executor_slots(
+        mut self,
+        executors: Vec<Option<tune_host::HostExecutor>>,
+    ) -> Self {
         self.host_executors = executors;
         self
     }
