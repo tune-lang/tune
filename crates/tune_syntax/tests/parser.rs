@@ -375,7 +375,7 @@ let forever = loop { break }
     assert!(kinds.contains(&SyntaxKind::ForExpr));
     assert!(kinds.contains(&SyntaxKind::Block));
     assert!(kinds.contains(&SyntaxKind::SequenceExpr));
-    assert!(kinds.contains(&SyntaxKind::Expr));
+    assert!(kinds.contains(&SyntaxKind::TupleExpr));
     assert!(kinds.contains(&SyntaxKind::LetExpr));
     assert!(kinds.contains(&SyntaxKind::AssignExpr));
     assert!(kinds.contains(&SyntaxKind::ReturnExpr));

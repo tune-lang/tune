@@ -292,6 +292,9 @@ pub(super) fn documented_members(node: &CstNode) -> Vec<DocumentedStructMember<'
                         member,
                         docs: core::mem::take(&mut pending_docs),
                     });
+                    if node.kind == SyntaxKind::FieldDecl {
+                        pending_docs = trailing_docs(node);
+                    }
                 } else {
                     pending_docs.clear();
                 }
@@ -300,6 +303,23 @@ pub(super) fn documented_members(node: &CstNode) -> Vec<DocumentedStructMember<'
     }
 
     members
+}
+
+fn trailing_docs(node: &CstNode) -> Vec<Comment> {
+    let mut docs = Vec::new();
+    for child in &node.children {
+        match child {
+            CstElement::Token(token) => {
+                if let Some(comment) = Comment::cast(*token) {
+                    docs.push(comment);
+                } else if token.kind != TokenKind::Whitespace {
+                    docs.clear();
+                }
+            }
+            CstElement::Node(_) => docs.clear(),
+        }
+    }
+    docs
 }
 
 pub(super) fn documented_fields(node: &CstNode) -> Vec<DocumentedField<'_>> {

@@ -106,7 +106,7 @@ impl Parser<'_> {
             self.bump();
             self.skip_trivia();
             self.parse_shape();
-            self.skip_trivia();
+            self.skip_inline_trivia();
         }
 
         if self.at(TokenKind::Equal) {
@@ -234,7 +234,7 @@ impl Parser<'_> {
     }
 
     fn consume_member_separator(&mut self) {
-        self.skip_trivia();
+        self.skip_whitespace();
         if self.at(TokenKind::Comma) || self.at(TokenKind::Semicolon) {
             self.bump();
         }
