@@ -1,4 +1,5 @@
 use tune_bytecode::function::Instruction;
+use tune_runtime::text;
 use tune_runtime::value::Value;
 
 use crate::execute_support::{read_reg_ref, write_reg};
@@ -50,7 +51,7 @@ impl Vm {
                 VmError::UnsupportedOpcode(instruction.opcode),
             ));
         };
-        let len = u64::try_from(value.chars().count())
+        let len = u64::try_from(text::character_len(value))
             .map_err(|_| self.fault_at(function, instruction_index, VmError::NumericOverflow))?;
         self.at(
             function,
@@ -79,7 +80,7 @@ impl Vm {
         };
         let Some(value) = usize::try_from(*index)
             .ok()
-            .and_then(|index| value.chars().nth(index))
+            .and_then(|index| text::character_at(value, index))
         else {
             return Err(self.fault_at(
                 function,
@@ -90,7 +91,7 @@ impl Vm {
         self.at(
             function,
             instruction_index,
-            write_reg(registers, instruction.a, Value::String(value.to_string())),
+            write_reg(registers, instruction.a, Value::String(value)),
         )
     }
 }

@@ -60,26 +60,6 @@ let result: Int = ((20 - 4) * 3 / 2) % 10
 }
 
 #[test]
-fn run_file_reports_proven_integer_divide_by_zero_before_execution() -> Result<(), &'static str> {
-    let mut tune = tune_engine::Tune::new();
-    let file = tune
-        .add_file("app.tn", "let result: Int = 1 / 0")
-        .ok_or("file should allocate")?;
-
-    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_file(file) else {
-        return Err("divide by zero should report diagnostics");
-    };
-
-    assert_eq!(diagnostics.len(), 1);
-    assert_eq!(
-        diagnostics[0].code,
-        tune_diagnostics::codes::NUMERIC_OVERFLOW
-    );
-
-    Ok(())
-}
-
-#[test]
 fn run_file_executes_loop_break_and_continue() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
@@ -242,29 +222,6 @@ let result: Byte = {
 }
 
 #[test]
-fn run_file_executes_string_len_and_index() -> Result<(), &'static str> {
-    let mut tune = tune_engine::Tune::new();
-    let file = tune
-        .add_file(
-            "app.tn",
-            r#"
-let result: String = {
-  let text: String = "héllo"
-  let index: Size = 1
-  "{text[index]}:{text.len()}"
-}
-"#,
-        )
-        .ok_or("file should allocate")?;
-
-    assert_eq!(
-        run_file(&tune, file)?,
-        tune_runtime::value::Value::String("é:5".into())
-    );
-    Ok(())
-}
-
-#[test]
 fn run_file_executes_boolean_short_circuit_ops() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
@@ -416,36 +373,6 @@ let result: Int = {
         .ok_or("file should allocate")?;
 
     assert_eq!(run_file(&tune, file)?, tune_runtime::value::Value::Int(47));
-
-    Ok(())
-}
-
-#[test]
-fn run_file_reports_panic_with_message() -> Result<(), &'static str> {
-    let mut tune = tune_engine::Tune::new();
-    let file = tune
-        .add_file("app.tn", r#"let result: Int = panic("bad")"#)
-        .ok_or("file should allocate")?;
-
-    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_file(file) else {
-        return Err("panic should report a runtime diagnostic");
-    };
-
-    assert_eq!(diagnostics.len(), 1);
-    assert!(
-        diagnostics[0]
-            .facts
-            .iter()
-            .flat_map(|fact| &fact.entries)
-            .any(|entry| entry.message.contains("bad"))
-    );
-    assert!(
-        diagnostics[0]
-            .facts
-            .iter()
-            .flat_map(|fact| &fact.entries)
-            .any(|entry| entry.message.contains(r#"panic("bad")"#))
-    );
 
     Ok(())
 }

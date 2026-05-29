@@ -3,6 +3,7 @@ pub mod panic;
 pub mod resource;
 pub mod state;
 pub mod task;
+pub mod text;
 pub mod value;
 
 pub use panic::TunePanic;
