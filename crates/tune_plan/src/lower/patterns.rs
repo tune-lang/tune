@@ -2,7 +2,7 @@ use tune_hir::pattern::{Pattern, PatternKind};
 use tune_resolve::VariantId;
 
 use super::LowerContext;
-use crate::plan::PlanPatternBinding;
+use crate::plan::{PlanPatternBinding, PlanPatternTest};
 
 impl LowerContext<'_> {
     pub(super) fn for_pattern_binding(&self, pattern: &Pattern) -> Option<tune_resolve::LocalId> {
@@ -21,21 +21,74 @@ impl LowerContext<'_> {
     }
 
     pub(super) fn pattern_bindings(&self, pattern: &Pattern) -> Vec<PlanPatternBinding> {
-        let PatternKind::Variant { args, .. } = &pattern.kind else {
-            return Vec::new();
-        };
+        let mut bindings = Vec::new();
+        collect_pattern_bindings(self, pattern, &mut Vec::new(), &mut bindings);
+        bindings
+    }
 
-        args.iter()
-            .enumerate()
-            .filter_map(|(field_index, arg)| {
-                let PatternKind::Binding(_) = arg.kind else {
-                    return None;
-                };
-                Some(PlanPatternBinding {
-                    local: self.local_for_expr(arg.id),
-                    field_index,
-                })
-            })
-            .collect()
+    pub(super) fn pattern_tests(&self, pattern: &Pattern) -> Vec<PlanPatternTest> {
+        let mut tests = Vec::new();
+        collect_pattern_tests(self, pattern, &mut Vec::new(), &mut tests);
+        tests
+    }
+}
+
+fn collect_pattern_bindings(
+    context: &LowerContext<'_>,
+    pattern: &Pattern,
+    path: &mut Vec<usize>,
+    bindings: &mut Vec<PlanPatternBinding>,
+) {
+    match &pattern.kind {
+        PatternKind::Binding(_) => bindings.push(PlanPatternBinding {
+            local: context.local_for_expr(pattern.id),
+            field_path: path.clone(),
+        }),
+        PatternKind::Variant { args, .. } | PatternKind::Tuple(args) => {
+            for (index, arg) in args.iter().enumerate() {
+                path.push(index);
+                collect_pattern_bindings(context, arg, path, bindings);
+                path.pop();
+            }
+        }
+        PatternKind::Hole
+        | PatternKind::Unit
+        | PatternKind::StructuralShape(_)
+        | PatternKind::Else => {}
+    }
+}
+
+fn collect_pattern_tests(
+    context: &LowerContext<'_>,
+    pattern: &Pattern,
+    path: &mut Vec<usize>,
+    tests: &mut Vec<PlanPatternTest>,
+) {
+    match &pattern.kind {
+        PatternKind::Variant { args, .. } => {
+            if let Some(variant) = context.pattern_variant(pattern) {
+                tests.push(PlanPatternTest {
+                    field_path: path.clone(),
+                    variant,
+                });
+            }
+            for (index, arg) in args.iter().enumerate() {
+                path.push(index);
+                collect_pattern_tests(context, arg, path, tests);
+                path.pop();
+            }
+        }
+        PatternKind::Tuple(args) => {
+            for (index, arg) in args.iter().enumerate() {
+                path.push(index);
+                collect_pattern_tests(context, arg, path, tests);
+                path.pop();
+            }
+        }
+        PatternKind::Hole
+        | PatternKind::Binding(_)
+        | PatternKind::Unit
+        | PatternKind::StructuralShape(_)
+        | PatternKind::Else => {}
     }
 }

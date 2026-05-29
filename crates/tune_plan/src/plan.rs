@@ -60,14 +60,21 @@ pub struct PlanMatchArm {
     pub pattern: Pattern,
     pub body: ExprId,
     pub variant: Option<VariantId>,
+    pub tests: Vec<PlanPatternTest>,
     pub bindings: Vec<PlanPatternBinding>,
     pub body_ops: Vec<PlanOp>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlanPatternTest {
+    pub field_path: Vec<usize>,
+    pub variant: VariantId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanPatternBinding {
     pub local: Option<LocalId>,
-    pub field_index: usize,
+    pub field_path: Vec<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

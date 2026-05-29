@@ -57,6 +57,29 @@ impl BodyResolver<'_> {
             .unwrap_or_default()
     }
 
+    pub(super) fn expected_arg_shapes_for_variant_callee(
+        &self,
+        callee: &Expr,
+    ) -> Option<Vec<Option<ShapeExpr>>> {
+        let variant = self
+            .resolved
+            .name_refs
+            .iter()
+            .find(|name_ref| name_ref.expr == callee.id)
+            .and_then(|name_ref| match name_ref.target {
+                NameTarget::Variant(variant) => Some(variant),
+                _ => None,
+            })?;
+        let crate::VariantId::Member(member) = variant else {
+            return None;
+        };
+        self.items
+            .iter()
+            .find(|item| item.id == member.owner)
+            .and_then(|item| item.variants.iter().find(|variant| variant.id == member))
+            .map(|variant| variant.payload.iter().cloned().map(Some).collect())
+    }
+
     pub(super) fn variant_for_expected_enum(
         &self,
         variant_name: &str,

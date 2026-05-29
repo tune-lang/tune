@@ -1,6 +1,7 @@
 use tune_plan::PlanOp;
 
 use tune_diagnostics::Span;
+use tune_hir::pattern::PatternKind;
 use tune_resolve::LocalId;
 
 use crate::lower::Lowerer;
@@ -91,37 +92,25 @@ impl Lowerer {
         let base_stack_len = self.stack.len();
         let result = produces_value.then(|| self.alloc_reg()).transpose()?;
         let join = self.alloc_block();
-        let fallback_block = arms
-            .iter()
-            .any(|arm| matches!(arm.pattern.kind, tune_hir::pattern::PatternKind::Else))
-            .then(|| self.alloc_block());
-        let mut variant_arms = Vec::new();
-        let mut arm_blocks = Vec::new();
+        let mut next_test = self.current_block;
 
         for arm in arms {
-            let block = if matches!(arm.pattern.kind, tune_hir::pattern::PatternKind::Else) {
-                fallback_block.ok_or(IrLowerError::UnsupportedOp("match fallback"))?
+            self.switch_to_block(next_test);
+            let arm_block = self.alloc_block();
+            let failure_block = self.alloc_block();
+            if matches!(arm.pattern.kind, PatternKind::Else) {
+                self.push_op(IrOp::Jump { target: arm_block });
             } else {
-                if arm.variant.is_none() {
-                    return Err(IrLowerError::UnsupportedOp("non-variant match arm"));
-                }
-                self.alloc_block()
-            };
-            arm_blocks.push((block, arm));
-            if let Some(variant) = arm.variant {
-                variant_arms.push(crate::VariantArm { variant, block });
+                self.lower_plan_pattern_tests(
+                    &arm.tests,
+                    scrutinee,
+                    arm_block,
+                    failure_block,
+                    span,
+                )?;
             }
-        }
 
-        self.push_op(IrOp::MatchVariant {
-            scrutinee,
-            arms: variant_arms,
-            else_block: fallback_block,
-            span,
-        });
-
-        for (block, arm) in arm_blocks {
-            self.switch_to_block(block);
+            self.switch_to_block(arm_block);
             for binding in &arm.bindings {
                 let Some(local) = binding.local else {
                     continue;
@@ -136,13 +125,7 @@ impl Lowerer {
                     ),
                 )?;
                 self.track_local(local)?;
-                let dst = self.alloc_reg()?;
-                self.push_op(IrOp::VariantField {
-                    dst,
-                    base: scrutinee,
-                    index: u32::try_from(binding.field_index)
-                        .map_err(|_| IrLowerError::RegisterLimit)?,
-                });
+                let dst = self.lower_pattern_field_path(scrutinee, &binding.field_path)?;
                 self.push_op(IrOp::StoreLocal { local, value: dst });
             }
             for op in &arm.body_ops {
@@ -159,19 +142,67 @@ impl Lowerer {
                 self.push_op(IrOp::Jump { target: join });
             }
             self.stack.truncate(base_stack_len);
+            next_test = failure_block;
         }
 
-        if let Some(fallback_block) = fallback_block {
-            self.switch_to_block(fallback_block);
-            if self.current_block_empty() {
-                self.push_op(IrOp::Jump { target: join });
-            }
+        self.switch_to_block(next_test);
+        if self.current_block_empty() {
+            self.push_op(IrOp::Jump { target: join });
         }
         self.switch_to_block(join);
         if let Some(result) = result {
             self.stack.push(result);
         }
         Ok(())
+    }
+
+    fn lower_plan_pattern_tests(
+        &mut self,
+        tests: &[tune_plan::PlanPatternTest],
+        root: Reg,
+        success: BlockId,
+        failure: BlockId,
+        span: Option<Span>,
+    ) -> Result<(), IrLowerError> {
+        if tests.is_empty() {
+            self.push_op(IrOp::Jump { target: success });
+            return Ok(());
+        }
+        for (index, test) in tests.iter().enumerate() {
+            let passed = if index + 1 == tests.len() {
+                success
+            } else {
+                self.alloc_block()
+            };
+            let value = self.lower_pattern_field_path(root, &test.field_path)?;
+            self.push_op(IrOp::MatchVariant {
+                scrutinee: value,
+                arms: vec![crate::VariantArm {
+                    variant: test.variant,
+                    block: passed,
+                }],
+                else_block: Some(failure),
+                span,
+            });
+            if index + 1 != tests.len() {
+                self.switch_to_block(passed);
+            }
+        }
+        Ok(())
+    }
+
+    fn lower_pattern_field_path(&mut self, root: Reg, path: &[usize]) -> Result<Reg, IrLowerError> {
+        let mut base = root;
+        for index in path {
+            let dst = self.alloc_reg()?;
+            self.push_op(IrOp::VariantField {
+                dst,
+                base,
+                index: u32::try_from(*index).map_err(|_| IrLowerError::RegisterLimit)?,
+            });
+            base = dst;
+        }
+        Ok(base)
     }
 
     pub(super) fn lower_while(

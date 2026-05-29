@@ -238,6 +238,7 @@ impl LowerContext<'_> {
                             pattern: arm.pattern.clone(),
                             body: arm.body.id,
                             variant: self.pattern_variant(&arm.pattern),
+                            tests: self.pattern_tests(&arm.pattern),
                             bindings: self.pattern_bindings(&arm.pattern),
                             body_ops: self.lower_expr_to_ops(&arm.body),
                         })

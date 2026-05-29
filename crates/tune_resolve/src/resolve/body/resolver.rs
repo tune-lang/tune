@@ -86,10 +86,13 @@ impl<'resolved> BodyResolver<'resolved> {
                 });
             }
             ExprKind::Call { callee, args } => {
-                if !self.resolve_expected_variant_callee(callee, expected) {
+                let resolved_variant = self.resolve_expected_variant_callee(callee, expected);
+                if !resolved_variant {
                     self.resolve_expr_names(callee);
                 }
-                let arg_shapes = self.expected_arg_shapes_for_call(callee);
+                let arg_shapes = self
+                    .expected_arg_shapes_for_variant_callee(callee)
+                    .unwrap_or_else(|| self.expected_arg_shapes_for_call(callee));
                 for (index, arg) in args.iter().enumerate() {
                     self.resolve_expr_names_with_expected(
                         arg,
@@ -259,9 +262,12 @@ impl<'resolved> BodyResolver<'resolved> {
                 }
             }
             PatternKind::Variant { name, args } => {
-                self.resolve_variant_pattern(pattern.id, name, pattern.span, expected);
-                for pattern in args {
-                    self.bind_pattern_names_with_expected(pattern, None);
+                let variant =
+                    self.resolve_variant_pattern(pattern.id, name, pattern.span, expected);
+                for (index, pattern) in args.iter().enumerate() {
+                    let expected =
+                        variant.and_then(|variant| self.variant_payload_shape(variant, index));
+                    self.bind_pattern_names_with_expected(pattern, expected.as_ref());
                 }
             }
             PatternKind::StructuralShape(requirements) => {
@@ -288,7 +294,7 @@ impl<'resolved> BodyResolver<'resolved> {
         name: &str,
         span: Option<Span>,
         expected: Option<&ShapeExpr>,
-    ) {
+    ) -> Option<VariantId> {
         if let Some(variant) = self
             .variant_for_expected_enum(name, expected)
             .map(VariantId::Member)
@@ -301,7 +307,7 @@ impl<'resolved> BodyResolver<'resolved> {
                     variant,
                     span,
                 });
-            return;
+            return Some(variant);
         }
 
         if self.resolved.variants.is_ambiguous(name) {
@@ -314,7 +320,7 @@ impl<'resolved> BodyResolver<'resolved> {
                 )
                 .build(),
             );
-            return;
+            return None;
         }
 
         self.resolved.diagnostics.push(
@@ -326,6 +332,19 @@ impl<'resolved> BodyResolver<'resolved> {
             )
             .build(),
         );
+        None
+    }
+
+    fn variant_payload_shape(&self, variant: VariantId, index: usize) -> Option<ShapeExpr> {
+        let VariantId::Member(member) = variant else {
+            return None;
+        };
+        self.items
+            .iter()
+            .find(|item| item.id == member.owner)
+            .and_then(|item| item.variants.iter().find(|variant| variant.id == member))
+            .and_then(|variant| variant.payload.get(index))
+            .cloned()
     }
 
     fn with_scope(&mut self, f: impl FnOnce(&mut Self)) {
