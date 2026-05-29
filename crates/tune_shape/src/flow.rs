@@ -1,4 +1,4 @@
-use tune_hir::expr::{Expr, ExprKind};
+use tune_hir::expr::{Expr, ExprKind, LiteralKind, StringPart};
 use tune_hir::module::Module;
 use tune_resolve::ResolvedModule;
 
@@ -218,6 +218,13 @@ impl PropagatedErrorCollector {
             ExprKind::For { iterable, body, .. } => {
                 self.collect(iterable, module, resolved);
                 self.collect(body, module, resolved);
+            }
+            ExprKind::Literal(LiteralKind::String(literal)) => {
+                for part in &literal.parts {
+                    if let StringPart::Interpolation(expr) = part {
+                        self.collect(expr, module, resolved);
+                    }
+                }
             }
             ExprKind::Missing
             | ExprKind::Literal(_)

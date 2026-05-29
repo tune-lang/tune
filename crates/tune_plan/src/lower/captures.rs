@@ -1,4 +1,4 @@
-use tune_hir::expr::{Expr, ExprKind};
+use tune_hir::expr::{Expr, ExprKind, LiteralKind, StringPart};
 use tune_resolve::{LocalId, LocalKind, NameTarget};
 
 use super::LowerContext;
@@ -235,6 +235,13 @@ fn walk_expr(expr: &Expr, visit: &mut impl FnMut(&Expr)) {
         ExprKind::For { iterable, body, .. } => {
             visit(iterable);
             visit(body);
+        }
+        ExprKind::Literal(LiteralKind::String(literal)) => {
+            for part in &literal.parts {
+                if let StringPart::Interpolation(expr) = part {
+                    visit(expr);
+                }
+            }
         }
         ExprKind::Missing
         | ExprKind::Literal(_)

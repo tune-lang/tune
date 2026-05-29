@@ -1,4 +1,4 @@
-use tune_hir::expr::{Expr, ExprKind};
+use tune_hir::expr::{Expr, ExprKind, LiteralKind, StringPart};
 
 use crate::BindingKey;
 
@@ -53,6 +53,9 @@ pub(super) fn expr_has_materializer_effect(expr: &Expr) -> bool {
         ExprKind::For { iterable, body, .. } => {
             expr_has_materializer_effect(iterable) || expr_has_materializer_effect(body)
         }
+        ExprKind::Literal(LiteralKind::String(literal)) => literal.parts.iter().any(|part| {
+            matches!(part, StringPart::Interpolation(expr) if expr_has_materializer_effect(expr))
+        }),
         ExprKind::Missing
         | ExprKind::Literal(_)
         | ExprKind::Name(_)
@@ -134,6 +137,12 @@ pub(super) fn expr_assigns_binding(
             expr_assigns_binding(iterable, source, analyzer)
                 || expr_assigns_binding(body, source, analyzer)
         }
+        ExprKind::Literal(LiteralKind::String(literal)) => literal.parts.iter().any(|part| {
+            matches!(
+                part,
+                StringPart::Interpolation(expr) if expr_assigns_binding(expr, source, analyzer)
+            )
+        }),
         ExprKind::Missing
         | ExprKind::Literal(_)
         | ExprKind::Name(_)

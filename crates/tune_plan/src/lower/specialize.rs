@@ -1,4 +1,4 @@
-use tune_hir::expr::{Expr, ExprKind};
+use tune_hir::expr::{Expr, ExprKind, LiteralKind, StringPart};
 use tune_hir::item::Item;
 use tune_hir::module::Module;
 use tune_resolve::{NameTarget, ResolvedModule};
@@ -142,6 +142,13 @@ fn collect_direct_call_param_shapes(
         ExprKind::For { iterable, body, .. } => {
             collect_direct_call_param_shapes(iterable, context, module, inferred);
             collect_direct_call_param_shapes(body, context, module, inferred);
+        }
+        ExprKind::Literal(LiteralKind::String(literal)) => {
+            for part in &literal.parts {
+                if let StringPart::Interpolation(expr) = part {
+                    collect_direct_call_param_shapes(expr, context, module, inferred);
+                }
+            }
         }
         ExprKind::Missing
         | ExprKind::Literal(_)

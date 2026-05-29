@@ -168,22 +168,6 @@ impl LowerContext<'_> {
             .map(|name_ref| name_ref.target)
     }
 
-    pub(super) fn interpolation_target(&self, name: &str) -> Option<NameTarget> {
-        let resolved = self.resolved?;
-        resolved
-            .locals
-            .iter()
-            .rev()
-            .find(|local| local.name == name)
-            .map(|local| NameTarget::Local(local.id))
-            .or_else(|| {
-                resolved
-                    .scope
-                    .get(name)
-                    .map(|binding| NameTarget::TopLevel(binding.id))
-            })
-    }
-
     pub(super) fn local_for_expr(&self, expr: ExprId) -> Option<LocalId> {
         self.resolved?
             .locals

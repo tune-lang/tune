@@ -1,6 +1,6 @@
 use crate::LiteralFact;
 use tune_diagnostics::{Diagnostic, Span, codes};
-use tune_hir::expr::{Expr, ExprKind};
+use tune_hir::expr::{Expr, ExprKind, LiteralKind, StringPart};
 mod callable;
 mod calls;
 mod contracts;
@@ -247,6 +247,14 @@ impl Analyzer<'_> {
     fn analyze_expr(&mut self, expr: &Expr) -> Shape {
         let shape = match &expr.kind {
             ExprKind::Missing => Shape::Hole,
+            ExprKind::Literal(LiteralKind::String(literal)) => {
+                for part in &literal.parts {
+                    if let StringPart::Interpolation(expr) = part {
+                        self.analyze_expr(expr);
+                    }
+                }
+                Shape::String
+            }
             ExprKind::Literal(_) | ExprKind::Sequence(_) | ExprKind::Tuple(_) => {
                 self.literal_or_sequence_shape(expr)
             }

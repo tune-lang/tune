@@ -1,4 +1,4 @@
-use tune_hir::expr::{Expr, ExprKind, LiteralKind};
+use tune_hir::expr::{Expr, ExprKind, LiteralKind, StringPart};
 use tune_hir::item::Item;
 use tune_hir::module::Module;
 use tune_hir::shape::{ShapeExpr, ShapeExprKind, StructuralShapeRequirementKind};
@@ -29,16 +29,15 @@ fn literal_fact(literal: &LiteralKind) -> Option<LiteralFact> {
         LiteralKind::Int(text) | LiteralKind::Float(text) => {
             Some(LiteralFact::Numeric { text: text.clone() })
         }
-        LiteralKind::String(literal) => Some(LiteralFact::String {
-            segments: literal
-                .parts
-                .iter()
-                .map(|part| match part {
-                    tune_hir::expr::StringPart::Text(text)
-                    | tune_hir::expr::StringPart::Interpolation(text) => text.clone(),
-                })
-                .collect(),
-        }),
+        LiteralKind::String(literal) => literal
+            .parts
+            .iter()
+            .map(|part| match part {
+                StringPart::Text(text) => Some(text.clone()),
+                StringPart::Interpolation(_) => None,
+            })
+            .collect::<Option<Vec<_>>>()
+            .map(|segments| LiteralFact::String { segments }),
         LiteralKind::Bool(value) => Some(LiteralFact::Bool(*value)),
         LiteralKind::None => Some(LiteralFact::None),
     }

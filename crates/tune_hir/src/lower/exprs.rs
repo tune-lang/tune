@@ -1,6 +1,6 @@
 use tune_ast::AstNode;
 use tune_ast::nodes::{CallableParam, Expr as AstExpr, LiteralExpr, ParamList, Shape as AstShape};
-use tune_syntax::{CstElement, CstNode, TokenKind};
+use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 
 use crate::ExprId;
 mod flow;
@@ -26,9 +26,9 @@ impl ExprLowerer {
             AstExpr::Missing(_) => ExprKind::Missing,
             AstExpr::Group(_) => self.lower_group(source, expr),
             AstExpr::Tuple(_) => self.lower_tuple(source, expr),
-            AstExpr::Literal(node) => {
-                literal_kind(source, node).map_or(ExprKind::Missing, ExprKind::Literal)
-            }
+            AstExpr::Literal(node) => self
+                .literal_kind(source, node)
+                .map_or(ExprKind::Missing, ExprKind::Literal),
             AstExpr::Sequence(_) => ExprKind::Sequence(
                 expr.child_exprs()
                     .into_iter()
@@ -235,42 +235,42 @@ impl ExprLowerer {
         self.next_id += 1;
         id
     }
+
+    fn literal_kind(&mut self, source: &str, node: LiteralExpr<'_>) -> Option<LiteralKind> {
+        let text = node.text(source)?;
+        match first_token_kind(node.syntax())? {
+            TokenKind::IntLiteral => Some(LiteralKind::Int(text.to_owned())),
+            TokenKind::FloatLiteral => Some(LiteralKind::Float(text.to_owned())),
+            TokenKind::StringLiteral => Some(LiteralKind::String(self.parse_string_literal(text))),
+            TokenKind::MultilineStringLiteral => Some(LiteralKind::String(
+                self.parse_multiline_string_literal(text),
+            )),
+            TokenKind::KeywordTrue => Some(LiteralKind::Bool(true)),
+            TokenKind::KeywordFalse => Some(LiteralKind::Bool(false)),
+            TokenKind::KeywordNone => Some(LiteralKind::None),
+            _ => None,
+        }
+    }
+
+    fn parse_string_literal(&mut self, text: &str) -> StringLiteral {
+        let body = text
+            .strip_prefix('"')
+            .and_then(|body| body.strip_suffix('"'))
+            .unwrap_or(text);
+        self.string_literal_from_body(body)
+    }
+
+    fn parse_multiline_string_literal(&mut self, text: &str) -> StringLiteral {
+        let body = text
+            .strip_prefix("\"\"\"")
+            .and_then(|body| body.strip_suffix("\"\"\""))
+            .unwrap_or(text);
+        self.string_literal_from_body(&trim_multiline_string_body(body))
+    }
 }
 
 fn binding_name(name: Option<&str>) -> Option<String> {
     name.filter(|name| *name != "_").map(str::to_owned)
-}
-
-fn literal_kind(source: &str, node: LiteralExpr<'_>) -> Option<LiteralKind> {
-    let text = node.text(source)?;
-    match first_token_kind(node.syntax())? {
-        TokenKind::IntLiteral => Some(LiteralKind::Int(text.to_owned())),
-        TokenKind::FloatLiteral => Some(LiteralKind::Float(text.to_owned())),
-        TokenKind::StringLiteral => Some(LiteralKind::String(parse_string_literal(text))),
-        TokenKind::MultilineStringLiteral => {
-            Some(LiteralKind::String(parse_multiline_string_literal(text)))
-        }
-        TokenKind::KeywordTrue => Some(LiteralKind::Bool(true)),
-        TokenKind::KeywordFalse => Some(LiteralKind::Bool(false)),
-        TokenKind::KeywordNone => Some(LiteralKind::None),
-        _ => None,
-    }
-}
-
-fn parse_string_literal(text: &str) -> StringLiteral {
-    let body = text
-        .strip_prefix('"')
-        .and_then(|body| body.strip_suffix('"'))
-        .unwrap_or(text);
-    string_literal_from_body(body)
-}
-
-fn parse_multiline_string_literal(text: &str) -> StringLiteral {
-    let body = text
-        .strip_prefix("\"\"\"")
-        .and_then(|body| body.strip_suffix("\"\"\""))
-        .unwrap_or(text);
-    string_literal_from_body(&trim_multiline_string_body(body))
 }
 
 fn trim_multiline_string_body(body: &str) -> String {
@@ -307,48 +307,68 @@ fn strip_indent(line: &str, indent: usize) -> &str {
     &line[bytes..]
 }
 
-fn string_literal_from_body(body: &str) -> StringLiteral {
-    let mut parts = Vec::new();
-    let mut text = String::new();
-    let mut chars = body.char_indices().peekable();
+impl ExprLowerer {
+    fn string_literal_from_body(&mut self, body: &str) -> StringLiteral {
+        let mut parts = Vec::new();
+        let mut text = String::new();
+        let mut chars = body.char_indices().peekable();
 
-    while let Some((_, ch)) = chars.next() {
-        match ch {
-            '\\' => {
-                if let Some((_, escaped)) = chars.next() {
-                    text.push(unescape_char(escaped));
-                }
-            }
-            '{' if chars.peek().is_some_and(|(_, next)| *next == '{') => {
-                chars.next();
-                text.push('{');
-            }
-            '}' if chars.peek().is_some_and(|(_, next)| *next == '}') => {
-                chars.next();
-                text.push('}');
-            }
-            '{' => {
-                if !text.is_empty() {
-                    parts.push(StringPart::Text(std::mem::take(&mut text)));
-                }
-                let mut interpolation = String::new();
-                for (_, inner) in chars.by_ref() {
-                    if inner == '}' {
-                        break;
+        while let Some((_, ch)) = chars.next() {
+            match ch {
+                '\\' => {
+                    if let Some((_, escaped)) = chars.next() {
+                        text.push(unescape_char(escaped));
                     }
-                    interpolation.push(inner);
                 }
-                parts.push(StringPart::Interpolation(interpolation.trim().to_owned()));
+                '{' if chars.peek().is_some_and(|(_, next)| *next == '{') => {
+                    chars.next();
+                    text.push('{');
+                }
+                '}' if chars.peek().is_some_and(|(_, next)| *next == '}') => {
+                    chars.next();
+                    text.push('}');
+                }
+                '{' => {
+                    if !text.is_empty() {
+                        parts.push(StringPart::Text(std::mem::take(&mut text)));
+                    }
+                    let mut interpolation = String::new();
+                    for (_, inner) in chars.by_ref() {
+                        if inner == '}' {
+                            break;
+                        }
+                        interpolation.push(inner);
+                    }
+                    parts.push(StringPart::Interpolation(Box::new(
+                        self.lower_interpolation_expr(interpolation.trim()),
+                    )));
+                }
+                _ => text.push(ch),
             }
-            _ => text.push(ch),
+        }
+
+        if !text.is_empty() || parts.is_empty() {
+            parts.push(StringPart::Text(text));
+        }
+
+        StringLiteral { parts }
+    }
+
+    fn lower_interpolation_expr(&mut self, source: &str) -> Expr {
+        let parsed = tune_syntax::parse_expr(source);
+        if let Some(expr) = parsed.cst.children.iter().find_map(|child| match child {
+            CstElement::Node(node) if node.kind != SyntaxKind::Error => AstExpr::cast(node),
+            CstElement::Node(_) | CstElement::Token(_) => None,
+        }) {
+            self.lower(source, expr)
+        } else {
+            Expr {
+                id: self.alloc_id(),
+                span: None,
+                kind: ExprKind::Missing,
+            }
         }
     }
-
-    if !text.is_empty() || parts.is_empty() {
-        parts.push(StringPart::Text(text));
-    }
-
-    StringLiteral { parts }
 }
 
 const fn unescape_char(ch: char) -> char {

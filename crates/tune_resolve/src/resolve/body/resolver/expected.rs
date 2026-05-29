@@ -1,5 +1,5 @@
 use tune_hir::MemberId;
-use tune_hir::expr::{Expr, ExprKind};
+use tune_hir::expr::{Expr, ExprKind, LiteralKind, StringPart};
 use tune_hir::item::{Item, StructMember};
 use tune_hir::shape::{ShapeExpr, ShapeExprKind};
 
@@ -220,6 +220,12 @@ fn shape_for_let_expr(expr: &Expr, target: tune_hir::ExprId) -> Option<ShapeExpr
         ExprKind::Panic(args) => args.iter().find_map(|arg| shape_for_let_expr(arg, target)),
         ExprKind::For { iterable, body, .. } => {
             shape_for_let_expr(iterable, target).or_else(|| shape_for_let_expr(body, target))
+        }
+        ExprKind::Literal(LiteralKind::String(literal)) => {
+            literal.parts.iter().find_map(|part| match part {
+                StringPart::Text(_) => None,
+                StringPart::Interpolation(expr) => shape_for_let_expr(expr, target),
+            })
         }
         ExprKind::Missing
         | ExprKind::Literal(_)

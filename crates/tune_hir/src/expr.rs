@@ -3,7 +3,7 @@ use crate::pattern::Pattern;
 use crate::shape::ShapeExpr;
 use tune_diagnostics::Span;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum LiteralKind {
     Int(String),
     Float(String),
@@ -12,15 +12,15 @@ pub enum LiteralKind {
     None,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct StringLiteral {
     pub parts: Vec<StringPart>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum StringPart {
     Text(String),
-    Interpolation(String),
+    Interpolation(Box<Expr>),
 }
 
 impl StringLiteral {

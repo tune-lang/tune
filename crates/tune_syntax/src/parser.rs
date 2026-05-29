@@ -28,6 +28,27 @@ pub fn parse_with_file(file: FileId, source: &str) -> Parsed {
     }
 }
 
+#[must_use]
+pub fn parse_expr(source: &str) -> Parsed {
+    parse_expr_with_file(FileId(0), source)
+}
+
+#[must_use]
+pub fn parse_expr_with_file(file: FileId, source: &str) -> Parsed {
+    let lexed = lex_with_file(file, source);
+    let mut parser = Parser::new(source, lexed.tokens, lexed.diagnostics);
+    parser.parse_expr_until_boundary();
+
+    if parser.at(TokenKind::Eof) {
+        parser.bump();
+    }
+
+    Parsed {
+        cst: parser.finish_tree(),
+        diagnostics: parser.diagnostics,
+    }
+}
+
 pub(super) struct Parser<'src> {
     pub(super) source: &'src str,
     pub(super) tokens: Vec<Token>,

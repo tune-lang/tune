@@ -214,9 +214,12 @@ fn lowers_string_literals_to_segments_and_trims_multiline() -> Result<(), &'stat
         return Err("expected string literal");
     };
     assert_eq!(message.parts.len(), 2);
+    let tune_hir::expr::StringPart::Interpolation(expr) = &message.parts[1] else {
+        return Err("expected interpolation expression");
+    };
     assert!(matches!(
-        message.parts[1],
-        tune_hir::expr::StringPart::Interpolation(ref name) if name == "value"
+        expr.kind,
+        tune_hir::expr::ExprKind::Name(ref name) if name == "value"
     ));
 
     let tune_hir::expr::ExprKind::Literal(tune_hir::expr::LiteralKind::String(text)) = &text.kind

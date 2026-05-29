@@ -75,6 +75,23 @@ let result: String = "hello {name} {count}"
 }
 
 #[test]
+fn run_file_executes_expression_string_interpolation() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let count: Int = 3
+let result: String = "next {count + 1}"
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, Value::String("next 4".to_owned()));
+    Ok(())
+}
+
+#[test]
 fn run_file_preserves_private_callable_capture_state() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

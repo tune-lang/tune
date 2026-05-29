@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use tune_diagnostics::{Diagnostic, Span, codes};
-use tune_hir::expr::{Expr, ExprKind};
+use tune_hir::expr::{Expr, ExprKind, LiteralKind, StringPart};
 use tune_hir::item::Item;
 use tune_hir::pattern::{Pattern, PatternKind, StructuralRequirementKind};
 use tune_hir::shape::ShapeExpr;
@@ -47,7 +47,15 @@ impl<'resolved> BodyResolver<'resolved> {
         expected: Option<&ShapeExpr>,
     ) {
         match &expr.kind {
-            ExprKind::Missing | ExprKind::Literal(_) => {}
+            ExprKind::Missing => {}
+            ExprKind::Literal(LiteralKind::String(literal)) => {
+                for part in &literal.parts {
+                    if let StringPart::Interpolation(expr) = part {
+                        self.resolve_expr_names(expr);
+                    }
+                }
+            }
+            ExprKind::Literal(_) => {}
             ExprKind::Tuple(elements) | ExprKind::Sequence(elements) => {
                 for element in elements {
                     self.resolve_expr_names(element);

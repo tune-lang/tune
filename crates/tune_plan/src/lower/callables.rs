@@ -1,4 +1,4 @@
-use tune_hir::expr::{Expr, ExprKind, ExprParam};
+use tune_hir::expr::{Expr, ExprKind, ExprParam, LiteralKind, StringPart};
 use tune_hir::item::{Item, StructMember};
 use tune_hir::module::Module;
 use tune_resolve::ResolvedModule;
@@ -201,6 +201,13 @@ fn walk_expr(expr: &Expr, visit: &mut impl FnMut(&Expr)) {
         ExprKind::For { iterable, body, .. } => {
             visit(iterable);
             visit(body);
+        }
+        ExprKind::Literal(LiteralKind::String(literal)) => {
+            for part in &literal.parts {
+                if let StringPart::Interpolation(expr) = part {
+                    visit(expr);
+                }
+            }
         }
         ExprKind::Missing
         | ExprKind::Literal(_)

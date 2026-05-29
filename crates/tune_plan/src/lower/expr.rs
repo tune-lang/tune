@@ -39,16 +39,8 @@ impl LowerContext<'_> {
                                 });
                                 part_count += 1;
                             }
-                            StringPart::Interpolation(name) => {
-                                if let Some(target) = self.interpolation_target(name) {
-                                    ops.push(PlanOp::BindingGet {
-                                        source: Some(target),
-                                    });
-                                } else {
-                                    ops.push(PlanOp::ConstString {
-                                        value: format!("{{{name}}}"),
-                                    });
-                                }
+                            StringPart::Interpolation(expr) => {
+                                self.lower_expr(expr, ops);
                                 part_count += 1;
                             }
                         }
