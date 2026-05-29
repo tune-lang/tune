@@ -20,8 +20,11 @@ impl Analyzer<'_> {
             self.frame = entry.clone();
             self.apply_structural_pattern(scrutinee, &arm.pattern, &scrutinee_shape);
             self.bind_pattern(&arm.pattern, Shape::Hole);
-            shapes.push(self.analyze_expr(&arm.body));
-            frames.push(self.frame.clone());
+            let shape = self.analyze_expr(&arm.body);
+            if shape != Shape::Never {
+                frames.push(self.frame.clone());
+            }
+            shapes.push(shape);
         }
         self.join_branch_frames(entry, frames);
         join_continuing_shapes(shapes)
@@ -43,8 +46,11 @@ impl Analyzer<'_> {
             self.frame = entry.clone();
             self.apply_structural_pattern(scrutinee, &arm.pattern, &scrutinee_shape);
             self.bind_pattern(&arm.pattern, Shape::Hole);
-            shapes.push(self.analyze_expr_expected(&arm.body, expected));
-            frames.push(self.frame.clone());
+            let shape = self.analyze_expr_expected(&arm.body, expected);
+            if shape != Shape::Never {
+                frames.push(self.frame.clone());
+            }
+            shapes.push(shape);
         }
         self.join_branch_frames(entry, frames);
         join_continuing_shapes(shapes)
@@ -90,19 +96,29 @@ impl Analyzer<'_> {
             self.frame = entry.clone();
             self.analyze_expr(&branch.condition);
             self.apply_condition_narrowing(&branch.condition, true);
-            shapes.push(self.analyze_expr(&branch.body));
-            frames.push(self.frame.clone());
+            let shape = self.analyze_expr(&branch.body);
+            if shape != Shape::Never {
+                frames.push(self.frame.clone());
+            }
+            shapes.push(shape);
         }
         if let Some(else_branch) = else_branch {
             self.frame = entry.clone();
             for branch in branches {
                 self.apply_condition_narrowing(&branch.condition, false);
             }
-            shapes.push(self.analyze_expr(else_branch));
-            frames.push(self.frame.clone());
+            let shape = self.analyze_expr(else_branch);
+            if shape != Shape::Never {
+                frames.push(self.frame.clone());
+            }
+            shapes.push(shape);
         } else {
+            self.frame = entry.clone();
+            for branch in branches {
+                self.apply_condition_narrowing(&branch.condition, false);
+            }
             shapes.push(Shape::Hole);
-            frames.push(entry.clone());
+            frames.push(self.frame.clone());
         }
         self.join_branch_frames(entry, frames);
         join_continuing_shapes(shapes)
@@ -121,19 +137,29 @@ impl Analyzer<'_> {
             self.frame = entry.clone();
             self.analyze_expr(&branch.condition);
             self.apply_condition_narrowing(&branch.condition, true);
-            shapes.push(self.analyze_expr_expected(&branch.body, expected));
-            frames.push(self.frame.clone());
+            let shape = self.analyze_expr_expected(&branch.body, expected);
+            if shape != Shape::Never {
+                frames.push(self.frame.clone());
+            }
+            shapes.push(shape);
         }
         if let Some(else_branch) = else_branch {
             self.frame = entry.clone();
             for branch in branches {
                 self.apply_condition_narrowing(&branch.condition, false);
             }
-            shapes.push(self.analyze_expr_expected(else_branch, expected));
-            frames.push(self.frame.clone());
+            let shape = self.analyze_expr_expected(else_branch, expected);
+            if shape != Shape::Never {
+                frames.push(self.frame.clone());
+            }
+            shapes.push(shape);
         } else {
+            self.frame = entry.clone();
+            for branch in branches {
+                self.apply_condition_narrowing(&branch.condition, false);
+            }
             shapes.push(Shape::Hole);
-            frames.push(entry.clone());
+            frames.push(self.frame.clone());
         }
         self.join_branch_frames(entry, frames);
         join_continuing_shapes(shapes)
