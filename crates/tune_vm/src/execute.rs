@@ -1,10 +1,9 @@
 use tune_bytecode::{Opcode, artifact::BytecodeConst, function::BytecodeCaptureMode};
 use tune_runtime::value::{
-    CallableValue, CaptureStorageMode, CapturedValue, RangeItemKind, RangeValue, StructFields,
-    Value,
+    CallableValue, CaptureStorageMode, CapturedValue, RangeItemKind, RangeValue, Value,
 };
 
-use crate::execute_support::{read_reg, runtime_variant, write_reg};
+use crate::execute_support::{read_reg, write_reg};
 use crate::{Vm, VmError, VmFault};
 
 impl Vm {
@@ -107,106 +106,22 @@ impl Vm {
                     self.execute_sequence(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::TupleBuild => {
-                    let site = function
-                        .tuple_sites
-                        .get(instruction.b as usize)
-                        .ok_or_else(|| {
-                            self.fault_at(function_index, ip, VmError::CallSiteOutOfBounds)
-                        })?;
-                    let values = site
-                        .items
-                        .iter()
-                        .map(|item| self.at(function_index, ip, read_reg(&registers, *item)))
-                        .collect::<Result<Vec<_>, _>>()?;
-                    self.at(
-                        function_index,
-                        ip,
-                        write_reg(&mut registers, instruction.a, Value::Tuple(values)),
-                    )?;
+                    self.execute_tuple_build(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::StringBuild => {
                     self.execute_string_build(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::StructConstruct => {
-                    let site = function
-                        .struct_sites
-                        .get(instruction.b as usize)
-                        .ok_or_else(|| {
-                            self.fault_at(function_index, ip, VmError::StructSiteOutOfBounds)
-                        })?;
-                    let max_field = site
-                        .fields
-                        .iter()
-                        .map(|field| field.field)
-                        .max()
-                        .unwrap_or(0);
-                    let mut fields = vec![Value::Unit; max_field as usize + 1];
-                    for field in &site.fields {
-                        fields[field.field as usize] =
-                            self.at(function_index, ip, read_reg(&registers, field.value))?;
-                    }
-                    let state = self.at(function_index, ip, self.alloc_state(site.state))?;
-                    self.at(
-                        function_index,
-                        ip,
-                        write_reg(
-                            &mut registers,
-                            instruction.a,
-                            Value::Struct {
-                                owner: site.owner,
-                                fields: StructFields::new(state, fields),
-                            },
-                        ),
-                    )?;
+                    self.execute_struct_construct(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::FieldGet => {
-                    match self.at(function_index, ip, read_reg(&registers, instruction.b))? {
-                        Value::Struct { fields, .. } => {
-                            let value = fields.get(instruction.c as usize).ok_or_else(|| {
-                                self.fault_at(function_index, ip, VmError::RegisterOutOfBounds)
-                            })?;
-                            self.at(
-                                function_index,
-                                ip,
-                                write_reg(&mut registers, instruction.a, value),
-                            )?;
-                        }
-                        _ => {
-                            return Err(self.fault_at(
-                                function_index,
-                                ip,
-                                VmError::UnsupportedOpcode(Opcode::FieldGet),
-                            ));
-                        }
-                    }
+                    self.execute_field_get(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::StructIs => {
-                    let value = self.at(function_index, ip, read_reg(&registers, instruction.b))?;
-                    let result =
-                        matches!(value, Value::Struct { owner, .. } if owner == instruction.c);
-                    self.at(
-                        function_index,
-                        ip,
-                        write_reg(&mut registers, instruction.a, Value::Bool(result)),
-                    )?;
+                    self.execute_struct_is(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::FieldSet => {
-                    match self.at(function_index, ip, read_reg(&registers, instruction.a))? {
-                        Value::Struct { fields, .. } => {
-                            let value =
-                                self.at(function_index, ip, read_reg(&registers, instruction.c))?;
-                            fields.set(instruction.b as usize, value).ok_or_else(|| {
-                                self.fault_at(function_index, ip, VmError::RegisterOutOfBounds)
-                            })?;
-                        }
-                        _ => {
-                            return Err(self.fault_at(
-                                function_index,
-                                ip,
-                                VmError::UnsupportedOpcode(Opcode::FieldSet),
-                            ));
-                        }
-                    }
+                    self.execute_field_set(function_index, ip, &registers, instruction)?;
                 }
                 Opcode::AddInt
                 | Opcode::SubInt
@@ -371,52 +286,15 @@ impl Vm {
                     )?;
                 }
                 Opcode::VariantConstruct => {
-                    let variant_site = function
-                        .variant_sites
-                        .get(instruction.b as usize)
-                        .ok_or_else(|| {
-                            self.fault_at(function_index, ip, VmError::CallSiteOutOfBounds)
-                        })?;
-                    let fields = variant_site
-                        .args
-                        .iter()
-                        .map(|arg| self.at(function_index, ip, read_reg(&registers, *arg)))
-                        .collect::<Result<Vec<_>, _>>()?;
-                    self.at(
+                    self.execute_variant_construct(
                         function_index,
                         ip,
-                        write_reg(
-                            &mut registers,
-                            instruction.a,
-                            Value::Variant {
-                                variant: runtime_variant(variant_site.variant),
-                                fields,
-                                propagation_frames: Vec::new(),
-                            },
-                        ),
+                        &mut registers,
+                        instruction,
                     )?;
                 }
                 Opcode::VariantField => {
-                    match self.at(function_index, ip, read_reg(&registers, instruction.b))? {
-                        Value::Variant { fields, .. } => {
-                            let value =
-                                fields.get(instruction.c as usize).cloned().ok_or_else(|| {
-                                    self.fault_at(function_index, ip, VmError::RegisterOutOfBounds)
-                                })?;
-                            self.at(
-                                function_index,
-                                ip,
-                                write_reg(&mut registers, instruction.a, value),
-                            )?;
-                        }
-                        _ => {
-                            return Err(self.fault_at(
-                                function_index,
-                                ip,
-                                VmError::UnsupportedOpcode(Opcode::VariantField),
-                            ));
-                        }
-                    }
+                    self.execute_variant_field(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::ResultPropagate => {
                     let result =
@@ -464,37 +342,7 @@ impl Vm {
                     }
                 }
                 Opcode::MatchVariant => {
-                    let Value::Variant { variant, .. } =
-                        self.at(function_index, ip, read_reg(&registers, instruction.a))?
-                    else {
-                        return Err(self.fault_at(
-                            function_index,
-                            ip,
-                            VmError::UnsupportedOpcode(Opcode::MatchVariant),
-                        ));
-                    };
-                    let match_site = function
-                        .match_sites
-                        .get(instruction.b as usize)
-                        .ok_or_else(|| {
-                            self.fault_at(function_index, ip, VmError::CallSiteOutOfBounds)
-                        })?;
-                    if let Some(arm) = match_site
-                        .arms
-                        .iter()
-                        .find(|arm| runtime_variant(arm.variant) == variant)
-                    {
-                        ip = arm.target as usize;
-                        continue;
-                    }
-                    if instruction.c == u32::MAX {
-                        return Err(self.fault_at(
-                            function_index,
-                            ip,
-                            VmError::UnsupportedOpcode(Opcode::MatchVariant),
-                        ));
-                    }
-                    ip = instruction.c as usize;
+                    ip = self.execute_match_variant(function_index, ip, &registers, instruction)?;
                     continue;
                 }
                 Opcode::FiniteForInit => {
