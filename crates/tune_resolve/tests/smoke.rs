@@ -390,6 +390,26 @@ let unwrap(result: Result) = match result { Ok(value) => value; Error(error) => 
 }
 
 #[test]
+fn resolves_result_variants_in_match_on_result_returning_call() {
+    let source = r#"
+let parse(): Result<Int, String> = Ok(1)
+let value: Int = match parse() { Ok(value) => value; Error(_) => 0 }
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert!(resolved.diagnostics.is_empty());
+    assert_eq!(resolved.variant_pattern_refs.len(), 2);
+    assert!(
+        resolved
+            .variant_pattern_refs
+            .iter()
+            .all(|variant_ref| matches!(variant_ref.variant, tune_resolve::VariantId::Prelude(_)))
+    );
+}
+
+#[test]
 fn rejects_prelude_result_variants_without_result_context() {
     let source = "let ok = Ok(1)";
     let parsed = tune_syntax::parse(source);

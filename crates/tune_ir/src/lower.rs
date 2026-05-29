@@ -311,7 +311,7 @@ impl Lowerer {
                 span,
                 ..
             } => self.lower_finite_for(*binding, iterable_ops, body_ops, contract, *span),
-            PlanOp::Panic { arg_count } => self.lower_panic(*arg_count),
+            PlanOp::Panic { arg_count, span } => self.lower_panic(*arg_count, *span),
             PlanOp::StringBuild { part_count } => self.lower_string_build(*part_count),
             PlanOp::StringLen { span } => self.lower_string_len(*span),
             PlanOp::StringGet { span } => self.lower_string_get(*span),
@@ -351,13 +351,17 @@ impl Lowerer {
             .ok_or(IrLowerError::StackUnderflow(context))
     }
 
-    fn lower_panic(&mut self, arg_count: usize) -> Result<(), IrLowerError> {
+    fn lower_panic(
+        &mut self,
+        arg_count: usize,
+        span: Option<tune_diagnostics::Span>,
+    ) -> Result<(), IrLowerError> {
         let mut args = Vec::with_capacity(arg_count);
         for _ in 0..arg_count {
             args.push(self.pop("panic argument")?);
         }
         args.reverse();
-        self.push_op(IrOp::Panic { args, span: None });
+        self.push_op(IrOp::Panic { args, span });
         let never = self.alloc_reg()?;
         self.stack.push(never);
         Ok(())

@@ -361,6 +361,7 @@ pub enum PlanOp {
     },
     Panic {
         arg_count: usize,
+        span: Option<Span>,
     },
     Meta {
         plan: MetaPlan,

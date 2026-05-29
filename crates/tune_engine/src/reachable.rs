@@ -115,6 +115,10 @@ fn nested_direct_call_targets(op: &tune_plan::PlanOp) -> Vec<FunctionTarget> {
             .iter()
             .flat_map(direct_call_targets_in_op)
             .collect(),
+        tune_plan::PlanOp::Spawn { body_ops, .. } => body_ops
+            .iter()
+            .flat_map(direct_call_targets_in_op)
+            .collect(),
         tune_plan::PlanOp::BoolAnd {
             lhs_ops, rhs_ops, ..
         }

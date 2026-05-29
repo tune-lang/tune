@@ -340,6 +340,24 @@ let run(): Int = Error("bad")!
 }
 
 #[test]
+fn analyzer_enforces_result_propagation_from_result_returning_calls() -> Result<(), &'static str> {
+    let source = r#"
+let parse(): Result<Int, String> = Error("bad")
+let run(): Int = parse()!
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[1]);
+
+    assert!(analysis.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::RESULT_PROPAGATION_ERROR
+    }));
+
+    Ok(())
+}
+
+#[test]
 fn analyzer_warns_for_public_api_inference() -> Result<(), &'static str> {
     let source = "pub let run(input): Int = input";
     let parsed = tune_syntax::parse(source);

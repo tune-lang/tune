@@ -1,9 +1,9 @@
 use tune_diagnostics::{Diagnostic, Span, codes};
-use tune_hir::expr::Expr;
+use tune_hir::expr::{Expr, ExprKind, LiteralKind, StringPart};
 use tune_hir::item::{Item, ItemKind, Visibility};
 
 use super::Analyzer;
-use crate::{Shape, expr_propagated_error_shape_fact};
+use crate::Shape;
 
 impl Analyzer<'_> {
     pub(super) fn check_public_api_shape(&mut self, item: &Item) {
@@ -47,8 +47,7 @@ impl Analyzer<'_> {
     }
 
     pub(super) fn check_result_propagation(&mut self, item: &Item, body: &Expr, expected: &Shape) {
-        let Some(error_shape) = expr_propagated_error_shape_fact(body, self.module, self.resolved)
-        else {
+        let Some(error_shape) = self.propagated_error_shape(body) else {
             return;
         };
         let Shape::Result { err, .. } = expected else {
@@ -63,8 +62,7 @@ impl Analyzer<'_> {
     }
 
     pub(super) fn check_untyped_result_propagation(&mut self, item: &Item, body: &Expr) {
-        let Some(error_shape) = expr_propagated_error_shape_fact(body, self.module, self.resolved)
-        else {
+        let Some(error_shape) = self.propagated_error_shape(body) else {
             return;
         };
         self.diagnostics
@@ -86,6 +84,120 @@ impl Analyzer<'_> {
                 .build(),
             );
         }
+    }
+
+    fn propagated_error_shape(&self, expr: &Expr) -> Option<Shape> {
+        let mut errors = Vec::new();
+        self.collect_propagated_errors(expr, &mut errors);
+        (!errors.is_empty()).then(|| Shape::join_all(errors))
+    }
+
+    fn collect_propagated_errors(&self, expr: &Expr, errors: &mut Vec<Shape>) {
+        match &expr.kind {
+            ExprKind::Propagate(inner) => {
+                if let Some(Shape::Result { err, .. }) = self.recorded_expr_shape(inner) {
+                    errors.push(*err);
+                }
+                self.collect_propagated_errors(inner, errors);
+            }
+            ExprKind::CallableValue { .. } => {}
+            ExprKind::Spawn(body) | ExprKind::Loop(body) => {
+                self.collect_propagated_errors(body, errors);
+            }
+            ExprKind::Tuple(elements)
+            | ExprKind::Sequence(elements)
+            | ExprKind::Block(elements) => {
+                for element in elements {
+                    self.collect_propagated_errors(element, errors);
+                }
+            }
+            ExprKind::Struct { fields, .. } => {
+                for field in fields {
+                    self.collect_propagated_errors(&field.value, errors);
+                }
+            }
+            ExprKind::Call { callee, args } => {
+                self.collect_propagated_errors(callee, errors);
+                for arg in args {
+                    self.collect_propagated_errors(arg, errors);
+                }
+            }
+            ExprKind::Field { base, .. } => self.collect_propagated_errors(base, errors),
+            ExprKind::Index { base, index } => {
+                self.collect_propagated_errors(base, errors);
+                self.collect_propagated_errors(index, errors);
+            }
+            ExprKind::Let { value, .. } => {
+                if let Some(value) = value {
+                    self.collect_propagated_errors(value, errors);
+                }
+            }
+            ExprKind::Assign { target, value } => {
+                self.collect_propagated_errors(target, errors);
+                self.collect_propagated_errors(value, errors);
+            }
+            ExprKind::Unary { expr, .. } => self.collect_propagated_errors(expr, errors),
+            ExprKind::Binary { lhs, rhs, .. } => {
+                self.collect_propagated_errors(lhs, errors);
+                self.collect_propagated_errors(rhs, errors);
+            }
+            ExprKind::If {
+                branches,
+                else_branch,
+            } => {
+                for branch in branches {
+                    self.collect_propagated_errors(&branch.condition, errors);
+                    self.collect_propagated_errors(&branch.body, errors);
+                }
+                if let Some(else_branch) = else_branch {
+                    self.collect_propagated_errors(else_branch, errors);
+                }
+            }
+            ExprKind::Match { scrutinee, arms } => {
+                self.collect_propagated_errors(scrutinee, errors);
+                for arm in arms {
+                    self.collect_propagated_errors(&arm.body, errors);
+                }
+            }
+            ExprKind::While { condition, body } => {
+                self.collect_propagated_errors(condition, errors);
+                self.collect_propagated_errors(body, errors);
+            }
+            ExprKind::Return(inner) => {
+                if let Some(inner) = inner {
+                    self.collect_propagated_errors(inner, errors);
+                }
+            }
+            ExprKind::Panic(args) => {
+                for arg in args {
+                    self.collect_propagated_errors(arg, errors);
+                }
+            }
+            ExprKind::For { iterable, body, .. } => {
+                self.collect_propagated_errors(iterable, errors);
+                self.collect_propagated_errors(body, errors);
+            }
+            ExprKind::Literal(LiteralKind::String(literal)) => {
+                for part in &literal.parts {
+                    if let StringPart::Interpolation(expr) = part {
+                        self.collect_propagated_errors(expr, errors);
+                    }
+                }
+            }
+            ExprKind::Missing
+            | ExprKind::Literal(_)
+            | ExprKind::Name(_)
+            | ExprKind::Break
+            | ExprKind::Continue => {}
+        }
+    }
+
+    fn recorded_expr_shape(&self, expr: &Expr) -> Option<Shape> {
+        self.expr_shapes
+            .iter()
+            .rev()
+            .find(|shape| shape.expr == expr.id)
+            .map(|shape| shape.shape.clone())
     }
 }
 

@@ -291,6 +291,7 @@ impl LowerContext<'_> {
                 }
                 ops.push(PlanOp::Panic {
                     arg_count: args.len(),
+                    span: expr.span,
                 });
             }
             ExprKind::For {

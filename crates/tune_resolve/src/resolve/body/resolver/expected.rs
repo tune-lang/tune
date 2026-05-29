@@ -126,16 +126,17 @@ impl BodyResolver<'_> {
     }
 
     pub(super) fn expected_shape_for_expr(&self, expr: &Expr) -> Option<ShapeExpr> {
-        let ExprKind::Name(name) = &expr.kind else {
-            return None;
+        let target = match &expr.kind {
+            ExprKind::Name(name) => self.lookup_local(name).or_else(|| {
+                self.resolved
+                    .scope
+                    .get(name)
+                    .map(|binding| NameTarget::TopLevel(binding.id))
+            })?,
+            ExprKind::Call { callee, .. } => return self.call_return_shape(callee),
+            _ => return None,
         };
-        let target = self.lookup_local(name).or_else(|| {
-            self.resolved
-                .scope
-                .get(name)
-                .map(|binding| NameTarget::TopLevel(binding.id))
-        });
-        match target? {
+        match target {
             NameTarget::TopLevel(item_id) => self
                 .items
                 .iter()
@@ -151,6 +152,25 @@ impl BodyResolver<'_> {
                 .and_then(|expr| self.shape_for_local_expr(expr)),
             NameTarget::SelfValue | NameTarget::Variant(_) => None,
         }
+    }
+
+    fn call_return_shape(&self, callee: &Expr) -> Option<ShapeExpr> {
+        let ExprKind::Name(name) = &callee.kind else {
+            return None;
+        };
+        let NameTarget::TopLevel(item_id) = self.lookup_local(name).or_else(|| {
+            self.resolved
+                .scope
+                .get(name)
+                .map(|binding| NameTarget::TopLevel(binding.id))
+        })?
+        else {
+            return None;
+        };
+        self.items
+            .iter()
+            .find(|item| item.id == item_id)
+            .and_then(|item| item.shape.clone())
     }
 
     pub(super) fn expected_result_for_propagate(

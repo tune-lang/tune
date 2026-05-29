@@ -385,6 +385,31 @@ let result: Int = task.join()
 }
 
 #[test]
+fn run_file_executes_direct_call_inside_spawn_body() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let helper(): Int = 41
+let task: Task<Int> = spawn helper()
+let result: Int = task.join() + 1
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        tune.run_file(file).map_err(|error| {
+            eprintln!("{error:?}");
+            "file entry should run"
+        })?,
+        tune_runtime::value::Value::Int(42)
+    );
+
+    Ok(())
+}
+
+#[test]
 fn run_file_does_not_execute_spawned_work_before_join() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

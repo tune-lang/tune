@@ -414,6 +414,13 @@ fn run_file_reports_panic_with_message() -> Result<(), &'static str> {
             .flat_map(|fact| &fact.entries)
             .any(|entry| entry.message.contains("bad"))
     );
+    assert!(
+        diagnostics[0]
+            .facts
+            .iter()
+            .flat_map(|fact| &fact.entries)
+            .any(|entry| entry.message.contains(r#"panic("bad")"#))
+    );
 
     Ok(())
 }
