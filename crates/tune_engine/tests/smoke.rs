@@ -141,6 +141,7 @@ fn registers_host_modules_and_project_manifests() -> Result<(), &'static str> {
     let registration = tune.register_host(&EmptyHost);
     assert_eq!(registration.module_count, 0);
     assert_eq!(registration.function_count, 0);
+    assert_eq!(registration.resource_count, 0);
     assert!(tune.host_modules().is_empty());
     assert!(tune.host_symbols().is_empty());
 
@@ -188,6 +189,7 @@ fn registered_host_functions_get_stable_engine_symbols() -> Result<(), &'static 
 
     assert_eq!(registration.module_count, 1);
     assert_eq!(registration.function_count, 1);
+    assert_eq!(registration.resource_count, 0);
     assert_eq!(tune.host_symbols().len(), 1);
     assert_eq!(
         tune.host_symbols()[0].id,
@@ -205,13 +207,60 @@ fn registered_host_functions_get_stable_engine_symbols() -> Result<(), &'static 
 }
 
 #[test]
+fn registered_host_resources_get_stable_engine_type_ids() -> Result<(), &'static str> {
+    struct FsHost;
+
+    impl tune_host::Host for FsHost {
+        fn modules(&self) -> Vec<tune_host::HostModule> {
+            vec![
+                tune_host::HostModule::new("fs", Vec::new()).with_resources(vec![
+                    tune_host::HostResourceType::new(
+                        "File",
+                        tune_shape::Shape::Struct("fs.File".into()),
+                    )
+                    .with_authorities(vec![tune_host::Authority("fs.read".into())])
+                    .task_safe(true),
+                ]),
+            ]
+        }
+    }
+
+    let mut tune = tune_engine::Tune::new();
+    let registration = tune.register_host(&FsHost);
+
+    assert_eq!(registration.module_count, 1);
+    assert_eq!(registration.function_count, 0);
+    assert_eq!(registration.resource_count, 1);
+    assert_eq!(tune.host_resource_types().len(), 1);
+    assert_eq!(
+        tune.host_resource_types()[0].id,
+        tune_engine::EngineResourceTypeId(0)
+    );
+    assert_eq!(tune.host_resource_types()[0].module, "fs");
+    assert_eq!(tune.host_resource_types()[0].resource.name, "File");
+    assert_eq!(
+        tune.host_resource_type(tune_engine::EngineResourceTypeId(0))
+            .ok_or("resource type should exist")?,
+        &tune.host_resource_types()[0]
+    );
+
+    Ok(())
+}
+
+#[test]
 fn engine_registers_default_std_host_modules() {
     let mut tune = tune_engine::Tune::new();
     let registration = tune.register_std();
 
     assert_eq!(registration.module_count, 4);
     assert_eq!(registration.function_count, 11);
+    assert_eq!(registration.resource_count, 1);
     assert!(tune.host_modules().iter().any(|module| module.name == "io"));
+    assert!(
+        tune.host_resource_types()
+            .iter()
+            .any(|resource| resource.module == "fs" && resource.resource.name == "File")
+    );
     assert!(
         tune.host_symbols()
             .iter()

@@ -71,3 +71,16 @@ fn host_resources_carry_shape_authority_retention_and_cleanup() {
     assert_eq!(resource.cleanup, tune_host::ResourceCleanup::HostCallback);
     assert!(resource.task_safe);
 }
+
+#[test]
+fn host_modules_publish_resource_types() {
+    let module = tune_host::HostModule::new("fs", Vec::new()).with_resources(vec![
+        tune_host::HostResourceType::new("File", tune_shape::Shape::Struct("fs.File".into()))
+            .with_authorities(vec![tune_host::Authority("fs.read".into())]),
+    ]);
+
+    assert_eq!(module.name, "fs");
+    assert!(module.functions.is_empty());
+    assert_eq!(module.resources.len(), 1);
+    assert_eq!(module.resources[0].name, "File");
+}

@@ -14,7 +14,10 @@ pub use diagnostics::{
     diagnostic_from_vm_fault, diagnostic_from_vm_fault_with_sources,
     diagnostics_from_runtime_value, diagnostics_from_runtime_value_with_sources,
 };
-pub use host::{EngineHostSymbol, EngineHostSymbolId, HostRegistration};
+pub use host::{
+    EngineHostResourceType, EngineHostSymbol, EngineHostSymbolId, EngineResourceTypeId,
+    HostRegistration,
+};
 pub use profile::{
     BytecodeQuality, IrQuality, OpcodeCount, OptimizerQuality, PlanQuality, ProfileReport,
     StageTiming,
@@ -413,6 +416,16 @@ impl Tune {
     #[must_use]
     pub fn host_symbols(&self) -> &[EngineHostSymbol] {
         self.hosts.symbols()
+    }
+
+    #[must_use]
+    pub fn host_resource_types(&self) -> &[EngineHostResourceType] {
+        self.hosts.resources()
+    }
+
+    #[must_use]
+    pub fn host_resource_type(&self, id: EngineResourceTypeId) -> Option<&EngineHostResourceType> {
+        self.hosts.resource(id)
     }
 
     #[must_use]

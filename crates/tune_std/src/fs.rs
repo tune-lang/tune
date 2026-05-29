@@ -1,4 +1,4 @@
-use tune_host::{HostFunction, HostModule, HostParam};
+use tune_host::{HostFunction, HostModule, HostParam, HostResourceType};
 use tune_runtime::Value;
 use tune_shape::Shape;
 
@@ -39,6 +39,15 @@ pub fn install() -> HostModule {
             }),
         ],
     )
+    .with_resources(vec![
+        HostResourceType::new("File", Shape::Struct("fs.File".into()))
+            .with_authorities(vec![
+                tune_host::Authority("fs.read".into()),
+                tune_host::Authority("fs.write".into()),
+            ])
+            .retention(tune_host::ResourceRetention::HostRetained)
+            .cleanup(tune_host::ResourceCleanup::HostCallback),
+    ])
 }
 
 fn string_result_shape() -> Shape {
