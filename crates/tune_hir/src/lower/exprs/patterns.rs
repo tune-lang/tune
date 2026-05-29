@@ -36,6 +36,7 @@ fn lower_pattern_node(source: &str, pattern: &CstNode, lowerer: &mut ExprLowerer
     let kind = match (name, args) {
         (Some("else"), None) => PatternKind::Else,
         (Some("_"), None) => PatternKind::Hole,
+        (Some("none"), None) => PatternKind::None,
         (Some(name), Some(args)) => PatternKind::Variant {
             name: name.to_owned(),
             args,
@@ -141,6 +142,7 @@ fn pattern_name<'src>(source: &'src str, pattern: &CstNode) -> Option<&'src str>
                     | TokenKind::KeywordSelf
                     | TokenKind::KeywordOk
                     | TokenKind::KeywordError
+                    | TokenKind::KeywordNone
                     | TokenKind::KeywordElse
             ) =>
         {

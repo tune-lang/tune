@@ -161,6 +161,26 @@ let result: Int = match wrapped {
     Ok(())
 }
 
+#[test]
+fn run_file_executes_none_pattern_match() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let value: Int? = none
+let result: Int = match value {
+  none => 1
+  else 2
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, Value::Int(1));
+    Ok(())
+}
+
 fn run_file(tune: &tune_engine::Tune, file: tune_db::FileId) -> Result<Value, &'static str> {
     tune.run_file(file).map_err(|error| {
         eprintln!("{error:?}");

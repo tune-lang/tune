@@ -301,7 +301,7 @@ impl<'resolved> BodyResolver<'resolved> {
                     );
                 }
             }
-            PatternKind::Hole | PatternKind::Unit | PatternKind::Else => {}
+            PatternKind::Hole | PatternKind::None | PatternKind::Unit | PatternKind::Else => {}
         }
     }
 

@@ -76,7 +76,13 @@ pub struct PlanMatchArm {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanPatternTest {
     pub field_path: Vec<PlanPatternPathSegment>,
-    pub variant: VariantId,
+    pub kind: PlanPatternTestKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PlanPatternTestKind {
+    Variant(VariantId),
+    None,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

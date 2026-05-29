@@ -135,6 +135,28 @@ let grouped = (10)"#;
 }
 
 #[test]
+fn lowers_none_match_pattern_as_literal_pattern() -> Result<(), &'static str> {
+    let source = "let result = match value { none => 1; else 2 }";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let body = module.items[0].body.as_ref().ok_or("expected body")?;
+    let tune_hir::expr::ExprKind::Match { arms, .. } = &body.kind else {
+        return Err("expected match expression");
+    };
+
+    assert!(matches!(
+        arms[0].pattern.kind,
+        tune_hir::pattern::PatternKind::None
+    ));
+    assert!(matches!(
+        arms[1].pattern.kind,
+        tune_hir::pattern::PatternKind::Else
+    ));
+
+    Ok(())
+}
+
+#[test]
 fn lowers_struct_field_defaults() -> Result<(), &'static str> {
     let source = r#"
 struct Counter {

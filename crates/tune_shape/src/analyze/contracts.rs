@@ -199,7 +199,7 @@ impl Analyzer<'_> {
                     self.bind_named_pattern_id(name, requirement.id, requirement.span, shape);
                 }
             }
-            PatternKind::Hole | PatternKind::Unit | PatternKind::Else => {}
+            PatternKind::Hole | PatternKind::None | PatternKind::Unit | PatternKind::Else => {}
         }
     }
 
@@ -421,6 +421,7 @@ fn iter_diag(
 fn pattern_variant_name(pattern: &Pattern) -> Option<&str> {
     match &pattern.kind {
         PatternKind::Variant { name, .. } | PatternKind::Binding(name) => Some(name),
+        PatternKind::None => None,
         _ => None,
     }
 }

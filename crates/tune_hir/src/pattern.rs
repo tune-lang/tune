@@ -13,6 +13,7 @@ pub struct Pattern {
 pub enum PatternKind {
     Hole,
     Binding(String),
+    None,
     Unit,
     Tuple(Vec<Pattern>),
     Variant { name: String, args: Vec<Pattern> },

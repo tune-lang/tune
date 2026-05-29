@@ -1,5 +1,5 @@
 use tune_hir::expr::{BinaryOp, Expr, ExprKind, LiteralKind};
-use tune_hir::pattern::Pattern;
+use tune_hir::pattern::{Pattern, PatternKind};
 
 use super::{Analyzer, FiniteForCheck};
 use crate::{BindingKey, LiteralFact, Shape, StateFrame};
@@ -19,6 +19,7 @@ impl Analyzer<'_> {
         for arm in arms {
             self.frame = entry.clone();
             self.apply_structural_pattern(scrutinee, &arm.pattern, &scrutinee_shape);
+            self.apply_none_pattern(scrutinee, &arm.pattern);
             self.bind_pattern(&arm.pattern, Shape::Hole);
             let shape = self.analyze_expr(&arm.body);
             if shape != Shape::Never {
@@ -45,6 +46,7 @@ impl Analyzer<'_> {
         for arm in arms {
             self.frame = entry.clone();
             self.apply_structural_pattern(scrutinee, &arm.pattern, &scrutinee_shape);
+            self.apply_none_pattern(scrutinee, &arm.pattern);
             self.bind_pattern(&arm.pattern, Shape::Hole);
             let shape = self.analyze_expr_expected(&arm.body, expected);
             if shape != Shape::Never {
@@ -204,6 +206,18 @@ impl Analyzer<'_> {
             if let Some(binding) = self.frame.get_mut(key) {
                 binding.narrow_current(narrowed);
             }
+        }
+    }
+
+    fn apply_none_pattern(&mut self, scrutinee: &Expr, pattern: &Pattern) {
+        if !matches!(pattern.kind, PatternKind::None) {
+            return;
+        }
+        let Some(key) = self.binding_key(scrutinee) else {
+            return;
+        };
+        if let Some(binding) = self.frame.get_mut(key) {
+            binding.narrow_current(Shape::Literal(LiteralFact::None));
         }
     }
 }

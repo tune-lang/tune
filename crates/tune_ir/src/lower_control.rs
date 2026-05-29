@@ -2,7 +2,7 @@ use tune_plan::PlanOp;
 
 use tune_diagnostics::Span;
 use tune_hir::pattern::PatternKind;
-use tune_plan::PlanPatternPathSegment;
+use tune_plan::{PlanPatternPathSegment, PlanPatternTestKind};
 use tune_resolve::LocalId;
 
 use crate::lower::Lowerer;
@@ -179,15 +179,34 @@ impl Lowerer {
                 self.alloc_block()
             };
             let value = self.lower_pattern_field_path(root, &test.field_path)?;
-            self.push_op(IrOp::MatchVariant {
-                scrutinee: value,
-                arms: vec![crate::VariantArm {
-                    variant: test.variant,
-                    block: passed,
-                }],
-                else_block: Some(failure),
-                span,
-            });
+            match test.kind {
+                PlanPatternTestKind::Variant(variant) => {
+                    self.push_op(IrOp::MatchVariant {
+                        scrutinee: value,
+                        arms: vec![crate::VariantArm {
+                            variant,
+                            block: passed,
+                        }],
+                        else_block: Some(failure),
+                        span,
+                    });
+                }
+                PlanPatternTestKind::None => {
+                    let is_none = self.alloc_reg()?;
+                    self.push_op(IrOp::NoneCheck {
+                        dst: is_none,
+                        value,
+                        is_not: false,
+                        span,
+                    });
+                    self.push_op(IrOp::Branch {
+                        condition: is_none,
+                        then_block: passed,
+                        else_block: failure,
+                        span,
+                    });
+                }
+            }
             if index + 1 != tests.len() {
                 self.switch_to_block(passed);
             }
@@ -384,7 +403,10 @@ fn pattern_can_match_without_tests(pattern: &PatternKind) -> bool {
         PatternKind::Tuple(items) => items
             .iter()
             .all(|item| pattern_can_match_without_tests(&item.kind)),
-        PatternKind::Unit | PatternKind::Variant { .. } | PatternKind::StructuralShape(_) => false,
+        PatternKind::None
+        | PatternKind::Unit
+        | PatternKind::Variant { .. }
+        | PatternKind::StructuralShape(_) => false,
         PatternKind::Else => true,
     }
 }

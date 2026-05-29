@@ -205,7 +205,11 @@ fn remap_pattern(pattern: &mut Pattern, offset: u64) {
                 remap_requirement(requirement, offset);
             }
         }
-        PatternKind::Hole | PatternKind::Binding(_) | PatternKind::Unit | PatternKind::Else => {}
+        PatternKind::Hole
+        | PatternKind::Binding(_)
+        | PatternKind::None
+        | PatternKind::Unit
+        | PatternKind::Else => {}
     }
 }
 
@@ -375,6 +379,10 @@ fn collect_pattern_ids(pattern: &Pattern, ids: &mut Vec<u64>) {
                 ids.push(requirement.id.0);
             }
         }
-        PatternKind::Hole | PatternKind::Binding(_) | PatternKind::Unit | PatternKind::Else => {}
+        PatternKind::Hole
+        | PatternKind::Binding(_)
+        | PatternKind::None
+        | PatternKind::Unit
+        | PatternKind::Else => {}
     }
 }

@@ -2,7 +2,9 @@ use tune_hir::pattern::{Pattern, PatternKind};
 use tune_resolve::VariantId;
 
 use super::LowerContext;
-use crate::plan::{PlanPatternBinding, PlanPatternPathSegment, PlanPatternTest};
+use crate::plan::{
+    PlanPatternBinding, PlanPatternPathSegment, PlanPatternTest, PlanPatternTestKind,
+};
 
 impl LowerContext<'_> {
     pub(super) fn for_pattern_binding(&self, pattern: &Pattern) -> Option<tune_resolve::LocalId> {
@@ -59,6 +61,7 @@ fn collect_pattern_bindings(
             }
         }
         PatternKind::Hole
+        | PatternKind::None
         | PatternKind::Unit
         | PatternKind::StructuralShape(_)
         | PatternKind::Else => {}
@@ -76,7 +79,7 @@ fn collect_pattern_tests(
             if let Some(variant) = context.pattern_variant(pattern) {
                 tests.push(PlanPatternTest {
                     field_path: path.clone(),
-                    variant,
+                    kind: PlanPatternTestKind::Variant(variant),
                 });
             }
             for (index, arg) in args.iter().enumerate() {
@@ -92,6 +95,10 @@ fn collect_pattern_tests(
                 path.pop();
             }
         }
+        PatternKind::None => tests.push(PlanPatternTest {
+            field_path: path.clone(),
+            kind: PlanPatternTestKind::None,
+        }),
         PatternKind::Hole
         | PatternKind::Binding(_)
         | PatternKind::Unit

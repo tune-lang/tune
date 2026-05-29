@@ -149,6 +149,7 @@ impl Parser<'_> {
                 | TokenKind::KeywordSelf
                 | TokenKind::KeywordOk
                 | TokenKind::KeywordError
+                | TokenKind::KeywordNone
                 | TokenKind::KeywordElse,
             ) => {
                 self.bump();
