@@ -2,7 +2,9 @@ use tune_ast::AstNode;
 use tune_ast::nodes::Shape as AstShape;
 use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 
-use crate::shape::{ShapeExpr, ShapeExprKind};
+use crate::shape::{
+    ShapeExpr, ShapeExprKind, StructuralShapeRequirement, StructuralShapeRequirementKind,
+};
 
 pub(super) fn lower_shape(source: &str, shape: AstShape<'_>) -> ShapeExpr {
     let span = shape.syntax().span;
@@ -17,6 +19,18 @@ pub(super) fn lower_shape(source: &str, shape: AstShape<'_>) -> ShapeExpr {
                 args: generic_shape_args(source, node.syntax()),
             })
             .unwrap_or(ShapeExprKind::Missing),
+        AstShape::Structural(node) => ShapeExprKind::Structural(
+            node.syntax()
+                .children
+                .iter()
+                .filter_map(|child| match child {
+                    CstElement::Node(node) if node.kind == SyntaxKind::StructuralRequirement => {
+                        structural_shape_requirement(source, node)
+                    }
+                    CstElement::Node(_) | CstElement::Token(_) => None,
+                })
+                .collect(),
+        ),
         AstShape::Sequence(node) => child_shapes(node.syntax())
             .into_iter()
             .next()
@@ -38,6 +52,46 @@ pub(super) fn lower_shape(source: &str, shape: AstShape<'_>) -> ShapeExpr {
     };
 
     ShapeExpr { kind, span }
+}
+
+fn structural_shape_requirement(
+    source: &str,
+    node: &CstNode,
+) -> Option<StructuralShapeRequirement> {
+    let name = first_shape_name(node, source)?.to_owned();
+    let shapes = child_shapes(node)
+        .into_iter()
+        .map(|shape| lower_shape(source, shape))
+        .collect::<Vec<_>>();
+    let has_param_list = node.children.iter().any(
+        |child| matches!(child, CstElement::Token(token) if token.kind == TokenKind::LeftParen),
+    );
+
+    let kind = if has_param_list {
+        let mut params = shapes;
+        let ret = if has_return_shape(node) {
+            params.pop()
+        } else {
+            None
+        };
+        StructuralShapeRequirementKind::Callable { params, ret }
+    } else {
+        StructuralShapeRequirementKind::Field {
+            shape: shapes.into_iter().next(),
+        }
+    };
+
+    Some(StructuralShapeRequirement {
+        name,
+        span: node.span,
+        kind,
+    })
+}
+
+fn has_return_shape(node: &CstNode) -> bool {
+    node.children
+        .iter()
+        .any(|child| matches!(child, CstElement::Token(token) if token.kind == TokenKind::Colon))
 }
 
 fn lower_callable_shape(source: &str, node: &CstNode) -> ShapeExprKind {

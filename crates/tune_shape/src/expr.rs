@@ -1,10 +1,10 @@
 use tune_hir::expr::{Expr, ExprKind, LiteralKind};
 use tune_hir::item::Item;
 use tune_hir::module::Module;
-use tune_hir::shape::{ShapeExpr, ShapeExprKind};
+use tune_hir::shape::{ShapeExpr, ShapeExprKind, StructuralShapeRequirementKind};
 use tune_resolve::{NameTarget, PreludeVariant, ResolvedModule, VariantId};
 
-use crate::{LiteralFact, Shape};
+use crate::{LiteralFact, MemberRequirement, Shape};
 
 #[must_use]
 pub fn expr_literal_fact(expr: &Expr) -> Option<LiteralFact> {
@@ -226,6 +226,29 @@ fn lower_declared_shape(expr: &ShapeExpr, item: &Item) -> Shape {
             items
                 .iter()
                 .map(|item_shape| lower_declared_shape(item_shape, item))
+                .collect(),
+        ),
+        ShapeExprKind::Structural(requirements) => Shape::Structural(
+            requirements
+                .iter()
+                .map(|requirement| match &requirement.kind {
+                    StructuralShapeRequirementKind::Field { shape } => MemberRequirement::Field {
+                        name: requirement.name.clone(),
+                        shape: shape
+                            .as_ref()
+                            .map(|shape| lower_declared_shape(shape, item)),
+                    },
+                    StructuralShapeRequirementKind::Callable { params, ret } => {
+                        MemberRequirement::Callable {
+                            name: requirement.name.clone(),
+                            params: params
+                                .iter()
+                                .map(|param| lower_declared_shape(param, item))
+                                .collect(),
+                            ret: ret.as_ref().map(|ret| lower_declared_shape(ret, item)),
+                        }
+                    }
+                })
                 .collect(),
         ),
         ShapeExprKind::Generic { name, args } => Shape::Apply {

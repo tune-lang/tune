@@ -1,11 +1,11 @@
 use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::expr::{Expr, ExprKind};
 use tune_hir::item::{Item, ItemKind, StructMember, Variant};
-use tune_hir::shape::{ShapeExpr, ShapeExprKind};
+use tune_hir::shape::{ShapeExpr, ShapeExprKind, StructuralShapeRequirementKind};
 use tune_resolve::{NameTarget, PreludeVariant, VariantId};
 
 use super::{Analyzer, CallCheck, CallSignature, CallTarget};
-use crate::{Shape, expr_shape_fact, lower_resolved_hir_shape};
+use crate::{MemberRequirement, Shape, expr_shape_fact, lower_resolved_hir_shape};
 
 impl Analyzer<'_> {
     pub(super) fn analyze_call(&mut self, expr: &Expr, callee: &Expr, args: &[Expr]) -> Shape {
@@ -268,6 +268,27 @@ fn lower_payload_shape(shape: &ShapeExpr, item: &Item) -> Shape {
             items
                 .iter()
                 .map(|item_shape| lower_payload_shape(item_shape, item))
+                .collect(),
+        ),
+        ShapeExprKind::Structural(requirements) => Shape::Structural(
+            requirements
+                .iter()
+                .map(|requirement| match &requirement.kind {
+                    StructuralShapeRequirementKind::Field { shape } => MemberRequirement::Field {
+                        name: requirement.name.clone(),
+                        shape: shape.as_ref().map(|shape| lower_payload_shape(shape, item)),
+                    },
+                    StructuralShapeRequirementKind::Callable { params, ret } => {
+                        MemberRequirement::Callable {
+                            name: requirement.name.clone(),
+                            params: params
+                                .iter()
+                                .map(|param| lower_payload_shape(param, item))
+                                .collect(),
+                            ret: ret.as_ref().map(|ret| lower_payload_shape(ret, item)),
+                        }
+                    }
+                })
                 .collect(),
         ),
         ShapeExprKind::Generic { name, args } => Shape::Apply {

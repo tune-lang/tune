@@ -3,7 +3,7 @@ use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 use crate::AstNode;
 
 use super::text::direct_ident_text;
-use super::{Comment, Expr, ParamList, Shape};
+use super::{Comment, Expr, ParamList, Shape, TypeParamDecl};
 
 #[derive(Debug, Clone, Copy)]
 pub struct LetDecl<'tree> {
@@ -39,6 +39,11 @@ impl<'tree> LetDecl<'tree> {
             CstElement::Node(node) => Shape::cast(node),
             CstElement::Token(_) => None,
         })
+    }
+
+    #[must_use]
+    pub fn type_params(self) -> Vec<TypeParamDecl<'tree>> {
+        super::structs::type_params(self.node)
     }
 
     #[must_use]

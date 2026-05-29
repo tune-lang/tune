@@ -447,3 +447,23 @@ let background(): Task<Result<Config, ParseError>> = parse("")
 
     Ok(())
 }
+
+#[test]
+fn hir_shape_lowers_structural_shape_constraints() -> Result<(), &'static str> {
+    let source = r#"let quack<T: { quack(): String }>(duck: T): String = duck.quack()"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let constraint = module.items[0].type_params[0]
+        .constraint
+        .as_ref()
+        .ok_or("expected constraint")?;
+
+    let shape = tune_shape::lower_hir_shape(constraint);
+
+    assert!(matches!(
+        shape,
+        tune_shape::Shape::Structural(ref requirements) if requirements.len() == 1
+    ));
+
+    Ok(())
+}

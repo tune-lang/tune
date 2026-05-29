@@ -77,6 +77,11 @@ impl<'tree> TypeParamDecl<'tree> {
     pub fn name(self, source: &str) -> Option<&str> {
         direct_ident_text(self.node, source)
     }
+
+    #[must_use]
+    pub fn constraint(self) -> Option<Shape<'tree>> {
+        first_shape(self.node)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

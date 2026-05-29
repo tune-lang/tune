@@ -24,8 +24,8 @@ pub use exprs::{
 pub use imports::ImportDecl;
 pub use items::{DocumentedItem, Item, PubDecl, Root};
 pub use shapes::{
-    CallableShape, GenericShape, NamedShape, OptionalShape, SequenceShape, Shape, TupleShape,
-    UnionShape,
+    CallableShape, GenericShape, NamedShape, OptionalShape, SequenceShape, Shape, StructuralShape,
+    TupleShape, UnionShape,
 };
 pub use structs::{
     DocumentedField, DocumentedStructMember, FieldDecl, IndexAccessDecl, MemberCallableDecl,

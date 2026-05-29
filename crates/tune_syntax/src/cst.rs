@@ -31,6 +31,7 @@ pub enum SyntaxKind {
     TupleShape,
     SequenceShape,
     GenericShape,
+    StructuralShape,
     OptionalShape,
     UnionShape,
     CallableShape,

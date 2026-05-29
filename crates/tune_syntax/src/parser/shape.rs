@@ -45,6 +45,7 @@ impl<'src> Parser<'src> {
             Some(TokenKind::Ident | TokenKind::KeywordNever) => self.parse_named_or_generic_shape(),
             Some(TokenKind::LeftBracket) => self.parse_sequence_shape(),
             Some(TokenKind::LeftParen) => self.parse_parenthesized_or_callable_shape(),
+            Some(TokenKind::LeftBrace) => self.parse_structural_shape(),
             Some(_) => {
                 self.start_node(SyntaxKind::Error);
                 self.error_at_current("expected shape");
@@ -109,6 +110,27 @@ impl<'src> Parser<'src> {
             self.parse_shape();
             self.finish_node();
         }
+    }
+
+    fn parse_structural_shape(&mut self) {
+        self.start_node(SyntaxKind::StructuralShape);
+        self.expect(TokenKind::LeftBrace, "expected `{`");
+        self.skip_trivia();
+
+        while !self.at(TokenKind::Eof) && !self.at(TokenKind::RightBrace) {
+            self.parse_structural_requirement();
+            self.skip_trivia();
+            if self.at(TokenKind::Comma) || self.at(TokenKind::Semicolon) {
+                self.bump();
+                self.skip_trivia();
+            } else if !self.at(TokenKind::RightBrace) {
+                self.error_at_current("expected `,` between structural requirements");
+                break;
+            }
+        }
+
+        self.expect(TokenKind::RightBrace, "expected `}`");
+        self.finish_node();
     }
 
     pub(super) fn parse_shape_list(&mut self, end: TokenKind) {

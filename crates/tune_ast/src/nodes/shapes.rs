@@ -7,6 +7,7 @@ pub enum Shape<'tree> {
     Named(NamedShape<'tree>),
     Sequence(SequenceShape<'tree>),
     Generic(GenericShape<'tree>),
+    Structural(StructuralShape<'tree>),
     Tuple(TupleShape<'tree>),
     Optional(OptionalShape<'tree>),
     Union(UnionShape<'tree>),
@@ -20,6 +21,7 @@ impl<'tree> Shape<'tree> {
             SyntaxKind::Shape => NamedShape::cast(node).map(Self::Named),
             SyntaxKind::SequenceShape => SequenceShape::cast(node).map(Self::Sequence),
             SyntaxKind::GenericShape => GenericShape::cast(node).map(Self::Generic),
+            SyntaxKind::StructuralShape => StructuralShape::cast(node).map(Self::Structural),
             SyntaxKind::TupleShape => TupleShape::cast(node).map(Self::Tuple),
             SyntaxKind::OptionalShape => OptionalShape::cast(node).map(Self::Optional),
             SyntaxKind::UnionShape => UnionShape::cast(node).map(Self::Union),
@@ -34,6 +36,7 @@ impl<'tree> Shape<'tree> {
             Self::Named(node) => node.syntax(),
             Self::Sequence(node) => node.syntax(),
             Self::Generic(node) => node.syntax(),
+            Self::Structural(node) => node.syntax(),
             Self::Tuple(node) => node.syntax(),
             Self::Optional(node) => node.syntax(),
             Self::Union(node) => node.syntax(),
@@ -66,6 +69,7 @@ macro_rules! shape_node {
 shape_node!(NamedShape, SyntaxKind::Shape);
 shape_node!(SequenceShape, SyntaxKind::SequenceShape);
 shape_node!(GenericShape, SyntaxKind::GenericShape);
+shape_node!(StructuralShape, SyntaxKind::StructuralShape);
 shape_node!(TupleShape, SyntaxKind::TupleShape);
 shape_node!(OptionalShape, SyntaxKind::OptionalShape);
 shape_node!(UnionShape, SyntaxKind::UnionShape);

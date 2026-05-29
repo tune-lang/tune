@@ -1,8 +1,8 @@
 use tune_diagnostics::{Diagnostic, Span, codes};
-use tune_hir::shape::{ShapeExpr, ShapeExprKind};
+use tune_hir::shape::{ShapeExpr, ShapeExprKind, StructuralShapeRequirementKind};
 use tune_resolve::{BindingKind, Scope};
 
-use crate::{Shape, ShapeId, ShapeOrigin, ShapeStore};
+use crate::{MemberRequirement, Shape, ShapeId, ShapeOrigin, ShapeStore};
 
 #[derive(Debug, Clone)]
 pub struct LoweredShape {
@@ -45,6 +45,24 @@ pub fn lower_hir_shape(expr: &ShapeExpr) -> Shape {
         ShapeExprKind::Tuple(items) => Shape::Tuple(items.iter().map(lower_hir_shape).collect()),
         ShapeExprKind::Optional(inner) => Shape::Optional(Box::new(lower_hir_shape(inner))),
         ShapeExprKind::Union(items) => Shape::Union(items.iter().map(lower_hir_shape).collect()),
+        ShapeExprKind::Structural(requirements) => Shape::Structural(
+            requirements
+                .iter()
+                .map(|requirement| match &requirement.kind {
+                    StructuralShapeRequirementKind::Field { shape } => MemberRequirement::Field {
+                        name: requirement.name.clone(),
+                        shape: shape.as_ref().map(lower_hir_shape),
+                    },
+                    StructuralShapeRequirementKind::Callable { params, ret } => {
+                        MemberRequirement::Callable {
+                            name: requirement.name.clone(),
+                            params: params.iter().map(lower_hir_shape).collect(),
+                            ret: ret.as_ref().map(lower_hir_shape),
+                        }
+                    }
+                })
+                .collect(),
+        ),
         ShapeExprKind::Callable { params, ret } => Shape::Callable {
             params: params.iter().map(lower_hir_shape).collect(),
             ret: Box::new(lower_hir_shape(ret)),
@@ -77,6 +95,7 @@ pub fn lower_resolved_hir_shape(expr: &ShapeExpr, scope: &Scope) -> LoweredShape
             }
         }
         ShapeExprKind::Union(items) => lower_many(items, scope, Shape::Union),
+        ShapeExprKind::Structural(requirements) => lower_structural_shape(requirements, scope),
         ShapeExprKind::Callable { params, ret } => {
             let mut lowered_params = Vec::new();
             let mut diagnostics = Vec::new();
@@ -96,6 +115,53 @@ pub fn lower_resolved_hir_shape(expr: &ShapeExpr, scope: &Scope) -> LoweredShape
                 diagnostics,
             }
         }
+    }
+}
+
+fn lower_structural_shape(
+    requirements: &[tune_hir::shape::StructuralShapeRequirement],
+    scope: &Scope,
+) -> LoweredShape {
+    let mut lowered_requirements = Vec::new();
+    let mut diagnostics = Vec::new();
+
+    for requirement in requirements {
+        match &requirement.kind {
+            StructuralShapeRequirementKind::Field { shape } => {
+                let shape = shape.as_ref().map(|shape| {
+                    let lowered = lower_resolved_hir_shape(shape, scope);
+                    diagnostics.extend(lowered.diagnostics);
+                    lowered.shape
+                });
+                lowered_requirements.push(MemberRequirement::Field {
+                    name: requirement.name.clone(),
+                    shape,
+                });
+            }
+            StructuralShapeRequirementKind::Callable { params, ret } => {
+                let mut lowered_params = Vec::new();
+                for param in params {
+                    let lowered = lower_resolved_hir_shape(param, scope);
+                    lowered_params.push(lowered.shape);
+                    diagnostics.extend(lowered.diagnostics);
+                }
+                let ret = ret.as_ref().map(|ret| {
+                    let lowered = lower_resolved_hir_shape(ret, scope);
+                    diagnostics.extend(lowered.diagnostics);
+                    lowered.shape
+                });
+                lowered_requirements.push(MemberRequirement::Callable {
+                    name: requirement.name.clone(),
+                    params: lowered_params,
+                    ret,
+                });
+            }
+        }
+    }
+
+    LoweredShape {
+        shape: Shape::Structural(lowered_requirements),
+        diagnostics,
     }
 }
 

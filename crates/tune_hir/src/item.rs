@@ -45,6 +45,7 @@ pub struct TypeParam {
     pub id: MemberId,
     pub name: Option<String>,
     pub span: Option<Span>,
+    pub constraint: Option<ShapeExpr>,
 }
 
 #[derive(Debug, Clone)]

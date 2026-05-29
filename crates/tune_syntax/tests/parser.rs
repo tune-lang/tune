@@ -107,6 +107,22 @@ let result = {
 }
 
 #[test]
+fn parses_callable_type_params_with_structural_constraints() {
+    let parsed = parse(r#"let quack<T: { quack(): String }>(duck: T): String = duck.quack()"#);
+    let kinds = nested_node_kinds(&parsed.cst);
+
+    assert_eq!(root_node_kinds(&parsed.cst), [SyntaxKind::CallableDecl]);
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| **kind == SyntaxKind::StructuralShape)
+            .count(),
+        1
+    );
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
 fn newline_ends_simple_declarations() {
     let parsed = parse(
         r#"

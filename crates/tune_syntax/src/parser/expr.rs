@@ -185,7 +185,7 @@ impl Parser<'_> {
         self.finish_node();
     }
 
-    fn parse_structural_requirement(&mut self) {
+    pub(super) fn parse_structural_requirement(&mut self) {
         self.start_node(SyntaxKind::StructuralRequirement);
         self.expect(TokenKind::Ident, "expected structural requirement name");
         self.skip_whitespace();

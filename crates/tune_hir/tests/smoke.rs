@@ -158,6 +158,27 @@ fn lowers_compound_assignment_to_assignment_with_binary_value() -> Result<(), &'
 }
 
 #[test]
+fn lowers_callable_type_param_structural_constraints() -> Result<(), &'static str> {
+    let source = r#"let quack<T: { quack(): String }>(duck: T): String = duck.quack()"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let item = module.items.first().ok_or("expected callable item")?;
+    let type_param = item.type_params.first().ok_or("expected type param")?;
+    let constraint = type_param
+        .constraint
+        .as_ref()
+        .ok_or("expected type param constraint")?;
+
+    assert!(matches!(
+        constraint.kind,
+        tune_hir::shape::ShapeExprKind::Structural(ref requirements)
+            if requirements.len() == 1
+    ));
+
+    Ok(())
+}
+
+#[test]
 fn lowers_shape_annotations_to_hir_shape_exprs() -> Result<(), &'static str> {
     let source = "let value: [Int | String]? = none";
     let parsed = tune_syntax::parse(source);

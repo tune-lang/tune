@@ -24,7 +24,7 @@ impl Parser<'_> {
         self.finish_node();
     }
 
-    fn parse_type_param_list(&mut self) {
+    pub(super) fn parse_type_param_list(&mut self) {
         self.start_node(SyntaxKind::TypeParamList);
         self.expect(TokenKind::Less, "expected `<`");
         self.skip_trivia();
@@ -32,6 +32,12 @@ impl Parser<'_> {
         while !self.at(TokenKind::Eof) && !self.at(TokenKind::Greater) {
             self.start_node(SyntaxKind::TypeParam);
             self.expect(TokenKind::Ident, "expected type parameter name");
+            self.skip_trivia();
+            if self.at(TokenKind::Colon) {
+                self.bump();
+                self.skip_trivia();
+                self.parse_shape();
+            }
             self.finish_node();
             self.skip_trivia();
 

@@ -110,7 +110,10 @@ impl Parser<'_> {
     }
 
     fn parse_let_decl(&mut self) {
-        if self.lookahead_significant(2) == Some(TokenKind::LeftParen) {
+        if matches!(
+            self.lookahead_significant(2),
+            Some(TokenKind::LeftParen | TokenKind::Less)
+        ) {
             self.parse_callable_decl();
         } else {
             self.parse_binding_decl();
@@ -123,6 +126,12 @@ impl Parser<'_> {
         self.skip_trivia();
         self.expect(TokenKind::Ident, "expected callable name");
         self.skip_trivia();
+
+        if self.at(TokenKind::Less) {
+            self.parse_type_param_list();
+            self.skip_trivia();
+        }
+
         self.parse_param_list();
 
         let mut depth = 0u32;

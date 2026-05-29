@@ -18,8 +18,27 @@ pub enum ShapeExprKind {
     Tuple(Vec<ShapeExpr>),
     Optional(Box<ShapeExpr>),
     Union(Vec<ShapeExpr>),
+    Structural(Vec<StructuralShapeRequirement>),
     Callable {
         params: Vec<ShapeExpr>,
         ret: Box<ShapeExpr>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StructuralShapeRequirement {
+    pub name: String,
+    pub span: Option<Span>,
+    pub kind: StructuralShapeRequirementKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StructuralShapeRequirementKind {
+    Field {
+        shape: Option<ShapeExpr>,
+    },
+    Callable {
+        params: Vec<ShapeExpr>,
+        ret: Option<ShapeExpr>,
     },
 }

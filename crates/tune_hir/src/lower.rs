@@ -175,7 +175,7 @@ fn lower_let(
         span: node.syntax().span,
         doc,
         tags,
-        type_params: Vec::new(),
+        type_params: lower_type_params(source, node.type_params()),
         params: lower_params(source, node),
         struct_members: Vec::new(),
         fields: Vec::new(),
@@ -293,6 +293,9 @@ fn lower_type_params(
                 },
                 name: param.name(source).map(str::to_owned),
                 span: param.syntax().span,
+                constraint: param
+                    .constraint()
+                    .map(|constraint| lower_shape(source, constraint)),
             })
         })
         .collect()
