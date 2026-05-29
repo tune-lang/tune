@@ -217,7 +217,7 @@ fn remap_requirement(requirement: &mut StructuralRequirement, offset: u64) {
     requirement.id = ExprId(requirement.id.0.saturating_add(offset));
 }
 
-fn item_expr_ids(item: &Item) -> Vec<u64> {
+pub(crate) fn item_expr_ids(item: &Item) -> Vec<u64> {
     let mut ids = Vec::new();
     for tag in &item.tags {
         for arg in &tag.args {

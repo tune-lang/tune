@@ -1,6 +1,7 @@
 mod diagnostics;
 mod host;
 mod imports;
+mod imports_closure;
 mod imports_remap;
 mod paths;
 mod profile;

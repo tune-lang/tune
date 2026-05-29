@@ -9,9 +9,11 @@ use tune_hir::module::Module;
 use tune_hir::shape::{ShapeExpr, ShapeExprKind};
 use tune_hir::{HirId, MemberId, MemberKind};
 use tune_host::HostFunction;
+use tune_resolve::ResolvedModule;
 use tune_shape::Shape;
 
 use crate::host::HostRegistry;
+use crate::imports_closure::{item_by_name, selected_import_closure};
 use crate::imports_remap::{next_expr_id, remap_item};
 
 pub(crate) struct LinkedModule {
@@ -67,10 +69,12 @@ pub(crate) fn link_entry_imports(
         };
         let imported_parsed = tune_syntax::parse_with_file(imported_file, &source.text);
         let imported_module = tune_hir::lower::lower_module(&source.text, &imported_parsed.cst);
+        let imported_resolved = tune_resolve::resolve_module(&imported_module);
         parsed.push(imported_parsed);
         append_selected_imports(
             &mut module,
             &imported_module,
+            &imported_resolved,
             &import.selector,
             span,
             &mut diagnostics,
@@ -234,6 +238,7 @@ fn shape_expr_kind(shape: &Shape) -> ShapeExprKind {
 fn append_selected_imports(
     module: &mut Module,
     imported: &Module,
+    imported_resolved: &ResolvedModule,
     selector: &ImportSelector,
     span: Option<Span>,
     diagnostics: &mut Vec<Diagnostic>,
@@ -243,16 +248,20 @@ fn append_selected_imports(
         ImportSelector::Member(name) => vec![name.as_str()],
         ImportSelector::Members(names) => names.iter().map(String::as_str).collect(),
     };
+    let mut selected = Vec::new();
     for name in names {
-        let Some(item) = imported
-            .items
-            .iter()
-            .find(|item| item.name.as_deref() == Some(name))
-        else {
+        let Some(item) = item_by_name(imported, name) else {
             diagnostics.push(unresolved_import_member(name, span));
             continue;
         };
-        append_imported_item(module, item);
+        selected.push(item.id);
+    }
+
+    let closure = selected_import_closure(imported, imported_resolved, &selected);
+    for item_id in closure {
+        if let Some(item) = imported.items.iter().find(|item| item.id == item_id) {
+            append_imported_item(module, item);
+        }
     }
 }
 
