@@ -1,8 +1,8 @@
-use tune_hir::expr::Expr;
+use tune_hir::expr::{BinaryOp, Expr, ExprKind, LiteralKind};
 use tune_hir::pattern::Pattern;
 
 use super::{Analyzer, FiniteForCheck};
-use crate::{Shape, StateFrame};
+use crate::{BindingKey, LiteralFact, Shape, StateFrame};
 
 impl Analyzer<'_> {
     pub(super) fn analyze_match(
@@ -66,11 +66,15 @@ impl Analyzer<'_> {
         for branch in branches {
             self.frame = entry.clone();
             self.analyze_expr(&branch.condition);
+            self.apply_condition_narrowing(&branch.condition, true);
             shapes.push(self.analyze_expr(&branch.body));
             frames.push(self.frame.clone());
         }
         if let Some(else_branch) = else_branch {
             self.frame = entry.clone();
+            for branch in branches {
+                self.apply_condition_narrowing(&branch.condition, false);
+            }
             shapes.push(self.analyze_expr(else_branch));
             frames.push(self.frame.clone());
         } else {
@@ -114,6 +118,54 @@ impl Analyzer<'_> {
         }
         self.frame = joined;
     }
+
+    fn apply_condition_narrowing(&mut self, condition: &Expr, truthy: bool) {
+        if let Some((key, narrowed)) = optional_none_narrowing(condition, truthy, self) {
+            if let Some(binding) = self.frame.get_mut(key) {
+                binding.narrow_current(narrowed);
+            }
+        }
+    }
+}
+
+fn optional_none_narrowing(
+    condition: &Expr,
+    truthy: bool,
+    analyzer: &Analyzer<'_>,
+) -> Option<(BindingKey, Shape)> {
+    let ExprKind::Binary { op, lhs, rhs } = &condition.kind else {
+        return None;
+    };
+    let is_equal = matches!(op, BinaryOp::Equal);
+    let is_not_equal = matches!(op, BinaryOp::NotEqual);
+    if !is_equal && !is_not_equal {
+        return None;
+    }
+
+    let value = if is_none_literal(rhs) {
+        lhs
+    } else if is_none_literal(lhs) {
+        rhs
+    } else {
+        return None;
+    };
+    let key = analyzer.binding_key(value)?;
+    let binding = analyzer.frame.get(key)?;
+    let Shape::Optional(payload) = &binding.current_shape else {
+        return None;
+    };
+
+    let narrows_to_payload = is_not_equal == truthy;
+    let narrowed = if narrows_to_payload {
+        payload.as_ref().clone()
+    } else {
+        Shape::Literal(LiteralFact::None)
+    };
+    Some((key, narrowed))
+}
+
+fn is_none_literal(expr: &Expr) -> bool {
+    matches!(expr.kind, ExprKind::Literal(LiteralKind::None))
 }
 
 fn join_continuing_shapes(shapes: Vec<Shape>) -> Shape {
