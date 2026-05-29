@@ -146,7 +146,9 @@ fn registers_host_modules_and_project_manifests() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let registration = tune.register_host(&EmptyHost);
     assert_eq!(registration.module_count, 0);
+    assert_eq!(registration.function_count, 0);
     assert!(tune.host_modules().is_empty());
+    assert!(tune.host_symbols().is_empty());
 
     let handle = tune
         .load_project(dyno_project::manifest::Manifest::new("demo", "main.tn"))
@@ -154,6 +156,44 @@ fn registers_host_modules_and_project_manifests() -> Result<(), &'static str> {
 
     assert_eq!(handle, tune_engine::ProjectHandle(0));
     assert_eq!(tune.projects().len(), 1);
+
+    Ok(())
+}
+
+#[test]
+fn registered_host_functions_get_stable_engine_symbols() -> Result<(), &'static str> {
+    struct FsHost;
+
+    impl tune_host::Host for FsHost {
+        fn modules(&self) -> Vec<tune_host::HostModule> {
+            vec![tune_host::HostModule::new(
+                "fs",
+                vec![tune_host::HostFunction::new(
+                    "read",
+                    vec![tune_host::HostParam::new("path", tune_shape::Shape::String)],
+                    tune_shape::Shape::String,
+                )],
+            )]
+        }
+    }
+
+    let mut tune = tune_engine::Tune::new();
+    let registration = tune.register_host(&FsHost);
+
+    assert_eq!(registration.module_count, 1);
+    assert_eq!(registration.function_count, 1);
+    assert_eq!(tune.host_symbols().len(), 1);
+    assert_eq!(
+        tune.host_symbols()[0].id,
+        tune_engine::EngineHostSymbolId(0)
+    );
+    assert_eq!(tune.host_symbols()[0].module, "fs");
+    assert_eq!(tune.host_symbols()[0].function, "read");
+    assert_eq!(
+        tune.host_symbol(tune_engine::EngineHostSymbolId(0))
+            .ok_or("symbol should exist")?,
+        &tune.host_symbols()[0]
+    );
 
     Ok(())
 }

@@ -1,4 +1,5 @@
 mod diagnostics;
+mod host;
 
 use diagnostics::{diagnostic_from_bytecode_lower_error, diagnostic_from_ir_lower_error};
 pub use diagnostics::{
@@ -6,6 +7,7 @@ pub use diagnostics::{
     diagnostic_from_vm_fault, diagnostic_from_vm_fault_with_sources,
     diagnostics_from_runtime_value, diagnostics_from_runtime_value_with_sources,
 };
+pub use host::{EngineHostSymbol, EngineHostSymbolId, HostRegistration};
 
 use tune_db::{FileId, ModuleAnalysis, TuneDb};
 use tune_diagnostics::Diagnostic;
@@ -15,7 +17,7 @@ use tune_runtime::value::Value;
 #[derive(Default)]
 pub struct Tune {
     db: TuneDb,
-    host_modules: Vec<HostModule>,
+    hosts: host::HostRegistry,
     projects: Vec<dyno_project::manifest::Manifest>,
 }
 
@@ -46,11 +48,6 @@ pub enum EntryPoint {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ProjectHandle(pub u32);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct HostRegistration {
-    pub module_count: usize,
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ProjectEntry {
@@ -224,15 +221,22 @@ impl Tune {
     }
 
     pub fn register_host(&mut self, host: &impl tune_host::Host) -> HostRegistration {
-        let modules = host.modules();
-        let module_count = modules.len();
-        self.host_modules.extend(modules);
-        HostRegistration { module_count }
+        self.hosts.register(host)
     }
 
     #[must_use]
     pub fn host_modules(&self) -> &[HostModule] {
-        &self.host_modules
+        self.hosts.modules()
+    }
+
+    #[must_use]
+    pub fn host_symbols(&self) -> &[EngineHostSymbol] {
+        self.hosts.symbols()
+    }
+
+    #[must_use]
+    pub fn host_symbol(&self, id: EngineHostSymbolId) -> Option<&EngineHostSymbol> {
+        self.hosts.symbol(id)
     }
 
     #[must_use]
