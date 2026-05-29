@@ -36,3 +36,24 @@ fn json_invoker_is_a_compiler_generated_plan() {
     assert_eq!(invoker.helper_name, "__json_invoker_9");
     assert!(!invoker.uses_runtime_reflection);
 }
+
+#[test]
+fn meta_decl_facts_are_derived_from_compiler_facts() {
+    let source = r#"
+tag tool {}
+@tool
+let run(): String = "ok"
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let facts = tune_meta::facts::from_compiler_facts(module.items[1].id, &resolved.facts);
+
+    assert!(facts.facts.iter().any(|fact| {
+        matches!(fact, tune_meta::facts::DeclFact::Name(name) if name == "run")
+    }));
+    assert!(facts
+        .facts
+        .iter()
+        .any(|fact| matches!(fact, tune_meta::facts::DeclFact::JsonInvoker)));
+}

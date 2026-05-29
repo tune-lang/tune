@@ -403,3 +403,21 @@ let boxed: Boxed<String> = Value("hello")
         tune_resolve::NameTarget::Variant(tune_resolve::VariantId::Member(_))
     )));
 }
+
+#[test]
+fn tool_tags_record_json_invoker_fact() {
+    let source = r#"
+tag tool {}
+@tool
+let run(input: String): String = input
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    assert!(resolved.facts.iter().any(|fact| matches!(
+        &fact.payload,
+        tune_resolve::CompilerFactPayload::JsonInvoker(name)
+            if name == "__json_invoker_1"
+    )));
+}
