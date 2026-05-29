@@ -97,6 +97,7 @@ pub enum Opcode {
     GreaterEqualByte = 93,
     StringLen = 94,
     StringGet = 95,
+    TupleField = 96,
 }
 
 impl Opcode {
@@ -197,5 +198,6 @@ impl Opcode {
         Self::GreaterEqualByte,
         Self::StringLen,
         Self::StringGet,
+        Self::TupleField,
     ];
 }

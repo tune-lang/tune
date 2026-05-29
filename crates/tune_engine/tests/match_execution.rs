@@ -120,6 +120,47 @@ let result: Int = match outer {
     Ok(())
 }
 
+#[test]
+fn run_file_executes_tuple_pattern_match() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let pair = (2, 5)
+let result: Int = match pair {
+  (left, right) => left + right
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, Value::Int(7));
+    Ok(())
+}
+
+#[test]
+fn run_file_executes_tuple_pattern_nested_in_variant() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+enum Wrapped {
+  Pair((Int, Int))
+}
+let wrapped: Wrapped = Pair((3, 4))
+let result: Int = match wrapped {
+  Pair((left, right)) => left * right
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, Value::Int(12));
+    Ok(())
+}
+
 fn run_file(tune: &tune_engine::Tune, file: tune_db::FileId) -> Result<Value, &'static str> {
     tune.run_file(file).map_err(|error| {
         eprintln!("{error:?}");

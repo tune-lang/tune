@@ -2,6 +2,7 @@ use tune_plan::PlanOp;
 
 use tune_diagnostics::Span;
 use tune_hir::pattern::PatternKind;
+use tune_plan::PlanPatternPathSegment;
 use tune_resolve::LocalId;
 
 use crate::lower::Lowerer;
@@ -101,6 +102,9 @@ impl Lowerer {
             if matches!(arm.pattern.kind, PatternKind::Else) {
                 self.push_op(IrOp::Jump { target: arm_block });
             } else {
+                if arm.tests.is_empty() && !pattern_can_match_without_tests(&arm.pattern.kind) {
+                    return Err(IrLowerError::UnsupportedOp("match pattern"));
+                }
                 self.lower_plan_pattern_tests(
                     &arm.tests,
                     scrutinee,
@@ -191,15 +195,30 @@ impl Lowerer {
         Ok(())
     }
 
-    fn lower_pattern_field_path(&mut self, root: Reg, path: &[usize]) -> Result<Reg, IrLowerError> {
+    fn lower_pattern_field_path(
+        &mut self,
+        root: Reg,
+        path: &[PlanPatternPathSegment],
+    ) -> Result<Reg, IrLowerError> {
         let mut base = root;
-        for index in path {
+        for segment in path {
             let dst = self.alloc_reg()?;
-            self.push_op(IrOp::VariantField {
-                dst,
-                base,
-                index: u32::try_from(*index).map_err(|_| IrLowerError::RegisterLimit)?,
-            });
+            match segment {
+                PlanPatternPathSegment::VariantField(index) => {
+                    self.push_op(IrOp::VariantField {
+                        dst,
+                        base,
+                        index: u32::try_from(*index).map_err(|_| IrLowerError::RegisterLimit)?,
+                    });
+                }
+                PlanPatternPathSegment::TupleField(index) => {
+                    self.push_op(IrOp::TupleField {
+                        dst,
+                        base,
+                        index: u32::try_from(*index).map_err(|_| IrLowerError::RegisterLimit)?,
+                    });
+                }
+            }
             base = dst;
         }
         Ok(base)
@@ -356,5 +375,16 @@ impl Lowerer {
             .iter()
             .find(|block| block.id == self.current_block)
             .is_none_or(|block| block.ops.is_empty())
+    }
+}
+
+fn pattern_can_match_without_tests(pattern: &PatternKind) -> bool {
+    match pattern {
+        PatternKind::Hole | PatternKind::Binding(_) => true,
+        PatternKind::Tuple(items) => items
+            .iter()
+            .all(|item| pattern_can_match_without_tests(&item.kind)),
+        PatternKind::Unit | PatternKind::Variant { .. } | PatternKind::StructuralShape(_) => false,
+        PatternKind::Else => true,
     }
 }

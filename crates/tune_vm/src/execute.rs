@@ -366,6 +366,9 @@ impl Vm {
                 Opcode::VariantField => {
                     self.execute_variant_field(function_index, ip, &mut registers, instruction)?;
                 }
+                Opcode::TupleField => {
+                    self.execute_tuple_field(function_index, ip, &mut registers, instruction)?;
+                }
                 Opcode::ResultPropagate => {
                     let result =
                         self.at(function_index, ip, read_reg(&registers, instruction.b))?;

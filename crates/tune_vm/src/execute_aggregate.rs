@@ -216,6 +216,32 @@ impl Vm {
         }
     }
 
+    pub(crate) fn execute_tuple_field(
+        &self,
+        function_index: usize,
+        ip: usize,
+        registers: &mut [Value],
+        instruction: &Instruction,
+    ) -> Result<(), VmFault> {
+        match self.at(function_index, ip, read_reg(registers, instruction.b))? {
+            Value::Tuple(fields) => {
+                let value = fields.get(instruction.c as usize).cloned().ok_or_else(|| {
+                    self.fault_at(function_index, ip, VmError::RegisterOutOfBounds)
+                })?;
+                self.at(
+                    function_index,
+                    ip,
+                    write_reg(registers, instruction.a, value),
+                )
+            }
+            _ => Err(self.fault_at(
+                function_index,
+                ip,
+                VmError::UnsupportedOpcode(Opcode::TupleField),
+            )),
+        }
+    }
+
     pub(crate) fn execute_match_variant(
         &self,
         function_index: usize,

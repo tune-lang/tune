@@ -464,6 +464,15 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(())
             }
+            IrOp::TupleField { dst, base, index } => {
+                self.instructions.push(Instruction {
+                    opcode: Opcode::TupleField,
+                    a: dst.0,
+                    b: base.0,
+                    c: *index,
+                });
+                Ok(())
+            }
             IrOp::ResultPropagate { dst, result, .. } => {
                 self.instructions.push(Instruction {
                     opcode: Opcode::ResultPropagate,

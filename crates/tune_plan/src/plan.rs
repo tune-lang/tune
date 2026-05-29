@@ -75,14 +75,20 @@ pub struct PlanMatchArm {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanPatternTest {
-    pub field_path: Vec<usize>,
+    pub field_path: Vec<PlanPatternPathSegment>,
     pub variant: VariantId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanPatternBinding {
     pub local: Option<LocalId>,
-    pub field_path: Vec<usize>,
+    pub field_path: Vec<PlanPatternPathSegment>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PlanPatternPathSegment {
+    VariantField(usize),
+    TupleField(usize),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

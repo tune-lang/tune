@@ -289,7 +289,7 @@ fn validate_instruction(
         }
         Opcode::CallableValue => validate_callable(artifact, function_id, function, instruction)?,
         Opcode::VariantConstruct => validate_variant(function_id, function, instruction)?,
-        Opcode::VariantField | Opcode::ResultPropagate | Opcode::TaskJoin => {
+        Opcode::VariantField | Opcode::TupleField | Opcode::ResultPropagate | Opcode::TaskJoin => {
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
         }

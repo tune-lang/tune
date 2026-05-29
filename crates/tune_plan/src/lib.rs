@@ -9,7 +9,7 @@ pub use lower::{
 };
 pub use plan::{
     Capture, CaptureMode, CaptureSource, FiniteForContract, FiniteForContractKind, PlanFunction,
-    PlanIfBranch, PlanMatchArm, PlanModule, PlanOp, PlanPatternBinding, PlanPatternTest,
-    PlanStructLayout, StructEscapeReason, StructOwnershipPlan, StructStateDecision,
-    StructStatePlan, StructStateRepr,
+    PlanIfBranch, PlanMatchArm, PlanModule, PlanOp, PlanPatternBinding, PlanPatternPathSegment,
+    PlanPatternTest, PlanStructLayout, StructEscapeReason, StructOwnershipPlan,
+    StructStateDecision, StructStatePlan, StructStateRepr,
 };

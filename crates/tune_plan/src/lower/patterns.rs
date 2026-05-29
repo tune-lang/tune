@@ -2,7 +2,7 @@ use tune_hir::pattern::{Pattern, PatternKind};
 use tune_resolve::VariantId;
 
 use super::LowerContext;
-use crate::plan::{PlanPatternBinding, PlanPatternTest};
+use crate::plan::{PlanPatternBinding, PlanPatternPathSegment, PlanPatternTest};
 
 impl LowerContext<'_> {
     pub(super) fn for_pattern_binding(&self, pattern: &Pattern) -> Option<tune_resolve::LocalId> {
@@ -36,7 +36,7 @@ impl LowerContext<'_> {
 fn collect_pattern_bindings(
     context: &LowerContext<'_>,
     pattern: &Pattern,
-    path: &mut Vec<usize>,
+    path: &mut Vec<PlanPatternPathSegment>,
     bindings: &mut Vec<PlanPatternBinding>,
 ) {
     match &pattern.kind {
@@ -44,9 +44,16 @@ fn collect_pattern_bindings(
             local: context.local_for_expr(pattern.id),
             field_path: path.clone(),
         }),
-        PatternKind::Variant { args, .. } | PatternKind::Tuple(args) => {
+        PatternKind::Variant { args, .. } => {
             for (index, arg) in args.iter().enumerate() {
-                path.push(index);
+                path.push(PlanPatternPathSegment::VariantField(index));
+                collect_pattern_bindings(context, arg, path, bindings);
+                path.pop();
+            }
+        }
+        PatternKind::Tuple(args) => {
+            for (index, arg) in args.iter().enumerate() {
+                path.push(PlanPatternPathSegment::TupleField(index));
                 collect_pattern_bindings(context, arg, path, bindings);
                 path.pop();
             }
@@ -61,7 +68,7 @@ fn collect_pattern_bindings(
 fn collect_pattern_tests(
     context: &LowerContext<'_>,
     pattern: &Pattern,
-    path: &mut Vec<usize>,
+    path: &mut Vec<PlanPatternPathSegment>,
     tests: &mut Vec<PlanPatternTest>,
 ) {
     match &pattern.kind {
@@ -73,14 +80,14 @@ fn collect_pattern_tests(
                 });
             }
             for (index, arg) in args.iter().enumerate() {
-                path.push(index);
+                path.push(PlanPatternPathSegment::VariantField(index));
                 collect_pattern_tests(context, arg, path, tests);
                 path.pop();
             }
         }
         PatternKind::Tuple(args) => {
             for (index, arg) in args.iter().enumerate() {
-                path.push(index);
+                path.push(PlanPatternPathSegment::TupleField(index));
                 collect_pattern_tests(context, arg, path, tests);
                 path.pop();
             }

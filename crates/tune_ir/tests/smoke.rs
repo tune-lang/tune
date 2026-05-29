@@ -164,6 +164,109 @@ fn lowers_host_call_plan_to_ir() -> Result<(), &'static str> {
 }
 
 #[test]
+fn rejects_unsupported_match_patterns_without_tests() -> Result<(), &'static str> {
+    let plan = tune_plan::PlanFunction {
+        name: "main".into(),
+        span: None,
+        owner: None,
+        member: None,
+        callable: None,
+        params: Vec::new(),
+        local_params: Vec::new(),
+        captures: Vec::new(),
+        module_bindings: Vec::new(),
+        struct_layouts: Vec::new(),
+        ops: vec![
+            tune_plan::PlanOp::ConstInt { value: 1 },
+            tune_plan::PlanOp::Match {
+                scrutinee: tune_hir::ExprId(0),
+                arms: vec![tune_plan::PlanMatchArm {
+                    pattern: tune_hir::pattern::Pattern {
+                        id: tune_hir::ExprId(1),
+                        span: None,
+                        kind: tune_hir::pattern::PatternKind::Unit,
+                    },
+                    body: tune_hir::ExprId(2),
+                    variant: None,
+                    tests: Vec::new(),
+                    bindings: Vec::new(),
+                    body_ops: vec![tune_plan::PlanOp::ConstInt { value: 2 }],
+                }],
+                produces_value: true,
+                span: None,
+            },
+            tune_plan::PlanOp::Return,
+        ],
+    };
+
+    assert!(matches!(
+        tune_ir::lower_plan_function(&plan),
+        Err(tune_ir::IrLowerError::UnsupportedOp("match pattern"))
+    ));
+
+    Ok(())
+}
+
+#[test]
+fn tuple_pattern_bindings_lower_to_tuple_field_ops() -> Result<(), &'static str> {
+    let plan = tune_plan::PlanFunction {
+        name: "main".into(),
+        span: None,
+        owner: None,
+        member: None,
+        callable: None,
+        params: Vec::new(),
+        local_params: vec![tune_resolve::LocalId(0), tune_resolve::LocalId(1)],
+        captures: Vec::new(),
+        module_bindings: Vec::new(),
+        struct_layouts: Vec::new(),
+        ops: vec![
+            tune_plan::PlanOp::ConstInt { value: 1 },
+            tune_plan::PlanOp::ConstInt { value: 2 },
+            tune_plan::PlanOp::TupleBuild { element_count: 2 },
+            tune_plan::PlanOp::Match {
+                scrutinee: tune_hir::ExprId(0),
+                arms: vec![tune_plan::PlanMatchArm {
+                    pattern: tune_hir::pattern::Pattern {
+                        id: tune_hir::ExprId(1),
+                        span: None,
+                        kind: tune_hir::pattern::PatternKind::Tuple(Vec::new()),
+                    },
+                    body: tune_hir::ExprId(2),
+                    variant: None,
+                    tests: Vec::new(),
+                    bindings: vec![
+                        tune_plan::PlanPatternBinding {
+                            local: Some(tune_resolve::LocalId(0)),
+                            field_path: vec![tune_plan::PlanPatternPathSegment::TupleField(0)],
+                        },
+                        tune_plan::PlanPatternBinding {
+                            local: Some(tune_resolve::LocalId(1)),
+                            field_path: vec![tune_plan::PlanPatternPathSegment::TupleField(1)],
+                        },
+                    ],
+                    body_ops: vec![tune_plan::PlanOp::ConstInt { value: 3 }],
+                }],
+                produces_value: true,
+                span: None,
+            },
+            tune_plan::PlanOp::Return,
+        ],
+    };
+
+    let ir = tune_ir::lower_plan_function(&plan).map_err(|_| "plan should lower")?;
+
+    assert!(
+        ir.blocks
+            .iter()
+            .flat_map(|block| &block.ops)
+            .any(|op| { matches!(op, tune_ir::IrOp::TupleField { index: 0 | 1, .. }) })
+    );
+
+    Ok(())
+}
+
+#[test]
 fn lowers_local_binding_plan_to_ir_loads_and_stores() -> Result<(), &'static str> {
     let plan = tune_plan::PlanFunction {
         owner: None,
