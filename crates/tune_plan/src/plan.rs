@@ -18,7 +18,7 @@ pub struct PlanFunction {
     pub span: Option<Span>,
     pub params: Vec<MemberId>,
     pub local_params: Vec<LocalId>,
-    pub captures: Vec<CaptureSource>,
+    pub captures: Vec<Capture>,
     pub module_bindings: Vec<HirId>,
     pub ops: Vec<PlanOp>,
 }
@@ -27,6 +27,18 @@ pub struct PlanFunction {
 pub enum CaptureSource {
     Local(LocalId),
     TopLevel(HirId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CaptureMode {
+    Reference,
+    PrivateSnapshot,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Capture {
+    pub source: CaptureSource,
+    pub mode: CaptureMode,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -203,7 +215,7 @@ pub enum PlanOp {
     },
     CallableValue {
         callable: ExprId,
-        captures: Vec<CaptureSource>,
+        captures: Vec<Capture>,
         span: Option<Span>,
     },
     WitnessCall,

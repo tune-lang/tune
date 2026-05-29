@@ -2,7 +2,10 @@ use tune_hir::{ExprId, HirId, MemberId};
 use tune_ir::Reg;
 
 use crate::Opcode;
-use crate::function::{BytecodeBoundCallSite, BytecodeCallSite, BytecodeCallableSite, Instruction};
+use crate::function::{
+    BytecodeBoundCallSite, BytecodeCallSite, BytecodeCallableSite, BytecodeCapture,
+    BytecodeCaptureMode, Instruction,
+};
 use crate::lower::{BytecodeLowerError, FunctionLowerer};
 
 impl FunctionLowerer<'_> {
@@ -36,7 +39,7 @@ impl FunctionLowerer<'_> {
         &mut self,
         dst: Reg,
         callable: ExprId,
-        captures: &[Reg],
+        captures: &[tune_ir::IrCapture],
     ) -> Result<(), BytecodeLowerError> {
         let function = *self
             .callable_indices
@@ -46,7 +49,18 @@ impl FunctionLowerer<'_> {
             .map_err(|_| BytecodeLowerError::ConstantLimit)?;
         self.callable_sites.push(BytecodeCallableSite {
             function,
-            captures: captures.iter().map(|capture| capture.0).collect(),
+            captures: captures
+                .iter()
+                .map(|capture| BytecodeCapture {
+                    register: capture.reg.0,
+                    mode: match capture.mode {
+                        tune_ir::IrCaptureMode::Reference => BytecodeCaptureMode::Reference,
+                        tune_ir::IrCaptureMode::PrivateSnapshot => {
+                            BytecodeCaptureMode::PrivateSnapshot
+                        }
+                    },
+                })
+                .collect(),
         });
         self.instructions.push(Instruction {
             opcode: Opcode::CallableValue,

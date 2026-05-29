@@ -1,4 +1,4 @@
-use tune_bytecode::{Opcode, artifact::BytecodeConst};
+use tune_bytecode::{Opcode, artifact::BytecodeConst, function::BytecodeCaptureMode};
 use tune_runtime::{
     task::TaskJoinOutcome,
     value::{CallableValue, CapturedValue, RangeItemKind, RangeValue, StructFields, Value},
@@ -249,8 +249,13 @@ impl Vm {
                         .captures
                         .iter()
                         .map(|capture| {
-                            self.at(function_index, ip, read_reg(&registers, *capture))
-                                .map(|value| CapturedValue::new(value.capture_snapshot()))
+                            self.at(function_index, ip, read_reg(&registers, capture.register))
+                                .map(|value| match capture.mode {
+                                    BytecodeCaptureMode::Reference => CapturedValue::new(value),
+                                    BytecodeCaptureMode::PrivateSnapshot => {
+                                        CapturedValue::new(value.capture_snapshot())
+                                    }
+                                })
                         })
                         .collect::<Result<Vec<_>, _>>()?;
                     self.at(

@@ -94,7 +94,33 @@ let make(seed: Int) = {
     )));
     assert!(plan.ops.iter().any(|op| matches!(
         op,
-        tune_plan::PlanOp::CallableValue { captures, .. } if !captures.is_empty()
+        tune_plan::PlanOp::CallableValue { captures, .. }
+            if captures.iter().any(|capture| capture.mode == tune_plan::CaptureMode::PrivateSnapshot)
+    )));
+
+    Ok(())
+}
+
+#[test]
+fn read_only_callable_struct_capture_is_reference_mode() -> Result<(), &'static str> {
+    let plan = lower_callable(
+        r#"
+struct Counter {
+  value: Int
+}
+let make(seed: Int) = {
+  let counter: Counter = Counter {
+    value = seed
+  }
+  _(): Int = counter.value
+}
+"#,
+    )?;
+
+    assert!(plan.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::CallableValue { captures, .. }
+            if captures.iter().any(|capture| capture.mode == tune_plan::CaptureMode::Reference)
     )));
 
     Ok(())

@@ -106,6 +106,32 @@ let result: Int = c.value + b
 }
 
 #[test]
+fn run_file_captures_read_only_structs_by_reference() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+struct Counter {
+  value: Int
+  bump(): Int = {
+    self.value = self.value + 1
+    self.value
+  }
+}
+let c: Counter = Counter { value = 0 }
+let f = _(): Int = c.value
+let ignored: Int = c.bump()
+let result: Int = f()
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, Value::Int(1));
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_mixed_structural_match_calls() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

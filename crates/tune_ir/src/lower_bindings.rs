@@ -10,7 +10,7 @@ use crate::{IrLowerError, IrOp};
 impl Lowerer {
     pub(super) fn lower_binding_get(&mut self, source: NameTarget) -> Result<(), IrLowerError> {
         let local = match source {
-            NameTarget::Local(local) if self.captures.contains(&CaptureSource::Local(local)) => {
+            NameTarget::Local(local) if self.has_capture(CaptureSource::Local(local)) => {
                 capture_slot(
                     CaptureSource::Local(local),
                     &self.module_bindings,
@@ -34,9 +34,7 @@ impl Lowerer {
             )?,
             NameTarget::Param(param) => param_slot(param, &self.module_bindings, &self.params)?,
             NameTarget::SelfValue => tune_resolve::LocalId(0),
-            NameTarget::TopLevel(item)
-                if self.captures.contains(&CaptureSource::TopLevel(item)) =>
-            {
+            NameTarget::TopLevel(item) if self.has_capture(CaptureSource::TopLevel(item)) => {
                 capture_slot(
                     CaptureSource::TopLevel(item),
                     &self.module_bindings,
@@ -154,7 +152,7 @@ impl Lowerer {
         &self,
         local: tune_resolve::LocalId,
     ) -> Result<tune_resolve::LocalId, IrLowerError> {
-        if self.captures.contains(&CaptureSource::Local(local)) {
+        if self.has_capture(CaptureSource::Local(local)) {
             return capture_slot(
                 CaptureSource::Local(local),
                 &self.module_bindings,
@@ -178,5 +176,11 @@ impl Lowerer {
                 &self.captures,
             ),
         )
+    }
+}
+
+impl Lowerer {
+    pub(super) fn has_capture(&self, source: CaptureSource) -> bool {
+        self.captures.iter().any(|capture| capture.source == source)
     }
 }

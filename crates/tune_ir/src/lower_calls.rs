@@ -1,10 +1,10 @@
 use tune_hir::{HirId, MemberId};
 
 use tune_diagnostics::Span;
-use tune_plan::CaptureSource;
+use tune_plan::{Capture, CaptureSource};
 
-use crate::IrOp;
 use crate::lower::{IrLowerError, Lowerer};
+use crate::{IrCapture, IrCaptureMode, IrOp};
 
 impl Lowerer {
     pub(super) fn lower_direct_call(
@@ -69,17 +69,23 @@ impl Lowerer {
     pub(super) fn lower_callable_value(
         &mut self,
         callable: tune_hir::ExprId,
-        captures: &[CaptureSource],
+        captures: &[Capture],
         span: Option<Span>,
     ) -> Result<(), IrLowerError> {
         let mut capture_regs = Vec::with_capacity(captures.len());
         for capture in captures {
-            let target = match capture {
-                CaptureSource::Local(local) => tune_resolve::NameTarget::Local(*local),
-                CaptureSource::TopLevel(item) => tune_resolve::NameTarget::TopLevel(*item),
+            let target = match capture.source {
+                CaptureSource::Local(local) => tune_resolve::NameTarget::Local(local),
+                CaptureSource::TopLevel(item) => tune_resolve::NameTarget::TopLevel(item),
             };
             self.lower_binding_get(target)?;
-            capture_regs.push(self.pop("callable capture")?);
+            capture_regs.push(IrCapture {
+                reg: self.pop("callable capture")?,
+                mode: match capture.mode {
+                    tune_plan::CaptureMode::Reference => IrCaptureMode::Reference,
+                    tune_plan::CaptureMode::PrivateSnapshot => IrCaptureMode::PrivateSnapshot,
+                },
+            });
         }
         let dst = self.alloc_reg()?;
         self.push_op(IrOp::CallableValue {

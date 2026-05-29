@@ -18,6 +18,18 @@ pub struct FieldId(pub u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HostSymbolId(pub u32);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IrCapture {
+    pub reg: Reg,
+    pub mode: IrCaptureMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrCaptureMode {
+    Reference,
+    PrivateSnapshot,
+}
+
 #[derive(Debug, Clone)]
 pub struct IrFunction {
     pub owner: Option<HirId>,
@@ -220,7 +232,7 @@ pub enum IrOp {
     CallableValue {
         dst: Reg,
         callable: ExprId,
-        captures: Vec<Reg>,
+        captures: Vec<IrCapture>,
         span: Option<Span>,
     },
     CallBound {

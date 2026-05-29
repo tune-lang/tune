@@ -1,5 +1,5 @@
 use tune_hir::HirId;
-use tune_plan::{CaptureSource, PlanFunction, PlanOp};
+use tune_plan::{Capture, PlanFunction, PlanOp};
 use tune_shape::Shape;
 
 use crate::{BlockId, ConstId, IrBlock, IrConst, IrFunction, IrOp, Reg};
@@ -61,7 +61,7 @@ pub(super) struct Lowerer {
     pub(super) locals: u32,
     pub(super) params: Vec<tune_hir::MemberId>,
     pub(super) local_params: Vec<tune_resolve::LocalId>,
-    pub(super) captures: Vec<CaptureSource>,
+    pub(super) captures: Vec<Capture>,
     pub(super) module_bindings: Vec<HirId>,
     pub(super) constants: Vec<IrConst>,
     pub(super) blocks: Vec<IrBlock>,

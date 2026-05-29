@@ -14,7 +14,8 @@ mod lower_tasks;
 mod lower_unary;
 
 pub use ir::{
-    BlockId, ConstId, FieldId, HostSymbolId, IrBlock, IrConst, IrFunction, IrIntComparison, IrOp,
-    IrOwnershipPlan, IrStateRepr, IrStructState, Reg, StructField, VariantArm,
+    BlockId, ConstId, FieldId, HostSymbolId, IrBlock, IrCapture, IrCaptureMode, IrConst,
+    IrFunction, IrIntComparison, IrOp, IrOwnershipPlan, IrStateRepr, IrStructState, Reg,
+    StructField, VariantArm,
 };
 pub use lower::{IrLowerError, lower_plan_function};

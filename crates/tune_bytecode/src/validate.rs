@@ -256,7 +256,7 @@ fn validate_callable(
         });
     }
     for capture in &site.captures {
-        register(function_id, function, *capture)?;
+        register(function_id, function, capture.register)?;
     }
     Ok(())
 }

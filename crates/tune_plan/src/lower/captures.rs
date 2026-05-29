@@ -2,7 +2,7 @@ use tune_hir::expr::{Expr, ExprKind};
 use tune_resolve::{LocalId, LocalKind, NameTarget};
 
 use super::LowerContext;
-use crate::CaptureSource;
+use crate::{Capture, CaptureMode, CaptureSource};
 
 impl LowerContext<'_> {
     pub(super) fn captured_locals_in_callable_values(&self, body: &Expr) -> Vec<LocalId> {
@@ -11,12 +11,12 @@ impl LowerContext<'_> {
         captures
     }
 
-    pub(super) fn callable_value_captures(&self, body: &Expr) -> Vec<CaptureSource> {
+    pub(super) fn callable_value_captures(&self, body: &Expr) -> Vec<Capture> {
         let mut declared = Vec::new();
         collect_declared_locals(body, self, &mut declared);
 
         let mut captures = Vec::new();
-        collect_captured_locals(body, self, &declared, &mut captures);
+        collect_captured_locals(body, body, self, &declared, &mut captures);
         captures
     }
 }
@@ -28,7 +28,7 @@ fn collect_callable_value_captures(
 ) {
     if let ExprKind::CallableValue { body, .. } = &expr.kind {
         for capture in context.callable_value_captures(body) {
-            let CaptureSource::Local(capture) = capture else {
+            let CaptureSource::Local(capture) = capture.source else {
                 continue;
             };
             if !captures.contains(&capture) {
@@ -43,10 +43,11 @@ fn collect_callable_value_captures(
 }
 
 fn collect_captured_locals(
+    body: &Expr,
     expr: &Expr,
     context: &LowerContext<'_>,
     declared: &[LocalId],
-    captures: &mut Vec<CaptureSource>,
+    captures: &mut Vec<Capture>,
 ) {
     if let ExprKind::Name(_) = expr.kind {
         match context.name_target(expr.id) {
@@ -54,14 +55,20 @@ fn collect_captured_locals(
                 if !declared.contains(&local)
                     && context.local_kind(local) == Some(LocalKind::Let) =>
             {
-                let capture = CaptureSource::Local(local);
-                if !captures.contains(&capture) {
+                let capture = capture_for(body, context, CaptureSource::Local(local));
+                if !captures
+                    .iter()
+                    .any(|candidate| candidate.source == capture.source)
+                {
                     captures.push(capture);
                 }
             }
             Some(NameTarget::TopLevel(item)) => {
-                let capture = CaptureSource::TopLevel(item);
-                if !captures.contains(&capture) {
+                let capture = capture_for(body, context, CaptureSource::TopLevel(item));
+                if !captures
+                    .iter()
+                    .any(|candidate| candidate.source == capture.source)
+                {
                     captures.push(capture);
                 }
             }
@@ -70,8 +77,65 @@ fn collect_captured_locals(
     }
 
     walk_expr(expr, &mut |child| {
-        collect_captured_locals(child, context, declared, captures);
+        collect_captured_locals(body, child, context, declared, captures);
     });
+}
+
+fn capture_for(body: &Expr, context: &LowerContext<'_>, source: CaptureSource) -> Capture {
+    let mode = if capture_is_mutated(body, context, source) {
+        CaptureMode::PrivateSnapshot
+    } else {
+        CaptureMode::Reference
+    };
+    Capture { source, mode }
+}
+
+fn capture_is_mutated(body: &Expr, context: &LowerContext<'_>, source: CaptureSource) -> bool {
+    let mut mutated = false;
+    visit_until(body, &mut |expr| {
+        if mutated {
+            return;
+        }
+        match &expr.kind {
+            ExprKind::Assign { target, .. } => {
+                mutated =
+                    target_capture_source(target, context).is_some_and(|target| target == source);
+            }
+            ExprKind::Call { callee, .. } => {
+                mutated =
+                    member_receiver_source(callee, context).is_some_and(|target| target == source);
+            }
+            _ => {}
+        }
+    });
+    mutated
+}
+
+fn target_capture_source(expr: &Expr, context: &LowerContext<'_>) -> Option<CaptureSource> {
+    match &expr.kind {
+        ExprKind::Name(_) => expr_capture_source(expr, context),
+        ExprKind::Field { base, .. } | ExprKind::Index { base, .. } => {
+            target_capture_source(base, context)
+        }
+        _ => None,
+    }
+}
+
+fn member_receiver_source(expr: &Expr, context: &LowerContext<'_>) -> Option<CaptureSource> {
+    let ExprKind::Field { base, .. } = &expr.kind else {
+        return None;
+    };
+    expr_capture_source(base, context)
+}
+
+fn expr_capture_source(expr: &Expr, context: &LowerContext<'_>) -> Option<CaptureSource> {
+    match context.name_target(expr.id) {
+        Some(NameTarget::Local(local)) if context.local_kind(local) == Some(LocalKind::Let) => {
+            Some(CaptureSource::Local(local))
+        }
+        Some(NameTarget::TopLevel(item)) => Some(CaptureSource::TopLevel(item)),
+        _ => None,
+    }
 }
 
 fn collect_declared_locals(expr: &Expr, context: &LowerContext<'_>, declared: &mut Vec<LocalId>) {
@@ -166,4 +230,9 @@ fn walk_expr(expr: &Expr, visit: &mut impl FnMut(&Expr)) {
         | ExprKind::Break
         | ExprKind::Continue => {}
     }
+}
+
+fn visit_until(expr: &Expr, visit: &mut impl FnMut(&Expr)) {
+    visit(expr);
+    walk_expr(expr, &mut |child| visit_until(child, visit));
 }

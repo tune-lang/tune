@@ -23,7 +23,19 @@ pub struct BytecodeBoundCallSite {
 #[derive(Debug, Clone)]
 pub struct BytecodeCallableSite {
     pub function: u32,
-    pub captures: Vec<u32>,
+    pub captures: Vec<BytecodeCapture>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BytecodeCapture {
+    pub register: u32,
+    pub mode: BytecodeCaptureMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BytecodeCaptureMode {
+    Reference,
+    PrivateSnapshot,
 }
 
 #[derive(Debug, Clone)]
