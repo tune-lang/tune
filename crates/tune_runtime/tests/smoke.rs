@@ -25,6 +25,10 @@ fn task_execution_mode_names_scheduler_boundary() {
         tune_runtime::TaskExecutionMode::Immediate,
         tune_runtime::TaskExecutionMode::DeferredUntilJoin
     );
+    assert_ne!(
+        tune_runtime::TaskExecutionMode::Parallel,
+        tune_runtime::TaskExecutionMode::DeferredUntilJoin
+    );
 }
 
 #[test]

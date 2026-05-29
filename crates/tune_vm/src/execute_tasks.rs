@@ -1,8 +1,5 @@
 use tune_bytecode::function::{BytecodeCaptureMode, Instruction};
-use tune_runtime::{
-    task::{TaskExecutionMode, TaskJoinOutcome},
-    value::Value,
-};
+use tune_runtime::{task::TaskExecutionMode, value::Value};
 
 use crate::execute_support::{read_reg, write_reg};
 use crate::{Vm, VmError, VmFault};
@@ -55,6 +52,13 @@ impl Vm {
                 let value = self.execute_task_function(site.function as usize, args)?;
                 self.push_ready_task(value)
             }
+            TaskExecutionMode::Parallel => {
+                let vm = self.task_vm();
+                let task_function = site.function as usize;
+                let handle =
+                    std::thread::spawn(move || vm.execute_task_function(task_function, args));
+                self.push_running_task(handle)
+            }
             TaskExecutionMode::DeferredUntilJoin => self.at(
                 function,
                 instruction_index,
@@ -80,35 +84,42 @@ impl Vm {
             instruction_index,
             read_reg(registers, instruction.b),
         )? {
-            Value::Task(handle) => match self.join_task(handle.0) {
-                Some(TaskJoinOutcome::Ready(value)) => self.at(
-                    function,
-                    instruction_index,
-                    write_reg(registers, instruction.a, value),
-                ),
-                Some(TaskJoinOutcome::Pending(id)) => {
-                    let Some((task_function, task_locals)) = self.take_pending_task(id) else {
-                        return Err(self.fault_at(
-                            function,
-                            instruction_index,
-                            VmError::RegisterOutOfBounds,
-                        ));
-                    };
-                    let value = self.execute_task_function(task_function as usize, task_locals)?;
-                    self.finish_task(id, value.clone());
-                    self.at(
+            Value::Task(handle) => {
+                if let Some(value) = self.ready_task_value(handle.0) {
+                    return self.at(
                         function,
                         instruction_index,
                         write_reg(registers, instruction.a, value),
-                    )
+                    );
                 }
-                Some(TaskJoinOutcome::UnrecoverablePanic(panic)) => {
-                    Err(self.fault_at(function, instruction_index, VmError::Panic(panic)))
+                if let Some(join) = self.take_running_task(handle.0) {
+                    let value = join.join().map_err(|_| {
+                        self.fault_at(
+                            function,
+                            instruction_index,
+                            VmError::HostCallFailed {
+                                message: "parallel task panicked in host thread".into(),
+                            },
+                        )
+                    })??;
+                    self.finish_task(handle.0, value.clone());
+                    return self.at(
+                        function,
+                        instruction_index,
+                        write_reg(registers, instruction.a, value),
+                    );
                 }
-                None => {
-                    Err(self.fault_at(function, instruction_index, VmError::RegisterOutOfBounds))
+                if let Some((task_function, task_locals)) = self.take_pending_task(handle.0) {
+                    let value = self.execute_task_function(task_function as usize, task_locals)?;
+                    self.finish_task(handle.0, value.clone());
+                    return self.at(
+                        function,
+                        instruction_index,
+                        write_reg(registers, instruction.a, value),
+                    );
                 }
-            },
+                Err(self.fault_at(function, instruction_index, VmError::RegisterOutOfBounds))
+            }
             _ => Err(self.fault_at(
                 function,
                 instruction_index,

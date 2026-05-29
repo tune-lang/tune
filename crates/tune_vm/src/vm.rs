@@ -1,9 +1,11 @@
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::collections::HashSet;
+use std::sync::{Arc, atomic::AtomicU64};
+use std::thread::JoinHandle;
 
 use tune_bytecode::{artifact::BytecodeArtifact, validate_artifact};
 use tune_runtime::{
-    task::{TaskExecutionMode, TaskId, TaskJoinOutcome},
+    task::{TaskExecutionMode, TaskId},
     value::Value,
 };
 
@@ -15,40 +17,35 @@ pub struct Vm {
     pub(crate) host_executors: Vec<Option<tune_host::HostExecutor>>,
     pub(crate) host_authorities: Vec<Vec<tune_host::Authority>>,
     pub(crate) granted_authorities: HashSet<tune_host::Authority>,
-    pub(crate) next_state_id: Cell<u64>,
+    pub(crate) next_state_id: Arc<AtomicU64>,
     pub(crate) tasks: RefCell<Vec<VmTask>>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub(crate) enum VmTask {
     Pending {
         id: TaskId,
         function: u32,
         args: Vec<Value>,
     },
+    Running {
+        id: TaskId,
+        handle: Option<JoinHandle<Result<Value, VmFault>>>,
+    },
     Ready {
         value: Value,
     },
-}
-
-impl VmTask {
-    pub(crate) fn join(self) -> TaskJoinOutcome {
-        match self {
-            Self::Pending { id, .. } => TaskJoinOutcome::Pending(id),
-            Self::Ready { value } => TaskJoinOutcome::Ready(value),
-        }
-    }
 }
 
 impl Vm {
     pub fn new(artifact: BytecodeArtifact) -> Self {
         Self {
             artifact,
-            task_execution: TaskExecutionMode::DeferredUntilJoin,
+            task_execution: TaskExecutionMode::Parallel,
             host_executors: Vec::new(),
             host_authorities: Vec::new(),
             granted_authorities: HashSet::new(),
-            next_state_id: Cell::new(0),
+            next_state_id: Arc::new(AtomicU64::new(0)),
             tasks: RefCell::new(Vec::new()),
         }
     }
@@ -93,6 +90,18 @@ impl Vm {
     ) -> Self {
         self.granted_authorities = authorities.into_iter().collect();
         self
+    }
+
+    pub(crate) fn task_vm(&self) -> Self {
+        Self {
+            artifact: self.artifact.clone(),
+            task_execution: self.task_execution,
+            host_executors: self.host_executors.clone(),
+            host_authorities: self.host_authorities.clone(),
+            granted_authorities: self.granted_authorities.clone(),
+            next_state_id: Arc::clone(&self.next_state_id),
+            tasks: RefCell::new(Vec::new()),
+        }
     }
 
     pub fn run_entry(&mut self) -> Result<Value, VmFault> {

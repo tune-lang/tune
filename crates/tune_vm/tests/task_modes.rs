@@ -90,11 +90,11 @@ fn vm_executes_task_in_eager_mode_and_propagates_panic_at_spawn() {
         ],
     };
 
-    let mut deferred = tune_vm::Vm::new(artifact.clone());
+    let mut parallel = tune_vm::Vm::new(artifact.clone());
     assert_eq!(
-        deferred.run_entry(),
+        parallel.run_entry(),
         Ok(tune_runtime::Value::Int(7)),
-        "default scheduling should defer task execution",
+        "unjoined parallel task failures should not surface in the parent frame",
     );
 
     let mut immediate =

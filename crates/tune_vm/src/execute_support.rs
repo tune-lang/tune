@@ -5,7 +5,7 @@ use tune_bytecode::function::{
 use tune_runtime::{
     TunePanic,
     state::{StateHandle, StateId},
-    task::{TaskId, TaskJoinOutcome},
+    task::TaskId,
     value::{PropagationFrame, RuntimeVariant, TaskHandle, Value},
 };
 
@@ -66,9 +66,10 @@ impl Vm {
         ) {
             return Err(VmError::UnsupportedStructState);
         }
-        let id = StateId(self.next_state_id.get());
-        self.next_state_id
-            .set(self.next_state_id.get().saturating_add(1));
+        let id = StateId(
+            self.next_state_id
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+        );
         Ok(StateHandle {
             id,
             repr: crate::vm_state::runtime_state_repr(state.repr),
@@ -102,6 +103,18 @@ impl Vm {
     pub(crate) fn push_ready_task(&self, value: Value) -> Value {
         let id = self.next_task_id();
         self.tasks.borrow_mut().push(VmTask::Ready { value });
+        Value::Task(TaskHandle(id))
+    }
+
+    pub(crate) fn push_running_task(
+        &self,
+        handle: std::thread::JoinHandle<Result<Value, VmFault>>,
+    ) -> Value {
+        let id = self.next_task_id();
+        self.tasks.borrow_mut().push(VmTask::Running {
+            id,
+            handle: Some(handle),
+        });
         Value::Task(TaskHandle(id))
     }
 
@@ -148,16 +161,43 @@ impl Vm {
         }
     }
 
-    pub(crate) fn join_task(&self, id: tune_runtime::TaskId) -> Option<TaskJoinOutcome> {
-        let task = self.tasks.borrow().get(id.0 as usize).cloned()?;
-        Some(task.join())
+    pub(crate) fn take_pending_task(&self, id: TaskId) -> Option<(u32, Vec<Value>)> {
+        let mut tasks = self.tasks.borrow_mut();
+        let task = tasks.get_mut(id.0 as usize)?;
+        match std::mem::replace(task, VmTask::Ready { value: Value::Unit }) {
+            VmTask::Pending {
+                id: task_id,
+                function,
+                args,
+            } if task_id == id => Some((function, args)),
+            other => {
+                *task = other;
+                None
+            }
+        }
     }
 
-    pub(crate) fn take_pending_task(&self, id: TaskId) -> Option<(u32, Vec<Value>)> {
-        let task = self.tasks.borrow().get(id.0 as usize).cloned()?;
+    pub(crate) fn take_running_task(
+        &self,
+        id: TaskId,
+    ) -> Option<std::thread::JoinHandle<Result<Value, VmFault>>> {
+        let mut tasks = self.tasks.borrow_mut();
+        let task = tasks.get_mut(id.0 as usize)?;
         match task {
-            VmTask::Pending { function, args, .. } => Some((function, args)),
-            VmTask::Ready { .. } => None,
+            VmTask::Running {
+                id: task_id,
+                handle,
+            } if *task_id == id => handle.take(),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn ready_task_value(&self, id: TaskId) -> Option<Value> {
+        let tasks = self.tasks.borrow();
+        let task = tasks.get(id.0 as usize)?;
+        match task {
+            VmTask::Ready { value } => Some(value.clone()),
+            _ => None,
         }
     }
 

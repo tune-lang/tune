@@ -1,5 +1,4 @@
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use crate::resource::ResourceHandle;
 use crate::state::StateHandle;
@@ -147,7 +146,7 @@ pub enum RangeItemKind {
 #[derive(Debug, Clone)]
 pub struct StructFields {
     state: StateHandle,
-    fields: Rc<RefCell<Vec<Value>>>,
+    fields: Arc<Mutex<Vec<Value>>>,
 }
 
 impl StructFields {
@@ -155,7 +154,7 @@ impl StructFields {
     pub fn new(state: StateHandle, fields: Vec<Value>) -> Self {
         Self {
             state,
-            fields: Rc::new(RefCell::new(fields)),
+            fields: Arc::new(Mutex::new(fields)),
         }
     }
 
@@ -166,11 +165,18 @@ impl StructFields {
 
     #[must_use]
     pub fn get(&self, index: usize) -> Option<Value> {
-        self.fields.borrow().get(index).cloned()
+        self.fields
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(index)
+            .cloned()
     }
 
     pub fn set(&self, index: usize, value: Value) -> Option<()> {
-        let mut fields = self.fields.borrow_mut();
+        let mut fields = self
+            .fields
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let field = fields.get_mut(index)?;
         *field = value;
         Some(())
@@ -178,32 +184,32 @@ impl StructFields {
 
     #[must_use]
     pub fn snapshot(&self) -> Self {
+        let fields = self
+            .fields
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone();
         Self::new(
             self.state,
-            self.fields
-                .borrow()
-                .iter()
-                .map(Value::capture_snapshot)
-                .collect(),
+            fields.iter().map(Value::capture_snapshot).collect(),
         )
     }
 
     #[must_use]
     pub fn snapshot_with_state(&self, state: StateHandle) -> Self {
-        Self::new(
-            state,
-            self.fields
-                .borrow()
-                .iter()
-                .map(Value::capture_snapshot)
-                .collect(),
-        )
+        let fields = self
+            .fields
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone();
+        Self::new(state, fields.iter().map(Value::capture_snapshot).collect())
     }
 
     #[must_use]
     pub fn task_safety_error(&self) -> Option<TaskSafetyError> {
         self.fields
-            .borrow()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
             .iter()
             .find_map(Value::task_safety_error)
     }
@@ -211,7 +217,15 @@ impl StructFields {
 
 impl PartialEq for StructFields {
     fn eq(&self, other: &Self) -> bool {
-        self.state == other.state && *self.fields.borrow() == *other.fields.borrow()
+        let left = self
+            .fields
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let right = other
+            .fields
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        self.state == other.state && *left == *right
     }
 }
 
@@ -234,7 +248,7 @@ impl CallableValue {
 #[derive(Debug, Clone)]
 pub struct CapturedValue {
     mode: CaptureStorageMode,
-    value: Rc<RefCell<Value>>,
+    value: Arc<Mutex<Value>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -248,7 +262,7 @@ impl CapturedValue {
     pub fn new(value: Value, mode: CaptureStorageMode) -> Self {
         Self {
             mode,
-            value: Rc::new(RefCell::new(value)),
+            value: Arc::new(Mutex::new(value)),
         }
     }
 
@@ -259,17 +273,32 @@ impl CapturedValue {
 
     #[must_use]
     pub fn get(&self) -> Value {
-        self.value.borrow().clone()
+        self.value
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
     }
 
     pub fn set(&self, value: Value) {
-        *self.value.borrow_mut() = value;
+        let mut slot = self
+            .value
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        *slot = value;
     }
 }
 
 impl PartialEq for CapturedValue {
     fn eq(&self, other: &Self) -> bool {
-        self.mode == other.mode && *self.value.borrow() == *other.value.borrow()
+        let left = self
+            .value
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let right = other
+            .value
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        self.mode == other.mode && *left == *right
     }
 }
 

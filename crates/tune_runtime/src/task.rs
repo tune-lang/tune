@@ -28,6 +28,8 @@ pub enum TaskJoinOutcome {
 pub enum TaskExecutionMode {
     /// Evaluate spawned work at the point of spawn.
     Immediate,
+    /// Start spawned work on a host thread and wait for it at join.
+    Parallel,
     /// Defer spawned work until join.
     DeferredUntilJoin,
 }

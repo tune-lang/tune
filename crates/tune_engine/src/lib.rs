@@ -43,7 +43,7 @@ impl Default for Tune {
             db: TuneDb::default(),
             hosts: host::HostRegistry::default(),
             authorities: Vec::new(),
-            task_execution: TaskExecutionMode::DeferredUntilJoin,
+            task_execution: TaskExecutionMode::Parallel,
             projects: Vec::new(),
         }
     }

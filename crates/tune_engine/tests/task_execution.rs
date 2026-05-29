@@ -1,3 +1,9 @@
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
+use std::time::{Duration, Instant};
+
 use tune_runtime::value::Value;
 
 #[test]
@@ -126,6 +132,63 @@ let result: Int = task.join()
             .any(|entry| entry.message.contains("joined"))
     }));
 
+    Ok(())
+}
+
+#[test]
+fn run_file_starts_spawned_work_before_join_by_default() -> Result<(), &'static str> {
+    #[derive(Clone)]
+    struct SyncHost {
+        started: Arc<AtomicBool>,
+    }
+
+    impl tune_host::Host for SyncHost {
+        fn modules(&self) -> Vec<tune_host::HostModule> {
+            let mark_started = Arc::clone(&self.started);
+            let wait_started = Arc::clone(&self.started);
+            vec![tune_host::HostModule::new(
+                "sync",
+                vec![
+                    tune_host::HostFunction::new("mark", Vec::new(), tune_shape::Shape::Int)
+                        .task_safe(true)
+                        .with_executor(move |_: &[Value]| {
+                            mark_started.store(true, Ordering::SeqCst);
+                            Ok(Value::Int(1))
+                        }),
+                    tune_host::HostFunction::new("wait", Vec::new(), tune_shape::Shape::Int)
+                        .task_safe(true)
+                        .with_executor(move |_: &[Value]| {
+                            let deadline = Instant::now() + Duration::from_millis(250);
+                            while Instant::now() < deadline {
+                                if wait_started.load(Ordering::SeqCst) {
+                                    return Ok(Value::Int(42));
+                                }
+                                std::thread::sleep(Duration::from_millis(1));
+                            }
+                            Ok(Value::Int(0))
+                        }),
+                ],
+            )]
+        }
+    }
+
+    let host = SyncHost {
+        started: Arc::new(AtomicBool::new(false)),
+    };
+    let mut tune = tune_engine::Tune::new().with_host(&host);
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+import "sync".{mark, wait}
+
+let task: Task<Int> = spawn mark()
+let result: Int = wait()
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, Value::Int(42));
     Ok(())
 }
 
