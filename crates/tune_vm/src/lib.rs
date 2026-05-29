@@ -1,4 +1,3 @@
-pub mod dispatch;
 pub mod error;
 mod execute;
 mod execute_aggregate;
