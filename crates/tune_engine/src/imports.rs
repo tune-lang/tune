@@ -86,17 +86,23 @@ pub(crate) fn link_entry_imports(
 }
 
 fn append_stdcore_prelude(module: &mut Module, hosts: &HostRegistry) {
-    if module
-        .items
-        .iter()
-        .any(|item| item.name.as_deref() == Some("print"))
-    {
-        return;
+    for function in tune_std::prelude::stdcore().functions {
+        let Some(host_function) = function.host_function() else {
+            continue;
+        };
+        if module
+            .items
+            .iter()
+            .any(|item| item.name.as_deref() == Some(host_function.function))
+        {
+            continue;
+        }
+        let Some((symbol, function)) = hosts.function(host_function.module, host_function.function)
+        else {
+            continue;
+        };
+        append_host_item(module, symbol, function, None);
     }
-    let Some((symbol, function)) = hosts.function("io", "print") else {
-        return;
-    };
-    append_host_item(module, symbol, function, None);
 }
 
 fn append_host_imports(

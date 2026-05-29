@@ -28,6 +28,13 @@ fn stdcore_registry_includes_auto_included_core_shapes() {
             .functions
             .contains(&tune_std::prelude::StdCoreFunction::Print)
     );
+    assert_eq!(
+        tune_std::prelude::StdCoreFunction::Print.host_function(),
+        Some(tune_std::prelude::StdCoreHostFunction {
+            module: "io",
+            function: "print",
+        })
+    );
 }
 
 #[test]

@@ -12,6 +12,25 @@ pub enum StdCoreFunction {
     None,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct StdCoreHostFunction {
+    pub module: &'static str,
+    pub function: &'static str,
+}
+
+impl StdCoreFunction {
+    #[must_use]
+    pub const fn host_function(self) -> Option<StdCoreHostFunction> {
+        match self {
+            Self::Print => Some(StdCoreHostFunction {
+                module: "io",
+                function: "print",
+            }),
+            Self::Some | Self::None => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StdCoreRegistry {
     pub shapes: Vec<StdCoreShape>,
