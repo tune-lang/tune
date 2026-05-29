@@ -41,7 +41,11 @@ let run(counter: Counter): Int = counter.inc("bad")
         matches!(call.target, tune_shape::CallTarget::Member(_))
             && call.params == vec![tune_shape::Shape::Int]
             && call.ret == tune_shape::Shape::Int
-            && call.receiver == Some(tune_shape::Shape::Struct("Counter".to_owned()))
+            && call
+                .receiver
+                .as_ref()
+                .and_then(tune_shape::Shape::nominal_name)
+                == Some("Counter")
     }));
     assert!(
         analysis
@@ -51,6 +55,25 @@ let run(counter: Counter): Int = counter.inc("bad")
     );
 
     Ok(())
+}
+
+#[test]
+fn analyzer_rejects_calling_non_callable_values() {
+    let source = r#"
+let result = {
+  let value: Int = 1
+  value()
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert!(analysis.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::CALLABLE_MISMATCH
+            && diagnostic.title == "called value is not callable"
+    }));
 }
 
 #[test]
@@ -200,10 +223,7 @@ let make(seed) = Counter {
         .as_ref()
         .ok_or("callable should have inferred signature")?;
     assert_eq!(signature.params, vec![tune_shape::Shape::Int]);
-    assert_eq!(
-        signature.ret,
-        tune_shape::Shape::Struct("Counter".to_owned())
-    );
+    assert_eq!(signature.ret.nominal_name(), Some("Counter"));
 
     Ok(())
 }

@@ -119,6 +119,11 @@ pub struct BytecodeTupleSite {
     pub items: Vec<u32>,
 }
 
+#[derive(Debug, Clone)]
+pub struct BytecodeStringSite {
+    pub parts: Vec<u32>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BytecodeVariant {
     ResultOk,
@@ -142,5 +147,6 @@ pub struct BytecodeFunction {
     pub for_sites: Vec<BytecodeForSite>,
     pub panic_sites: Vec<BytecodePanicSite>,
     pub tuple_sites: Vec<BytecodeTupleSite>,
+    pub string_sites: Vec<BytecodeStringSite>,
     pub instructions: Vec<Instruction>,
 }

@@ -1,4 +1,5 @@
 use tune_diagnostics::Span;
+use tune_hir::HirId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ShapeId(pub u32);
@@ -57,6 +58,50 @@ impl ShapeStore {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NominalShape {
+    pub id: Option<HirId>,
+    pub name: String,
+}
+
+impl NominalShape {
+    #[must_use]
+    pub fn new(id: HirId, name: impl Into<String>) -> Self {
+        Self {
+            id: Some(id),
+            name: name.into(),
+        }
+    }
+
+    #[must_use]
+    pub fn external(name: impl Into<String>) -> Self {
+        Self {
+            id: None,
+            name: name.into(),
+        }
+    }
+
+    #[must_use]
+    pub fn same_identity(&self, other: &Self) -> bool {
+        match (self.id, other.id) {
+            (Some(left), Some(right)) => left == right,
+            _ => self.name == other.name,
+        }
+    }
+}
+
+impl From<&str> for NominalShape {
+    fn from(value: &str) -> Self {
+        Self::external(value)
+    }
+}
+
+impl From<String> for NominalShape {
+    fn from(value: String) -> Self {
+        Self::external(value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Shape {
     Hole,
     Never,
@@ -74,16 +119,40 @@ pub enum Shape {
     Tuple(Vec<Shape>),
     Union(Vec<Shape>),
     Optional(Box<Shape>),
-    Callable { params: Vec<Shape>, ret: Box<Shape> },
-    Result { ok: Box<Shape>, err: Box<Shape> },
+    Callable {
+        params: Vec<Shape>,
+        ret: Box<Shape>,
+    },
+    Result {
+        ok: Box<Shape>,
+        err: Box<Shape>,
+    },
     Task(Box<Shape>),
-    Apply { name: String, args: Vec<Shape> },
-    Struct(String),
-    Enum(String),
+    Apply {
+        nominal: NominalShape,
+        args: Vec<Shape>,
+    },
+    Struct(NominalShape),
+    Enum(NominalShape),
     Structural(Vec<MemberRequirement>),
 }
 
 impl Shape {
+    #[must_use]
+    pub const fn nominal(&self) -> Option<&NominalShape> {
+        match self {
+            Self::Struct(nominal) | Self::Enum(nominal) | Self::Apply { nominal, .. } => {
+                Some(nominal)
+            }
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn nominal_name(&self) -> Option<&str> {
+        self.nominal().map(|nominal| nominal.name.as_str())
+    }
+
     #[must_use]
     pub fn accepts(&self, value: &Self) -> bool {
         match (self, value) {
@@ -124,12 +193,12 @@ impl Shape {
             ) => ok.accepts(actual_ok) && err.accepts(actual_err),
             (Self::Task(expected), Self::Task(actual)) => expected.accepts(actual),
             (
-                Self::Apply { name, args },
+                Self::Apply { nominal, args },
                 Self::Apply {
-                    name: actual_name,
+                    nominal: actual_nominal,
                     args: actual_args,
                 },
-            ) if name == actual_name && args.len() == actual_args.len() => args
+            ) if nominal.same_identity(actual_nominal) && args.len() == actual_args.len() => args
                 .iter()
                 .zip(actual_args)
                 .all(|(expected, actual)| expected.accepts(actual)),

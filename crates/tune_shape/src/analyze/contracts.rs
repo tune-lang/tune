@@ -53,11 +53,7 @@ impl Analyzer<'_> {
         scrutinee_shape: &Shape,
         arms: &[tune_hir::expr::MatchArm],
     ) {
-        let (Shape::Enum(enum_name)
-        | Shape::Apply {
-            name: enum_name, ..
-        }) = scrutinee_shape
-        else {
+        let Some(nominal) = scrutinee_shape.nominal() else {
             return;
         };
         if arms
@@ -66,7 +62,10 @@ impl Analyzer<'_> {
         {
             return;
         }
-        let Some(item) = self.enum_item(enum_name) else {
+        let Some(id) = nominal.id else {
+            return;
+        };
+        let Some(item) = self.enum_item(id) else {
             return;
         };
         let covered = self.covered_variant_ids(item, arms);
@@ -101,17 +100,20 @@ impl Analyzer<'_> {
                 (FiniteForContractKind::Sequence, None, None)
             }
             Shape::Range(_) => (FiniteForContractKind::Range, None, None),
-            Shape::Struct(name) | Shape::Apply { name, .. } => {
-                let len = self.callable_member(name, "len");
-                let index = self.index_member(name);
-                if len.is_none() || !self.len_member_returns_size(name) {
+            Shape::Struct(nominal) | Shape::Apply { nominal, .. } => {
+                let Some(id) = nominal.id else {
+                    return (FiniteForContractKind::Unknown, None, None);
+                };
+                let len = self.callable_member(id, "len");
+                let index = self.index_member(id);
+                if len.is_none() || !self.len_member_returns_size(id) {
                     self.diagnostics.push(iter_diag(
                         codes::ITERATION_LEN_MISSING,
                         "finite `for` source has no `len(): Size` contract",
                         span,
                     ));
                 }
-                if index.is_none() || !self.index_member_accepts_size(name) {
+                if index.is_none() || !self.index_member_accepts_size(id) {
                     self.diagnostics.push(iter_diag(
                         codes::ITERATION_INDEX_MISSING,
                         "finite `for` source has no indexed access contract",
@@ -298,22 +300,22 @@ impl Analyzer<'_> {
         }
     }
 
-    fn enum_item(&self, name: &str) -> Option<&Item> {
+    fn enum_item(&self, id: tune_hir::HirId) -> Option<&Item> {
         self.module
             .items
             .iter()
-            .find(|item| item.kind == ItemKind::Enum && item.name.as_deref() == Some(name))
+            .find(|item| item.kind == ItemKind::Enum && item.id == id)
     }
 
-    fn struct_item(&self, name: &str) -> Option<&Item> {
+    fn struct_item(&self, id: tune_hir::HirId) -> Option<&Item> {
         self.module
             .items
             .iter()
-            .find(|item| item.kind == ItemKind::Struct && item.name.as_deref() == Some(name))
+            .find(|item| item.kind == ItemKind::Struct && item.id == id)
     }
 
-    fn callable_member(&self, struct_name: &str, member_name: &str) -> Option<MemberId> {
-        self.struct_item(struct_name)?
+    fn callable_member(&self, struct_id: tune_hir::HirId, member_name: &str) -> Option<MemberId> {
+        self.struct_item(struct_id)?
             .struct_members
             .iter()
             .find_map(|member| match member {
@@ -326,8 +328,8 @@ impl Analyzer<'_> {
             })
     }
 
-    fn index_member(&self, struct_name: &str) -> Option<MemberId> {
-        self.struct_item(struct_name)?
+    fn index_member(&self, struct_id: tune_hir::HirId) -> Option<MemberId> {
+        self.struct_item(struct_id)?
             .struct_members
             .iter()
             .find_map(|member| match member {
@@ -336,8 +338,8 @@ impl Analyzer<'_> {
             })
     }
 
-    fn len_member_returns_size(&mut self, struct_name: &str) -> bool {
-        self.struct_item(struct_name)
+    fn len_member_returns_size(&mut self, struct_id: tune_hir::HirId) -> bool {
+        self.struct_item(struct_id)
             .and_then(|item| {
                 item.struct_members.iter().find_map(|member| match member {
                     StructMember::Callable(callable) if callable.name.as_deref() == Some("len") => {
@@ -350,8 +352,8 @@ impl Analyzer<'_> {
             .unwrap_or(false)
     }
 
-    fn index_member_accepts_size(&mut self, struct_name: &str) -> bool {
-        self.struct_item(struct_name)
+    fn index_member_accepts_size(&mut self, struct_id: tune_hir::HirId) -> bool {
+        self.struct_item(struct_id)
             .and_then(|item| {
                 item.struct_members.iter().find_map(|member| match member {
                     StructMember::IndexAccess(access) => access.index_shape.as_ref(),
@@ -363,11 +365,11 @@ impl Analyzer<'_> {
     }
 
     pub(super) fn sequence_materializer(&self, shape: &Shape) -> Option<MemberId> {
-        let name = match shape {
-            Shape::Struct(name) | Shape::Apply { name, .. } => name,
+        let id = match shape {
+            Shape::Struct(nominal) | Shape::Apply { nominal, .. } => nominal.id?,
             _ => return None,
         };
-        self.struct_item(name)?
+        self.struct_item(id)?
             .struct_members
             .iter()
             .find_map(|member| match member {

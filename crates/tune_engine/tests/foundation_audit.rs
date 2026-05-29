@@ -54,6 +54,27 @@ let result: Int = a + b
 }
 
 #[test]
+fn run_file_executes_simple_string_interpolation() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let name: String = "Tune"
+let count: Int = 3
+let result: String = "hello {name} {count}"
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        run_file(&tune, file)?,
+        Value::String("hello Tune 3".to_owned())
+    );
+    Ok(())
+}
+
+#[test]
 fn run_file_preserves_private_callable_capture_state() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

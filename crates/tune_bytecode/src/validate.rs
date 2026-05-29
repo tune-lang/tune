@@ -59,6 +59,14 @@ pub enum BytecodeValidationError {
         function: u32,
         site: u32,
     },
+    StringSiteOutOfBounds {
+        function: u32,
+        site: u32,
+    },
+    FieldIndexOutOfBounds {
+        function: u32,
+        field: u32,
+    },
     JumpOutOfBounds {
         function: u32,
         target: u32,
@@ -185,14 +193,17 @@ fn validate_instruction(
         Opcode::FieldGet => {
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
+            field_index(artifact, function_id, instruction.c)?;
         }
         Opcode::FieldSet => {
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.c)?;
+            field_index(artifact, function_id, instruction.b)?;
         }
         Opcode::CallDirect => validate_call(artifact, function_id, function, instruction)?,
         Opcode::CallBound => validate_bound_call(function_id, function, instruction)?,
         Opcode::TupleBuild => validate_tuple(function_id, function, instruction)?,
+        Opcode::StringBuild => validate_string(function_id, function, instruction)?,
         Opcode::CallableValue => validate_callable(artifact, function_id, function, instruction)?,
         Opcode::VariantConstruct => validate_variant(function_id, function, instruction)?,
         Opcode::VariantField | Opcode::ResultPropagate | Opcode::SpawnTask | Opcode::TaskJoin => {
@@ -256,6 +267,24 @@ fn validate_tuple(
     )?;
     for item in &site.items {
         register(function_id, function, *item)?;
+    }
+    Ok(())
+}
+
+fn validate_string(
+    function_id: u32,
+    function: &BytecodeFunction,
+    instruction: &Instruction,
+) -> Result<(), BytecodeValidationError> {
+    register(function_id, function, instruction.a)?;
+    let site = function.string_sites.get(instruction.b as usize).ok_or(
+        BytecodeValidationError::StringSiteOutOfBounds {
+            function: function_id,
+            site: instruction.b,
+        },
+    )?;
+    for part in &site.parts {
+        register(function_id, function, *part)?;
     }
     Ok(())
 }
@@ -430,6 +459,29 @@ fn register(
         });
     }
     Ok(())
+}
+
+fn field_index(
+    artifact: &BytecodeArtifact,
+    function_id: u32,
+    field: u32,
+) -> Result<(), BytecodeValidationError> {
+    if artifact
+        .functions
+        .iter()
+        .flat_map(|function| function.struct_sites.iter())
+        .any(|site| {
+            site.fields
+                .iter()
+                .any(|site_field| site_field.field == field)
+        })
+    {
+        return Ok(());
+    }
+    Err(BytecodeValidationError::FieldIndexOutOfBounds {
+        function: function_id,
+        field,
+    })
 }
 
 fn local(

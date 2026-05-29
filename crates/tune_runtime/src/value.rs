@@ -161,6 +161,18 @@ impl StructFields {
                 .collect(),
         )
     }
+
+    #[must_use]
+    pub fn snapshot_with_state(&self, state: StateHandle) -> Self {
+        Self::new(
+            state,
+            self.fields
+                .borrow()
+                .iter()
+                .map(Value::capture_snapshot)
+                .collect(),
+        )
+    }
 }
 
 impl PartialEq for StructFields {

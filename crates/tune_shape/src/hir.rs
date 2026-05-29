@@ -2,7 +2,7 @@ use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::shape::{ShapeExpr, ShapeExprKind, StructuralShapeRequirementKind};
 use tune_resolve::{BindingKind, Scope};
 
-use crate::{MemberRequirement, Shape, ShapeId, ShapeOrigin, ShapeStore};
+use crate::{MemberRequirement, NominalShape, Shape, ShapeId, ShapeOrigin, ShapeStore};
 
 #[derive(Debug, Clone)]
 pub struct LoweredShape {
@@ -176,14 +176,16 @@ fn lower_generic_shape(
         return LoweredShape { shape, diagnostics };
     }
 
-    match scope.get(name).map(|binding| binding.kind) {
-        Some(BindingKind::Struct | BindingKind::Enum) => LoweredShape {
-            shape: Shape::Apply {
-                name: name.to_owned(),
-                args: lowered_args,
-            },
-            diagnostics,
-        },
+    match scope.get(name) {
+        Some(binding) if matches!(binding.kind, BindingKind::Struct | BindingKind::Enum) => {
+            LoweredShape {
+                shape: Shape::Apply {
+                    nominal: NominalShape::new(binding.id, name),
+                    args: lowered_args,
+                },
+                diagnostics,
+            }
+        }
         _ => {
             let span = span.unwrap_or_else(Span::synthetic);
             diagnostics.push(
@@ -242,13 +244,13 @@ fn lower_named_shape(name: &str, span: Option<Span>, scope: &Scope) -> LoweredSh
         };
     }
 
-    match scope.get(name).map(|binding| binding.kind) {
-        Some(BindingKind::Struct) => LoweredShape {
-            shape: Shape::Struct(name.to_owned()),
+    match scope.get(name) {
+        Some(binding) if binding.kind == BindingKind::Struct => LoweredShape {
+            shape: Shape::Struct(NominalShape::new(binding.id, name)),
             diagnostics: Vec::new(),
         },
-        Some(BindingKind::Enum) => LoweredShape {
-            shape: Shape::Enum(name.to_owned()),
+        Some(binding) if binding.kind == BindingKind::Enum => LoweredShape {
+            shape: Shape::Enum(NominalShape::new(binding.id, name)),
             diagnostics: Vec::new(),
         },
         _ => {

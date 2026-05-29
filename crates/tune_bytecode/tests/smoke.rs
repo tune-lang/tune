@@ -299,6 +299,7 @@ fn validation_rejects_call_arity_mismatch() {
                 for_sites: Vec::new(),
                 panic_sites: Vec::new(),
                 tuple_sites: Vec::new(),
+                string_sites: Vec::new(),
                 instructions: vec![tune_bytecode::function::Instruction {
                     opcode: tune_bytecode::Opcode::CallDirect,
                     a: 0,
@@ -321,6 +322,7 @@ fn validation_rejects_call_arity_mismatch() {
                 for_sites: Vec::new(),
                 panic_sites: Vec::new(),
                 tuple_sites: Vec::new(),
+                string_sites: Vec::new(),
                 instructions: vec![tune_bytecode::function::Instruction {
                     opcode: tune_bytecode::Opcode::Return,
                     a: 0,
@@ -362,6 +364,7 @@ fn validation_rejects_register_out_of_bounds() {
             for_sites: Vec::new(),
             panic_sites: Vec::new(),
             tuple_sites: Vec::new(),
+            string_sites: Vec::new(),
             instructions: vec![tune_bytecode::function::Instruction {
                 opcode: tune_bytecode::Opcode::LoadConst,
                 a: 1,
@@ -377,6 +380,51 @@ fn validation_rejects_register_out_of_bounds() {
             tune_bytecode::BytecodeValidationError::RegisterOutOfBounds {
                 function: 0,
                 register: 1,
+            }
+        )
+    );
+}
+
+#[test]
+fn validation_rejects_unknown_field_index() {
+    let artifact = tune_bytecode::artifact::BytecodeArtifact {
+        entry_function: Some(0),
+        constants: Vec::new(),
+        functions: vec![tune_bytecode::function::BytecodeFunction {
+            param_count: 0,
+            name: "<entry>".into(),
+            provenance: tune_bytecode::BytecodeFunctionProvenance::default(),
+            register_count: 2,
+            local_count: 0,
+            call_sites: Vec::new(),
+            bound_call_sites: Vec::new(),
+            callable_sites: Vec::new(),
+            struct_sites: vec![tune_bytecode::function::BytecodeStructSite {
+                owner: 0,
+                state: tune_bytecode::function::BytecodeStructState::LOCAL,
+                fields: vec![tune_bytecode::function::BytecodeStructField { field: 0, value: 0 }],
+            }],
+            variant_sites: Vec::new(),
+            match_sites: Vec::new(),
+            for_sites: Vec::new(),
+            panic_sites: Vec::new(),
+            tuple_sites: Vec::new(),
+            string_sites: Vec::new(),
+            instructions: vec![tune_bytecode::function::Instruction {
+                opcode: tune_bytecode::Opcode::FieldGet,
+                a: 0,
+                b: 1,
+                c: 1,
+            }],
+        }],
+    };
+
+    assert_eq!(
+        tune_bytecode::validate_artifact(&artifact),
+        Err(
+            tune_bytecode::BytecodeValidationError::FieldIndexOutOfBounds {
+                function: 0,
+                field: 1,
             }
         )
     );

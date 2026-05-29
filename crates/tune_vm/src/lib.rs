@@ -4,6 +4,7 @@ mod execute;
 mod execute_numeric;
 mod execute_range;
 mod execute_sequence;
+mod execute_string;
 mod execute_support;
 pub mod frame;
 pub mod vm;

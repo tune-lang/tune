@@ -210,11 +210,6 @@ impl LowerContext<'_> {
         match &expr.kind {
             ExprKind::Name(_) => self.name_shape(expr),
             ExprKind::Sequence(_) => Some(Shape::Sequence(Box::new(Shape::Hole))),
-            ExprKind::Call { .. } => {
-                let module = self.module?;
-                let resolved = self.resolved?;
-                tune_shape::expr_shape_fact(expr, module, resolved)
-            }
             _ => None,
         }
     }
@@ -258,10 +253,7 @@ impl LowerContext<'_> {
     }
 
     pub(super) fn struct_shape_name<'shape>(&self, shape: &'shape Shape) -> Option<&'shape str> {
-        match shape {
-            Shape::Struct(name) | Shape::Apply { name, .. } => Some(name),
-            _ => None,
-        }
+        shape.nominal_name()
     }
 
     pub(super) fn struct_item(&self, name: &str) -> Option<&Item> {

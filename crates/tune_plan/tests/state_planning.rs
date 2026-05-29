@@ -2,9 +2,15 @@ fn lower_callable(source: &str) -> Result<tune_plan::PlanFunction, &'static str>
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
     let resolved = tune_resolve::resolve_module(&module);
+    let analyses = tune_shape::analyze_module(&module, &resolved);
 
-    tune_plan::lower_resolved_module_item_to_plan(&module, &module.items[1], &resolved)
-        .ok_or("callable should lower")
+    tune_plan::lower_analyzed_module_item_to_plan(
+        &module,
+        &module.items[1],
+        &resolved,
+        &analyses[1],
+    )
+    .ok_or("callable should lower")
 }
 
 #[test]
@@ -170,9 +176,15 @@ let sum(): Int = {
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
     let resolved = tune_resolve::resolve_module(&module);
+    let analyses = tune_shape::analyze_module(&module, &resolved);
 
-    let plan = tune_plan::lower_resolved_module_item_to_plan(&module, &module.items[0], &resolved)
-        .ok_or("callable should lower")?;
+    let plan = tune_plan::lower_analyzed_module_item_to_plan(
+        &module,
+        &module.items[0],
+        &resolved,
+        &analyses[0],
+    )
+    .ok_or("callable should lower")?;
 
     assert!(plan.ops.iter().any(|op| matches!(
         op,

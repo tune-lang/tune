@@ -4,7 +4,7 @@ use tune_hir::module::Module;
 use tune_hir::shape::{ShapeExpr, ShapeExprKind, StructuralShapeRequirementKind};
 use tune_resolve::{NameTarget, PreludeVariant, ResolvedModule, VariantId};
 
-use crate::{LiteralFact, MemberRequirement, Shape};
+use crate::{LiteralFact, MemberRequirement, NominalShape, Shape};
 
 #[must_use]
 pub fn expr_literal_fact(expr: &Expr) -> Option<LiteralFact> {
@@ -124,8 +124,9 @@ fn member_variant_shape(
         .iter()
         .find(|item| item.id == variant_id.owner)?;
     let name = item.name.as_ref()?;
+    let nominal = NominalShape::new(item.id, name);
     if item.type_params.is_empty() {
-        return Some(Shape::Enum(name.clone()));
+        return Some(Shape::Enum(nominal));
     }
 
     let variant = item
@@ -143,7 +144,7 @@ fn member_variant_shape(
     }
 
     Some(Shape::Apply {
-        name: name.clone(),
+        nominal,
         args: solved.into_iter().map(|(_, shape)| shape).collect(),
     })
 }
@@ -179,12 +180,12 @@ fn collect_shape_params(payload: &Shape, arg: &Shape, solved: &mut [(String, Sha
             }
         }
         (
-            Shape::Apply { name, args },
+            Shape::Apply { nominal, args },
             Shape::Apply {
-                name: arg_name,
+                nominal: arg_nominal,
                 args: arg_args,
             },
-        ) if name == arg_name => {
+        ) if nominal.same_identity(arg_nominal) => {
             for (payload, arg) in args.iter().zip(arg_args) {
                 collect_shape_params(payload, arg, solved);
             }
@@ -245,13 +246,7 @@ fn lower_declared_shape(expr: &ShapeExpr, item: &Item) -> Shape {
                 })
                 .collect(),
         ),
-        ShapeExprKind::Generic { name, args } => Shape::Apply {
-            name: name.clone(),
-            args: args
-                .iter()
-                .map(|arg| lower_declared_shape(arg, item))
-                .collect(),
-        },
+        ShapeExprKind::Generic { .. } => Shape::Hole,
         ShapeExprKind::Callable { params, ret } => Shape::Callable {
             params: params
                 .iter()

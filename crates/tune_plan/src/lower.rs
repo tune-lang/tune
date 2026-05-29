@@ -42,12 +42,12 @@ pub fn lower_to_plan(name: &str) -> PlanFunction {
 
 #[must_use]
 pub fn lower_item_to_plan(item: &Item) -> Option<PlanFunction> {
-    lower_item_with_context(item, None, None)
+    lower_item_with_context(item, None, None, None)
 }
 
 #[must_use]
 pub fn lower_resolved_item_to_plan(item: &Item, resolved: &ResolvedModule) -> Option<PlanFunction> {
-    lower_item_with_context(item, Some(resolved), None)
+    lower_item_with_context(item, Some(resolved), None, None)
 }
 
 #[must_use]
@@ -56,13 +56,24 @@ pub fn lower_resolved_module_item_to_plan(
     item: &Item,
     resolved: &ResolvedModule,
 ) -> Option<PlanFunction> {
-    lower_item_with_context(item, Some(resolved), Some(module))
+    lower_item_with_context(item, Some(resolved), Some(module), None)
+}
+
+#[must_use]
+pub fn lower_analyzed_module_item_to_plan(
+    module: &Module,
+    item: &Item,
+    resolved: &ResolvedModule,
+    analysis: &tune_shape::ShapeAnalysis,
+) -> Option<PlanFunction> {
+    lower_item_with_context(item, Some(resolved), Some(module), Some(analysis))
 }
 
 fn lower_item_with_context(
     item: &Item,
     resolved: Option<&ResolvedModule>,
     module: Option<&Module>,
+    analysis: Option<&tune_shape::ShapeAnalysis>,
 ) -> Option<PlanFunction> {
     let body = item.body.as_ref()?;
     let mut plan = PlanFunction {
@@ -80,13 +91,10 @@ fn lower_item_with_context(
         module_bindings: Vec::new(),
         ops: Vec::new(),
     };
-    let analysis = module
-        .zip(resolved)
-        .map(|(module, resolved)| tune_shape::analyze_item(module, resolved, item));
     let mut context = LowerContext {
         resolved,
         module,
-        analysis: analysis.as_ref(),
+        analysis,
         self_shape: None,
         struct_escape: StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
@@ -158,6 +166,22 @@ impl LowerContext<'_> {
             .iter()
             .find(|name_ref| name_ref.expr == expr)
             .map(|name_ref| name_ref.target)
+    }
+
+    pub(super) fn interpolation_target(&self, name: &str) -> Option<NameTarget> {
+        let resolved = self.resolved?;
+        resolved
+            .locals
+            .iter()
+            .rev()
+            .find(|local| local.name == name)
+            .map(|local| NameTarget::Local(local.id))
+            .or_else(|| {
+                resolved
+                    .scope
+                    .get(name)
+                    .map(|binding| NameTarget::TopLevel(binding.id))
+            })
     }
 
     pub(super) fn local_for_expr(&self, expr: ExprId) -> Option<LocalId> {

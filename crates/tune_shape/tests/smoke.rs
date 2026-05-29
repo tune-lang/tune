@@ -282,7 +282,10 @@ let rgb: Color = Rgb(1, 2, 3)
     );
     assert_eq!(
         tune_shape::expr_shape_fact(rgb_body, &module, &resolved),
-        Some(tune_shape::Shape::Enum("Color".to_owned()))
+        Some(tune_shape::Shape::Enum(tune_shape::NominalShape::new(
+            module.items[0].id,
+            "Color"
+        )))
     );
 
     Ok(())
@@ -311,7 +314,7 @@ let paired: Boxed<String | Bool> = Pair("hello", true)
     assert_eq!(
         tune_shape::expr_shape_fact(boxed_body, &module, &resolved),
         Some(tune_shape::Shape::Apply {
-            name: "Boxed".to_owned(),
+            nominal: tune_shape::NominalShape::new(module.items[0].id, "Boxed"),
             args: vec![tune_shape::Shape::Literal(
                 tune_shape::LiteralFact::String {
                     segments: vec!["hello".into()],
@@ -322,7 +325,7 @@ let paired: Boxed<String | Bool> = Pair("hello", true)
     assert_eq!(
         tune_shape::expr_shape_fact(paired_body, &module, &resolved),
         Some(tune_shape::Shape::Apply {
-            name: "Boxed".to_owned(),
+            nominal: tune_shape::NominalShape::new(module.items[0].id, "Boxed"),
             args: vec![tune_shape::Shape::Union(vec![
                 tune_shape::Shape::Literal(tune_shape::LiteralFact::String {
                     segments: vec!["hello".into()],
@@ -449,7 +452,10 @@ fn resolved_hir_shape_uses_declared_structs() -> Result<(), &'static str> {
     let lowered = tune_shape::lower_resolved_hir_shape(hir_shape, &resolved.scope);
 
     assert!(lowered.diagnostics.is_empty());
-    assert_eq!(lowered.shape, tune_shape::Shape::Struct("User".to_owned()));
+    assert_eq!(
+        lowered.shape,
+        tune_shape::Shape::Struct(tune_shape::NominalShape::new(module.items[0].id, "User"))
+    );
 
     Ok(())
 }

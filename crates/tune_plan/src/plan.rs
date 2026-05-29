@@ -297,7 +297,9 @@ pub enum PlanOp {
         contract: FiniteForContract,
         span: Option<Span>,
     },
-    StringBuild,
+    StringBuild {
+        part_count: usize,
+    },
     If {
         branches: Vec<PlanIfBranch>,
         else_body: Option<ExprId>,

@@ -1,3 +1,4 @@
+use tune_hir::HirId;
 use tune_hir::expr::Expr;
 use tune_hir::item::StructMember;
 use tune_hir::pattern::{Pattern, PatternKind, StructuralRequirementKind};
@@ -66,7 +67,7 @@ impl Analyzer<'_> {
     }
 
     fn struct_satisfies_structural(&mut self, scrutinee_shape: &Shape, structural: &Shape) -> bool {
-        let Some(struct_name) = struct_shape_name(scrutinee_shape) else {
+        let Some(struct_id) = struct_shape_id(scrutinee_shape) else {
             return false;
         };
         let Shape::Structural(requirements) = structural else {
@@ -74,15 +75,15 @@ impl Analyzer<'_> {
         };
         requirements
             .iter()
-            .all(|requirement| self.struct_satisfies_requirement(struct_name, requirement))
+            .all(|requirement| self.struct_satisfies_requirement(struct_id, requirement))
     }
 
     fn struct_satisfies_requirement(
         &mut self,
-        struct_name: &str,
+        struct_id: HirId,
         requirement: &MemberRequirement,
     ) -> bool {
-        let Some(item) = self.struct_item(struct_name) else {
+        let Some(item) = self.struct_item(struct_id) else {
             return false;
         };
         let members = item.struct_members.clone();
@@ -127,9 +128,9 @@ impl Analyzer<'_> {
     }
 }
 
-fn struct_shape_name(shape: &Shape) -> Option<&str> {
+fn struct_shape_id(shape: &Shape) -> Option<HirId> {
     match shape {
-        Shape::Struct(name) | Shape::Apply { name, .. } => Some(name),
+        Shape::Struct(nominal) | Shape::Apply { nominal, .. } => nominal.id,
         _ => None,
     }
 }

@@ -12,7 +12,7 @@ mod operators;
 use tune_hir::item::{Item, ItemKind};
 use tune_hir::module::Module;
 use tune_hir::{ExprId, MemberId};
-use tune_resolve::{ResolvedModule, VariantId};
+use tune_resolve::{BindingKind, ResolvedModule, VariantId};
 
 use crate::{
     BindingKey, BindingState, Shape, StateFrame, expr_literal_fact, lower_resolved_hir_shape,
@@ -257,7 +257,7 @@ impl Analyzer<'_> {
                     self.constrain_expr_to_shape(&field.value, &expected);
                     self.check_value_against(&expected, &actual, field.value.span);
                 }
-                Shape::Struct(name.clone())
+                self.struct_literal_shape(name)
             }
             ExprKind::Name(_) => self.name_shape(expr),
             ExprKind::Call { callee, args } => self.analyze_call(expr, callee, args),
@@ -333,6 +333,15 @@ impl Analyzer<'_> {
             return Shape::Tuple(items.iter().map(|item| self.analyze_expr(item)).collect());
         }
         expr_literal_fact(expr).map_or(Shape::Hole, Shape::Literal)
+    }
+
+    fn struct_literal_shape(&self, name: &str) -> Shape {
+        match self.resolved.scope.get(name) {
+            Some(binding) if binding.kind == BindingKind::Struct => {
+                Shape::Struct(crate::NominalShape::new(binding.id, name))
+            }
+            _ => Shape::Hole,
+        }
     }
 
     fn analyze_let(

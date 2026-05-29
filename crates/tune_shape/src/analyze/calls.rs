@@ -5,7 +5,7 @@ use tune_hir::shape::{ShapeExpr, ShapeExprKind, StructuralShapeRequirementKind};
 use tune_resolve::{NameTarget, PreludeVariant, VariantId};
 
 use super::{Analyzer, CallCheck, CallSignature, CallTarget};
-use crate::{MemberRequirement, Shape, expr_shape_fact, lower_resolved_hir_shape};
+use crate::{MemberRequirement, NominalShape, Shape, expr_shape_fact, lower_resolved_hir_shape};
 
 impl Analyzer<'_> {
     pub(super) fn analyze_call(&mut self, expr: &Expr, callee: &Expr, args: &[Expr]) -> Shape {
@@ -96,7 +96,8 @@ impl Analyzer<'_> {
             NameTarget::TopLevel(id) => self.top_level_signature(id),
             NameTarget::Variant(variant) => self.variant_signature(variant),
             NameTarget::Local(_) | NameTarget::Param(_) | NameTarget::SelfValue => {
-                if let Shape::Callable { params, ret } = self.name_shape(callee) {
+                let shape = self.name_shape(callee);
+                if let Shape::Callable { params, ret } = shape {
                     return Some(CallSignature {
                         target: CallTarget::Bound,
                         params,
@@ -105,13 +106,11 @@ impl Analyzer<'_> {
                         span: callee.span,
                     });
                 }
-                Some(CallSignature {
-                    target: CallTarget::Bound,
-                    params: Vec::new(),
-                    ret: Shape::Hole,
-                    receiver: None,
-                    span: callee.span,
-                })
+                if shape != Shape::Hole {
+                    self.diagnostics
+                        .push(non_callable_call(&shape, callee.span));
+                }
+                None
             }
         }
     }
@@ -216,21 +215,19 @@ impl Analyzer<'_> {
 }
 
 fn struct_shape_name(shape: &Shape) -> Option<&str> {
-    match shape {
-        Shape::Struct(name) | Shape::Apply { name, .. } => Some(name),
-        _ => None,
-    }
+    shape.nominal_name()
 }
 
 fn variant_return_shape(item: &Item, variant: &Variant) -> Shape {
     let Some(name) = item.name.as_ref() else {
         return Shape::Hole;
     };
+    let nominal = NominalShape::new(item.id, name);
     if item.type_params.is_empty() {
-        return Shape::Enum(name.clone());
+        return Shape::Enum(nominal);
     }
     Shape::Apply {
-        name: name.clone(),
+        nominal,
         args: item
             .type_params
             .iter()
@@ -291,13 +288,7 @@ fn lower_payload_shape(shape: &ShapeExpr, item: &Item) -> Shape {
                 })
                 .collect(),
         ),
-        ShapeExprKind::Generic { name, args } => Shape::Apply {
-            name: name.clone(),
-            args: args
-                .iter()
-                .map(|arg| lower_payload_shape(arg, item))
-                .collect(),
-        },
+        ShapeExprKind::Generic { .. } => Shape::Hole,
         ShapeExprKind::Callable { params, ret } => Shape::Callable {
             params: params
                 .iter()
@@ -307,6 +298,16 @@ fn lower_payload_shape(shape: &ShapeExpr, item: &Item) -> Shape {
         },
         ShapeExprKind::Missing => Shape::Hole,
     }
+}
+
+fn non_callable_call(shape: &Shape, span: Option<Span>) -> Diagnostic {
+    Diagnostic::error(
+        codes::CALLABLE_MISMATCH,
+        "called value is not callable",
+        span.unwrap_or_else(Span::synthetic),
+        format!("this value has shape `{shape:?}`, which cannot be called"),
+    )
+    .build()
 }
 
 fn named_payload_shape(name: &str) -> Shape {

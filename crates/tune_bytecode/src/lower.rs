@@ -5,6 +5,7 @@ mod compare;
 mod context;
 mod control;
 mod error;
+mod string;
 
 use crate::Opcode;
 use crate::artifact::{BytecodeArtifact, BytecodeConst};
@@ -89,6 +90,7 @@ fn lower_ir_function_with_constants(
         for_sites: Vec::new(),
         panic_sites: Vec::new(),
         tuple_sites: Vec::new(),
+        string_sites: Vec::new(),
         instructions: Vec::new(),
         instruction_spans: Vec::new(),
     };
@@ -118,6 +120,7 @@ fn lower_ir_function_with_constants(
         for_sites: lowerer.for_sites,
         panic_sites: lowerer.panic_sites,
         tuple_sites: lowerer.tuple_sites,
+        string_sites: lowerer.string_sites,
         instructions: lowerer.instructions,
     })
 }
@@ -395,6 +398,7 @@ impl FunctionLowerer<'_> {
                 self.push_instruction(Opcode::Panic, site, 0, 0);
                 Ok(())
             }
+            IrOp::StringBuild { dst, parts } => self.lower_string_build(*dst, parts),
             IrOp::Jump { target } => {
                 self.lower_jump(*target)?;
                 Ok(())

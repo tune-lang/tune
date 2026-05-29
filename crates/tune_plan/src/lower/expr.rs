@@ -1,4 +1,4 @@
-use tune_hir::expr::{BinaryOp, Expr, ExprKind, LiteralKind};
+use tune_hir::expr::{BinaryOp, Expr, ExprKind, LiteralKind, StringPart};
 use tune_shape::{MaterializationPlan, Shape};
 
 use super::LowerContext;
@@ -30,7 +30,30 @@ impl LowerContext<'_> {
                 if let Some(value) = value.plain_text() {
                     ops.push(PlanOp::ConstString { value });
                 } else {
-                    ops.push(PlanOp::StringBuild);
+                    let mut part_count = 0;
+                    for part in &value.parts {
+                        match part {
+                            StringPart::Text(value) => {
+                                ops.push(PlanOp::ConstString {
+                                    value: value.clone(),
+                                });
+                                part_count += 1;
+                            }
+                            StringPart::Interpolation(name) => {
+                                if let Some(target) = self.interpolation_target(name) {
+                                    ops.push(PlanOp::BindingGet {
+                                        source: Some(target),
+                                    });
+                                } else {
+                                    ops.push(PlanOp::ConstString {
+                                        value: format!("{{{name}}}"),
+                                    });
+                                }
+                                part_count += 1;
+                            }
+                        }
+                    }
+                    ops.push(PlanOp::StringBuild { part_count });
                 }
             }
             ExprKind::Literal(_) => {}

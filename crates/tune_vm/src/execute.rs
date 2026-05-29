@@ -115,6 +115,9 @@ impl Vm {
                         write_reg(&mut registers, instruction.a, Value::Tuple(values)),
                     )?;
                 }
+                Opcode::StringBuild => {
+                    self.execute_string_build(function_index, ip, &mut registers, instruction)?;
+                }
                 Opcode::StructConstruct => {
                     let site = function
                         .struct_sites
@@ -270,14 +273,18 @@ impl Vm {
                         .iter()
                         .map(|capture| {
                             self.at(function_index, ip, read_reg(&registers, capture.register))
-                                .map(|value| match capture.mode {
+                                .and_then(|value| match capture.mode {
                                     BytecodeCaptureMode::Reference => {
-                                        CapturedValue::new(value, CaptureStorageMode::Reference)
+                                        Ok(CapturedValue::new(value, CaptureStorageMode::Reference))
                                     }
-                                    BytecodeCaptureMode::PrivateSnapshot => CapturedValue::new(
-                                        value.capture_snapshot(),
-                                        CaptureStorageMode::PrivateSnapshot,
-                                    ),
+                                    BytecodeCaptureMode::PrivateSnapshot => self
+                                        .at(function_index, ip, self.capture_snapshot(&value))
+                                        .map(|snapshot| {
+                                            CapturedValue::new(
+                                                snapshot,
+                                                CaptureStorageMode::PrivateSnapshot,
+                                            )
+                                        }),
                                 })
                         })
                         .collect::<Result<Vec<_>, _>>()?;
@@ -551,7 +558,7 @@ fn write_back_captures(locals: &[Value], capture_cells: &[CapturedValue], captur
             continue;
         }
         if let Some(value) = locals.get(index) {
-            cell.set(value.capture_snapshot());
+            cell.set(value.clone());
         }
     }
 }

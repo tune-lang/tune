@@ -285,11 +285,11 @@ impl Lowerer {
                 ..
             } => self.lower_finite_for(*binding, iterable_ops, body_ops, contract, *span),
             PlanOp::Panic { arg_count } => self.lower_panic(*arg_count),
+            PlanOp::StringBuild { part_count } => self.lower_string_build(*part_count),
             PlanOp::BindingGet { .. }
             | PlanOp::WitnessCall
             | PlanOp::HostCall { .. }
             | PlanOp::Assign
-            | PlanOp::StringBuild
             | PlanOp::Meta { .. } => Err(IrLowerError::UnsupportedOp("plan op")),
         }
     }
@@ -331,6 +331,18 @@ impl Lowerer {
         self.push_op(IrOp::Panic { args, span: None });
         let never = self.alloc_reg()?;
         self.stack.push(never);
+        Ok(())
+    }
+
+    fn lower_string_build(&mut self, part_count: usize) -> Result<(), IrLowerError> {
+        let mut parts = Vec::with_capacity(part_count);
+        for _ in 0..part_count {
+            parts.push(self.pop("string build part")?);
+        }
+        parts.reverse();
+        let dst = self.alloc_reg()?;
+        self.push_op(IrOp::StringBuild { dst, parts });
+        self.stack.push(dst);
         Ok(())
     }
 }

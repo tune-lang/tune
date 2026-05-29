@@ -249,7 +249,10 @@ fn lower_callable_member(
         resolved: Some(resolved),
         module: Some(module),
         analysis,
-        self_shape: owner.name.as_ref().map(|name| Shape::Struct(name.clone())),
+        self_shape: owner
+            .name
+            .as_ref()
+            .map(|name| Shape::Struct(tune_shape::NominalShape::new(owner.id, name))),
         struct_escape: crate::StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
@@ -287,7 +290,10 @@ fn lower_sequence_materializer_member(
         resolved: Some(resolved),
         module: Some(module),
         analysis,
-        self_shape: owner.name.as_ref().map(|name| Shape::Struct(name.clone())),
+        self_shape: owner
+            .name
+            .as_ref()
+            .map(|name| Shape::Struct(tune_shape::NominalShape::new(owner.id, name))),
         struct_escape: crate::StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
@@ -325,7 +331,10 @@ fn lower_index_access_member(
         resolved: Some(resolved),
         module: Some(module),
         analysis,
-        self_shape: owner.name.as_ref().map(|name| Shape::Struct(name.clone())),
+        self_shape: owner
+            .name
+            .as_ref()
+            .map(|name| Shape::Struct(tune_shape::NominalShape::new(owner.id, name))),
         struct_escape: crate::StructEscapeReason::Local,
         structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),

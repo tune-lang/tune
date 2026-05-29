@@ -83,6 +83,44 @@ impl Vm {
         Value::Task(tune_runtime::TaskHandle(id))
     }
 
+    pub(crate) fn capture_snapshot(&self, value: &Value) -> Result<Value, VmError> {
+        match value {
+            Value::Struct { owner, fields } => {
+                let state = self.alloc_state(BytecodeStructState {
+                    repr: tune_bytecode::function::BytecodeStateRepr::LocalHandle,
+                    ownership: tune_bytecode::function::BytecodeOwnershipPlan::NonAtomicRc,
+                })?;
+                Ok(Value::Struct {
+                    owner: *owner,
+                    fields: fields.snapshot_with_state(state),
+                })
+            }
+            Value::Sequence(values) => values
+                .iter()
+                .map(|value| self.capture_snapshot(value))
+                .collect::<Result<Vec<_>, _>>()
+                .map(Value::Sequence),
+            Value::Tuple(values) => values
+                .iter()
+                .map(|value| self.capture_snapshot(value))
+                .collect::<Result<Vec<_>, _>>()
+                .map(Value::Tuple),
+            Value::Variant {
+                variant,
+                fields,
+                propagation_frames,
+            } => Ok(Value::Variant {
+                variant: *variant,
+                fields: fields
+                    .iter()
+                    .map(|value| self.capture_snapshot(value))
+                    .collect::<Result<Vec<_>, _>>()?,
+                propagation_frames: propagation_frames.clone(),
+            }),
+            value => Ok(value.clone()),
+        }
+    }
+
     pub(crate) fn join_task(&self, id: tune_runtime::TaskId) -> Option<TaskJoinOutcome> {
         self.tasks
             .borrow()
