@@ -554,3 +554,39 @@ fn run_file_executes_none_optional_literal() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+#[test]
+fn run_file_executes_none_equality_checks() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let missing: Int? = none
+let result: Int = {
+  let a: Int = if missing is none {
+    1
+  } else {
+    0
+  }
+  let b: Int = if 2 is not none {
+    4
+  } else {
+    0
+  }
+  a + b
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        tune.run_file(file).map_err(|error| {
+            eprintln!("{error:?}");
+            "file entry should run"
+        })?,
+        tune_runtime::value::Value::Int(5)
+    );
+
+    Ok(())
+}

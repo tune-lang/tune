@@ -164,6 +164,12 @@ impl LowerContext<'_> {
                             span: expr.span,
                         });
                     }
+                } else if let Some((value, is_not)) = none_check_operand(*op, lhs, rhs) {
+                    self.lower_expr(value, ops);
+                    ops.push(PlanOp::NoneCheck {
+                        is_not,
+                        span: expr.span,
+                    });
                 } else {
                     let shape = self.expr_shape(expr).unwrap_or(Shape::Hole);
                     if matches!(op, BinaryOp::Add) {
@@ -373,6 +379,20 @@ impl LowerContext<'_> {
             }
         }
     }
+}
+
+fn none_check_operand<'a>(op: BinaryOp, lhs: &'a Expr, rhs: &'a Expr) -> Option<(&'a Expr, bool)> {
+    match op {
+        BinaryOp::Equal if is_none_literal(rhs) => Some((lhs, false)),
+        BinaryOp::Equal if is_none_literal(lhs) => Some((rhs, false)),
+        BinaryOp::NotEqual if is_none_literal(rhs) => Some((lhs, true)),
+        BinaryOp::NotEqual if is_none_literal(lhs) => Some((rhs, true)),
+        _ => None,
+    }
+}
+
+fn is_none_literal(expr: &Expr) -> bool {
+    matches!(expr.kind, ExprKind::Literal(LiteralKind::None))
 }
 
 fn parse_unsigned(text: &str) -> Option<u128> {

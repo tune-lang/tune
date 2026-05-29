@@ -246,6 +246,9 @@ impl Vm {
             (Opcode::NegInt, Value::Int(value)) => value.checked_neg().map(Value::Int),
             (Opcode::NotBool, Value::Bool(value)) => Some(Value::Bool(!value)),
             (Opcode::BitNotInt, Value::Int(value)) => Some(Value::Int(!value)),
+            (Opcode::NoneCheck, value) => {
+                Some(Value::Bool(matches!(value, Value::None) != (op.c != 0)))
+            }
             _ => None,
         }
         .ok_or_else(|| {

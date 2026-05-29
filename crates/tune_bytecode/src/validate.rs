@@ -165,7 +165,7 @@ fn validate_instruction(
             register(function_id, function, instruction.b)?;
             register(function_id, function, instruction.c)?;
         }
-        Opcode::NegInt | Opcode::NotBool | Opcode::BitNotInt => {
+        Opcode::NegInt | Opcode::NotBool | Opcode::BitNotInt | Opcode::NoneCheck => {
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
         }

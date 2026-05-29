@@ -165,6 +165,18 @@ impl Lowerer {
                 rhs_ops,
                 span,
             } => self.lower_bool_or(lhs_ops, rhs_ops, *span),
+            PlanOp::NoneCheck { is_not, span } => {
+                let value = self.pop("none check value")?;
+                let dst = self.alloc_reg()?;
+                self.push_op(IrOp::NoneCheck {
+                    dst,
+                    value,
+                    is_not: *is_not,
+                    span: *span,
+                });
+                self.stack.push(dst);
+                Ok(())
+            }
             PlanOp::UnaryOp { op } => self.lower_unary(*op),
             PlanOp::SequenceBuild { element_count } => self.lower_sequence_build(*element_count),
             PlanOp::SequencePush => self.lower_sequence_push(),

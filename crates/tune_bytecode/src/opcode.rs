@@ -59,6 +59,7 @@ pub enum Opcode {
     BitXorInt = 55,
     ShiftLeftInt = 56,
     ShiftRightInt = 57,
+    NoneCheck = 58,
 }
 
 impl Opcode {
@@ -121,5 +122,6 @@ impl Opcode {
         Self::BitXorInt,
         Self::ShiftLeftInt,
         Self::ShiftRightInt,
+        Self::NoneCheck,
     ];
 }

@@ -254,6 +254,10 @@ pub enum PlanOp {
         rhs_ops: Vec<PlanOp>,
         span: Option<Span>,
     },
+    NoneCheck {
+        is_not: bool,
+        span: Option<Span>,
+    },
     FieldGet {
         field: String,
         member: Option<MemberId>,

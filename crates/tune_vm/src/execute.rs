@@ -248,7 +248,7 @@ impl Vm {
                         ),
                     )?;
                 }
-                Opcode::NegInt | Opcode::NotBool | Opcode::BitNotInt => {
+                Opcode::NegInt | Opcode::NotBool | Opcode::BitNotInt | Opcode::NoneCheck => {
                     self.execute_unary(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::GreaterInt

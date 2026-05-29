@@ -300,6 +300,12 @@ impl FunctionLowerer<'_> {
                 self.push_instruction(Opcode::BitNotInt, dst.0, value.0, 0);
                 Ok(())
             }
+            IrOp::NoneCheck {
+                dst, value, is_not, ..
+            } => {
+                self.push_instruction(Opcode::NoneCheck, dst.0, value.0, u32::from(*is_not));
+                Ok(())
+            }
             IrOp::GreaterInt { dst, a, b, .. } => {
                 self.push_instruction(Opcode::GreaterInt, dst.0, a.0, b.0);
                 Ok(())

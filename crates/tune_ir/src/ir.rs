@@ -64,6 +64,7 @@ impl IrOp {
             | Self::NegInt { span, .. }
             | Self::NotBool { span, .. }
             | Self::BitNotInt { span, .. }
+            | Self::NoneCheck { span, .. }
             | Self::GreaterInt { span, .. }
             | Self::CompareInt { span, .. }
             | Self::GetField { span, .. }
@@ -201,6 +202,12 @@ pub enum IrOp {
     BitNotInt {
         dst: Reg,
         value: Reg,
+        span: Option<Span>,
+    },
+    NoneCheck {
+        dst: Reg,
+        value: Reg,
+        is_not: bool,
         span: Option<Span>,
     },
     GreaterInt {

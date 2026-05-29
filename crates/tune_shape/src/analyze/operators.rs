@@ -55,6 +55,11 @@ impl Analyzer<'_> {
             {
                 Shape::Range(Box::new(Shape::Size))
             }
+            BinaryOp::Equal | BinaryOp::NotEqual
+                if optional_none_equality_operand(&lhs) || optional_none_equality_operand(&rhs) =>
+            {
+                Shape::Bool
+            }
             BinaryOp::Equal
             | BinaryOp::NotEqual
             | BinaryOp::Less
@@ -107,6 +112,13 @@ impl Analyzer<'_> {
             }
         }
     }
+}
+
+fn optional_none_equality_operand(shape: &Shape) -> bool {
+    matches!(
+        shape,
+        Shape::Optional(_) | Shape::Literal(crate::LiteralFact::None)
+    )
 }
 
 fn operator_mismatch(
