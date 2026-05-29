@@ -516,7 +516,7 @@ fn validate_call(
             actual: u32::MAX,
         }
     })?;
-    if type_arg_count != target.generic_param_count {
+    if type_arg_count != 0 && type_arg_count != target.generic_param_count {
         return Err(BytecodeValidationError::GenericArgArityMismatch {
             function: function_id,
             target: site.function,

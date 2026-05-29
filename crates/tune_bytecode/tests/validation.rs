@@ -36,7 +36,7 @@ fn rejects_call_arity_mismatch() {
         .push(tune_bytecode::function::BytecodeCallSite {
             function: 1,
             args: Vec::new(),
-            type_args: Vec::new(),
+            type_args: vec![tune_shape::Shape::Int],
         });
     entry
         .instructions
@@ -85,7 +85,7 @@ fn rejects_generic_arg_arity_mismatch() {
         .push(tune_bytecode::function::BytecodeCallSite {
             function: 1,
             args: Vec::new(),
-            type_args: Vec::new(),
+            type_args: vec![tune_shape::Shape::Int],
         });
     entry
         .instructions
@@ -97,7 +97,7 @@ fn rejects_generic_arg_arity_mismatch() {
         });
 
     let mut callee = empty_function("id", 1, 0);
-    callee.generic_param_count = 1;
+    callee.generic_param_count = 2;
     callee
         .instructions
         .push(tune_bytecode::function::Instruction {
@@ -120,8 +120,8 @@ fn rejects_generic_arg_arity_mismatch() {
             tune_bytecode::BytecodeValidationError::GenericArgArityMismatch {
                 function: 0,
                 target: 1,
-                expected: 1,
-                actual: 0,
+                expected: 2,
+                actual: 1,
             }
         )
     );
