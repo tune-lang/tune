@@ -21,7 +21,7 @@ pub use exprs::{
     MatchExpr, NameExpr, PanicExpr, PropagateExpr, ReturnExpr, SequenceExpr, SpawnExpr, StructExpr,
     StructFieldInit, TupleExpr, UnaryExpr, WhileExpr,
 };
-pub use imports::ImportDecl;
+pub use imports::{ImportDecl, ImportSelector};
 pub use items::{DocumentedItem, Item, PubDecl, Root};
 pub use shapes::{
     CallableShape, GenericShape, NamedShape, OptionalShape, SequenceShape, Shape, StructuralShape,

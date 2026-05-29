@@ -8,7 +8,10 @@ use tune_ast::nodes::{
 };
 use tune_syntax::CstNode;
 
-use crate::item::{Item, ItemKind, StructMember, TagApplication, TagArg, TypeParam, Visibility};
+use crate::item::{
+    ImportSelector, ImportSpec, Item, ItemKind, StructMember, TagApplication, TagArg, TypeParam,
+    Visibility,
+};
 use crate::module::Module;
 use crate::{HirId, MemberId, MemberKind, ModuleId};
 
@@ -136,14 +139,19 @@ fn lower_import(
     doc: Option<String>,
     tags: Vec<TagApplication>,
 ) -> Item {
+    let path = node.path(source).map(str::to_owned);
     Item {
         id: HirId(0),
-        name: node.path(source).map(str::to_owned),
+        name: path.clone(),
         kind: ItemKind::Import,
         visibility,
         span: node.syntax().span,
         doc,
         tags,
+        import: path.map(|path| ImportSpec {
+            path,
+            selector: lower_import_selector(node.selector(source)),
+        }),
         type_params: Vec::new(),
         params: Vec::new(),
         struct_members: Vec::new(),
@@ -175,6 +183,7 @@ fn lower_let(
         span: node.syntax().span,
         doc,
         tags,
+        import: None,
         type_params: lower_type_params(source, node.type_params()),
         params: lower_params(source, node),
         struct_members: Vec::new(),
@@ -208,6 +217,7 @@ fn lower_struct(
         span: node.syntax().span,
         doc,
         tags,
+        import: None,
         type_params: lower_type_params(source, node.type_params()),
         params: Vec::new(),
         fields: struct_members
@@ -241,6 +251,7 @@ fn lower_enum(
         span: node.syntax().span,
         doc,
         tags,
+        import: None,
         type_params: lower_type_params(source, node.type_params()),
         params: Vec::new(),
         struct_members: Vec::new(),
@@ -267,6 +278,7 @@ fn lower_tag(
         span: node.syntax().span,
         doc,
         tags,
+        import: None,
         type_params: Vec::new(),
         params: Vec::new(),
         struct_members: Vec::new(),
@@ -274,6 +286,14 @@ fn lower_tag(
         variants: Vec::new(),
         shape: None,
         body: None,
+    }
+}
+
+fn lower_import_selector(selector: tune_ast::nodes::ImportSelector) -> ImportSelector {
+    match selector {
+        tune_ast::nodes::ImportSelector::Module => ImportSelector::Module,
+        tune_ast::nodes::ImportSelector::Member(name) => ImportSelector::Member(name),
+        tune_ast::nodes::ImportSelector::Members(names) => ImportSelector::Members(names),
     }
 }
 

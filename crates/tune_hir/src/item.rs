@@ -32,6 +32,19 @@ pub struct TagArg {
     pub value: Expr,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportSpec {
+    pub path: String,
+    pub selector: ImportSelector,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ImportSelector {
+    Module,
+    Member(String),
+    Members(Vec<String>),
+}
+
 #[derive(Debug, Clone)]
 pub struct Param {
     pub id: MemberId,
@@ -117,6 +130,7 @@ pub struct Item {
     pub span: Option<Span>,
     pub doc: Option<String>,
     pub tags: Vec<TagApplication>,
+    pub import: Option<ImportSpec>,
     pub type_params: Vec<TypeParam>,
     pub params: Vec<Param>,
     pub struct_members: Vec<StructMember>,

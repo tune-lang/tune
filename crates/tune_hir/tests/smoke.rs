@@ -41,6 +41,28 @@ let value = 1
 }
 
 #[test]
+fn lowers_import_selectors() -> Result<(), &'static str> {
+    let source = r#"
+import "net/http".client
+import "std/json".{parse, stringify}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+
+    assert!(matches!(
+        module.items[0].import.as_ref().map(|import| &import.selector),
+        Some(tune_hir::item::ImportSelector::Member(name)) if name == "client"
+    ));
+    assert!(matches!(
+        module.items[1].import.as_ref().map(|import| &import.selector),
+        Some(tune_hir::item::ImportSelector::Members(names))
+            if names == &vec!["parse".to_owned(), "stringify".to_owned()]
+    ));
+
+    Ok(())
+}
+
+#[test]
 fn lowers_underscore_binding_names_as_absent() -> Result<(), &'static str> {
     let source = "let _ = 1\nlet value = { let _ = 2; 3 }";
     let parsed = tune_syntax::parse(source);
