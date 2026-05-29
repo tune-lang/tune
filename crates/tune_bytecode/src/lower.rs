@@ -13,7 +13,7 @@ use crate::Opcode;
 use crate::artifact::{BytecodeArtifact, BytecodeConst};
 use crate::function::{
     BytecodeFieldSite, BytecodeFunction, BytecodePanicSite, BytecodeStructField,
-    BytecodeStructSite, BytecodeTupleSite, BytecodeVariantSite, Instruction,
+    BytecodeStructLayout, BytecodeStructSite, BytecodeTupleSite, BytecodeVariantSite, Instruction,
 };
 use crate::lower_tables::{
     block_offsets, callable_function_indices, function_indices, lower_variant,
@@ -54,9 +54,30 @@ pub fn lower_ir_functions(
         .collect::<Result<Vec<_>, _>>()?;
     Ok(BytecodeArtifact {
         entry_function: (!functions.is_empty()).then_some(0),
+        struct_layouts: lower_struct_layouts(&flat_functions),
         functions,
         constants,
     })
+}
+
+fn lower_struct_layouts(functions: &[IrFunction]) -> Vec<BytecodeStructLayout> {
+    let mut layouts = Vec::<BytecodeStructLayout>::new();
+    for layout in functions
+        .iter()
+        .flat_map(|function| &function.struct_layouts)
+    {
+        if layouts
+            .iter()
+            .any(|candidate| candidate.owner == layout.owner.0)
+        {
+            continue;
+        }
+        layouts.push(BytecodeStructLayout {
+            owner: layout.owner.0,
+            fields: layout.fields.iter().map(|field| field.0).collect(),
+        });
+    }
+    layouts
 }
 
 pub fn lower_ir_function(function: &IrFunction) -> Result<BytecodeFunction, BytecodeLowerError> {

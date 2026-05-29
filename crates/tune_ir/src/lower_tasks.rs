@@ -20,6 +20,7 @@ impl Lowerer {
             local_params: Vec::new(),
             captures: captures.to_vec(),
             module_bindings: Vec::new(),
+            struct_layouts: self.struct_layouts.clone(),
             constants: Vec::new(),
             blocks: vec![crate::IrBlock {
                 id: crate::BlockId(0),
@@ -48,6 +49,7 @@ impl Lowerer {
             regs: task.next_reg,
             locals: task.locals,
             constants: task.constants,
+            struct_layouts: task.struct_layouts,
             blocks: task.blocks,
             task_functions: task.task_functions,
         });

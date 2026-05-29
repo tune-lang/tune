@@ -20,7 +20,14 @@ pub struct PlanFunction {
     pub local_params: Vec<LocalId>,
     pub captures: Vec<Capture>,
     pub module_bindings: Vec<HirId>,
+    pub struct_layouts: Vec<PlanStructLayout>,
     pub ops: Vec<PlanOp>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlanStructLayout {
+    pub owner: HirId,
+    pub fields: Vec<MemberId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

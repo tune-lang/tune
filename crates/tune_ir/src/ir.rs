@@ -41,8 +41,15 @@ pub struct IrFunction {
     pub regs: u32,
     pub locals: u32,
     pub constants: Vec<IrConst>,
+    pub struct_layouts: Vec<IrStructLayout>,
     pub blocks: Vec<IrBlock>,
     pub task_functions: Vec<IrFunction>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrStructLayout {
+    pub owner: HirId,
+    pub fields: Vec<FieldId>,
 }
 
 impl IrOp {

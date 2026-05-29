@@ -77,6 +77,12 @@ pub struct BytecodeStructSite {
     pub fields: Vec<BytecodeStructField>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BytecodeStructLayout {
+    pub owner: u32,
+    pub fields: Vec<u32>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BytecodeStructState {
     pub repr: BytecodeStateRepr,

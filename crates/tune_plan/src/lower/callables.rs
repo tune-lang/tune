@@ -99,6 +99,7 @@ fn lower_callable_value_function(
             .collect(),
         captures: lower.callable_value_captures(body),
         module_bindings: Vec::new(),
+        struct_layouts: super::struct_layouts(context.module),
         ops: Vec::new(),
     };
     lower.lower_return_expr(body, &mut plan.ops);

@@ -61,6 +61,7 @@ fn ir_has_typed_slots_for_core_planned_operations() {
         regs: 10,
         locals: 0,
         constants: vec![tune_ir::IrConst::Int(1)],
+        struct_layouts: Vec::new(),
         blocks: vec![block],
         task_functions: Vec::new(),
     };
@@ -93,6 +94,7 @@ fn lowers_integer_add_plan_to_ir() -> Result<(), &'static str> {
         local_params: Vec::new(),
         captures: Vec::new(),
         module_bindings: Vec::new(),
+        struct_layouts: Vec::new(),
         ops: vec![
             tune_plan::PlanOp::ConstInt { value: 1 },
             tune_plan::PlanOp::ConstInt { value: 2 },
@@ -135,6 +137,7 @@ fn lowers_local_binding_plan_to_ir_loads_and_stores() -> Result<(), &'static str
         local_params: Vec::new(),
         captures: Vec::new(),
         module_bindings: Vec::new(),
+        struct_layouts: Vec::new(),
         ops: vec![
             tune_plan::PlanOp::ConstInt { value: 1 },
             tune_plan::PlanOp::LocalLet {
@@ -192,6 +195,7 @@ fn lowers_struct_state_plan_to_ir() -> Result<(), &'static str> {
         local_params: Vec::new(),
         captures: Vec::new(),
         module_bindings: Vec::new(),
+        struct_layouts: Vec::new(),
         ops: vec![
             tune_plan::PlanOp::ConstInt { value: 1 },
             tune_plan::PlanOp::StructConstruct {
@@ -238,6 +242,7 @@ fn lowers_direct_call_plan_to_ir_with_param_slots() -> Result<(), &'static str> 
         local_params: Vec::new(),
         captures: Vec::new(),
         module_bindings: Vec::new(),
+        struct_layouts: Vec::new(),
         ops: vec![
             tune_plan::PlanOp::BindingGet {
                 source: Some(tune_resolve::NameTarget::Param(param)),
@@ -268,6 +273,7 @@ fn lowers_direct_call_plan_to_ir_with_param_slots() -> Result<(), &'static str> 
         local_params: Vec::new(),
         captures: Vec::new(),
         module_bindings: Vec::new(),
+        struct_layouts: Vec::new(),
         ops: vec![
             tune_plan::PlanOp::ConstInt { value: 7 },
             tune_plan::PlanOp::DirectCall {

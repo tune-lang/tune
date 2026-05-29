@@ -41,6 +41,7 @@ pub fn lower_analyzed_module_to_plan(
             local_params: Vec::new(),
             captures: Vec::new(),
             module_bindings: module_bindings.clone(),
+            struct_layouts: super::struct_layouts(module),
             ops: Vec::new(),
         };
         for item in module
@@ -154,6 +155,7 @@ fn lower_module_callable(
         local_params: Vec::new(),
         captures: Vec::new(),
         module_bindings: Vec::new(),
+        struct_layouts: super::struct_layouts(module),
         ops: Vec::new(),
     };
     let context = LowerContext {
@@ -243,6 +245,7 @@ fn lower_callable_member(
         local_params: Vec::new(),
         captures: Vec::new(),
         module_bindings: Vec::new(),
+        struct_layouts: super::struct_layouts(module),
         ops: Vec::new(),
     };
     let context = LowerContext {
@@ -284,6 +287,7 @@ fn lower_sequence_materializer_member(
         local_params: Vec::new(),
         captures: Vec::new(),
         module_bindings: Vec::new(),
+        struct_layouts: super::struct_layouts(module),
         ops: Vec::new(),
     };
     let context = LowerContext {
@@ -325,6 +329,7 @@ fn lower_index_access_member(
         local_params: Vec::new(),
         captures: Vec::new(),
         module_bindings: Vec::new(),
+        struct_layouts: super::struct_layouts(module),
         ops: Vec::new(),
     };
     let context = LowerContext {

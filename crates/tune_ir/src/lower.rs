@@ -3,7 +3,7 @@ use tune_hir::HirId;
 use tune_plan::{Capture, PlanFunction, PlanOp};
 use tune_shape::Shape;
 
-use crate::{BlockId, ConstId, IrBlock, IrConst, IrFunction, IrOp, Reg};
+use crate::{BlockId, ConstId, FieldId, IrBlock, IrConst, IrFunction, IrOp, IrStructLayout, Reg};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IrLowerError {
@@ -28,6 +28,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
         local_params: plan.local_params.clone(),
         captures: plan.captures.clone(),
         module_bindings: plan.module_bindings.clone(),
+        struct_layouts: plan_struct_layouts(plan),
         constants: Vec::new(),
         blocks: vec![IrBlock {
             id: BlockId(0),
@@ -54,6 +55,7 @@ pub fn lower_plan_function(plan: &PlanFunction) -> Result<IrFunction, IrLowerErr
         regs: lowerer.next_reg,
         locals: lowerer.locals,
         constants: lowerer.constants,
+        struct_layouts: lowerer.struct_layouts,
         blocks: lowerer.blocks,
         task_functions: lowerer.task_functions,
     })
@@ -66,6 +68,7 @@ pub(super) struct Lowerer {
     pub(super) local_params: Vec<tune_resolve::LocalId>,
     pub(super) captures: Vec<Capture>,
     pub(super) module_bindings: Vec<HirId>,
+    pub(super) struct_layouts: Vec<IrStructLayout>,
     pub(super) constants: Vec<IrConst>,
     pub(super) blocks: Vec<IrBlock>,
     pub(super) current_block: BlockId,
@@ -73,6 +76,20 @@ pub(super) struct Lowerer {
     pub(super) stack: Vec<Reg>,
     pub(super) loop_targets: Vec<(BlockId, BlockId)>,
     pub(super) task_functions: Vec<IrFunction>,
+}
+
+fn plan_struct_layouts(plan: &PlanFunction) -> Vec<IrStructLayout> {
+    plan.struct_layouts
+        .iter()
+        .map(|layout| IrStructLayout {
+            owner: layout.owner,
+            fields: layout
+                .fields
+                .iter()
+                .map(|field| FieldId(field.index))
+                .collect(),
+        })
+        .collect()
 }
 
 impl Lowerer {

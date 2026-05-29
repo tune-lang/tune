@@ -1,10 +1,11 @@
-use crate::function::BytecodeFunction;
+use crate::function::{BytecodeFunction, BytecodeStructLayout};
 use tune_diagnostics::Span;
 
 #[derive(Debug, Clone)]
 pub struct BytecodeArtifact {
     pub entry_function: Option<u32>,
     pub functions: Vec<BytecodeFunction>,
+    pub struct_layouts: Vec<BytecodeStructLayout>,
     pub constants: Vec<BytecodeConst>,
 }
 

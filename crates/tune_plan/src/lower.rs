@@ -14,14 +14,14 @@ mod structural;
 mod values;
 
 use tune_hir::ExprId;
-use tune_hir::item::Item;
+use tune_hir::item::{Item, ItemKind, StructMember};
 use tune_hir::module::Module;
 use tune_resolve::{LocalId, NameTarget, ResolvedModule};
 use tune_shape::MaterializationPlan;
 
 pub use module::{lower_analyzed_module_to_plan, lower_resolved_module_to_plan};
 
-use crate::plan::{PlanFunction, PlanOp, StructEscapeReason};
+use crate::plan::{PlanFunction, PlanOp, PlanStructLayout, StructEscapeReason};
 
 use self::values::falls_through;
 
@@ -37,6 +37,7 @@ pub fn lower_to_plan(name: &str) -> PlanFunction {
         local_params: Vec::new(),
         captures: Vec::new(),
         module_bindings: Vec::new(),
+        struct_layouts: Vec::new(),
         ops: Vec::new(),
     }
 }
@@ -90,6 +91,7 @@ fn lower_item_with_context(
         local_params: Vec::new(),
         captures: Vec::new(),
         module_bindings: Vec::new(),
+        struct_layouts: module.map_or_else(Vec::new, struct_layouts),
         ops: Vec::new(),
     };
     let mut context = LowerContext {
@@ -126,6 +128,25 @@ fn lower_item_with_context(
         plan.ops.push(PlanOp::Return);
     }
     Some(plan)
+}
+
+pub(super) fn struct_layouts(module: &Module) -> Vec<PlanStructLayout> {
+    module
+        .items
+        .iter()
+        .filter(|item| item.kind == ItemKind::Struct)
+        .map(|item| PlanStructLayout {
+            owner: item.id,
+            fields: item
+                .struct_members
+                .iter()
+                .filter_map(|member| match member {
+                    StructMember::Field(field) => Some(field.id),
+                    _ => None,
+                })
+                .collect(),
+        })
+        .collect()
 }
 
 pub(super) struct LowerContext<'a> {

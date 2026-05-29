@@ -16,6 +16,7 @@ fn optimizer_runs_ordered_semantic_passes_over_ir() {
         regs: 0,
         locals: 0,
         constants: Vec::new(),
+        struct_layouts: Vec::new(),
         blocks: Vec::new(),
         task_functions: Vec::new(),
     };
@@ -54,6 +55,7 @@ fn optimizer_reports_struct_ownership_facts_from_ir() {
         regs: 1,
         locals: 0,
         constants: Vec::new(),
+        struct_layouts: Vec::new(),
         blocks: vec![tune_ir::IrBlock {
             id: tune_ir::BlockId(0),
             ops: vec![tune_ir::IrOp::StructConstruct {

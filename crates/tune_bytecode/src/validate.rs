@@ -2,6 +2,12 @@ use crate::Opcode;
 use crate::artifact::BytecodeArtifact;
 use crate::function::{BytecodeFunction, Instruction};
 
+mod support;
+
+use support::{
+    checked_index, field_site, jump, local, register, validate_struct_field, validate_struct_layout,
+};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BytecodeValidationError {
     MissingEntry,
@@ -42,6 +48,10 @@ pub enum BytecodeValidationError {
     StructSiteOutOfBounds {
         function: u32,
         site: u32,
+    },
+    StructLayoutMissing {
+        function: u32,
+        owner: u32,
     },
     VariantSiteOutOfBounds {
         function: u32,
@@ -244,7 +254,7 @@ fn validate_instruction(
             register(function_id, function, instruction.b)?;
             register(function_id, function, instruction.c)?;
         }
-        Opcode::StructConstruct => validate_struct(function_id, function, instruction)?,
+        Opcode::StructConstruct => validate_struct(artifact, function_id, function, instruction)?,
         Opcode::StructIs => {
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
@@ -416,6 +426,7 @@ fn validate_callable(
 }
 
 fn validate_struct(
+    artifact: &BytecodeArtifact,
     function_id: u32,
     function: &BytecodeFunction,
     instruction: &Instruction,
@@ -427,8 +438,10 @@ fn validate_struct(
             site: instruction.b,
         },
     )?;
+    validate_struct_layout(artifact, function_id, site.owner)?;
     for field in &site.fields {
         register(function_id, function, field.value)?;
+        validate_struct_field(artifact, function_id, site.owner, field.field)?;
     }
     Ok(())
 }
@@ -547,83 +560,4 @@ fn validate_finite_for(
     jump(function_id, function, site.body)?;
     jump(function_id, function, site.done)?;
     Ok(())
-}
-
-fn register(
-    function_id: u32,
-    function: &BytecodeFunction,
-    register: u32,
-) -> Result<(), BytecodeValidationError> {
-    if register >= function.register_count {
-        return Err(BytecodeValidationError::RegisterOutOfBounds {
-            function: function_id,
-            register,
-        });
-    }
-    Ok(())
-}
-
-fn field_site(
-    artifact: &BytecodeArtifact,
-    function_id: u32,
-    function: &BytecodeFunction,
-    site: u32,
-) -> Result<(), BytecodeValidationError> {
-    let site = function.field_sites.get(site as usize).ok_or(
-        BytecodeValidationError::FieldIndexOutOfBounds {
-            function: function_id,
-            field: site,
-        },
-    )?;
-    if artifact
-        .functions
-        .iter()
-        .flat_map(|function| function.struct_sites.iter())
-        .any(|struct_site| {
-            struct_site.owner == site.owner
-                && struct_site
-                    .fields
-                    .iter()
-                    .any(|site_field| site_field.field == site.field)
-        })
-    {
-        return Ok(());
-    }
-    Err(BytecodeValidationError::FieldIndexOutOfBounds {
-        function: function_id,
-        field: site.field,
-    })
-}
-
-fn local(
-    function_id: u32,
-    function: &BytecodeFunction,
-    local: u32,
-) -> Result<(), BytecodeValidationError> {
-    if local >= function.local_count {
-        return Err(BytecodeValidationError::LocalOutOfBounds {
-            function: function_id,
-            local,
-        });
-    }
-    Ok(())
-}
-
-fn jump(
-    function_id: u32,
-    function: &BytecodeFunction,
-    target: u32,
-) -> Result<(), BytecodeValidationError> {
-    if target as usize >= function.instructions.len() {
-        return Err(BytecodeValidationError::JumpOutOfBounds {
-            function: function_id,
-            target,
-        });
-    }
-    Ok(())
-}
-
-fn checked_index(index: usize) -> Result<u32, BytecodeValidationError> {
-    u32::try_from(index)
-        .map_err(|_| BytecodeValidationError::FunctionOutOfBounds { function: u32::MAX })
 }

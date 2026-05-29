@@ -12,6 +12,7 @@ fn vm_executes_integer_add_bytecode_entry() -> Result<(), &'static str> {
             tune_bytecode::artifact::BytecodeConst::Int(1),
             tune_bytecode::artifact::BytecodeConst::Int(2),
         ],
+        struct_layouts: Vec::new(),
         functions: vec![
             tune_bytecode::function::BytecodeFunction {
                 param_count: 0,
@@ -100,6 +101,7 @@ fn vm_executes_direct_call_with_arguments() -> Result<(), &'static str> {
             tune_bytecode::artifact::BytecodeConst::Int(1),
             tune_bytecode::artifact::BytecodeConst::Int(2),
         ],
+        struct_layouts: Vec::new(),
         functions: vec![
             tune_bytecode::function::BytecodeFunction {
                 param_count: 0,
@@ -214,6 +216,7 @@ fn vm_rejects_too_few_call_arguments() {
     let artifact = tune_bytecode::artifact::BytecodeArtifact {
         entry_function: Some(0),
         constants: Vec::new(),
+        struct_layouts: Vec::new(),
         functions: vec![
             tune_bytecode::function::BytecodeFunction {
                 param_count: 0,
@@ -296,6 +299,10 @@ fn vm_rejects_unsupported_struct_state_plan() {
     let artifact = tune_bytecode::artifact::BytecodeArtifact {
         entry_function: Some(0),
         constants: Vec::new(),
+        struct_layouts: vec![tune_bytecode::function::BytecodeStructLayout {
+            owner: 0,
+            fields: Vec::new(),
+        }],
         functions: vec![tune_bytecode::function::BytecodeFunction {
             param_count: 0,
             name: "<entry>".into(),
@@ -359,6 +366,7 @@ fn vm_faults_carry_instruction_span_when_available() {
             tune_bytecode::artifact::BytecodeConst::Bool(true),
             tune_bytecode::artifact::BytecodeConst::Bool(false),
         ],
+        struct_layouts: Vec::new(),
         functions: vec![tune_bytecode::function::BytecodeFunction {
             param_count: 0,
             name: "<entry>".into(),
