@@ -94,6 +94,85 @@ let result: Int = add_next(19, 22)
 }
 
 #[test]
+fn project_entry_imports_selected_member_recursive_dependencies() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let entry = tune
+        .load_project_sources(
+            dyno_project::Manifest::new("app", "src/app.tn"),
+            vec![
+                (
+                    "src/base.tn".to_owned(),
+                    "let inc(value: Int): Int = value + 1".to_owned(),
+                ),
+                (
+                    "src/math.tn".to_owned(),
+                    r#"
+import "src/base.tn".inc
+let add_next(a: Int, b: Int): Int = inc(a) + b
+"#
+                    .to_owned(),
+                ),
+                (
+                    "src/app.tn".to_owned(),
+                    r#"
+import "src/math.tn".add_next
+let result: Int = add_next(19, 22)
+"#
+                    .to_owned(),
+                ),
+            ],
+        )
+        .map_err(|_| "project sources should load")?;
+
+    assert_eq!(
+        tune.run_project_entry(entry).map_err(|error| {
+            eprintln!("{error:?}");
+            "project entry should run"
+        })?,
+        tune_runtime::Value::Int(42)
+    );
+    Ok(())
+}
+
+#[test]
+fn project_entry_import_dependencies_do_not_leak_selected_scope() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let entry = tune
+        .load_project_sources(
+            dyno_project::Manifest::new("app", "src/app.tn"),
+            vec![
+                (
+                    "src/math.tn".to_owned(),
+                    r#"
+let inc(value: Int): Int = value + 1
+let add_next(a: Int, b: Int): Int = inc(a) + b
+"#
+                    .to_owned(),
+                ),
+                (
+                    "src/app.tn".to_owned(),
+                    r#"
+import "src/math.tn".add_next
+let inc(value: Int): Int = 100
+let result: Int = add_next(19, 22)
+"#
+                    .to_owned(),
+                ),
+            ],
+        )
+        .map_err(|_| "project sources should load")?;
+
+    assert_eq!(
+        tune.run_project_entry(entry).map_err(|error| {
+            eprintln!("{error:?}");
+            "project entry should run"
+        })?,
+        tune_runtime::Value::Int(42)
+    );
+    Ok(())
+}
+
+#[test]
 fn project_entry_reports_unresolved_import_members() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let entry = tune

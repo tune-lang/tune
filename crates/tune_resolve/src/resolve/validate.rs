@@ -138,6 +138,10 @@ fn validate_named_members<'name>(
 }
 
 fn validate_user_name(resolved: &mut ResolvedModule, name: &str, span: Option<Span>, kind: &str) {
+    if span.is_none() && name.starts_with("__") {
+        return;
+    }
+
     if name.starts_with("__") {
         resolved.diagnostics.push(
             Diagnostic::error(

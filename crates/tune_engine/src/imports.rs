@@ -14,6 +14,7 @@ use tune_shape::Shape;
 
 use crate::host::HostRegistry;
 use crate::imports_closure::{item_by_name, selected_import_closure};
+use crate::imports_internalize::{ImportInternalNames, internalized_import_item};
 use crate::imports_remap::{next_expr_id, remap_item};
 
 pub(crate) struct LinkedModule {
@@ -27,16 +28,46 @@ pub(crate) fn link_entry_imports(
     entry: FileId,
     hosts: &HostRegistry,
 ) -> Option<LinkedModule> {
-    let entry_source = db.source(entry)?;
-    let entry_parsed = tune_syntax::parse_with_file(entry, &entry_source.text);
-    let mut module = tune_hir::lower::lower_module(&entry_source.text, &entry_parsed.cst);
-    let mut parsed = vec![entry_parsed];
+    let mut parsed = Vec::new();
     let mut diagnostics = Vec::new();
     let sources_by_path = db
         .sources()
         .iter()
         .map(|source| (source.path.as_str(), source.id))
         .collect::<HashMap<_, _>>();
+    let mut stack = Vec::new();
+
+    let module = link_source_imports(
+        db,
+        entry,
+        hosts,
+        &sources_by_path,
+        &mut stack,
+        &mut parsed,
+        &mut diagnostics,
+    )?;
+
+    Some(LinkedModule {
+        parsed,
+        module,
+        diagnostics,
+    })
+}
+
+fn link_source_imports(
+    db: &TuneDb,
+    file: FileId,
+    hosts: &HostRegistry,
+    sources_by_path: &HashMap<&str, FileId>,
+    stack: &mut Vec<FileId>,
+    parsed: &mut Vec<tune_syntax::Parsed>,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Option<Module> {
+    let source = db.source(file)?;
+    let parsed_source = tune_syntax::parse_with_file(file, &source.text);
+    let mut module = tune_hir::lower::lower_module(&source.text, &parsed_source.cst);
+    parsed.push(parsed_source);
+    stack.push(file);
 
     let imports = module
         .items
@@ -52,41 +83,44 @@ pub(crate) fn link_entry_imports(
                 &import.path,
                 &import.selector,
                 span,
-                &mut diagnostics,
+                diagnostics,
             ) {
                 continue;
             }
             diagnostics.push(unresolved_import(&import.path, span));
             continue;
         };
-        if imported_file == entry {
-            diagnostics.push(self_import(&import.path, span));
+        if stack.contains(&imported_file) {
+            diagnostics.push(import_cycle(&import.path, span));
             continue;
         }
-        let Some(source) = db.source(imported_file) else {
+        let Some(imported_module) = link_source_imports(
+            db,
+            imported_file,
+            hosts,
+            sources_by_path,
+            stack,
+            parsed,
+            diagnostics,
+        ) else {
             diagnostics.push(unresolved_import(&import.path, span));
             continue;
         };
-        let imported_parsed = tune_syntax::parse_with_file(imported_file, &source.text);
-        let imported_module = tune_hir::lower::lower_module(&source.text, &imported_parsed.cst);
         let imported_resolved = tune_resolve::resolve_module(&imported_module);
-        parsed.push(imported_parsed);
         append_selected_imports(
             &mut module,
             &imported_module,
             &imported_resolved,
+            &import.path,
             &import.selector,
             span,
-            &mut diagnostics,
+            diagnostics,
         );
     }
     append_stdcore_prelude(&mut module, hosts);
+    stack.pop();
 
-    Some(LinkedModule {
-        parsed,
-        module,
-        diagnostics,
-    })
+    Some(module)
 }
 
 fn append_stdcore_prelude(module: &mut Module, hosts: &HostRegistry) {
@@ -239,6 +273,7 @@ fn append_selected_imports(
     module: &mut Module,
     imported: &Module,
     imported_resolved: &ResolvedModule,
+    path: &str,
     selector: &ImportSelector,
     span: Option<Span>,
     diagnostics: &mut Vec<Diagnostic>,
@@ -258,16 +293,17 @@ fn append_selected_imports(
     }
 
     let closure = selected_import_closure(imported, imported_resolved, &selected);
+    let internal_names = ImportInternalNames::for_closure(imported, path, &selected, &closure);
     for item_id in closure {
         if let Some(item) = imported.items.iter().find(|item| item.id == item_id) {
+            let item = internalized_import_item(item, imported_resolved, &internal_names);
             append_imported_item(module, item);
         }
     }
 }
 
-fn append_imported_item(module: &mut Module, item: &Item) {
+fn append_imported_item(module: &mut Module, mut item: Item) {
     if let Ok(index) = u32::try_from(module.items.len()) {
-        let mut item = item.clone();
         let old = item.id;
         let new = HirId(index);
         let expr_offset = next_expr_id(module);
@@ -286,12 +322,12 @@ fn unresolved_import(path: &str, span: Option<Span>) -> Diagnostic {
     .build()
 }
 
-fn self_import(path: &str, span: Option<Span>) -> Diagnostic {
+fn import_cycle(path: &str, span: Option<Span>) -> Diagnostic {
     Diagnostic::error(
         codes::UNRESOLVED_NAME,
-        format!("source imports itself as `{path}`"),
+        format!("source import cycle through `{path}`"),
         span.unwrap_or_else(Span::synthetic),
-        "a source file cannot import itself",
+        "source imports cannot form a cycle",
     )
     .build()
 }
