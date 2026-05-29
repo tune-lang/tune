@@ -25,6 +25,29 @@ fn host_functions_use_typed_shapes_not_signature_strings() {
 }
 
 #[test]
+fn host_functions_can_carry_a_typed_executor() -> Result<(), &'static str> {
+    let function = tune_host::HostFunction::new(
+        "count",
+        vec![tune_host::HostParam::new("path", tune_shape::Shape::String)],
+        tune_shape::Shape::Int,
+    )
+    .with_executor(|args: &[tune_runtime::Value]| {
+        let Some(tune_runtime::Value::String(path)) = args.first() else {
+            return Err(tune_host::HostCallError::new("expected string path"));
+        };
+        Ok(tune_runtime::Value::Size(path.len() as u64))
+    });
+
+    let executor = function.executor.as_ref().ok_or("executor should exist")?;
+    assert_eq!(
+        executor.call(&[tune_runtime::Value::String("abc".into())]),
+        Ok(tune_runtime::Value::Size(3))
+    );
+
+    Ok(())
+}
+
+#[test]
 fn host_resources_carry_shape_authority_retention_and_cleanup() {
     let resource = tune_host::HostResourceType::new(
         "FileHandle",
