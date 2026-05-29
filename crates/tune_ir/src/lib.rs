@@ -21,3 +21,4 @@ pub use ir::{
 };
 pub use lower::{IrLowerError, lower_plan_function};
 pub use tune_host::HostSymbolId;
+pub use tune_resolve::LocalId;

@@ -76,3 +76,131 @@ fn optimizer_reports_struct_ownership_facts_from_ir() {
     assert_eq!(report.shared_atomic, 1);
     assert_eq!(report.non_atomic_rc, 0);
 }
+
+#[test]
+fn optimizer_eliminates_proven_sequence_bounds_checks() {
+    let mut function = tune_ir::IrFunction {
+        params: 0,
+        owner: None,
+        member: None,
+        callable: None,
+        name: "run".into(),
+        span: None,
+        regs: 4,
+        locals: 1,
+        constants: vec![
+            tune_ir::IrConst::Int(1),
+            tune_ir::IrConst::Int(2),
+            tune_ir::IrConst::Size(1),
+        ],
+        struct_layouts: Vec::new(),
+        blocks: vec![tune_ir::IrBlock {
+            id: tune_ir::BlockId(0),
+            ops: vec![
+                tune_ir::IrOp::SeqBuild {
+                    dst: tune_ir::Reg(0),
+                    element_shape: tune_shape::Shape::Int,
+                },
+                tune_ir::IrOp::LoadConst {
+                    dst: tune_ir::Reg(1),
+                    constant: tune_ir::ConstId(0),
+                    shape: tune_shape::Shape::Int,
+                },
+                tune_ir::IrOp::SeqPush {
+                    seq: tune_ir::Reg(0),
+                    value: tune_ir::Reg(1),
+                },
+                tune_ir::IrOp::LoadConst {
+                    dst: tune_ir::Reg(1),
+                    constant: tune_ir::ConstId(1),
+                    shape: tune_shape::Shape::Int,
+                },
+                tune_ir::IrOp::SeqPush {
+                    seq: tune_ir::Reg(0),
+                    value: tune_ir::Reg(1),
+                },
+                tune_ir::IrOp::StoreLocal {
+                    local: tune_ir::LocalId(0),
+                    value: tune_ir::Reg(0),
+                },
+                tune_ir::IrOp::LoadLocal {
+                    dst: tune_ir::Reg(0),
+                    local: tune_ir::LocalId(0),
+                },
+                tune_ir::IrOp::LoadConst {
+                    dst: tune_ir::Reg(2),
+                    constant: tune_ir::ConstId(2),
+                    shape: tune_shape::Shape::Size,
+                },
+                tune_ir::IrOp::SeqGet {
+                    dst: tune_ir::Reg(3),
+                    seq: tune_ir::Reg(0),
+                    index: tune_ir::Reg(2),
+                    checked: true,
+                },
+            ],
+        }],
+        task_functions: Vec::new(),
+    };
+
+    let report = tune_opt::optimize(&mut function);
+    assert!(
+        report
+            .passes
+            .iter()
+            .any(|pass| { pass.pass == tune_opt::Pass::BoundsCheckElim && pass.changed })
+    );
+    assert!(matches!(
+        function.blocks[0].ops.last(),
+        Some(tune_ir::IrOp::SeqGet { checked: false, .. })
+    ));
+}
+
+#[test]
+fn optimizer_keeps_unproven_sequence_bounds_checks() {
+    let mut function = tune_ir::IrFunction {
+        params: 0,
+        owner: None,
+        member: None,
+        callable: None,
+        name: "run".into(),
+        span: None,
+        regs: 3,
+        locals: 0,
+        constants: vec![tune_ir::IrConst::Size(3)],
+        struct_layouts: Vec::new(),
+        blocks: vec![tune_ir::IrBlock {
+            id: tune_ir::BlockId(0),
+            ops: vec![
+                tune_ir::IrOp::SeqBuild {
+                    dst: tune_ir::Reg(0),
+                    element_shape: tune_shape::Shape::Int,
+                },
+                tune_ir::IrOp::LoadConst {
+                    dst: tune_ir::Reg(1),
+                    constant: tune_ir::ConstId(0),
+                    shape: tune_shape::Shape::Size,
+                },
+                tune_ir::IrOp::SeqGet {
+                    dst: tune_ir::Reg(2),
+                    seq: tune_ir::Reg(0),
+                    index: tune_ir::Reg(1),
+                    checked: true,
+                },
+            ],
+        }],
+        task_functions: Vec::new(),
+    };
+
+    let report = tune_opt::optimize(&mut function);
+    assert!(
+        report
+            .passes
+            .iter()
+            .any(|pass| { pass.pass == tune_opt::Pass::BoundsCheckElim && !pass.changed })
+    );
+    assert!(matches!(
+        function.blocks[0].ops.last(),
+        Some(tune_ir::IrOp::SeqGet { checked: true, .. })
+    ));
+}
