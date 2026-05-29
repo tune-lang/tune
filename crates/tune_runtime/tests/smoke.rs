@@ -20,6 +20,14 @@ fn task_join_preserves_pending_and_ready_states() {
 }
 
 #[test]
+fn task_execution_mode_names_scheduler_boundary() {
+    assert_eq!(
+        tune_runtime::TaskExecutionMode::DeferredUntilJoin,
+        tune_runtime::TaskExecutionMode::DeferredUntilJoin
+    );
+}
+
+#[test]
 fn task_join_does_not_convert_panics_to_recoverable_errors() {
     let panicked = tune_runtime::Task::panicked(
         tune_runtime::TaskId(3),

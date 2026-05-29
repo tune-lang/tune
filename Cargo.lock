@@ -224,6 +224,7 @@ name = "tune_opt"
 version = "0.1.0"
 dependencies = [
  "tune_diagnostics",
+ "tune_hir",
  "tune_ir",
  "tune_shape",
 ]

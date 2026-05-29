@@ -13,3 +13,6 @@ workspace = true
 tune_ir = { path = "../tune_ir" }
 tune_shape = { path = "../tune_shape" }
 tune_diagnostics = { path = "../tune_diagnostics" }
+
+[dev-dependencies]
+tune_hir = { path = "../tune_hir" }

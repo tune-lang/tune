@@ -27,3 +27,12 @@ fn meta_facts_use_compiler_ids_and_shapes() {
         tune_meta::facts::DeclFact::Return(tune_shape::Shape::Task(_))
     ));
 }
+
+#[test]
+fn json_invoker_is_a_compiler_generated_plan() {
+    let invoker = tune_meta::json_invoker::generate_json_invoker(tune_hir::HirId(9));
+
+    assert_eq!(invoker.decl_id, tune_hir::HirId(9));
+    assert_eq!(invoker.helper_name, "__json_invoker_9");
+    assert!(!invoker.uses_runtime_reflection);
+}

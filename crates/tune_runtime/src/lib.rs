@@ -7,5 +7,5 @@ pub mod value;
 
 pub use panic::TunePanic;
 pub use state::{StateHandle, StateId, StateRepr};
-pub use task::{Task, TaskId, TaskJoinOutcome, TaskState};
+pub use task::{Task, TaskExecutionMode, TaskId, TaskJoinOutcome, TaskState};
 pub use value::{CallableValue, PropagationFrame, TaskHandle, Value};

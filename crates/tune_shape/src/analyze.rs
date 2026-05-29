@@ -41,6 +41,13 @@ pub struct FiniteForCheck {
     pub span: Option<Span>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpawnCheck {
+    pub expr: ExprId,
+    pub result: Shape,
+    pub span: Option<Span>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FiniteForContractKind {
     Sequence,
@@ -101,6 +108,7 @@ pub struct ShapeAnalysis {
     pub returns: Vec<ReturnCheck>,
     pub assignments: Vec<AssignmentCheck>,
     pub finite_for: Vec<FiniteForCheck>,
+    pub spawn: Vec<SpawnCheck>,
     pub materializers: Vec<MaterializerCheck>,
     pub diagnostics: Vec<Diagnostic>,
 }
@@ -116,6 +124,7 @@ pub fn analyze_item(module: &Module, resolved: &ResolvedModule, item: &Item) -> 
         returns: Vec::new(),
         assignments: Vec::new(),
         finite_for: Vec::new(),
+        spawn: Vec::new(),
         materializers: Vec::new(),
         diagnostics: Vec::new(),
         inferred_signature: None,
@@ -165,6 +174,7 @@ struct Analyzer<'a> {
     returns: Vec<ReturnCheck>,
     assignments: Vec<AssignmentCheck>,
     finite_for: Vec<FiniteForCheck>,
+    spawn: Vec<SpawnCheck>,
     materializers: Vec<MaterializerCheck>,
     diagnostics: Vec<Diagnostic>,
     inferred_signature: Option<CallSignature>,
@@ -180,6 +190,7 @@ impl Analyzer<'_> {
             returns: self.returns,
             assignments: self.assignments,
             finite_for: self.finite_for,
+            spawn: self.spawn,
             materializers: self.materializers,
             diagnostics: self.diagnostics,
         }
@@ -248,12 +259,18 @@ impl Analyzer<'_> {
         let shape = match &expr.kind {
             ExprKind::Missing => Shape::Hole,
             ExprKind::Literal(LiteralKind::String(literal)) => {
+                let mut has_interpolation = false;
                 for part in &literal.parts {
                     if let StringPart::Interpolation(expr) = part {
+                        has_interpolation = true;
                         self.analyze_expr(expr);
                     }
                 }
-                Shape::String
+                if has_interpolation {
+                    Shape::String
+                } else {
+                    self.literal_or_sequence_shape(expr)
+                }
             }
             ExprKind::Literal(_) | ExprKind::Sequence(_) | ExprKind::Tuple(_) => {
                 self.literal_or_sequence_shape(expr)
@@ -313,7 +330,15 @@ impl Analyzer<'_> {
                 }
                 Shape::Never
             }
-            ExprKind::Spawn(inner) => Shape::Task(Box::new(self.analyze_expr(inner))),
+            ExprKind::Spawn(inner) => {
+                let result = self.analyze_expr(inner);
+                self.spawn.push(SpawnCheck {
+                    expr: expr.id,
+                    result: result.clone(),
+                    span: expr.span,
+                });
+                Shape::Task(Box::new(result))
+            }
             ExprKind::Field { base, .. } => self.field_shape(base, expr),
             ExprKind::Index { base, index } => {
                 self.analyze_expr(base);

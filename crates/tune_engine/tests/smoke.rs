@@ -76,6 +76,21 @@ let first(items: Stack) = items[0]
 }
 
 #[test]
+fn engine_resolves_loaded_project_roots() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let project = tune
+        .load_project(dyno_project::Manifest::new("app", "main.tn"))
+        .map_err(|_| "project should load")?;
+    let resolution = tune
+        .resolve_project(project, &dyno_project::Lockfile::new())
+        .map_err(|_| "project should resolve")?;
+
+    assert!(resolution.roots.contains(&dyno_project::ModuleRoot::Std));
+    assert_eq!(resolution.locked_package_count, 0);
+    Ok(())
+}
+
+#[test]
 fn executable_lowering_failures_use_structured_diagnostics() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

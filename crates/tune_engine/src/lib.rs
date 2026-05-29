@@ -177,6 +177,18 @@ impl Tune {
         Ok(ProjectHandle(index))
     }
 
+    pub fn resolve_project(
+        &self,
+        project: ProjectHandle,
+        lockfile: &dyno_project::lockfile::Lockfile,
+    ) -> Result<dyno_project::ProjectResolution, EngineError> {
+        let manifest = self
+            .projects
+            .get(project.0 as usize)
+            .ok_or(EngineError::NotImplemented("unknown project handle"))?;
+        Ok(dyno_project::resolve(manifest, lockfile))
+    }
+
     pub fn register_host(&mut self, host: &impl tune_host::Host) -> HostRegistration {
         let modules = host.modules();
         let module_count = modules.len();

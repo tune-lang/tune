@@ -514,3 +514,19 @@ fn hir_shape_lowers_structural_shape_constraints() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+#[test]
+fn shape_analysis_records_spawn_result_facts() -> Result<(), &'static str> {
+    let source = r#"let task: Task<Int> = spawn 1"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert_eq!(analysis.spawn.len(), 1);
+    assert!(matches!(
+        analysis.spawn[0].result,
+        tune_shape::Shape::Literal(tune_shape::LiteralFact::Numeric { .. })
+    ));
+    Ok(())
+}

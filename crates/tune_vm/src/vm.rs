@@ -2,7 +2,7 @@ use std::cell::{Cell, RefCell};
 
 use tune_bytecode::{artifact::BytecodeArtifact, validate_artifact};
 use tune_runtime::{
-    task::{TaskId, TaskJoinOutcome},
+    task::{TaskExecutionMode, TaskId, TaskJoinOutcome},
     value::Value,
 };
 
@@ -10,6 +10,7 @@ use crate::{VmError, VmFault};
 
 pub struct Vm {
     pub artifact: BytecodeArtifact,
+    pub task_execution: TaskExecutionMode,
     pub(crate) next_state_id: Cell<u64>,
     pub(crate) tasks: RefCell<Vec<VmTask>>,
 }
@@ -39,9 +40,16 @@ impl Vm {
     pub fn new(artifact: BytecodeArtifact) -> Self {
         Self {
             artifact,
+            task_execution: TaskExecutionMode::DeferredUntilJoin,
             next_state_id: Cell::new(0),
             tasks: RefCell::new(Vec::new()),
         }
+    }
+
+    #[must_use]
+    pub fn with_task_execution(mut self, mode: TaskExecutionMode) -> Self {
+        self.task_execution = mode;
+        self
     }
 
     pub fn run_entry(&mut self) -> Result<Value, VmFault> {

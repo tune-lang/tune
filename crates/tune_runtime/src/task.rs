@@ -24,6 +24,11 @@ pub enum TaskJoinOutcome {
     UnrecoverablePanic(TunePanic),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TaskExecutionMode {
+    DeferredUntilJoin,
+}
+
 impl Task {
     #[must_use]
     pub fn pending(id: TaskId) -> Self {
