@@ -332,6 +332,7 @@ pub enum PlanOp {
     Return,
     Spawn {
         body: ExprId,
+        body_ops: Vec<PlanOp>,
         span: Option<Span>,
     },
     TaskJoin {

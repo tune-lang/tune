@@ -27,24 +27,23 @@ let ok(value) = Ok(value)
     let run = tune_plan::lower_resolved_item_to_plan(&module.items[1], &resolved)
         .ok_or("expected run plan")?;
     assert_eq!(run.name, "run");
-    assert!(run.ops.contains(&tune_plan::PlanOp::SequenceGet {
-        checked: true,
-        index_member: None
-    }));
     assert!(run.ops.iter().any(|op| matches!(
         op,
-        tune_plan::PlanOp::MemberCall { name, .. } if name == "load"
+        tune_plan::PlanOp::Spawn {
+            body_ops,
+            span: Some(_),
+            ..
+        } if body_ops.contains(&tune_plan::PlanOp::SequenceGet {
+            checked: true,
+            index_member: None
+        }) && body_ops.iter().any(|op| matches!(
+            op,
+            tune_plan::PlanOp::MemberCall { name, .. } if name == "load"
+        )) && body_ops.iter().any(|op| matches!(
+            op,
+            tune_plan::PlanOp::ResultPropagate { span: Some(_), .. }
+        ))
     )));
-    assert!(
-        run.ops
-            .iter()
-            .any(|op| matches!(op, tune_plan::PlanOp::ResultPropagate { span: Some(_), .. }))
-    );
-    assert!(
-        run.ops
-            .iter()
-            .any(|op| matches!(op, tune_plan::PlanOp::Spawn { span: Some(_), .. }))
-    );
 
     let each = tune_plan::lower_resolved_item_to_plan(&module.items[2], &resolved)
         .ok_or("expected each plan")?;

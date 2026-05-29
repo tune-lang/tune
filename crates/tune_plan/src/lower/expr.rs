@@ -164,10 +164,12 @@ impl LowerContext<'_> {
                 }
             }
             ExprKind::Spawn(inner) => {
+                let mut body_ops = Vec::new();
                 self.with_struct_escape(StructEscapeReason::SpawnBoundary)
-                    .lower_expr(inner, ops);
+                    .lower_expr(inner, &mut body_ops);
                 ops.push(PlanOp::Spawn {
                     body: inner.id,
+                    body_ops,
                     span: expr.span,
                 });
             }
