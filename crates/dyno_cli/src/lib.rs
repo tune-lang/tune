@@ -17,6 +17,7 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
         [command] if command == "build" => Ok(CliCommand::Build { path: None }),
         [command] if command == "run" => Ok(CliCommand::Run { path: None }),
         [command] if command == "check" => Ok(CliCommand::Check { path: None }),
+        [command] if command == "profile" => Ok(CliCommand::Profile { path: None }),
         [path] => Ok(CliCommand::Run {
             path: Some(path.clone()),
         }),
@@ -29,7 +30,6 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
         [command, path] if command == "build" => Ok(CliCommand::Build {
             path: Some(path.clone()),
         }),
-        [command] if command == "profile" => Ok(CliCommand::Profile { path: None }),
         [command, path] if command == "profile" => Ok(CliCommand::Profile {
             path: Some(path.clone()),
         }),

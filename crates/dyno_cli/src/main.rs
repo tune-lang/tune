@@ -34,12 +34,11 @@ fn main() {
             return;
         }
     };
-    if path.is_none() {
+    let Some(path) = path else {
         run_project_command(command);
         return;
-    }
-    let path = path.expect("path checked above");
-    let mut tune = tune_engine::Tune::new();
+    };
+    let mut tune = tune_engine::Tune::new().with_std();
 
     if matches!(command, dyno_cli::CliCommand::Profile { .. }) {
         match tune.profile_path(path) {
@@ -119,7 +118,7 @@ fn main() {
 }
 
 fn run_project_command(command: dyno_cli::CliCommand) {
-    let mut tune = tune_engine::Tune::new();
+    let mut tune = tune_engine::Tune::new().with_std();
     let entry = match tune.load_project_manifest("dyno.toml") {
         Ok(entry) => entry,
         Err(error) => {

@@ -201,11 +201,14 @@ fn finish_profile(
     let (ir_result, duration) = timed(|| {
         let mut ir = Vec::new();
         for plan in &planned {
-            let function = tune_ir::lower_plan_function(plan)
-                .map_err(|error| diagnostic_from_ir_lower_error(&plan.name, plan.span, &error))?;
+            let function = tune_ir::lower_plan_function(plan).map_err(|error| {
+                Box::new(diagnostic_from_ir_lower_error(
+                    &plan.name, plan.span, &error,
+                ))
+            })?;
             ir.push(function);
         }
-        Ok::<_, Diagnostic>(ir)
+        Ok::<_, Box<Diagnostic>>(ir)
     });
     timings.push(stage("ir", duration));
     let ir = match ir_result {
@@ -213,7 +216,7 @@ fn finish_profile(
         Err(diagnostic) => {
             return Ok(ProfileReport {
                 file: check.file,
-                diagnostics: vec![diagnostic],
+                diagnostics: vec![*diagnostic],
                 timings,
                 plan: plan_quality,
                 ir: IrQuality::default(),
