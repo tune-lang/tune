@@ -317,7 +317,7 @@ impl Analyzer<'_> {
             ExprKind::Loop(body) => self.analyze_loop(body),
             ExprKind::While { condition, body } => self.analyze_while(condition, body),
             ExprKind::Unary { expr, .. } => self.analyze_expr(expr),
-            ExprKind::Binary { op, lhs, rhs } => self.analyze_binary(*op, lhs, rhs),
+            ExprKind::Binary { op, lhs, rhs } => self.analyze_binary(*op, expr, lhs, rhs),
             ExprKind::Break | ExprKind::Continue => Shape::Never,
         };
         self.record_expr_shape(expr.id, shape.clone());
@@ -379,10 +379,15 @@ impl Analyzer<'_> {
                     )
                 },
                 |literal| {
+                    let storage_shape = if expected == Shape::Hole {
+                        literal.storage_shape()
+                    } else {
+                        expected.clone()
+                    };
                     BindingState::literal(
                         BindingKey::Local(local),
                         self.local_name(local),
-                        expected.clone(),
+                        storage_shape,
                         literal,
                         expr.span,
                     )

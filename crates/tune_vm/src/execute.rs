@@ -163,10 +163,13 @@ impl Vm {
                             VmError::UnsupportedOpcode(Opcode::AddInt),
                         ));
                     };
+                    let value = left.checked_add(right).ok_or_else(|| {
+                        self.fault_at(function_index, ip, VmError::NumericOverflow)
+                    })?;
                     self.at(
                         function_index,
                         ip,
-                        write_reg(&mut registers, instruction.a, Value::Int(left + right)),
+                        write_reg(&mut registers, instruction.a, Value::Int(value)),
                     )?;
                 }
                 Opcode::RangeExclusiveInt | Opcode::RangeInclusiveInt => {

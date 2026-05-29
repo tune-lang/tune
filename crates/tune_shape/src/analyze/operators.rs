@@ -1,10 +1,17 @@
+use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::expr::{BinaryOp, Expr};
 
 use super::Analyzer;
 use crate::Shape;
 
 impl Analyzer<'_> {
-    pub(super) fn analyze_binary(&mut self, op: BinaryOp, lhs: &Expr, rhs: &Expr) -> Shape {
+    pub(super) fn analyze_binary(
+        &mut self,
+        op: BinaryOp,
+        expr: &Expr,
+        lhs: &Expr,
+        rhs: &Expr,
+    ) -> Shape {
         let lhs = self.analyze_expr(lhs);
         let rhs = self.analyze_expr(rhs);
         match op {
@@ -54,7 +61,23 @@ impl Analyzer<'_> {
             | BinaryOp::Less
             | BinaryOp::LessEqual
             | BinaryOp::Greater
-            | BinaryOp::GreaterEqual => Shape::Bool,
+            | BinaryOp::GreaterEqual
+                if Shape::Int.accepts(&lhs) && Shape::Int.accepts(&rhs) =>
+            {
+                Shape::Bool
+            }
+            BinaryOp::Is
+            | BinaryOp::IsNot
+            | BinaryOp::Equal
+            | BinaryOp::NotEqual
+            | BinaryOp::Less
+            | BinaryOp::LessEqual
+            | BinaryOp::Greater
+            | BinaryOp::GreaterEqual => {
+                self.diagnostics
+                    .push(operator_mismatch(op, &lhs, &rhs, expr.span));
+                Shape::Bool
+            }
             BinaryOp::Add
             | BinaryOp::Sub
             | BinaryOp::Mul
@@ -70,5 +93,32 @@ impl Analyzer<'_> {
             | BinaryOp::RangeExclusive
             | BinaryOp::RangeInclusive => Shape::Hole,
         }
+    }
+}
+
+fn operator_mismatch(op: BinaryOp, lhs: &Shape, rhs: &Shape, span: Option<Span>) -> Diagnostic {
+    Diagnostic::error(
+        codes::SHAPE_MISMATCH,
+        "operator operands do not match executable integer operation",
+        span.unwrap_or_else(Span::synthetic),
+        format!(
+            "operator `{}` expected `Int` operands, got `{lhs:?}` and `{rhs:?}`",
+            op_name(op)
+        ),
+    )
+    .build()
+}
+
+fn op_name(op: BinaryOp) -> &'static str {
+    match op {
+        BinaryOp::Is => "is",
+        BinaryOp::IsNot => "is not",
+        BinaryOp::Equal => "==",
+        BinaryOp::NotEqual => "~=",
+        BinaryOp::Less => "<",
+        BinaryOp::LessEqual => "<=",
+        BinaryOp::Greater => ">",
+        BinaryOp::GreaterEqual => ">=",
+        _ => "<operator>",
     }
 }

@@ -380,3 +380,41 @@ fn analyzer_warns_for_public_value_storage_inference() -> Result<(), &'static st
 
     Ok(())
 }
+
+#[test]
+fn analyzer_commits_unannotated_literal_binding_storage() -> Result<(), &'static str> {
+    let source = r#"
+let result = {
+  let x = 0
+  x = "hello"
+  x
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert!(analysis.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::ASSIGNMENT_SHAPE_MISMATCH
+            && diagnostic.title == "assigned value does not match storage shape"
+    }));
+
+    Ok(())
+}
+
+#[test]
+fn analyzer_rejects_non_integer_executable_comparisons() -> Result<(), &'static str> {
+    let source = r#"let result: Bool = "a" < 3"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert!(analysis.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::SHAPE_MISMATCH
+            && diagnostic.title == "operator operands do not match executable integer operation"
+    }));
+
+    Ok(())
+}

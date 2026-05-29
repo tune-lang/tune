@@ -390,6 +390,28 @@ let result: Int = {
 }
 
 #[test]
+fn run_file_reports_integer_overflow_as_vm_fault() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file("app.tn", "let result: Int = 9223372036854775807 + 1")
+        .ok_or("file should allocate")?;
+
+    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_file(file) else {
+        return Err("overflow should fail with diagnostics");
+    };
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::RUNTIME_ERROR
+            && diagnostic
+                .facts
+                .iter()
+                .flat_map(|fact| &fact.entries)
+                .any(|entry| entry.message.contains("NumericOverflow"))
+    }));
+
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_local_binding_slice_through_vm() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
