@@ -10,7 +10,6 @@ pub enum DeclFact {
     Return(Shape),
     Module(String),
     Visibility(Visibility),
-    JsonInvoker,
 }
 
 #[derive(Debug, Clone)]
@@ -42,7 +41,6 @@ pub fn from_compiler_facts(decl_id: HirId, facts: &[tune_resolve::CompilerFact])
                 tune_resolve::CompilerFactPayload::Visibility(visibility) => {
                     Some(DeclFact::Visibility(*visibility))
                 }
-                tune_resolve::CompilerFactPayload::JsonInvoker(_) => Some(DeclFact::JsonInvoker),
                 _ => None,
             })
             .collect(),

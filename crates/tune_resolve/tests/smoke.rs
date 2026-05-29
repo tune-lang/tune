@@ -433,7 +433,7 @@ let boxed: Boxed<String> = Value("hello")
 }
 
 #[test]
-fn ordinary_tags_do_not_record_json_invoker_facts() {
+fn ordinary_tags_do_not_record_generated_helper_facts() {
     let source = r#"
 tag tool {}
 @tool
@@ -443,8 +443,12 @@ let run(input: String): String = input
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
     let resolved = tune_resolve::resolve_module(&module);
 
-    assert!(!resolved.facts.iter().any(|fact| matches!(
-        &fact.payload,
-        tune_resolve::CompilerFactPayload::JsonInvoker(_)
-    )));
+    assert_eq!(
+        resolved
+            .facts
+            .iter()
+            .filter(|fact| matches!(&fact.payload, tune_resolve::CompilerFactPayload::Tag(_)))
+            .count(),
+        1
+    );
 }
