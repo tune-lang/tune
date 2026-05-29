@@ -170,6 +170,10 @@ fn validate_instruction(
             register(function_id, function, instruction.b)?;
         }
         Opcode::AddInt
+        | Opcode::SubInt
+        | Opcode::MulInt
+        | Opcode::DivInt
+        | Opcode::RemInt
         | Opcode::AddFloat
         | Opcode::AddSizeChecked
         | Opcode::AddByteWrap

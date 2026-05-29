@@ -14,23 +14,44 @@ impl Vm {
     ) -> Result<(), VmFault> {
         match instruction.opcode {
             Opcode::AddInt => {
-                let left = self.at(function_index, ip, read_reg(registers, instruction.b))?;
-                let right = self.at(function_index, ip, read_reg(registers, instruction.c))?;
-                let (Value::Int(left), Value::Int(right)) = (left, right) else {
-                    return Err(self.fault_at(
-                        function_index,
-                        ip,
-                        VmError::UnsupportedOpcode(Opcode::AddInt),
-                    ));
-                };
+                let (left, right) =
+                    self.read_int_pair(function_index, ip, registers, instruction)?;
                 let value = left
                     .checked_add(right)
                     .ok_or_else(|| self.fault_at(function_index, ip, VmError::NumericOverflow))?;
-                self.at(
-                    function_index,
-                    ip,
-                    write_reg(registers, instruction.a, Value::Int(value)),
-                )
+                self.write_int(function_index, ip, registers, instruction, value)
+            }
+            Opcode::SubInt => {
+                let (left, right) =
+                    self.read_int_pair(function_index, ip, registers, instruction)?;
+                let value = left
+                    .checked_sub(right)
+                    .ok_or_else(|| self.fault_at(function_index, ip, VmError::NumericOverflow))?;
+                self.write_int(function_index, ip, registers, instruction, value)
+            }
+            Opcode::MulInt => {
+                let (left, right) =
+                    self.read_int_pair(function_index, ip, registers, instruction)?;
+                let value = left
+                    .checked_mul(right)
+                    .ok_or_else(|| self.fault_at(function_index, ip, VmError::NumericOverflow))?;
+                self.write_int(function_index, ip, registers, instruction, value)
+            }
+            Opcode::DivInt => {
+                let (left, right) =
+                    self.read_int_pair(function_index, ip, registers, instruction)?;
+                let value = left
+                    .checked_div(right)
+                    .ok_or_else(|| self.fault_at(function_index, ip, divide_error(right)))?;
+                self.write_int(function_index, ip, registers, instruction, value)
+            }
+            Opcode::RemInt => {
+                let (left, right) =
+                    self.read_int_pair(function_index, ip, registers, instruction)?;
+                let value = left
+                    .checked_rem(right)
+                    .ok_or_else(|| self.fault_at(function_index, ip, divide_error(right)))?;
+                self.write_int(function_index, ip, registers, instruction, value)
             }
             Opcode::AddFloat => {
                 let left = self.at(function_index, ip, read_reg(registers, instruction.b))?;
@@ -89,5 +110,47 @@ impl Vm {
             }
             other => Err(self.fault_at(function_index, ip, VmError::UnsupportedOpcode(other))),
         }
+    }
+
+    fn read_int_pair(
+        &self,
+        function_index: usize,
+        ip: usize,
+        registers: &[Value],
+        instruction: &Instruction,
+    ) -> Result<(i64, i64), VmFault> {
+        let left = self.at(function_index, ip, read_reg(registers, instruction.b))?;
+        let right = self.at(function_index, ip, read_reg(registers, instruction.c))?;
+        let (Value::Int(left), Value::Int(right)) = (left, right) else {
+            return Err(self.fault_at(
+                function_index,
+                ip,
+                VmError::UnsupportedOpcode(instruction.opcode),
+            ));
+        };
+        Ok((left, right))
+    }
+
+    fn write_int(
+        &self,
+        function_index: usize,
+        ip: usize,
+        registers: &mut [Value],
+        instruction: &Instruction,
+        value: i64,
+    ) -> Result<(), VmFault> {
+        self.at(
+            function_index,
+            ip,
+            write_reg(registers, instruction.a, Value::Int(value)),
+        )
+    }
+}
+
+const fn divide_error(rhs: i64) -> VmError {
+    if rhs == 0 {
+        VmError::DivideByZero
+    } else {
+        VmError::NumericOverflow
     }
 }

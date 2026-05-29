@@ -35,6 +35,7 @@ pub enum VmError {
     PanicSiteOutOfBounds,
     ArityMismatch,
     NumericOverflow,
+    DivideByZero,
     UnsupportedStructState,
     Panic(TunePanic),
     InvalidBytecode(BytecodeValidationError),

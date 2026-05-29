@@ -6,7 +6,7 @@ fn smoke() {
 
 #[test]
 fn core_opcodes_reserve_dense_bytecode_slots() -> Result<(), &'static str> {
-    assert_eq!(tune_bytecode::Opcode::ALL.len(), 48);
+    assert_eq!(tune_bytecode::Opcode::ALL.len(), 52);
     for (index, opcode) in tune_bytecode::Opcode::ALL.iter().enumerate() {
         let expected = u8::try_from(index).map_err(|_| "opcode index overflow")?;
         assert_eq!(*opcode as u8, expected);
@@ -31,6 +31,10 @@ fn core_opcodes_reserve_dense_bytecode_slots() -> Result<(), &'static str> {
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::NotBool));
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::RangeExclusiveInt));
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::RangeInclusiveInt));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::SubInt));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::MulInt));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::DivInt));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::RemInt));
 
     Ok(())
 }

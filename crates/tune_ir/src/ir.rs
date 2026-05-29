@@ -50,6 +50,10 @@ impl IrOp {
     pub const fn provenance_span(&self) -> Option<Span> {
         match self {
             Self::AddInt { span, .. }
+            | Self::SubInt { span, .. }
+            | Self::MulInt { span, .. }
+            | Self::DivInt { span, .. }
+            | Self::RemInt { span, .. }
             | Self::AddSizeChecked { span, .. }
             | Self::RangeInt { span, .. }
             | Self::NegInt { span, .. }
@@ -111,6 +115,30 @@ pub enum IrOp {
         src: Reg,
     },
     AddInt {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    SubInt {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    MulInt {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    DivInt {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    RemInt {
         dst: Reg,
         a: Reg,
         b: Reg,

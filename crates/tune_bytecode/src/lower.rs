@@ -189,6 +189,22 @@ impl FunctionLowerer<'_> {
                 self.push_instruction(Opcode::AddInt, dst.0, a.0, b.0);
                 Ok(())
             }
+            IrOp::SubInt { dst, a, b, .. } => {
+                self.push_instruction(Opcode::SubInt, dst.0, a.0, b.0);
+                Ok(())
+            }
+            IrOp::MulInt { dst, a, b, .. } => {
+                self.push_instruction(Opcode::MulInt, dst.0, a.0, b.0);
+                Ok(())
+            }
+            IrOp::DivInt { dst, a, b, .. } => {
+                self.push_instruction(Opcode::DivInt, dst.0, a.0, b.0);
+                Ok(())
+            }
+            IrOp::RemInt { dst, a, b, .. } => {
+                self.push_instruction(Opcode::RemInt, dst.0, a.0, b.0);
+                Ok(())
+            }
             IrOp::AddFloat { dst, a, b } => {
                 self.push_instruction(Opcode::AddFloat, dst.0, a.0, b.0);
                 Ok(())

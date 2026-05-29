@@ -43,6 +43,44 @@ let result: Int = eq + ne + le + ge
 }
 
 #[test]
+fn run_file_executes_integer_arithmetic_operators() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let result: Int = ((20 - 4) * 3 / 2) % 10
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, tune_runtime::value::Value::Int(4));
+
+    Ok(())
+}
+
+#[test]
+fn run_file_reports_integer_divide_by_zero_as_vm_fault() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file("app.tn", "let result: Int = 1 / 0")
+        .ok_or("file should allocate")?;
+
+    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_file(file) else {
+        return Err("divide by zero should report diagnostics");
+    };
+
+    assert_eq!(diagnostics.len(), 1);
+    assert!(diagnostics[0].facts.iter().any(|fact| {
+        fact.entries
+            .iter()
+            .any(|entry| entry.message.contains("DivideByZero"))
+    }));
+
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_loop_break_and_continue() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

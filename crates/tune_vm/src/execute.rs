@@ -208,6 +208,10 @@ impl Vm {
                     }
                 }
                 Opcode::AddInt
+                | Opcode::SubInt
+                | Opcode::MulInt
+                | Opcode::DivInt
+                | Opcode::RemInt
                 | Opcode::AddFloat
                 | Opcode::AddSizeChecked
                 | Opcode::AddByteWrap => {

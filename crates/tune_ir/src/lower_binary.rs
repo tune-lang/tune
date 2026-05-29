@@ -13,6 +13,10 @@ impl Lowerer {
     ) -> Result<(), IrLowerError> {
         match op {
             BinaryOp::Add => self.lower_add(shape, span),
+            BinaryOp::Sub => self.lower_int_arithmetic(IntArithmetic::Sub, span),
+            BinaryOp::Mul => self.lower_int_arithmetic(IntArithmetic::Mul, span),
+            BinaryOp::Div => self.lower_int_arithmetic(IntArithmetic::Div, span),
+            BinaryOp::Rem => self.lower_int_arithmetic(IntArithmetic::Rem, span),
             BinaryOp::RangeExclusive => self.lower_range_int(false, span),
             BinaryOp::RangeInclusive => self.lower_range_int(true, span),
             BinaryOp::Greater => self.lower_greater_int(span),
@@ -23,6 +27,44 @@ impl Lowerer {
             BinaryOp::GreaterEqual => self.lower_compare_int(IrIntComparison::GreaterEqual, span),
             _ => Err(IrLowerError::UnsupportedOp("binary op")),
         }
+    }
+
+    fn lower_int_arithmetic(
+        &mut self,
+        op: IntArithmetic,
+        span: Option<Span>,
+    ) -> Result<(), IrLowerError> {
+        let rhs = self.pop("binary rhs")?;
+        let lhs = self.pop("binary lhs")?;
+        let dst = self.alloc_reg()?;
+        match op {
+            IntArithmetic::Sub => self.push_op(IrOp::SubInt {
+                dst,
+                a: lhs,
+                b: rhs,
+                span,
+            }),
+            IntArithmetic::Mul => self.push_op(IrOp::MulInt {
+                dst,
+                a: lhs,
+                b: rhs,
+                span,
+            }),
+            IntArithmetic::Div => self.push_op(IrOp::DivInt {
+                dst,
+                a: lhs,
+                b: rhs,
+                span,
+            }),
+            IntArithmetic::Rem => self.push_op(IrOp::RemInt {
+                dst,
+                a: lhs,
+                b: rhs,
+                span,
+            }),
+        }
+        self.stack.push(dst);
+        Ok(())
     }
 
     fn lower_add(
@@ -139,4 +181,11 @@ impl Lowerer {
         self.stack.push(dst);
         Ok(())
     }
+}
+
+enum IntArithmetic {
+    Sub,
+    Mul,
+    Div,
+    Rem,
 }

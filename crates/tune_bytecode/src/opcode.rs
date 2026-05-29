@@ -49,6 +49,10 @@ pub enum Opcode {
     CallableValue = 45,
     StructIs = 46,
     TupleBuild = 47,
+    SubInt = 48,
+    MulInt = 49,
+    DivInt = 50,
+    RemInt = 51,
 }
 
 impl Opcode {
@@ -101,5 +105,9 @@ impl Opcode {
         Self::CallableValue,
         Self::StructIs,
         Self::TupleBuild,
+        Self::SubInt,
+        Self::MulInt,
+        Self::DivInt,
+        Self::RemInt,
     ];
 }
