@@ -91,6 +91,33 @@ fn engine_resolves_loaded_project_roots() -> Result<(), &'static str> {
 }
 
 #[test]
+fn engine_loads_and_runs_manifest_entry_source() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let entry = tune
+        .load_project_sources(
+            dyno_project::Manifest::new("app", "src/app.tn"),
+            vec![
+                (
+                    "src/helper.tn".to_owned(),
+                    "let ignored: Int = 1".to_owned(),
+                ),
+                (
+                    "src/app.tn".to_owned(),
+                    "let result: Int = 40 + 2".to_owned(),
+                ),
+            ],
+        )
+        .map_err(|_| "project sources should load")?;
+
+    assert_eq!(
+        tune.run_project_entry(entry)
+            .map_err(|_| "project entry should run")?,
+        tune_runtime::Value::Int(42)
+    );
+    Ok(())
+}
+
+#[test]
 fn executable_lowering_failures_use_structured_diagnostics() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

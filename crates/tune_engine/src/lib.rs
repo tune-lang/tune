@@ -52,6 +52,12 @@ pub struct HostRegistration {
     pub module_count: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProjectEntry {
+    pub project: ProjectHandle,
+    pub entry: FileId,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EngineError {
     FileNotFound(FileId),
@@ -60,6 +66,7 @@ pub enum EngineError {
     IrLower(String),
     BytecodeLower(String),
     MissingEntry,
+    ProjectEntryNotFound(String),
     NotImplemented(&'static str),
 }
 
@@ -187,6 +194,33 @@ impl Tune {
             .get(project.0 as usize)
             .ok_or(EngineError::NotImplemented("unknown project handle"))?;
         Ok(dyno_project::resolve(manifest, lockfile))
+    }
+
+    pub fn load_project_sources(
+        &mut self,
+        manifest: dyno_project::manifest::Manifest,
+        sources: impl IntoIterator<Item = (String, String)>,
+    ) -> Result<ProjectEntry, EngineError> {
+        let entry_path = manifest.entry.0.clone();
+        let project = self.load_project(manifest)?;
+        let mut entry = None;
+        for (path, text) in sources {
+            let file = self
+                .add_file(path.clone(), text)
+                .ok_or(EngineError::AllocationLimit)?;
+            if path == entry_path {
+                entry = Some(file);
+            }
+        }
+        let entry = entry.ok_or(EngineError::ProjectEntryNotFound(entry_path))?;
+        Ok(ProjectEntry { project, entry })
+    }
+
+    pub fn run_project_entry(&self, entry: ProjectEntry) -> Result<Value, EngineError> {
+        if self.projects.get(entry.project.0 as usize).is_none() {
+            return Err(EngineError::NotImplemented("unknown project handle"));
+        }
+        self.run_file(entry.entry)
     }
 
     pub fn register_host(&mut self, host: &impl tune_host::Host) -> HostRegistration {
