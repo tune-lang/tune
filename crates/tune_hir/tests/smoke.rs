@@ -60,6 +60,34 @@ fn lowers_underscore_binding_names_as_absent() -> Result<(), &'static str> {
 }
 
 #[test]
+fn lowers_is_phrases_to_canonical_equality_ops() -> Result<(), &'static str> {
+    let source = "let value = { 1 is 1; 1 is not 2 }";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let body = module.items[0].body.as_ref().ok_or("expected value body")?;
+    let tune_hir::expr::ExprKind::Block(exprs) = &body.kind else {
+        return Err("expected block");
+    };
+
+    assert!(matches!(
+        exprs[0].kind,
+        tune_hir::expr::ExprKind::Binary {
+            op: tune_hir::expr::BinaryOp::Equal,
+            ..
+        }
+    ));
+    assert!(matches!(
+        exprs[1].kind,
+        tune_hir::expr::ExprKind::Binary {
+            op: tune_hir::expr::BinaryOp::NotEqual,
+            ..
+        }
+    ));
+
+    Ok(())
+}
+
+#[test]
 fn lowers_shape_annotations_to_hir_shape_exprs() -> Result<(), &'static str> {
     let source = "let value: [Int | String]? = none";
     let parsed = tune_syntax::parse(source);

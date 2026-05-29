@@ -126,8 +126,6 @@ pub enum UnaryOp {
 pub enum BinaryOp {
     Or,
     And,
-    Is,
-    IsNot,
     Equal,
     NotEqual,
     Less,

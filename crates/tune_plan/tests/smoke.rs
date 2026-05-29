@@ -204,7 +204,7 @@ fn plan_ops_contain_bool_and(ops: &[tune_plan::PlanOp]) -> bool {
             }) || plan_ops_contain_bool_and(rhs_ops)
         }
         tune_plan::PlanOp::BinaryOp {
-            op: tune_hir::expr::BinaryOp::IsNot,
+            op: tune_hir::expr::BinaryOp::NotEqual,
             ..
         } => false,
         _ => false,

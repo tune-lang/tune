@@ -16,10 +16,8 @@ impl Lowerer {
             BinaryOp::RangeExclusive => self.lower_range_int(false, span),
             BinaryOp::RangeInclusive => self.lower_range_int(true, span),
             BinaryOp::Greater => self.lower_greater_int(span),
-            BinaryOp::Is | BinaryOp::Equal => self.lower_compare_int(IrIntComparison::Equal, span),
-            BinaryOp::IsNot | BinaryOp::NotEqual => {
-                self.lower_compare_int(IrIntComparison::NotEqual, span)
-            }
+            BinaryOp::Equal => self.lower_compare_int(IrIntComparison::Equal, span),
+            BinaryOp::NotEqual => self.lower_compare_int(IrIntComparison::NotEqual, span),
             BinaryOp::Less => self.lower_compare_int(IrIntComparison::Less, span),
             BinaryOp::LessEqual => self.lower_compare_int(IrIntComparison::LessEqual, span),
             BinaryOp::GreaterEqual => self.lower_compare_int(IrIntComparison::GreaterEqual, span),

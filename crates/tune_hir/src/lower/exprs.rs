@@ -311,9 +311,9 @@ fn binary_op(node: &CstNode) -> Option<BinaryOp> {
     }
 
     if saw_is && saw_not {
-        Some(BinaryOp::IsNot)
+        Some(BinaryOp::NotEqual)
     } else if saw_is {
-        Some(BinaryOp::Is)
+        Some(BinaryOp::Equal)
     } else {
         simple_op
     }

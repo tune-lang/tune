@@ -59,9 +59,7 @@ impl Analyzer<'_> {
             {
                 Shape::Range(Box::new(Shape::Size))
             }
-            BinaryOp::Is
-            | BinaryOp::IsNot
-            | BinaryOp::Equal
+            BinaryOp::Equal
             | BinaryOp::NotEqual
             | BinaryOp::Less
             | BinaryOp::LessEqual
@@ -71,9 +69,7 @@ impl Analyzer<'_> {
             {
                 Shape::Bool
             }
-            BinaryOp::Is
-            | BinaryOp::IsNot
-            | BinaryOp::Equal
+            BinaryOp::Equal
             | BinaryOp::NotEqual
             | BinaryOp::Less
             | BinaryOp::LessEqual
@@ -116,8 +112,6 @@ fn operator_mismatch(op: BinaryOp, lhs: &Shape, rhs: &Shape, span: Option<Span>)
 
 fn op_name(op: BinaryOp) -> &'static str {
     match op {
-        BinaryOp::Is => "is",
-        BinaryOp::IsNot => "is not",
         BinaryOp::Equal => "==",
         BinaryOp::NotEqual => "~=",
         BinaryOp::Less => "<",
