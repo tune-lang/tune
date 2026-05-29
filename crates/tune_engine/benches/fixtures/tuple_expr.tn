@@ -1,0 +1,4 @@
+let pair = (10, "hello")
+let nested = ((1, 2), (3, 4))
+let _use = pair
+let _unused = nested

@@ -1,0 +1,14 @@
+struct Duck {
+  quack(): Int = 7
+}
+
+struct Rock {}
+
+let speak(x) = match x {
+  { quack(): Int } => quack()
+  else 0
+}
+
+let duck: Duck = Duck {}
+let rock: Rock = Rock {}
+let result: Int = speak(duck) + speak(rock)

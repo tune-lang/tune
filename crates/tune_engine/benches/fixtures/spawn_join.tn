@@ -1,0 +1,6 @@
+let seed(seed: Int): Int = {
+  seed + 1
+}
+
+let task: Task<Int> = spawn seed(41)
+let result: Int = task.join()

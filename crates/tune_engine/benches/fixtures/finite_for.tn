@@ -1,0 +1,10 @@
+let sum_upto(limit: Int): Int = {
+  let total: Int = 0
+  let idx: Int = 0
+  for i in 0..limit {
+    total = total + i
+  }
+  total
+}
+
+let total: Int = sum_upto(10)

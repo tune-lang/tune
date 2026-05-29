@@ -1,0 +1,5 @@
+let identity<T>(value: T): T = value
+
+let a: Int = identity(41)
+let b: Bool = identity(true)
+let c: String = identity("hello")

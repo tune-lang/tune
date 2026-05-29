@@ -1,0 +1,7 @@
+let a: Int = 10
+let b: Int = 20
+let c: Int = a + b
+let d: Int = c * 2
+let e: Int = d - a
+let f: Int = if e > 0 { e } else { c }
+let _result: Int = f + d

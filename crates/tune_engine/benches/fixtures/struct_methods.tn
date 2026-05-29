@@ -1,0 +1,14 @@
+struct Counter {
+  value: Int
+
+  bump(amount: Int): Int = {
+    self.value = self.value + amount
+    self.value
+  }
+
+  get_total(seed: Int): Int = self.value + seed
+}
+
+let c: Counter = Counter { value = 12 }
+let bumped: Int = c.bump(3)
+let total: Int = c.get_total(bumped)
