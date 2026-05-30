@@ -43,16 +43,18 @@ fast to write while still giving the compiler room to plan execution seriously.
 If you are new, start here:
 
 - [Why Tune?](docs/why-tune.md)
-- [Getting Started](docs/getting-started.md)
+- [Setup And Getting Started](docs/getting-started.md)
 - [Tutorial](docs/tutorial.md)
 - [Tune From Other Languages](docs/from-other-languages.md)
 - [Language Tour](docs/language-tour.md)
 - [Examples](examples/README.md)
 - [Tooling](docs/tooling.md)
+- [Giving Feedback](docs/feedback.md)
 
-## Hello Tune
+## Set Up Tune
 
-First build and install Dyno from this checkout:
+Tune is currently distributed from source. Build and install Dyno from this
+checkout:
 
 ```sh
 cargo install --path crates/dyno_cli
@@ -87,6 +89,14 @@ Windows PowerShell, future shells:
 [Environment]::SetEnvironmentVariable("Path", "$env:USERPROFILE\.cargo\bin;$env:Path", "User")
 ```
 
+Check the install:
+
+```sh
+dyno --help
+```
+
+## Hello Tune
+
 ```tn
 -- Values can be inferred while their meaning stays known.
 let score = 37
@@ -96,8 +106,7 @@ let retry = not passed or score < 10
 -- `if` is an expression.
 let status = if passed => "pass" else "retry"
 
-let report = "{status}:{score}:{retry}"
-print(report)
+print("{status}:{score}:{retry}")
 ```
 
 Run it with Dyno:
@@ -159,6 +168,9 @@ then work through [docs/tutorial.md](docs/tutorial.md), then read
 Tooling and editor setup lives in [docs/tooling.md](docs/tooling.md).
 The current standard library surface is summarized in
 [docs/stdlib.md](docs/stdlib.md).
+If something feels awkward, surprising, or heavier than it should be, see
+[docs/feedback.md](docs/feedback.md). Tune is early enough that usage feedback
+can still change the shape of the language.
 
 ## Language Surface
 

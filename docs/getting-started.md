@@ -81,8 +81,7 @@ let retry = not passed or score < 10
 
 let status = if passed => "pass" else "retry"
 
-let report = "{status}:{score}:{retry}"
-print(report)
+print("{status}:{score}:{retry}")
 ```
 
 What this shows:
@@ -136,6 +135,7 @@ Use these in order:
 - [from-other-languages.md](from-other-languages.md)
 - [examples/README.md](../examples/README.md)
 - [language-tour.md](language-tour.md)
+- [feedback.md](feedback.md)
 
 The language examples are executable and covered by tests:
 

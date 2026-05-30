@@ -5,6 +5,4 @@ let passed = score > 30
 let retry = not passed or score < 10
 
 let status = if passed => "pass" else "retry"
-
-let report = "{status}:{score}:{retry}"
-print(report)
+print("{status}:{score}:{retry}")

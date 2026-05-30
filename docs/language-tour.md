@@ -47,8 +47,7 @@ let status = if passed => "pass" else "retry"
 The example prints the interpolated report:
 
 ```tn
-let report = "{status}:{score}:{retry}"
-print(report)
+print("{status}:{score}:{retry}")
 ```
 
 ## 2. Functions And Blocks
