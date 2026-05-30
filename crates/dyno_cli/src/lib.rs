@@ -11,7 +11,7 @@ pub enum CliCommand {
     Check { path: Option<String> },
     Run { path: Option<String> },
     Profile { path: Option<String> },
-    Fmt { path: Option<String> },
+    Fmt { path: Option<String>, check: bool },
     Explain { code: Option<String> },
     New { name: String },
     Lsp,
@@ -26,7 +26,10 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
         [command] if command == "run" => Ok(CliCommand::Run { path: None }),
         [command] if command == "check" => Ok(CliCommand::Check { path: None }),
         [command] if command == "profile" => Ok(CliCommand::Profile { path: None }),
-        [command] if command == "fmt" => Ok(CliCommand::Fmt { path: None }),
+        [command] if command == "fmt" => Ok(CliCommand::Fmt {
+            path: None,
+            check: false,
+        }),
         [command] if command == "explain" => Ok(CliCommand::Explain { code: None }),
         [command] if command == "lsp" => Ok(CliCommand::Lsp),
         [path] => Ok(CliCommand::Run {
@@ -44,8 +47,21 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
         [command, path] if command == "profile" => Ok(CliCommand::Profile {
             path: Some(path.clone()),
         }),
+        [command, flag] if command == "fmt" && flag == "--check" => Ok(CliCommand::Fmt {
+            path: None,
+            check: true,
+        }),
         [command, path] if command == "fmt" => Ok(CliCommand::Fmt {
             path: Some(path.clone()),
+            check: false,
+        }),
+        [command, flag, path] if command == "fmt" && flag == "--check" => Ok(CliCommand::Fmt {
+            path: Some(path.clone()),
+            check: true,
+        }),
+        [command, path, flag] if command == "fmt" && flag == "--check" => Ok(CliCommand::Fmt {
+            path: Some(path.clone()),
+            check: true,
         }),
         [command, code] if command == "explain" => Ok(CliCommand::Explain {
             code: Some(code.clone()),
@@ -57,7 +73,7 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
 
 #[must_use]
 pub fn usage() -> &'static str {
-    "usage: dyno new <name>\n       dyno check [file]\n       dyno run [file]\n       dyno build [file]\n       dyno profile [file]\n       dyno fmt [file]\n       dyno explain [code]\n       dyno lsp\n       dyno <file>"
+    "usage: dyno new <name>\n       dyno check [file]\n       dyno run [file]\n       dyno build [file]\n       dyno profile [file]\n       dyno fmt [--check] [file]\n       dyno explain [code]\n       dyno lsp\n       dyno <file>"
 }
 
 #[must_use]
@@ -98,6 +114,13 @@ pub fn format_file(path: impl AsRef<std::path::Path>) -> Result<bool, String> {
     Ok(true)
 }
 
+pub fn file_needs_format(path: impl AsRef<std::path::Path>) -> Result<bool, String> {
+    let path = path.as_ref();
+    let source = std::fs::read_to_string(path)
+        .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
+    Ok(tune_fmt::format_source(&source) != source)
+}
+
 pub fn format_project(
     root: impl AsRef<std::path::Path>,
 ) -> Result<Vec<std::path::PathBuf>, String> {
@@ -110,6 +133,20 @@ pub fn format_project(
         }
     }
     Ok(changed)
+}
+
+pub fn check_format_project(
+    root: impl AsRef<std::path::Path>,
+) -> Result<Vec<std::path::PathBuf>, String> {
+    let loaded = dyno_project::load_project_dir(&root).map_err(|error| format!("{error:?}"))?;
+    let mut unformatted = Vec::new();
+    for (path, _) in loaded.sources {
+        let path = loaded.root.join(path);
+        if file_needs_format(&path)? {
+            unformatted.push(path);
+        }
+    }
+    Ok(unformatted)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -47,12 +47,30 @@ fn parses_cli_commands_without_special_entry_names() {
     );
     assert_eq!(
         dyno_cli::parse_command(&["fmt".to_owned()]),
-        Ok(dyno_cli::CliCommand::Fmt { path: None })
+        Ok(dyno_cli::CliCommand::Fmt {
+            path: None,
+            check: false,
+        })
     );
     assert_eq!(
         dyno_cli::parse_command(&["fmt".to_owned(), "main.tn".to_owned()]),
         Ok(dyno_cli::CliCommand::Fmt {
             path: Some("main.tn".to_owned()),
+            check: false,
+        })
+    );
+    assert_eq!(
+        dyno_cli::parse_command(&["fmt".to_owned(), "--check".to_owned()]),
+        Ok(dyno_cli::CliCommand::Fmt {
+            path: None,
+            check: true,
+        })
+    );
+    assert_eq!(
+        dyno_cli::parse_command(&["fmt".to_owned(), "--check".to_owned(), "main.tn".to_owned()]),
+        Ok(dyno_cli::CliCommand::Fmt {
+            path: Some("main.tn".to_owned()),
+            check: true,
         })
     );
     assert_eq!(
@@ -101,9 +119,30 @@ fn formats_single_file_in_place() -> Result<(), String> {
     assert!(dyno_cli::format_file(&path)?);
     let formatted = std::fs::read_to_string(&path).map_err(|error| error.to_string())?;
     assert_eq!(formatted, "let value: Int = 1\n");
+    assert!(!dyno_cli::file_needs_format(&path)?);
     assert!(!dyno_cli::format_file(&path)?);
 
     std::fs::remove_file(path).map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+#[test]
+fn checks_project_format_without_writing() -> Result<(), String> {
+    let root = std::env::temp_dir().join(format!("dyno-fmt-check-{}", std::process::id()));
+    if root.exists() {
+        std::fs::remove_dir_all(&root).map_err(|error| error.to_string())?;
+    }
+    let project = dyno_cli::create_project_in(&root, "demo_app")?;
+    std::fs::write(&project.entry, "let value:Int=1\n").map_err(|error| error.to_string())?;
+
+    let unformatted = dyno_cli::check_format_project(&project.root)?;
+    let source = std::fs::read_to_string(&project.entry).map_err(|error| error.to_string())?;
+
+    std::fs::remove_dir_all(&root).map_err(|error| error.to_string())?;
+
+    assert_eq!(unformatted, vec![project.entry]);
+    assert_eq!(source, "let value:Int=1\n");
+
     Ok(())
 }
 

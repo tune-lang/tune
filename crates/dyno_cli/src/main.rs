@@ -34,9 +34,20 @@ fn main() {
         }
         return;
     }
-    if let dyno_cli::CliCommand::Fmt { ref path } = command {
-        match path {
-            Some(path) => match dyno_cli::format_file(path) {
+    if let dyno_cli::CliCommand::Fmt { ref path, check } = command {
+        match (path, check) {
+            (Some(path), true) => match dyno_cli::file_needs_format(path) {
+                Ok(true) => {
+                    println!("would format {path}");
+                    std::process::exit(1);
+                }
+                Ok(false) => println!("already formatted {path}"),
+                Err(error) => {
+                    eprintln!("{error}");
+                    std::process::exit(1);
+                }
+            },
+            (Some(path), false) => match dyno_cli::format_file(path) {
                 Ok(true) => println!("formatted {path}"),
                 Ok(false) => println!("already formatted {path}"),
                 Err(error) => {
@@ -44,7 +55,23 @@ fn main() {
                     std::process::exit(1);
                 }
             },
-            None => match dyno_cli::format_project(".") {
+            (None, true) => match dyno_cli::check_format_project(".") {
+                Ok(unformatted) => {
+                    if unformatted.is_empty() {
+                        println!("all files formatted");
+                    } else {
+                        for path in unformatted {
+                            println!("would format {}", path.display());
+                        }
+                        std::process::exit(1);
+                    }
+                }
+                Err(error) => {
+                    eprintln!("{error}");
+                    std::process::exit(1);
+                }
+            },
+            (None, false) => match dyno_cli::format_project(".") {
                 Ok(changed) => {
                     for path in changed {
                         println!("formatted {}", path.display());
@@ -72,7 +99,7 @@ fn main() {
     let path = match command {
         dyno_cli::CliCommand::Build { ref path }
         | dyno_cli::CliCommand::Check { ref path }
-        | dyno_cli::CliCommand::Fmt { ref path }
+        | dyno_cli::CliCommand::Fmt { ref path, .. }
         | dyno_cli::CliCommand::Profile { ref path }
         | dyno_cli::CliCommand::Run { ref path } => path.as_ref(),
         dyno_cli::CliCommand::Explain { .. } => unreachable!(),
