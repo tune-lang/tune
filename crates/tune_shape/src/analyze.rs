@@ -185,6 +185,10 @@ fn analyze_item_with_top_level_shapes(
                 analyzer.check_unannotated_optional_copy(&actual, body.span);
             }
         }
+    } else if item.kind == ItemKind::Let {
+        let declared = analyzer.lower_item_shape_or_hole(item, item.shape.as_ref());
+        let actual = bindings::default_current_shape(&declared);
+        analyzer.commit_item_current_shape(item, &declared, &actual);
     }
     analyzer.finish()
 }

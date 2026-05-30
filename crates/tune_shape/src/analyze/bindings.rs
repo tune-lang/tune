@@ -228,7 +228,7 @@ impl Analyzer<'_> {
     }
 }
 
-fn default_current_shape(expected: &Shape) -> Shape {
+pub(super) fn default_current_shape(expected: &Shape) -> Shape {
     if matches!(expected, Shape::Optional(_)) {
         Shape::Literal(LiteralFact::None)
     } else {
