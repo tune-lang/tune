@@ -37,18 +37,14 @@ impl LowerContext<'_> {
             _ => false,
         };
         if resolved_static {
-            for arg in args {
-                self.lower_expr(arg, ops);
-            }
+            self.lower_call_args(expr, args, ops);
             ops.push(self.call_op(expr, callee, args.len()));
             return;
         }
 
         if let ExprKind::Field { base, .. } = &callee.kind {
             self.lower_expr(base, ops);
-            for arg in args {
-                self.lower_expr(arg, ops);
-            }
+            self.lower_call_args(expr, args, ops);
             ops.push(self.call_op(expr, callee, args.len()));
             return;
         }
@@ -56,9 +52,7 @@ impl LowerContext<'_> {
         if !self.static_call_target(callee) {
             self.lower_expr(callee, ops);
         }
-        for arg in args {
-            self.lower_expr(arg, ops);
-        }
+        self.lower_call_args(expr, args, ops);
         ops.push(self.call_op(expr, callee, args.len()));
     }
 
@@ -153,6 +147,17 @@ impl LowerContext<'_> {
         self.analysis
             .and_then(|analysis| analysis.calls.iter().find(|call| call.expr == expr))
             .map_or_else(Vec::new, |call| call.type_args.clone())
+    }
+
+    fn lower_call_args(&self, expr: tune_hir::ExprId, args: &[Expr], ops: &mut Vec<PlanOp>) {
+        let params = self
+            .analysis
+            .and_then(|analysis| analysis.calls.iter().find(|call| call.expr == expr))
+            .map(|call| call.params.as_slice())
+            .unwrap_or(&[]);
+        for (index, arg) in args.iter().enumerate() {
+            self.lower_expr_for_shape(arg, params.get(index).cloned(), ops);
+        }
     }
 
     fn call_target(&self, expr: tune_hir::ExprId) -> Option<CallTarget> {

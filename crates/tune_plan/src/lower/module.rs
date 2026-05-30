@@ -1,3 +1,4 @@
+use tune_hir::expr::ExprKind;
 use tune_hir::item::{
     CallableMember, IndexAccess, Item, ItemKind, SequenceMaterializer, StructMember,
 };
@@ -187,7 +188,14 @@ fn lower_module_callable(
         param_shapes: param_shapes.to_vec(),
         captured_locals: captured_locals_for_body(resolved, body),
     };
-    context.lower_return_expr(body, &mut plan.ops);
+    if matches!(
+        body.kind,
+        ExprKind::Block(_) | ExprKind::If { .. } | ExprKind::Match { .. } | ExprKind::Return(_)
+    ) {
+        context.lower_return_expr(body, &mut plan.ops);
+    } else {
+        context.lower_expr_for_binding(body, item.shape.as_ref(), &mut plan.ops);
+    }
     if super::falls_through(body, analysis) {
         plan.ops.push(PlanOp::Return);
     }

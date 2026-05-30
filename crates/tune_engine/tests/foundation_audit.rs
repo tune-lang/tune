@@ -36,6 +36,28 @@ fn run_file_materializes_size_and_byte_scalars() -> Result<(), &'static str> {
 }
 
 #[test]
+fn run_file_materializes_same_literal_binding_per_call_site() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let byte_plus(value: Byte): Byte = value + 1
+let int_plus(value: Int): Int = value + 2
+let result: Int = {
+  let x = 20
+  let b: Byte = byte_plus(x)
+  int_plus(x)
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, Value::Int(22));
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_is_aliases() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

@@ -1,5 +1,5 @@
 use tune_hir::expr::{Expr, ExprKind, LiteralKind};
-use tune_shape::Shape;
+use tune_shape::{BindingKey, LiteralFact, Shape};
 
 use super::LowerContext;
 use crate::PlanOp;
@@ -33,6 +33,38 @@ impl LowerContext<'_> {
     ) -> bool {
         numeric_literal_text(expr)
             .is_some_and(|text| self.lower_numeric_literal(text, Some(target), ops))
+    }
+
+    pub(super) fn lower_numeric_binding_for_target(
+        &self,
+        expr: &Expr,
+        target: &Shape,
+        ops: &mut Vec<PlanOp>,
+    ) -> bool {
+        self.numeric_binding_text(expr)
+            .is_some_and(|text| self.lower_numeric_literal(text, Some(target), ops))
+    }
+
+    fn numeric_binding_text<'a>(&'a self, expr: &Expr) -> Option<&'a str> {
+        let ExprKind::Name(_) = expr.kind else {
+            return None;
+        };
+        let key = match self.name_target(expr.id)? {
+            tune_resolve::NameTarget::Local(local) => BindingKey::Local(local),
+            tune_resolve::NameTarget::Param(param) => BindingKey::Param(param),
+            tune_resolve::NameTarget::TopLevel(item) => BindingKey::TopLevel(item),
+            tune_resolve::NameTarget::SelfValue | tune_resolve::NameTarget::Variant(_) => {
+                return None;
+            }
+        };
+        let binding = self.analysis?.frame.get(key)?;
+        if binding.storage_shape != Shape::Hole {
+            return None;
+        }
+        match binding.literal_fact.as_ref()? {
+            LiteralFact::Numeric { text } => Some(text.as_str()),
+            _ => None,
+        }
     }
 
     pub(super) fn lower_numeric_literal(

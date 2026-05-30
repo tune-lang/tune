@@ -195,3 +195,68 @@ let result = {
         binding.name.as_deref() == Some("x") && binding.storage_shape == tune_shape::Shape::Float
     }));
 }
+
+#[test]
+fn call_site_materialization_does_not_commit_literal_binding() -> Result<(), &'static str> {
+    let source = r#"
+let takes_byte(value: Byte): Byte = value
+let takes_int(value: Int): Int = value
+let result = {
+  let x = 20
+  let a: Byte = takes_byte(x)
+  let b: Int = takes_int(x)
+  b
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[2]);
+
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let x = analysis
+        .frame
+        .bindings
+        .iter()
+        .find(|binding| binding.name.as_deref() == Some("x"))
+        .ok_or("x binding should be tracked")?;
+    assert_eq!(x.storage_shape, tune_shape::Shape::Hole);
+    assert!(matches!(
+        x.literal_fact,
+        Some(tune_shape::LiteralFact::Numeric { .. })
+    ));
+    Ok(())
+}
+
+#[test]
+fn representation_specific_index_commits_literal_binding() {
+    let source = r#"
+let result = {
+  let values = [1, 2]
+  let index = 0
+  let value: Int = values[index]
+  index = 1.5
+  value
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert!(
+        analysis
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == tune_diagnostics::codes::ASSIGNMENT_SHAPE_MISMATCH),
+        "{:?}",
+        analysis.diagnostics
+    );
+    assert!(analysis.frame.bindings.iter().any(|binding| {
+        binding.name.as_deref() == Some("index") && binding.storage_shape == tune_shape::Shape::Size
+    }));
+}

@@ -399,12 +399,13 @@ impl LowerContext<'_> {
         shape: Option<&tune_hir::shape::ShapeExpr>,
         ops: &mut Vec<PlanOp>,
     ) {
-        if self.lower_materialized_numeric_expr(expr, ops) {
+        if let Some(target) = self.lower_shape(shape)
+            && (self.lower_numeric_expr_for_target(expr, &target, ops)
+                || self.lower_numeric_binding_for_target(expr, &target, ops))
+        {
             return;
         }
-        if let Some(target) = self.lower_shape(shape)
-            && self.lower_numeric_expr_for_target(expr, &target, ops)
-        {
+        if self.lower_materialized_numeric_expr(expr, ops) {
             return;
         }
         self.lower_expr(expr, ops);
@@ -416,12 +417,13 @@ impl LowerContext<'_> {
         shape: Option<Shape>,
         ops: &mut Vec<PlanOp>,
     ) {
-        if self.lower_materialized_numeric_expr(expr, ops) {
+        if let Some(target) = shape.as_ref()
+            && (self.lower_numeric_expr_for_target(expr, target, ops)
+                || self.lower_numeric_binding_for_target(expr, target, ops))
+        {
             return;
         }
-        if let Some(target) = shape.as_ref()
-            && self.lower_numeric_expr_for_target(expr, target, ops)
-        {
+        if self.lower_materialized_numeric_expr(expr, ops) {
             return;
         }
         self.lower_expr(expr, ops);
