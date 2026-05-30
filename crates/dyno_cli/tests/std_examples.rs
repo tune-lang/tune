@@ -9,28 +9,29 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
+const STD_EXAMPLES: &[&str] = &[
+    "examples/std/bits.tn",
+    "examples/std/encoding.tn",
+    "examples/std/env.tn",
+    "examples/std/fs.tn",
+    "examples/std/hash.tn",
+    "examples/std/io.tn",
+    "examples/std/json.tn",
+    "examples/std/math.tn",
+    "examples/std/path.tn",
+    "examples/std/parse.tn",
+    "examples/std/process.tn",
+    "examples/std/random.tn",
+    "examples/std/text.tn",
+    "examples/std/time.tn",
+];
+
 #[test]
 fn std_examples_check_with_dyno() -> Result<(), String> {
     let dyno = env!("CARGO_BIN_EXE_dyno");
-    let examples = [
-        "examples/std/bits.tn",
-        "examples/std/encoding.tn",
-        "examples/std/env.tn",
-        "examples/std/fs.tn",
-        "examples/std/hash.tn",
-        "examples/std/io.tn",
-        "examples/std/json.tn",
-        "examples/std/math.tn",
-        "examples/std/path.tn",
-        "examples/std/parse.tn",
-        "examples/std/process.tn",
-        "examples/std/random.tn",
-        "examples/std/text.tn",
-        "examples/std/time.tn",
-    ];
     let root = repo_root();
 
-    for example in examples {
+    for example in STD_EXAMPLES {
         let output = Command::new(dyno)
             .arg("check")
             .arg(root.join(example))
@@ -41,6 +42,32 @@ fn std_examples_check_with_dyno() -> Result<(), String> {
         if !output.status.success() {
             return Err(format!(
                 "dyno check failed for {example}\nstdout:\n{}\nstderr:\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+#[test]
+fn std_examples_are_formatter_stable() -> Result<(), String> {
+    let dyno = env!("CARGO_BIN_EXE_dyno");
+    let root = repo_root();
+
+    for example in STD_EXAMPLES {
+        let output = Command::new(dyno)
+            .arg("fmt")
+            .arg("--check")
+            .arg(root.join(example))
+            .current_dir(&root)
+            .output()
+            .map_err(|error| format!("failed to run dyno fmt --check for {example}: {error}"))?;
+
+        if !output.status.success() {
+            return Err(format!(
+                "dyno fmt --check failed for {example}\nstdout:\n{}\nstderr:\n{}",
                 String::from_utf8_lossy(&output.stdout),
                 String::from_utf8_lossy(&output.stderr)
             ));
