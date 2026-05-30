@@ -36,6 +36,42 @@ let run(): String = "ok"
 }
 
 #[test]
+fn engine_exposes_analysis_backed_meta_signature_facts() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+struct Counter {
+  value: Int
+}
+let make(seed) = Counter {
+  value = seed
+}
+"#,
+        )
+        .ok_or("source should allocate")?;
+    let check = tune.check_file(file).ok_or("source should check")?;
+    let make = check.module.items[1].id;
+
+    let facts = tune
+        .meta_decl_facts(file, make)
+        .map_err(|_| "meta facts should resolve")?;
+
+    assert!(facts.facts.iter().any(|fact| {
+        matches!(fact, tune_meta::facts::DeclFact::Return(shape) if shape.nominal_name() == Some("Counter"))
+    }));
+    assert!(facts.facts.iter().any(|fact| {
+        matches!(fact, tune_meta::facts::DeclFact::Params(params)
+            if params.len() == 1
+                && params[0].name == "seed"
+                && params[0].shape == Some(tune_shape::Shape::Int))
+    }));
+
+    Ok(())
+}
+
+#[test]
 fn engine_exposes_tagged_decls_without_tag_name_special_cases() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

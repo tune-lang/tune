@@ -176,9 +176,16 @@ impl Tune {
         if has_error_diagnostics(&check.diagnostics) {
             return Err(EngineError::Diagnostics(check.diagnostics));
         }
-        Ok(tune_meta::facts::from_compiler_facts(
+        let analysis = check
+            .module
+            .items
+            .iter()
+            .position(|item| item.id == decl_id)
+            .and_then(|index| check.shape.get(index));
+        Ok(tune_meta::facts::from_compiler_facts_and_analysis(
             decl_id,
             &check.resolved.facts,
+            analysis,
         ))
     }
 
