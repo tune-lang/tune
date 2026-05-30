@@ -44,6 +44,7 @@ cargo test -p dyno_cli --test std_examples
 
 ## Standard Library Examples
 
+- [env.tn](std/env.tn): process arguments, environment, and runtime paths.
 - [fs.tn](std/fs.tn): filesystem text, metadata, and path helpers.
 - [hash.tn](std/hash.tn): stable text and byte hashing.
 - [json.tn](std/json.tn): JSON validation and formatting helpers.

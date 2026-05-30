@@ -38,6 +38,36 @@ pub fn install() -> HostModule {
                     ))),
                     Err(error) => Ok(crate::result_error(error.to_string())),
                 }),
+            HostFunction::new("temp_dir", Vec::new(), Shape::String)
+                .with_authorities(vec![env_read_authority()])
+                .with_executor(|_: &[Value]| {
+                    Ok(Value::String(
+                        std::env::temp_dir().to_string_lossy().to_string(),
+                    ))
+                }),
+            HostFunction::new("current_exe", Vec::new(), string_result_shape())
+                .with_authorities(vec![env_read_authority()])
+                .with_executor(|_: &[Value]| match std::env::current_exe() {
+                    Ok(path) => Ok(crate::result_ok(Value::String(
+                        path.to_string_lossy().to_string(),
+                    ))),
+                    Err(error) => Ok(crate::result_error(error.to_string())),
+                }),
+            HostFunction::new(
+                "var_names",
+                Vec::new(),
+                Shape::Sequence(Box::new(Shape::String)),
+            )
+            .with_authorities(vec![env_read_authority()])
+            .with_executor(|_: &[Value]| {
+                Ok(Value::Sequence(
+                    std::env::vars_os()
+                        .filter_map(|(name, _)| {
+                            name.to_str().map(|name| Value::String(name.to_owned()))
+                        })
+                        .collect::<Vec<_>>(),
+                ))
+            }),
         ],
     )
 }

@@ -192,6 +192,20 @@ fn env_module_exposes_typed_process_read_functions() -> Result<(), &'static str>
             .any(|authority| authority.0 == "env.read")
     );
 
+    for name in ["temp_dir", "current_exe", "var_names"] {
+        let function = module
+            .functions
+            .iter()
+            .find(|function| function.name == name)
+            .ok_or("env helper should be installed")?;
+        assert!(
+            function
+                .authorities
+                .iter()
+                .any(|authority| authority.0 == "env.read")
+        );
+    }
+
     Ok(())
 }
 
@@ -234,6 +248,42 @@ fn env_cwd_executor_returns_result_value() -> Result<(), &'static str> {
             ..
         }
     ));
+
+    Ok(())
+}
+
+#[test]
+fn env_path_and_names_executors_return_values() -> Result<(), &'static str> {
+    let module = tune_std::env::install();
+    let executor = |name: &str| {
+        module
+            .functions
+            .iter()
+            .find(|function| function.name == name)
+            .and_then(|function| function.executor.as_ref())
+            .ok_or("env helper should carry an executor")
+    };
+
+    let temp_dir = executor("temp_dir")?
+        .call(&[])
+        .map_err(|_| "env.temp_dir should execute")?;
+    assert!(matches!(temp_dir, tune_runtime::Value::String(path) if !path.is_empty()));
+
+    let current_exe = executor("current_exe")?
+        .call(&[])
+        .map_err(|_| "env.current_exe should execute")?;
+    assert!(matches!(
+        current_exe,
+        tune_runtime::Value::Variant {
+            variant: tune_runtime::value::RuntimeVariant::ResultOk,
+            ..
+        }
+    ));
+
+    let names = executor("var_names")?
+        .call(&[])
+        .map_err(|_| "env.var_names should execute")?;
+    assert!(matches!(names, tune_runtime::Value::Sequence(_)));
 
     Ok(())
 }
