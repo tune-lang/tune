@@ -37,6 +37,7 @@ pub(super) fn initialize_result() -> Value {
             "referencesProvider": true,
             "renameProvider": true,
             "codeActionProvider": true,
+            "documentFormattingProvider": true,
             "workspaceSymbolProvider": true,
             "inlayHintProvider": true,
             "semanticTokensProvider": {
@@ -129,6 +130,10 @@ pub(super) fn workspace_edit_value(db: &tune_db::TuneDb, edit: &WorkspaceEdit) -
 
 fn text_edit_value(edit: &TextEdit) -> Value {
     json!({ "range": range_value(edit.range), "newText": edit.replacement })
+}
+
+pub(super) fn formatting_value(edits: &[TextEdit]) -> Value {
+    Value::Array(edits.iter().map(text_edit_value).collect())
 }
 
 pub(super) fn diagnostic_value(diagnostic: &crate::LspDiagnostic) -> Value {

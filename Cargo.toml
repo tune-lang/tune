@@ -17,6 +17,7 @@ members = [
     "crates/tune_std",
     "crates/tune_meta",
     "crates/tune_diagnostics",
+    "crates/tune_fmt",
     "crates/tune_lsp",
     "crates/dyno_project",
     "crates/dyno_pkg",

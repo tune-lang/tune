@@ -2,7 +2,7 @@ use dyno_project::{ProjectSourceLoadError, ProjectSources};
 use std::path::{Path, PathBuf};
 use tune_db::{FileId, TuneDb};
 use tune_diagnostics::Diagnostic;
-use tune_diagnostics::Span;
+use tune_diagnostics::{ByteOffset, Span};
 use tune_resolve::{CompilerFact, FactOwner};
 
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
     document::DocumentSet,
     hover::{self, HoverCard},
     inlay::{self, InlayHint},
-    protocol::LspDiagnostic,
+    protocol::{LspDiagnostic, TextEdit},
     rename,
     request::{LspRequest, LspResponse},
     semantic_tokens::{self, SemanticToken},
@@ -206,6 +206,30 @@ impl LspSession {
     }
 
     #[must_use]
+    pub fn formatting(&self, file: FileId) -> Vec<TextEdit> {
+        let Some(source) = self.db.source(file) else {
+            return Vec::new();
+        };
+        let formatted = tune_fmt::format_source(&source.text);
+        if formatted == source.text {
+            return Vec::new();
+        }
+        let Ok(end) = u32::try_from(source.text.len()) else {
+            return Vec::new();
+        };
+        let Some(range) =
+            tune_diagnostics::Span::checked(file, ByteOffset::new(0), ByteOffset::new(end))
+                .and_then(|span| crate::protocol::range(&self.db, span))
+        else {
+            return Vec::new();
+        };
+        vec![TextEdit {
+            range,
+            replacement: formatted,
+        }]
+    }
+
+    #[must_use]
     pub fn workspace_symbols(&self, query: &str) -> Vec<WorkspaceSymbol> {
         self.workspace
             .symbols()
@@ -243,6 +267,7 @@ impl LspSession {
                 LspResponse::SemanticTokens(self.semantic_tokens(file))
             }
             LspRequest::CodeActions { file } => LspResponse::CodeActions(self.code_actions(file)),
+            LspRequest::Formatting { file } => LspResponse::Formatting(self.formatting(file)),
             LspRequest::WorkspaceSymbols { query } => {
                 LspResponse::WorkspaceSymbols(self.workspace_symbols(&query))
             }

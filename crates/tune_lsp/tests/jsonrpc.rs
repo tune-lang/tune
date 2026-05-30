@@ -23,6 +23,21 @@ fn jsonrpc_server_handles_initialize_open_and_completion() -> Result<(), &'stati
 }
 
 #[test]
+fn jsonrpc_server_handles_formatting() {
+    let mut server = tune_lsp::JsonRpcServer::new();
+    let _ = server.handle_message(
+        r#"{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tmp/main.tn","text":"let value:Int=1\n"}}}"#,
+    );
+
+    let response = server.handle_message(
+        r#"{"jsonrpc":"2.0","id":3,"method":"textDocument/formatting","params":{"textDocument":{"uri":"file:///tmp/main.tn"},"options":{"tabSize":2,"insertSpaces":true}}}"#,
+    );
+
+    assert_eq!(response.len(), 1);
+    assert!(response[0].contains("let value: Int = 1\\n"));
+}
+
+#[test]
 fn jsonrpc_stdio_reads_and_writes_framed_messages() -> Result<(), String> {
     let message = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
     let input = format!("Content-Length: {}\r\n\r\n{}", message.len(), message);

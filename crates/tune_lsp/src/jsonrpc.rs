@@ -86,6 +86,9 @@ impl JsonRpcServer {
             ("textDocument/codeAction", Some(id)) => {
                 vec![success_response(id, self.code_actions(&params))]
             }
+            ("textDocument/formatting", Some(id)) => {
+                vec![success_response(id, self.formatting(&params))]
+            }
             ("textDocument/semanticTokens/full", Some(id)) => {
                 vec![success_response(id, self.semantic_tokens(&params))]
             }
@@ -238,6 +241,13 @@ impl JsonRpcServer {
             return json!({ "data": [] });
         };
         json!({ "data": semantic_token_data(&self.session.semantic_tokens(file)) })
+    }
+
+    fn formatting(&self, params: &Value) -> Value {
+        let Some(file) = self.file(params) else {
+            return json!([]);
+        };
+        formatting_value(&self.session.formatting(file))
     }
 
     fn inlay_hints(&self, params: &Value) -> Value {

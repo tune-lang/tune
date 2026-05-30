@@ -34,10 +34,35 @@ fn main() {
         }
         return;
     }
+    if let dyno_cli::CliCommand::Fmt { ref path } = command {
+        match path {
+            Some(path) => match dyno_cli::format_file(path) {
+                Ok(true) => println!("formatted {path}"),
+                Ok(false) => println!("already formatted {path}"),
+                Err(error) => {
+                    eprintln!("{error}");
+                    std::process::exit(1);
+                }
+            },
+            None => match dyno_cli::format_project(".") {
+                Ok(changed) => {
+                    for path in changed {
+                        println!("formatted {}", path.display());
+                    }
+                }
+                Err(error) => {
+                    eprintln!("{error}");
+                    std::process::exit(1);
+                }
+            },
+        }
+        return;
+    }
 
     let path = match command {
         dyno_cli::CliCommand::Build { ref path }
         | dyno_cli::CliCommand::Check { ref path }
+        | dyno_cli::CliCommand::Fmt { ref path }
         | dyno_cli::CliCommand::Profile { ref path }
         | dyno_cli::CliCommand::Run { ref path } => path.as_ref(),
         dyno_cli::CliCommand::New { .. } => unreachable!(),

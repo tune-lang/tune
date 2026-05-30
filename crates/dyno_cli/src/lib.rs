@@ -6,6 +6,7 @@ pub enum CliCommand {
     Check { path: Option<String> },
     Run { path: Option<String> },
     Profile { path: Option<String> },
+    Fmt { path: Option<String> },
     New { name: String },
     Lsp,
     Help,
@@ -19,6 +20,7 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
         [command] if command == "run" => Ok(CliCommand::Run { path: None }),
         [command] if command == "check" => Ok(CliCommand::Check { path: None }),
         [command] if command == "profile" => Ok(CliCommand::Profile { path: None }),
+        [command] if command == "fmt" => Ok(CliCommand::Fmt { path: None }),
         [command] if command == "lsp" => Ok(CliCommand::Lsp),
         [path] => Ok(CliCommand::Run {
             path: Some(path.clone()),
@@ -35,6 +37,9 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
         [command, path] if command == "profile" => Ok(CliCommand::Profile {
             path: Some(path.clone()),
         }),
+        [command, path] if command == "fmt" => Ok(CliCommand::Fmt {
+            path: Some(path.clone()),
+        }),
         [command, name] if command == "new" => Ok(CliCommand::New { name: name.clone() }),
         [command, ..] => Err(format!("unknown dyno command `{command}`")),
     }
@@ -42,7 +47,34 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
 
 #[must_use]
 pub fn usage() -> &'static str {
-    "usage: dyno new <name>\n       dyno check [file]\n       dyno run [file]\n       dyno build [file]\n       dyno profile [file]\n       dyno lsp\n       dyno <file>"
+    "usage: dyno new <name>\n       dyno check [file]\n       dyno run [file]\n       dyno build [file]\n       dyno profile [file]\n       dyno fmt [file]\n       dyno lsp\n       dyno <file>"
+}
+
+pub fn format_file(path: impl AsRef<std::path::Path>) -> Result<bool, String> {
+    let path = path.as_ref();
+    let source = std::fs::read_to_string(path)
+        .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
+    let formatted = tune_fmt::format_source(&source);
+    if formatted == source {
+        return Ok(false);
+    }
+    std::fs::write(path, formatted)
+        .map_err(|error| format!("failed to write {}: {error}", path.display()))?;
+    Ok(true)
+}
+
+pub fn format_project(
+    root: impl AsRef<std::path::Path>,
+) -> Result<Vec<std::path::PathBuf>, String> {
+    let loaded = dyno_project::load_project_dir(&root).map_err(|error| format!("{error:?}"))?;
+    let mut changed = Vec::new();
+    for (path, _) in loaded.sources {
+        let path = loaded.root.join(path);
+        if format_file(&path)? {
+            changed.push(path);
+        }
+    }
+    Ok(changed)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

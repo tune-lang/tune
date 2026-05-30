@@ -175,6 +175,7 @@ dependencies = [
  "tune_db",
  "tune_diagnostics",
  "tune_engine",
+ "tune_fmt",
  "tune_host",
  "tune_lsp",
  "tune_runtime",
@@ -563,6 +564,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "tune_fmt"
+version = "0.1.0"
+dependencies = [
+ "tune_syntax",
+]
+
+[[package]]
 name = "tune_hir"
 version = "0.1.0"
 dependencies = [
@@ -601,6 +609,7 @@ dependencies = [
  "serde_json",
  "tune_db",
  "tune_diagnostics",
+ "tune_fmt",
  "tune_hir",
  "tune_resolve",
  "tune_shape",

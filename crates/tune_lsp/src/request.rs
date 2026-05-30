@@ -4,7 +4,7 @@ use crate::code_action::CodeAction;
 use crate::completion::CompletionItem;
 use crate::hover::HoverCard;
 use crate::inlay::InlayHint;
-use crate::protocol::WorkspaceEdit;
+use crate::protocol::{TextEdit, WorkspaceEdit};
 use crate::semantic_tokens::SemanticToken;
 use crate::signature::SignatureHelp;
 use crate::workspace::WorkspaceSymbol;
@@ -45,6 +45,9 @@ pub enum LspRequest {
     CodeActions {
         file: FileId,
     },
+    Formatting {
+        file: FileId,
+    },
     WorkspaceSymbols {
         query: String,
     },
@@ -61,5 +64,6 @@ pub enum LspResponse {
     InlayHints(Vec<InlayHint>),
     SemanticTokens(Vec<SemanticToken>),
     CodeActions(Vec<CodeAction>),
+    Formatting(Vec<TextEdit>),
     WorkspaceSymbols(Vec<WorkspaceSymbol>),
 }

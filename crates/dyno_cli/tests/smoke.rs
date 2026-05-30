@@ -46,6 +46,16 @@ fn parses_cli_commands_without_special_entry_names() {
         Ok(dyno_cli::CliCommand::Profile { path: None })
     );
     assert_eq!(
+        dyno_cli::parse_command(&["fmt".to_owned()]),
+        Ok(dyno_cli::CliCommand::Fmt { path: None })
+    );
+    assert_eq!(
+        dyno_cli::parse_command(&["fmt".to_owned(), "main.tn".to_owned()]),
+        Ok(dyno_cli::CliCommand::Fmt {
+            path: Some("main.tn".to_owned()),
+        })
+    );
+    assert_eq!(
         dyno_cli::parse_command(&["lsp".to_owned()]),
         Ok(dyno_cli::CliCommand::Lsp)
     );
@@ -57,6 +67,20 @@ fn parses_cli_commands_without_special_entry_names() {
     );
     assert_eq!(dyno_cli::parse_command(&[]), Ok(dyno_cli::CliCommand::Help));
     assert!(dyno_cli::parse_command(&["bad".to_owned(), "main.tn".to_owned()]).is_err());
+}
+
+#[test]
+fn formats_single_file_in_place() -> Result<(), String> {
+    let path = std::env::temp_dir().join(format!("dyno-fmt-{}.tn", std::process::id()));
+    std::fs::write(&path, "let value:Int=1\n").map_err(|error| error.to_string())?;
+
+    assert!(dyno_cli::format_file(&path)?);
+    let formatted = std::fs::read_to_string(&path).map_err(|error| error.to_string())?;
+    assert_eq!(formatted, "let value: Int = 1\n");
+    assert!(!dyno_cli::format_file(&path)?);
+
+    std::fs::remove_file(path).map_err(|error| error.to_string())?;
+    Ok(())
 }
 
 #[test]

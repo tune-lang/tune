@@ -131,3 +131,17 @@ fn lsp_code_actions_skip_already_imported_names() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+#[test]
+fn lsp_formatting_uses_shared_formatter() -> Result<(), &'static str> {
+    let mut session = tune_lsp::LspSession::new();
+    let file = session
+        .open_document("main.tn", "let value:Int=1\n")
+        .ok_or("document should open")?;
+
+    let edits = session.formatting(file);
+    assert_eq!(edits.len(), 1);
+    assert_eq!(edits[0].replacement, "let value: Int = 1\n");
+
+    Ok(())
+}
