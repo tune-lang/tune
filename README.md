@@ -82,6 +82,9 @@ Start with [examples/README.md](examples/README.md), then use
 [docs/language-tour.md](docs/language-tour.md) for short explanations beside the
 example files.
 
+New users should start with [docs/getting-started.md](docs/getting-started.md).
+Tooling and editor setup lives in [docs/tooling.md](docs/tooling.md).
+
 ## Language Surface
 
 Current implemented areas include:
