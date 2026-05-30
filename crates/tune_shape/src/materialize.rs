@@ -49,22 +49,12 @@ pub fn can_materialize(lit: &LiteralFact, target: &Shape) -> bool {
 }
 
 pub(crate) fn integer_value(text: &str) -> Option<u128> {
-    let mut value = 0u128;
-    let mut saw_digit = false;
-
-    for byte in text.bytes() {
-        match byte {
-            b'_' => {}
-            b'0'..=b'9' => {
-                saw_digit = true;
-                let digit = u128::from(byte - b'0');
-                value = value.checked_mul(10)?.checked_add(digit)?;
-            }
-            _ => return None,
-        }
+    let normalized = text.replace('_', "");
+    let (digits, radix) = integer_digits_and_radix(&normalized);
+    if digits.is_empty() {
+        return None;
     }
-
-    saw_digit.then_some(value)
+    u128::from_str_radix(digits, radix).ok()
 }
 
 fn float_value(text: &str) -> Option<f64> {
@@ -73,4 +63,17 @@ fn float_value(text: &str) -> Option<f64> {
         .parse::<f64>()
         .ok()
         .filter(|value| value.is_finite())
+}
+
+fn integer_digits_and_radix(text: &str) -> (&str, u32) {
+    if let Some(digits) = text.strip_prefix("0b").or_else(|| text.strip_prefix("0B")) {
+        return (digits, 2);
+    }
+    if let Some(digits) = text.strip_prefix("0o").or_else(|| text.strip_prefix("0O")) {
+        return (digits, 8);
+    }
+    if let Some(digits) = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")) {
+        return (digits, 16);
+    }
+    (text, 10)
 }

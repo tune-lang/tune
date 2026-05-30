@@ -97,7 +97,7 @@ impl LowerContext<'_> {
                 }
             }),
             _ => {
-                if let Ok(value) = text.replace('_', "").parse::<i64>() {
+                if let Some(value) = parse_int(text) {
                     ops.push(PlanOp::ConstInt { value });
                     true
                 } else {
@@ -116,7 +116,16 @@ fn numeric_literal_text(expr: &Expr) -> Option<&str> {
 }
 
 fn parse_unsigned(text: &str) -> Option<u128> {
-    text.replace('_', "").parse::<u128>().ok()
+    let normalized = text.replace('_', "");
+    let (digits, radix) = integer_digits_and_radix(&normalized);
+    if digits.is_empty() {
+        return None;
+    }
+    u128::from_str_radix(digits, radix).ok()
+}
+
+fn parse_int(text: &str) -> Option<i64> {
+    parse_unsigned(text).and_then(|value| i64::try_from(value).ok())
 }
 
 fn parse_float(text: &str) -> Option<f64> {
@@ -124,4 +133,17 @@ fn parse_float(text: &str) -> Option<f64> {
         .parse::<f64>()
         .ok()
         .filter(|value| value.is_finite())
+}
+
+fn integer_digits_and_radix(text: &str) -> (&str, u32) {
+    if let Some(digits) = text.strip_prefix("0b").or_else(|| text.strip_prefix("0B")) {
+        return (digits, 2);
+    }
+    if let Some(digits) = text.strip_prefix("0o").or_else(|| text.strip_prefix("0O")) {
+        return (digits, 8);
+    }
+    if let Some(digits) = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")) {
+        return (digits, 16);
+    }
+    (text, 10)
 }

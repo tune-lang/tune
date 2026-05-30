@@ -36,6 +36,21 @@ fn run_file_materializes_size_and_byte_scalars() -> Result<(), &'static str> {
 }
 
 #[test]
+fn run_file_executes_prefixed_integer_literals() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let int_file = tune
+        .add_file("int.tn", "let result: Int = 0b1011 + 0o7 + 0x10")
+        .ok_or("file should allocate")?;
+    let size_file = tune
+        .add_file("size.tn", "let result: Size = 0b1011")
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, int_file)?, Value::Int(34));
+    assert_eq!(run_file(&tune, size_file)?, Value::Size(11));
+    Ok(())
+}
+
+#[test]
 fn run_file_materializes_same_literal_binding_per_call_site() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

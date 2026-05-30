@@ -149,6 +149,19 @@ impl<'src> Lexer<'src> {
     }
 
     fn lex_number(&mut self, start: usize) {
+        if self.starts_with("0b") || self.starts_with("0B") {
+            self.lex_radix_number(start, 2, |ch| matches!(ch, '0' | '1'));
+            return;
+        }
+        if self.starts_with("0o") || self.starts_with("0O") {
+            self.lex_radix_number(start, 2, |ch| matches!(ch, '0'..='7'));
+            return;
+        }
+        if self.starts_with("0x") || self.starts_with("0X") {
+            self.lex_radix_number(start, 2, |ch| ch.is_ascii_hexdigit());
+            return;
+        }
+
         while self
             .peek()
             .is_some_and(|ch| ch.is_ascii_digit() || ch == '_')
@@ -176,6 +189,26 @@ impl<'src> Lexer<'src> {
         }
 
         self.push(kind, start, self.offset);
+    }
+
+    fn lex_radix_number(
+        &mut self,
+        start: usize,
+        prefix_len: usize,
+        valid_digit: impl Fn(char) -> bool,
+    ) {
+        self.offset += prefix_len;
+        let digit_start = self.offset;
+        while self.peek().is_some_and(|ch| valid_digit(ch) || ch == '_') {
+            self.bump();
+        }
+
+        if self.offset == digit_start {
+            self.push_error(start, self.offset, "expected digit after numeric prefix");
+            return;
+        }
+
+        self.push(TokenKind::IntLiteral, start, self.offset);
     }
 
     fn lex_ident_or_keyword(&mut self, start: usize) {
