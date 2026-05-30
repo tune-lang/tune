@@ -14,11 +14,14 @@ pub fn run(function: &mut IrFunction) -> PassReport {
 }
 
 fn eliminate_function(function: &mut IrFunction) -> bool {
-    let constants = function.constants.clone();
     let stable_local_seq_lengths = stable_local_sequence_lengths(&function.blocks);
     let mut changed = false;
     for block in &mut function.blocks {
-        changed |= eliminate_block(&constants, &stable_local_seq_lengths, &mut block.ops);
+        changed |= eliminate_block(
+            &function.constants,
+            &stable_local_seq_lengths,
+            &mut block.ops,
+        );
     }
     for task in &mut function.task_functions {
         changed |= eliminate_function(task);
@@ -32,7 +35,7 @@ fn eliminate_block(
     ops: &mut [IrOp],
 ) -> bool {
     let mut seq_lengths = HashMap::<Reg, usize>::new();
-    let mut local_seq_lengths = stable_local_seq_lengths.clone();
+    let mut local_seq_lengths = HashMap::<LocalId, usize>::new();
     let mut const_regs = HashMap::<Reg, IrConst>::new();
     let mut local_consts = HashMap::<LocalId, IrConst>::new();
     let mut changed = false;
@@ -78,7 +81,10 @@ fn eliminate_block(
                 }
             }
             IrOp::LoadLocal { dst, local } => {
-                let length = local_seq_lengths.get(local).copied();
+                let length = local_seq_lengths
+                    .get(local)
+                    .copied()
+                    .or_else(|| stable_local_seq_lengths.get(local).copied());
                 let constant = local_consts.get(local).cloned();
                 forget_reg(*dst, &mut seq_lengths, &mut const_regs);
                 if let Some(length) = length {
