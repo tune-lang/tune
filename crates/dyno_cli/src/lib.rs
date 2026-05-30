@@ -22,7 +22,7 @@ pub enum CliCommand {
 pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
     match args {
         [] => Ok(CliCommand::Help),
-        [flag] if flag == "-h" || flag == "--help" => Ok(CliCommand::Help),
+        [flag] if flag == "-h" || flag == "--help" || flag == "help" => Ok(CliCommand::Help),
         [command] if command == "build" => Ok(CliCommand::Build { path: None }),
         [command] if command == "run" => Ok(CliCommand::Run { path: None }),
         [command] if command == "check" => Ok(CliCommand::Check {
@@ -90,7 +90,7 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
 
 #[must_use]
 pub fn usage() -> &'static str {
-    "usage: dyno new <name>\n       dyno check [--json] [file]\n       dyno run [file]\n       dyno build [file]\n       dyno profile [file]\n       dyno fmt [--check] [file]\n       dyno explain [code]\n       dyno lsp\n       dyno <file>"
+    "Dyno - the Tune language toolchain\n\nusage:\n  dyno new <name>             create a Tune project\n  dyno check [--json] [file]  check a file or project without running it\n  dyno run [file]             run a file or the current project\n  dyno build [file]           compile and validate executable artifacts\n  dyno profile [file]         print pipeline and IR-quality metrics\n  dyno fmt [--check] [file]   format a file or project\n  dyno explain [code]         explain diagnostic codes\n  dyno lsp                    start the Tune language server\n  dyno <file>                 run a Tune file\n\nexamples:\n  dyno new hello-tune\n  dyno run examples/language/01_values_and_flow.tn\n  dyno check --json examples/language/01_values_and_flow.tn\n  dyno fmt --check"
 }
 
 #[must_use]

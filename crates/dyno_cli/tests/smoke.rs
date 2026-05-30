@@ -116,6 +116,12 @@ fn parses_cli_commands_without_special_entry_names() {
         })
     );
     assert_eq!(dyno_cli::parse_command(&[]), Ok(dyno_cli::CliCommand::Help));
+    assert_eq!(
+        dyno_cli::parse_command(&["help".to_owned()]),
+        Ok(dyno_cli::CliCommand::Help)
+    );
+    assert!(dyno_cli::usage().contains("Dyno - the Tune language toolchain"));
+    assert!(dyno_cli::usage().contains("examples:"));
     assert!(dyno_cli::parse_command(&["bad".to_owned(), "main.tn".to_owned()]).is_err());
 }
 
