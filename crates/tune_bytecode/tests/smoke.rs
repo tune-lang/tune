@@ -1,12 +1,15 @@
 #[test]
 fn core_opcodes_reserve_dense_bytecode_slots() -> Result<(), &'static str> {
-    assert_eq!(tune_bytecode::Opcode::ALL.len(), 103);
+    assert_eq!(tune_bytecode::Opcode::ALL.len(), 109);
     for (index, opcode) in tune_bytecode::Opcode::ALL.iter().enumerate() {
         let expected = u8::try_from(index).map_err(|_| "opcode index overflow")?;
         assert_eq!(*opcode as u8, expected);
     }
 
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::SeqSetChecked));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::SeqPushExclusive));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::SeqPushShared));
+    assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::SeqSetCheckedShared));
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::TupleBuild));
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::VariantConstruct));
     assert!(tune_bytecode::Opcode::ALL.contains(&tune_bytecode::Opcode::StructConstruct));

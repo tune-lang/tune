@@ -278,11 +278,18 @@ fn collect_opcode(opcode: Opcode, quality: &mut BytecodeQuality) {
             quality.runtime_type_guard_pressure += 1;
         }
         Opcode::CallableValue => quality.callable_values += 1,
-        Opcode::SeqGetChecked | Opcode::SeqSetChecked => {
+        Opcode::SeqPushShared => quality.runtime_type_guard_pressure += 1,
+        Opcode::SeqGetChecked
+        | Opcode::SeqSetChecked
+        | Opcode::SeqSetCheckedExclusive
+        | Opcode::SeqSetCheckedShared => {
             quality.checked_sequence_ops += 1;
             quality.runtime_type_guard_pressure += 1;
         }
-        Opcode::SeqGetUnchecked | Opcode::SeqSetUnchecked => quality.unchecked_sequence_ops += 1,
+        Opcode::SeqGetUnchecked
+        | Opcode::SeqSetUnchecked
+        | Opcode::SeqSetUncheckedExclusive
+        | Opcode::SeqSetUncheckedShared => quality.unchecked_sequence_ops += 1,
         Opcode::FieldGet | Opcode::FieldSet => quality.field_accesses += 1,
         Opcode::VariantField => {
             quality.variant_field_accesses += 1;

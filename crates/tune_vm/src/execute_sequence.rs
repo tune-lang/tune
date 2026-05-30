@@ -19,11 +19,18 @@ impl Vm {
                 instruction,
                 write_reg(registers, op.a, Value::Sequence(Vec::new())),
             ),
-            Opcode::SeqPush => self.execute_sequence_push(function, instruction, registers, op),
+            Opcode::SeqPush | Opcode::SeqPushExclusive | Opcode::SeqPushShared => {
+                self.execute_sequence_push(function, instruction, registers, op)
+            }
             Opcode::SeqGetChecked | Opcode::SeqGetUnchecked => {
                 self.execute_sequence_get(function, instruction, registers, op)
             }
-            Opcode::SeqSetChecked | Opcode::SeqSetUnchecked => {
+            Opcode::SeqSetChecked
+            | Opcode::SeqSetUnchecked
+            | Opcode::SeqSetCheckedExclusive
+            | Opcode::SeqSetUncheckedExclusive
+            | Opcode::SeqSetCheckedShared
+            | Opcode::SeqSetUncheckedShared => {
                 self.execute_sequence_set(function, instruction, registers, op)
             }
             _ => Err(self.fault_at(function, instruction, VmError::UnsupportedOpcode(op.opcode))),
@@ -45,7 +52,7 @@ impl Vm {
             return Err(self.fault_at(
                 function,
                 instruction,
-                VmError::UnsupportedOpcode(Opcode::SeqPush),
+                VmError::UnsupportedOpcode(op.opcode),
             ));
         };
         values.push(value);

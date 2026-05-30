@@ -99,10 +99,16 @@ impl Vm {
                 }
                 Opcode::SeqBuild
                 | Opcode::SeqPush
+                | Opcode::SeqPushExclusive
+                | Opcode::SeqPushShared
                 | Opcode::SeqGetChecked
                 | Opcode::SeqGetUnchecked
                 | Opcode::SeqSetChecked
-                | Opcode::SeqSetUnchecked => {
+                | Opcode::SeqSetUnchecked
+                | Opcode::SeqSetCheckedExclusive
+                | Opcode::SeqSetUncheckedExclusive
+                | Opcode::SeqSetCheckedShared
+                | Opcode::SeqSetUncheckedShared => {
                     self.execute_sequence(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::TupleBuild => {

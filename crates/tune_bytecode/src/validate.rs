@@ -198,14 +198,18 @@ fn validate_instruction(
         Opcode::SeqBuild => {
             register(function_id, function, instruction.a)?;
         }
-        Opcode::SeqPush => {
+        Opcode::SeqPush | Opcode::SeqPushExclusive | Opcode::SeqPushShared => {
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
         }
         Opcode::SeqGetChecked
         | Opcode::SeqGetUnchecked
         | Opcode::SeqSetChecked
-        | Opcode::SeqSetUnchecked => {
+        | Opcode::SeqSetUnchecked
+        | Opcode::SeqSetCheckedExclusive
+        | Opcode::SeqSetUncheckedExclusive
+        | Opcode::SeqSetCheckedShared
+        | Opcode::SeqSetUncheckedShared => {
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
             register(function_id, function, instruction.c)?;

@@ -104,6 +104,12 @@ pub enum Opcode {
     BitAndSize = 100,
     BitOrSize = 101,
     BitXorSize = 102,
+    SeqPushExclusive = 103,
+    SeqPushShared = 104,
+    SeqSetCheckedExclusive = 105,
+    SeqSetUncheckedExclusive = 106,
+    SeqSetCheckedShared = 107,
+    SeqSetUncheckedShared = 108,
 }
 
 impl Opcode {
@@ -211,5 +217,11 @@ impl Opcode {
         Self::BitAndSize,
         Self::BitOrSize,
         Self::BitXorSize,
+        Self::SeqPushExclusive,
+        Self::SeqPushShared,
+        Self::SeqSetCheckedExclusive,
+        Self::SeqSetUncheckedExclusive,
+        Self::SeqSetCheckedShared,
+        Self::SeqSetUncheckedShared,
     ];
 }

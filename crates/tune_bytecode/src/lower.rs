@@ -240,8 +240,12 @@ impl FunctionLowerer<'_> {
                 self.push_instruction(Opcode::SeqBuild, dst.0, 0, 0);
                 Ok(())
             }
-            IrOp::SeqPush { seq, value, .. } => {
-                self.push_instruction(Opcode::SeqPush, seq.0, value.0, 0);
+            IrOp::SeqPush { seq, value, mode } => {
+                let opcode = match mode {
+                    tune_ir::IrMutationMode::Exclusive => Opcode::SeqPushExclusive,
+                    tune_ir::IrMutationMode::SharedCow => Opcode::SeqPushShared,
+                };
+                self.push_instruction(opcode, seq.0, value.0, 0);
                 Ok(())
             }
             IrOp::SeqGet {
@@ -263,12 +267,13 @@ impl FunctionLowerer<'_> {
                 index,
                 value,
                 checked,
-                ..
+                mode,
             } => {
-                let opcode = if *checked {
-                    Opcode::SeqSetChecked
-                } else {
-                    Opcode::SeqSetUnchecked
+                let opcode = match (*checked, mode) {
+                    (true, tune_ir::IrMutationMode::Exclusive) => Opcode::SeqSetCheckedExclusive,
+                    (false, tune_ir::IrMutationMode::Exclusive) => Opcode::SeqSetUncheckedExclusive,
+                    (true, tune_ir::IrMutationMode::SharedCow) => Opcode::SeqSetCheckedShared,
+                    (false, tune_ir::IrMutationMode::SharedCow) => Opcode::SeqSetUncheckedShared,
                 };
                 self.push_instruction(opcode, seq.0, index.0, value.0);
                 Ok(())
