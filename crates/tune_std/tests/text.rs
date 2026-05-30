@@ -96,6 +96,18 @@ fn text_transform_executors_return_strings() -> Result<(), &'static str> {
         tune_runtime::Value::String("Tune".into())
     );
     assert_eq!(
+        text_executor(&module, "trim_start")?
+            .call(&[tune_runtime::Value::String("  Tune  ".into())])
+            .map_err(|_| "text.trim_start should execute")?,
+        tune_runtime::Value::String("Tune  ".into())
+    );
+    assert_eq!(
+        text_executor(&module, "trim_end")?
+            .call(&[tune_runtime::Value::String("  Tune  ".into())])
+            .map_err(|_| "text.trim_end should execute")?,
+        tune_runtime::Value::String("  Tune".into())
+    );
+    assert_eq!(
         text_executor(&module, "lower")?
             .call(&[tune_runtime::Value::String("Tune".into())])
             .map_err(|_| "text.lower should execute")?,
@@ -116,6 +128,19 @@ fn text_transform_executors_return_strings() -> Result<(), &'static str> {
             ])
             .map_err(|_| "text.replace should execute")?,
         tune_runtime::Value::String("hello dyno".into())
+    );
+    assert_eq!(
+        text_executor(&module, "repeat")?
+            .call(&[
+                tune_runtime::Value::String("na".into()),
+                tune_runtime::Value::Size(3),
+            ])
+            .map_err(|_| "text.repeat should execute")?,
+        tune_runtime::Value::Variant {
+            variant: tune_runtime::value::RuntimeVariant::ResultOk,
+            fields: vec![tune_runtime::Value::String("nanana".into())],
+            propagation_frames: Vec::new(),
+        }
     );
 
     Ok(())
@@ -197,6 +222,38 @@ fn text_slice_executor_returns_result_values() -> Result<(), &'static str> {
             ..
         }
     ));
+
+    Ok(())
+}
+
+#[test]
+fn text_search_executors_return_positions() -> Result<(), &'static str> {
+    let module = tune_std::text::install();
+
+    assert_eq!(
+        text_executor(&module, "is_empty")?
+            .call(&[tune_runtime::Value::String(String::new())])
+            .map_err(|_| "text.is_empty should execute")?,
+        tune_runtime::Value::Bool(true)
+    );
+    assert_eq!(
+        text_executor(&module, "find")?
+            .call(&[
+                tune_runtime::Value::String("hé Tune".into()),
+                tune_runtime::Value::String("Tune".into()),
+            ])
+            .map_err(|_| "text.find should execute")?,
+        tune_runtime::Value::Size(3)
+    );
+    assert_eq!(
+        text_executor(&module, "find")?
+            .call(&[
+                tune_runtime::Value::String("hé Tune".into()),
+                tune_runtime::Value::String("missing".into()),
+            ])
+            .map_err(|_| "text.find should execute")?,
+        tune_runtime::Value::None
+    );
 
     Ok(())
 }

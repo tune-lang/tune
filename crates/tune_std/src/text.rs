@@ -69,6 +69,31 @@ pub fn install() -> HostModule {
                 Ok(Value::Bool(text.contains(needle)))
             }),
             HostFunction::new(
+                "find",
+                vec![
+                    HostParam::new("text", Shape::String),
+                    HostParam::new("needle", Shape::String),
+                ],
+                Shape::Optional(Box::new(Shape::Size)),
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let (text, needle) = crate::string_pair(args, "text", "needle")?;
+                Ok(text.find(needle).map_or(Value::None, |byte_index| {
+                    Value::Size(text[..byte_index].chars().count() as u64)
+                }))
+            }),
+            HostFunction::new(
+                "is_empty",
+                vec![HostParam::new("text", Shape::String)],
+                Shape::Bool,
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let text = crate::string_arg(args, 0, "text")?;
+                Ok(Value::Bool(text.is_empty()))
+            }),
+            HostFunction::new(
                 "trim",
                 vec![HostParam::new("text", Shape::String)],
                 Shape::String,
@@ -77,6 +102,26 @@ pub fn install() -> HostModule {
             .with_executor(|args: &[Value]| {
                 let text = crate::string_arg(args, 0, "text")?;
                 Ok(Value::String(text.trim().to_owned()))
+            }),
+            HostFunction::new(
+                "trim_start",
+                vec![HostParam::new("text", Shape::String)],
+                Shape::String,
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let text = crate::string_arg(args, 0, "text")?;
+                Ok(Value::String(text.trim_start().to_owned()))
+            }),
+            HostFunction::new(
+                "trim_end",
+                vec![HostParam::new("text", Shape::String)],
+                Shape::String,
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let text = crate::string_arg(args, 0, "text")?;
+                Ok(Value::String(text.trim_end().to_owned()))
             }),
             HostFunction::new(
                 "lower",
@@ -113,6 +158,26 @@ pub fn install() -> HostModule {
                 let from = crate::string_arg(args, 1, "from")?;
                 let to = crate::string_arg(args, 2, "to")?;
                 Ok(Value::String(text.replace(from, to)))
+            }),
+            HostFunction::new(
+                "repeat",
+                vec![
+                    HostParam::new("text", Shape::String),
+                    HostParam::new("count", Shape::Size),
+                ],
+                string_result_shape(),
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let text = crate::string_arg(args, 0, "text")?;
+                let count = size_arg(args, 1, "count")?;
+                let Ok(count) = usize::try_from(count) else {
+                    return Ok(crate::result_error("text.repeat count is too large"));
+                };
+                if text.len().checked_mul(count).is_none() {
+                    return Ok(crate::result_error("text.repeat output is too large"));
+                }
+                Ok(crate::result_ok(Value::String(text.repeat(count))))
             }),
             HostFunction::new(
                 "split",
