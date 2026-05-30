@@ -108,6 +108,12 @@ facts rather than hard-coded standard-library names.
 
 Rust is pinned by [rust-toolchain.toml](rust-toolchain.toml).
 
+## Editor Support
+
+The VS Code extension scaffold lives in [editors/vscode](editors/vscode). It
+registers `.tn` files, starts `dyno lsp`, and uses the same Tune LSP server as
+other editors should consume. Set `tune.dynoPath` if `dyno` is not on `PATH`.
+
 Core checks:
 
 ```sh

@@ -1,0 +1,97 @@
+{
+  "name": "Tune",
+  "scopeName": "source.tune",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#tags" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-dash.tune",
+          "match": "--.*$"
+        },
+        {
+          "name": "comment.block.tune",
+          "begin": "-/",
+          "end": "/-"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.tune",
+          "begin": "\"\"\"",
+          "end": "\"\"\""
+        },
+        {
+          "name": "string.quoted.double.tune",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.tune",
+              "match": "\\\\."
+            },
+            {
+              "name": "meta.interpolation.tune",
+              "begin": "\\{",
+              "end": "\\}",
+              "patterns": [{ "include": "$self" }]
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.tune",
+          "match": "\\b[0-9]+\\.[0-9]+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.tune",
+          "match": "\\b[0-9]+\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.tune",
+          "match": "\\b(if|elif|else|match|for|in|while|loop|break|continue|return|spawn|pub|import|let|struct|enum|tag)\\b"
+        },
+        {
+          "name": "keyword.operator.word.tune",
+          "match": "\\b(and|or|not|is)\\b"
+        },
+        {
+          "name": "constant.language.tune",
+          "match": "\\b(true|false|none|self|Ok|Error|Never)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.tune",
+          "match": "\\b(Int|Float|Size|Byte|Bool|String|Result|Task|Map|Set)\\b"
+        }
+      ]
+    },
+    "tags": {
+      "patterns": [
+        {
+          "name": "entity.name.tag.tune",
+          "match": "@[A-Za-z_][A-Za-z0-9_]*"
+        }
+      ]
+    }
+  }
+}

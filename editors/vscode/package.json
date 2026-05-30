@@ -1,0 +1,47 @@
+{
+  "name": "tune-vscode",
+  "displayName": "Tune",
+  "description": "Tune language support powered by dyno lsp.",
+  "version": "0.1.0",
+  "publisher": "tune-lang",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.92.0"
+  },
+  "categories": ["Programming Languages"],
+  "activationEvents": ["onLanguage:tune"],
+  "main": "./extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Tune",
+      "properties": {
+        "tune.dynoPath": {
+          "type": "string",
+          "default": "dyno",
+          "description": "Path to the Dyno CLI executable used to start the Tune language server."
+        }
+      }
+    },
+    "languages": [
+      {
+        "id": "tune",
+        "aliases": ["Tune", "tune"],
+        "extensions": [".tn"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "tune",
+        "scopeName": "source.tune",
+        "path": "./syntaxes/tune.tmLanguage.json"
+      }
+    ]
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.92.0"
+  }
+}
