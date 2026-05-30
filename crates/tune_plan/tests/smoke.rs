@@ -7,7 +7,7 @@ let each(items) = for item in items { handle(item) }
 let values = [1, 2]
 let scoped(input) = { let f = _(x) = x; input = f(input); return input }
 let mutate(user, values) = { user.name = "Rey"; values[0] = user.name }
-let ops(value, other) = not value and other is not none
+let ops(value: Bool, other: Int?): Bool = not value and other is not none
 let branch(value, ready, waiting) = if ready { value } elif waiting { panic("wait") } else { panic("bad") }
 let select(result, value) = match result { value => value; else panic("bad") }
 let repeated(ready) = while ready { continue }
@@ -113,8 +113,14 @@ let ok(value): Result = Ok(value)
     )));
     assert!(!mutate.ops.contains(&tune_plan::PlanOp::Assign));
 
-    let ops = tune_plan::lower_resolved_item_to_plan(&module.items[6], &resolved)
-        .ok_or("expected ops plan")?;
+    let ops_analysis = tune_shape::analyze_item(&module, &resolved, &module.items[6]);
+    let ops = tune_plan::lower_analyzed_module_item_to_plan(
+        &module,
+        &module.items[6],
+        &resolved,
+        &ops_analysis,
+    )
+    .ok_or("expected ops plan")?;
     assert!(plan_ops_contain_bool_and(&ops.ops));
 
     let branch = tune_plan::lower_resolved_item_to_plan(&module.items[7], &resolved)
