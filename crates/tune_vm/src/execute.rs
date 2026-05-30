@@ -373,7 +373,7 @@ impl Vm {
                         .iter()
                         .map(|arg| self.at(function_index, ip, read_reg(&registers, *arg)))
                         .collect::<Result<Vec<_>, _>>()?;
-                    let value = executor.call(&args).map_err(|error| {
+                    let value = executor.call_with_context(&args, self).map_err(|error| {
                         self.fault_at(
                             function_index,
                             ip,

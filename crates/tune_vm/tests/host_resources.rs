@@ -46,6 +46,67 @@ fn host_resource_artifact() -> tune_bytecode::artifact::BytecodeArtifact {
     }
 }
 
+fn host_resource_pipeline_artifact() -> tune_bytecode::artifact::BytecodeArtifact {
+    tune_bytecode::artifact::BytecodeArtifact {
+        entry_function: Some(0),
+        constants: Vec::new(),
+        struct_layouts: Vec::new(),
+        functions: vec![tune_bytecode::function::BytecodeFunction {
+            param_count: 0,
+            name: "<entry>".into(),
+            provenance: tune_bytecode::BytecodeFunctionProvenance::default(),
+            generic_param_count: 0,
+            register_count: 2,
+            local_count: 0,
+            frame: tune_bytecode::function::BytecodeFrameLayout::unknown(0, 2, 0),
+            call_sites: Vec::new(),
+            bound_call_sites: Vec::new(),
+            host_call_sites: vec![
+                tune_bytecode::function::BytecodeHostCallSite {
+                    symbol: tune_host::HostSymbolId(0),
+                    task_safe: true,
+                    args: Vec::new(),
+                },
+                tune_bytecode::function::BytecodeHostCallSite {
+                    symbol: tune_host::HostSymbolId(1),
+                    task_safe: true,
+                    args: vec![0],
+                },
+            ],
+            callable_sites: Vec::new(),
+            task_sites: Vec::new(),
+            struct_sites: Vec::new(),
+            field_sites: Vec::new(),
+            variant_sites: Vec::new(),
+            match_sites: Vec::new(),
+            for_sites: Vec::new(),
+            panic_sites: Vec::new(),
+            tuple_sites: Vec::new(),
+            string_sites: Vec::new(),
+            instructions: vec![
+                tune_bytecode::function::Instruction {
+                    opcode: tune_bytecode::Opcode::CallHost,
+                    a: 0,
+                    b: 0,
+                    c: 0,
+                },
+                tune_bytecode::function::Instruction {
+                    opcode: tune_bytecode::Opcode::CallHost,
+                    a: 1,
+                    b: 1,
+                    c: 0,
+                },
+                tune_bytecode::function::Instruction {
+                    opcode: tune_bytecode::Opcode::Return,
+                    a: 1,
+                    b: 1,
+                    c: 0,
+                },
+            ],
+        }],
+    }
+}
+
 #[test]
 fn vm_canonicalizes_registered_host_resource_metadata() -> Result<(), &'static str> {
     let executor = tune_host::HostExecutor::new(|_: &[tune_runtime::Value]| {
@@ -71,6 +132,44 @@ fn vm_canonicalizes_registered_host_resource_metadata() -> Result<(), &'static s
     assert_eq!(resource.type_name, "fs.File");
     assert!(!resource.task_safe);
 
+    Ok(())
+}
+
+#[test]
+fn vm_host_executors_can_store_and_read_resource_objects() -> Result<(), &'static str> {
+    let open = tune_host::HostExecutor::new_with_context(
+        |_: &[tune_runtime::Value], context: &dyn tune_host::HostContext| {
+            let object = std::sync::Arc::new(std::sync::Mutex::new(42_i64));
+            let handle = context.insert_resource("fs.File", object)?;
+            Ok(tune_runtime::Value::Resource(handle))
+        },
+    );
+    let read = tune_host::HostExecutor::new_with_context(
+        |args: &[tune_runtime::Value], context: &dyn tune_host::HostContext| {
+            let [tune_runtime::Value::Resource(handle)] = args else {
+                return Err(tune_host::HostCallError::new("expected resource argument"));
+            };
+            let object = context.get_resource(handle)?;
+            let value = tune_host::downcast_resource::<std::sync::Mutex<i64>>(object)?;
+            let value = *value
+                .lock()
+                .map_err(|_| tune_host::HostCallError::new("resource lock poisoned"))?;
+            context.close_resource(handle)?;
+            assert!(context.get_resource(handle).is_err());
+            Ok(tune_runtime::Value::Int(value))
+        },
+    );
+    let mut vm = tune_vm::Vm::new(host_resource_pipeline_artifact())
+        .with_host_executors(vec![open, read])
+        .with_host_resource_types(vec![tune_vm::VmHostResourceType::new(
+            tune_runtime::ResourceTypeId(0),
+            "fs.File",
+        )]);
+
+    assert_eq!(
+        vm.run_entry().map_err(|_| "vm should run entry")?,
+        tune_runtime::Value::Int(42)
+    );
     Ok(())
 }
 

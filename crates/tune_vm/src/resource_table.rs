@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use tune_host::{ResourceCleanup, ResourceCleanupExecutor, ResourceRetention};
+use tune_host::{HostResourceObject, ResourceCleanup, ResourceCleanupExecutor, ResourceRetention};
 use tune_runtime::{ResourceHandle, ResourceId, ResourceTypeId};
 
 #[derive(Debug, Clone)]
@@ -20,7 +20,16 @@ impl Default for SharedResourceTable {
 
 impl SharedResourceTable {
     pub(crate) fn register(&self, handle: ResourceHandle, lifecycle: ResourceLifecycle) {
-        if !lifecycle.needs_tracking() {
+        self.register_with_object(handle, lifecycle, None);
+    }
+
+    pub(crate) fn register_with_object(
+        &self,
+        handle: ResourceHandle,
+        lifecycle: ResourceLifecycle,
+        object: Option<HostResourceObject>,
+    ) {
+        if !lifecycle.needs_tracking() && object.is_none() {
             return;
         }
         let mut resources = self
@@ -29,14 +38,35 @@ impl SharedResourceTable {
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         let key = ResourceKey::from(&handle);
-        if resources.iter().any(|resource| resource.key == key) {
+        if let Some(resource) = resources.iter_mut().find(|resource| resource.key == key) {
+            if object.is_some() {
+                resource.object = object;
+            }
             return;
         }
         resources.push(ResourceRecord {
             key,
             handle,
             lifecycle,
+            object,
         });
+    }
+
+    pub(crate) fn get_object(&self, handle: &ResourceHandle) -> Option<HostResourceObject> {
+        let resources = self
+            .inner
+            .resources
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let key = ResourceKey::from(handle);
+        resources
+            .iter()
+            .find(|resource| resource.key == key)
+            .and_then(|resource| resource.object.clone())
+    }
+
+    pub(crate) fn cleanup_one(&self, handle: &ResourceHandle) -> Result<bool, String> {
+        self.inner.cleanup_one(handle)
     }
 
     pub(crate) fn cleanup(&self) -> Result<(), String> {
@@ -50,6 +80,22 @@ struct ResourceTableInner {
 }
 
 impl ResourceTableInner {
+    fn cleanup_one(&self, handle: &ResourceHandle) -> Result<bool, String> {
+        let record = {
+            let mut resources = self
+                .resources
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            let key = ResourceKey::from(handle);
+            let Some(index) = resources.iter().position(|resource| resource.key == key) else {
+                return Ok(false);
+            };
+            resources.remove(index)
+        };
+        record.cleanup()?;
+        Ok(true)
+    }
+
     fn cleanup(&self) -> Result<(), String> {
         let records = {
             let mut resources = self
@@ -90,6 +136,7 @@ struct ResourceRecord {
     key: ResourceKey,
     handle: ResourceHandle,
     lifecycle: ResourceLifecycle,
+    object: Option<HostResourceObject>,
 }
 
 impl ResourceRecord {

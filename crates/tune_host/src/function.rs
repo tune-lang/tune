@@ -1,12 +1,14 @@
+use std::any::Any;
 use std::fmt;
 use std::sync::Arc;
 
 use tune_shape::Shape;
 
 use crate::authority::Authority;
-use tune_runtime::Value;
+use tune_runtime::{ResourceHandle, Value};
 
 pub type HostCallResult = Result<Value, HostCallError>;
+pub type HostResourceObject = Arc<dyn Any + Send + Sync>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HostCallError {
@@ -24,6 +26,10 @@ impl HostCallError {
 
 pub trait HostCallable: Send + Sync {
     fn call(&self, args: &[Value]) -> HostCallResult;
+
+    fn call_with_context(&self, args: &[Value], _context: &dyn HostContext) -> HostCallResult {
+        self.call(args)
+    }
 }
 
 impl<F> HostCallable for F
@@ -40,6 +46,25 @@ pub struct HostExecutor {
     callable: Arc<dyn HostCallable>,
 }
 
+struct ContextHostCallable<F> {
+    callable: F,
+}
+
+impl<F> HostCallable for ContextHostCallable<F>
+where
+    F: Fn(&[Value], &dyn HostContext) -> HostCallResult + Send + Sync,
+{
+    fn call(&self, _args: &[Value]) -> HostCallResult {
+        Err(HostCallError::new(
+            "host function requires an execution context",
+        ))
+    }
+
+    fn call_with_context(&self, args: &[Value], context: &dyn HostContext) -> HostCallResult {
+        (self.callable)(args, context)
+    }
+}
+
 impl HostExecutor {
     #[must_use]
     pub fn new(callable: impl HostCallable + 'static) -> Self {
@@ -48,8 +73,21 @@ impl HostExecutor {
         }
     }
 
+    #[must_use]
+    pub fn new_with_context(
+        callable: impl Fn(&[Value], &dyn HostContext) -> HostCallResult + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            callable: Arc::new(ContextHostCallable { callable }),
+        }
+    }
+
     pub fn call(&self, args: &[Value]) -> HostCallResult {
         self.callable.call(args)
+    }
+
+    pub fn call_with_context(&self, args: &[Value], context: &dyn HostContext) -> HostCallResult {
+        self.callable.call_with_context(args, context)
     }
 }
 
@@ -101,12 +139,42 @@ impl HostFunction {
         self.executor = Some(HostExecutor::new(executor));
         self
     }
+
+    #[must_use]
+    pub fn with_context_executor(
+        mut self,
+        executor: impl Fn(&[Value], &dyn HostContext) -> HostCallResult + Send + Sync + 'static,
+    ) -> Self {
+        self.executor = Some(HostExecutor::new_with_context(executor));
+        self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct HostParam {
     pub name: String,
     pub shape: Shape,
+}
+
+pub trait HostContext {
+    fn insert_resource(
+        &self,
+        type_name: &str,
+        object: HostResourceObject,
+    ) -> Result<ResourceHandle, HostCallError>;
+
+    fn get_resource(&self, handle: &ResourceHandle) -> Result<HostResourceObject, HostCallError>;
+
+    fn close_resource(&self, handle: &ResourceHandle) -> Result<(), HostCallError>;
+}
+
+pub fn downcast_resource<T>(object: HostResourceObject) -> Result<Arc<T>, HostCallError>
+where
+    T: Any + Send + Sync,
+{
+    object
+        .downcast::<T>()
+        .map_err(|_| HostCallError::new("host resource object has unexpected type"))
 }
 
 impl HostParam {

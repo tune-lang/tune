@@ -5,7 +5,10 @@ pub mod resource;
 pub mod symbol;
 
 pub use authority::Authority;
-pub use function::{HostCallError, HostCallResult, HostExecutor, HostFunction, HostParam};
+pub use function::{
+    HostCallError, HostCallResult, HostContext, HostExecutor, HostFunction, HostParam,
+    HostResourceObject, downcast_resource,
+};
 pub use module::HostModule;
 pub use resource::{
     HostResourceType, ResourceCleaner, ResourceCleanup, ResourceCleanupExecutor,

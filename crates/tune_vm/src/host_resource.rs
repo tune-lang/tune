@@ -1,4 +1,4 @@
-use tune_runtime::{ResourceHandle, ResourceTypeId, Value};
+use tune_runtime::{ResourceHandle, ResourceId, ResourceTypeId, Value};
 
 use crate::{Vm, VmError, resource_table::ResourceLifecycle};
 
@@ -145,5 +145,51 @@ impl Vm {
         self.host_resource_types
             .iter()
             .find(|resource_type| resource_type.type_name == resource.type_name)
+    }
+}
+
+impl tune_host::HostContext for Vm {
+    fn insert_resource(
+        &self,
+        type_name: &str,
+        object: tune_host::HostResourceObject,
+    ) -> Result<ResourceHandle, tune_host::HostCallError> {
+        let id = ResourceId(
+            self.next_resource_id
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+        );
+        let handle = ResourceHandle::new(id, type_name);
+        let normalized = self
+            .normalize_host_resource(handle)
+            .map_err(|error| tune_host::HostCallError::new(format!("{error:?}")))?;
+        let resource_type = self
+            .resolve_host_resource_type(&normalized)
+            .ok_or_else(|| tune_host::HostCallError::new("unknown host resource type"))?;
+        self.resources.register_with_object(
+            normalized.clone(),
+            ResourceLifecycle {
+                retention: resource_type.retention.clone(),
+                cleanup: resource_type.cleanup.clone(),
+                cleanup_executor: resource_type.cleanup_executor.clone(),
+            },
+            Some(object),
+        );
+        Ok(normalized)
+    }
+
+    fn get_resource(
+        &self,
+        handle: &ResourceHandle,
+    ) -> Result<tune_host::HostResourceObject, tune_host::HostCallError> {
+        self.resources
+            .get_object(handle)
+            .ok_or_else(|| tune_host::HostCallError::new("host resource is closed or unknown"))
+    }
+
+    fn close_resource(&self, handle: &ResourceHandle) -> Result<(), tune_host::HostCallError> {
+        self.resources
+            .cleanup_one(handle)
+            .map_err(tune_host::HostCallError::new)
+            .map(|_| ())
     }
 }
