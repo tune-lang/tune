@@ -272,7 +272,7 @@ impl FunctionLowerer<'_> {
                 self.push_instruction(opcode, seq.0, index.0, value.0);
                 Ok(())
             }
-            IrOp::Move { dst, src } => {
+            IrOp::Move { dst, src, .. } => {
                 self.instructions.push(Instruction {
                     opcode: Opcode::Move,
                     a: dst.0,
@@ -281,7 +281,7 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(())
             }
-            IrOp::LoadLocal { dst, local } => {
+            IrOp::LoadLocal { dst, local, .. } => {
                 self.instructions.push(Instruction {
                     opcode: Opcode::LoadLocal,
                     a: dst.0,
@@ -290,7 +290,7 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(())
             }
-            IrOp::StoreLocal { local, value } => {
+            IrOp::StoreLocal { local, value, .. } => {
                 self.instructions.push(Instruction {
                     opcode: Opcode::StoreLocal,
                     a: local.0,

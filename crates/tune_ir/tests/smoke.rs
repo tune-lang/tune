@@ -306,6 +306,7 @@ fn lowers_local_binding_plan_to_ir_loads_and_stores() -> Result<(), &'static str
         ir.blocks[0].ops[1],
         tune_ir::IrOp::StoreLocal {
             local: tune_resolve::LocalId(0),
+            store: tune_ir::IrLocalStore::Init,
             ..
         }
     ));
@@ -313,6 +314,7 @@ fn lowers_local_binding_plan_to_ir_loads_and_stores() -> Result<(), &'static str
         ir.blocks[0].ops[2],
         tune_ir::IrOp::LoadLocal {
             local: tune_resolve::LocalId(0),
+            access: tune_ir::IrLocalAccess::Read,
             ..
         }
     ));

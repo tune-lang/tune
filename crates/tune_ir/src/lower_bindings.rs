@@ -5,7 +5,7 @@ use crate::lower::Lowerer;
 use crate::lower_slots::{
     capture_slot, local_offset, local_param_slot, local_slot, module_slot, param_slot,
 };
-use crate::{IrLowerError, IrOp};
+use crate::{IrLocalAccess, IrLocalStore, IrLowerError, IrOp};
 
 impl Lowerer {
     pub(super) fn lower_binding_get(&mut self, source: NameTarget) -> Result<(), IrLowerError> {
@@ -57,7 +57,11 @@ impl Lowerer {
         };
         self.track_local(local)?;
         let dst = self.alloc_reg()?;
-        self.push_op(IrOp::LoadLocal { dst, local });
+        self.push_op(IrOp::LoadLocal {
+            dst,
+            local,
+            access: IrLocalAccess::Read,
+        });
         self.stack.push(dst);
         Ok(())
     }
@@ -84,7 +88,11 @@ impl Lowerer {
         )?;
         self.track_local(local)?;
         let value = self.pop("local initializer")?;
-        self.push_op(IrOp::StoreLocal { local, value });
+        self.push_op(IrOp::StoreLocal {
+            local,
+            value,
+            store: IrLocalStore::Init,
+        });
         Ok(())
     }
 
@@ -100,7 +108,11 @@ impl Lowerer {
         let local = module_slot(item, &self.module_bindings)?;
         self.track_local(local)?;
         let value = self.pop("module initializer")?;
-        self.push_op(IrOp::StoreLocal { local, value });
+        self.push_op(IrOp::StoreLocal {
+            local,
+            value,
+            store: IrLocalStore::Init,
+        });
         if keep_value {
             self.stack.push(value);
         }
@@ -117,7 +129,11 @@ impl Lowerer {
         let local = self.lower_local_source_slot(local)?;
         self.track_local(local)?;
         let value = self.pop("local assignment")?;
-        self.push_op(IrOp::StoreLocal { local, value });
+        self.push_op(IrOp::StoreLocal {
+            local,
+            value,
+            store: IrLocalStore::Assign,
+        });
         Ok(())
     }
 
@@ -130,25 +146,41 @@ impl Lowerer {
             NameTarget::Local(local) => {
                 let local = self.lower_local_source_slot(local)?;
                 self.track_local(local)?;
-                self.push_op(IrOp::StoreLocal { local, value });
+                self.push_op(IrOp::StoreLocal {
+                    local,
+                    value,
+                    store: IrLocalStore::Assign,
+                });
                 Ok(())
             }
             NameTarget::Param(param) => {
                 let local = param_slot(param, &self.module_bindings, &self.params)?;
                 self.track_local(local)?;
-                self.push_op(IrOp::StoreLocal { local, value });
+                self.push_op(IrOp::StoreLocal {
+                    local,
+                    value,
+                    store: IrLocalStore::Assign,
+                });
                 Ok(())
             }
             NameTarget::TopLevel(item) if self.module_bindings.contains(&item) => {
                 let local = module_slot(item, &self.module_bindings)?;
                 self.track_local(local)?;
-                self.push_op(IrOp::StoreLocal { local, value });
+                self.push_op(IrOp::StoreLocal {
+                    local,
+                    value,
+                    store: IrLocalStore::Assign,
+                });
                 Ok(())
             }
             NameTarget::SelfValue => {
                 let local = tune_resolve::LocalId(0);
                 self.track_local(local)?;
-                self.push_op(IrOp::StoreLocal { local, value });
+                self.push_op(IrOp::StoreLocal {
+                    local,
+                    value,
+                    store: IrLocalStore::Assign,
+                });
                 Ok(())
             }
             NameTarget::TopLevel(_) | NameTarget::Variant(_) => Ok(()),

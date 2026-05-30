@@ -27,6 +27,9 @@ let result: Int = if c > 10 { c } else { a }
     assert!(report.ir.ops > 0);
     assert_eq!(report.ir.bound_calls, 0);
     assert_eq!(report.ir.witness_calls, 0);
+    assert!(report.ir.local_reads > 0);
+    assert!(report.ir.local_inits > 0);
+    assert!(report.ir.transfer_copies > 0);
 
     Ok(())
 }

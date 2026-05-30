@@ -119,10 +119,12 @@ fn optimizer_eliminates_proven_sequence_bounds_checks() {
                 tune_ir::IrOp::StoreLocal {
                     local: tune_ir::LocalId(0),
                     value: tune_ir::Reg(0),
+                    store: tune_ir::IrLocalStore::Init,
                 },
                 tune_ir::IrOp::LoadLocal {
                     dst: tune_ir::Reg(0),
                     local: tune_ir::LocalId(0),
+                    access: tune_ir::IrLocalAccess::Read,
                 },
                 tune_ir::IrOp::LoadConst {
                     dst: tune_ir::Reg(2),
@@ -200,6 +202,7 @@ fn optimizer_eliminates_sequence_bounds_checks_across_blocks_for_stable_locals()
                     tune_ir::IrOp::StoreLocal {
                         local: tune_ir::LocalId(0),
                         value: tune_ir::Reg(0),
+                        store: tune_ir::IrLocalStore::Init,
                     },
                     tune_ir::IrOp::Jump {
                         target: tune_ir::BlockId(1),
@@ -212,6 +215,7 @@ fn optimizer_eliminates_sequence_bounds_checks_across_blocks_for_stable_locals()
                     tune_ir::IrOp::LoadLocal {
                         dst: tune_ir::Reg(0),
                         local: tune_ir::LocalId(0),
+                        access: tune_ir::IrLocalAccess::Read,
                     },
                     tune_ir::IrOp::LoadConst {
                         dst: tune_ir::Reg(2),

@@ -1,5 +1,5 @@
 use tune_bytecode::Opcode;
-use tune_ir::{IrGenericStrategy, IrOwnershipPlan};
+use tune_ir::{IrGenericStrategy, IrLocalAccess, IrLocalStore, IrOwnershipPlan, IrTransfer};
 use tune_plan::{FiniteForContractKind, PlanOp};
 use tune_shape::Shape;
 
@@ -112,6 +112,15 @@ fn collect_ir_function(function: &tune_ir::IrFunction, quality: &mut IrQuality) 
                 tune_ir::IrOp::LoadConst { shape, .. } => {
                     quality.shape_holes += shape_holes(shape);
                 }
+                tune_ir::IrOp::LoadLocal { access, .. } => {
+                    collect_local_access(*access, quality);
+                }
+                tune_ir::IrOp::StoreLocal { store, .. } => {
+                    collect_local_store(*store, quality);
+                }
+                tune_ir::IrOp::Move { transfer, .. } => {
+                    collect_transfer(*transfer, quality);
+                }
                 tune_ir::IrOp::SeqBuild { element_shape, .. } => {
                     quality.sequence_builds += 1;
                     let holes = shape_holes(element_shape);
@@ -173,6 +182,30 @@ fn collect_ir_ownership(ownership: IrOwnershipPlan, quality: &mut IrQuality) {
         IrOwnershipPlan::Cow => quality.cow_structs += 1,
         IrOwnershipPlan::SharedAtomic => quality.shared_atomic_structs += 1,
         IrOwnershipPlan::HostRetained => quality.host_retained_structs += 1,
+    }
+}
+
+fn collect_local_access(access: IrLocalAccess, quality: &mut IrQuality) {
+    match access {
+        IrLocalAccess::Read => quality.local_reads += 1,
+        IrLocalAccess::Borrow => quality.local_borrows += 1,
+        IrLocalAccess::Move => quality.local_moves += 1,
+    }
+}
+
+fn collect_local_store(store: IrLocalStore, quality: &mut IrQuality) {
+    match store {
+        IrLocalStore::Init => quality.local_inits += 1,
+        IrLocalStore::Assign => quality.local_assigns += 1,
+    }
+}
+
+fn collect_transfer(transfer: IrTransfer, quality: &mut IrQuality) {
+    match transfer {
+        IrTransfer::Copy => quality.transfer_copies += 1,
+        IrTransfer::Move => quality.transfer_moves += 1,
+        IrTransfer::Alias => quality.transfer_aliases += 1,
+        IrTransfer::Borrow => quality.transfer_borrows += 1,
     }
 }
 

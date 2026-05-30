@@ -2,7 +2,7 @@ use tune_diagnostics::Span;
 use tune_plan::PlanOp;
 
 use crate::lower::{IrLowerError, Lowerer};
-use crate::{ConstId, IrConst, IrOp, Reg};
+use crate::{ConstId, IrConst, IrOp, IrTransfer, Reg};
 
 impl Lowerer {
     pub(super) fn lower_bool_and(
@@ -66,6 +66,7 @@ impl Lowerer {
         self.push_op(IrOp::Move {
             dst: result,
             src: rhs,
+            transfer: IrTransfer::Copy,
         });
         self.push_op(IrOp::Jump { target: join });
         self.stack.truncate(base_stack_len);

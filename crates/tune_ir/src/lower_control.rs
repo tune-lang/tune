@@ -7,7 +7,7 @@ use tune_resolve::LocalId;
 
 use crate::lower::Lowerer;
 use crate::lower_slots::{local_offset, local_slot};
-use crate::{BlockId, IrBlock, IrLowerError, IrOp, Reg};
+use crate::{BlockId, IrBlock, IrLocalStore, IrLowerError, IrOp, IrTransfer, Reg};
 
 impl Lowerer {
     pub(super) fn lower_if(
@@ -54,6 +54,7 @@ impl Lowerer {
                     self.push_op(IrOp::Move {
                         dst: result,
                         src: value,
+                        transfer: IrTransfer::Copy,
                     });
                 }
                 self.push_op(IrOp::Jump { target: join });
@@ -71,6 +72,7 @@ impl Lowerer {
                 self.push_op(IrOp::Move {
                     dst: result,
                     src: value,
+                    transfer: IrTransfer::Copy,
                 });
             }
             self.push_op(IrOp::Jump { target: join });
@@ -130,7 +132,11 @@ impl Lowerer {
                 )?;
                 self.track_local(local)?;
                 let dst = self.lower_pattern_field_path(scrutinee, &binding.field_path)?;
-                self.push_op(IrOp::StoreLocal { local, value: dst });
+                self.push_op(IrOp::StoreLocal {
+                    local,
+                    value: dst,
+                    store: IrLocalStore::Init,
+                });
             }
             for op in &arm.body_ops {
                 self.lower_op(op)?;
@@ -141,6 +147,7 @@ impl Lowerer {
                     self.push_op(IrOp::Move {
                         dst: result,
                         src: value,
+                        transfer: IrTransfer::Copy,
                     });
                 }
                 self.push_op(IrOp::Jump { target: join });
@@ -369,7 +376,11 @@ impl Lowerer {
             ),
         )?;
         self.track_local(local)?;
-        self.push_op(IrOp::StoreLocal { local, value: item });
+        self.push_op(IrOp::StoreLocal {
+            local,
+            value: item,
+            store: IrLocalStore::Assign,
+        });
         Ok(())
     }
 

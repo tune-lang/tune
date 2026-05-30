@@ -9,7 +9,7 @@ pub(super) fn infer_frame_layout(function: &IrFunction) -> BytecodeFrameLayout {
     for op in function.blocks.iter().flat_map(|block| &block.ops) {
         match op {
             IrOp::LoadConst { dst, shape, .. } => set_register(&mut layout, *dst, shape.clone()),
-            IrOp::LoadLocal { dst, local } => {
+            IrOp::LoadLocal { dst, local, .. } => {
                 let shape = layout
                     .locals
                     .get(local.0 as usize)
@@ -17,13 +17,13 @@ pub(super) fn infer_frame_layout(function: &IrFunction) -> BytecodeFrameLayout {
                     .unwrap_or(Shape::Hole);
                 set_register(&mut layout, *dst, shape);
             }
-            IrOp::StoreLocal { local, value } => {
+            IrOp::StoreLocal { local, value, .. } => {
                 let shape = register_shape(&layout, *value);
                 if let Some(slot) = layout.locals.get_mut(local.0 as usize) {
                     *slot = slot.clone().join(shape);
                 }
             }
-            IrOp::Move { dst, src } => {
+            IrOp::Move { dst, src, .. } => {
                 let shape = register_shape(&layout, *src);
                 set_register(&mut layout, *dst, shape);
             }

@@ -74,7 +74,7 @@ fn eliminate_block(
                     *length = length.saturating_add(1);
                 }
             }
-            IrOp::Move { dst, src } => {
+            IrOp::Move { dst, src, .. } => {
                 let length = seq_lengths.get(src).copied();
                 let constant = const_regs.get(src).cloned();
                 forget_reg(*dst, &mut seq_lengths, &mut const_regs);
@@ -85,7 +85,7 @@ fn eliminate_block(
                     const_regs.insert(*dst, constant);
                 }
             }
-            IrOp::StoreLocal { local, value } => {
+            IrOp::StoreLocal { local, value, .. } => {
                 if let Some(length) = seq_lengths.get(value).copied() {
                     local_seq_lengths.insert(*local, length);
                 } else {
@@ -97,7 +97,7 @@ fn eliminate_block(
                     local_consts.remove(local);
                 }
             }
-            IrOp::LoadLocal { dst, local } => {
+            IrOp::LoadLocal { dst, local, .. } => {
                 let length = local_seq_lengths
                     .get(local)
                     .copied()
@@ -166,14 +166,14 @@ fn stable_local_sequence_lengths(blocks: &[IrBlock]) -> HashMap<LocalId, usize> 
                         *length = length.saturating_add(1);
                     }
                 }
-                IrOp::Move { dst, src } => {
+                IrOp::Move { dst, src, .. } => {
                     let length = seq_lengths.get(src).copied();
                     forget_reg(*dst, &mut seq_lengths, &mut const_regs);
                     if let Some(length) = length {
                         seq_lengths.insert(*dst, length);
                     }
                 }
-                IrOp::StoreLocal { local, value } => {
+                IrOp::StoreLocal { local, value, .. } => {
                     record_local_length(&mut candidates, *local, seq_lengths.get(value).copied());
                 }
                 _ => {

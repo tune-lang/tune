@@ -109,10 +109,12 @@ fn lowers_typed_local_ir_to_bytecode() -> Result<(), &'static str> {
                 tune_ir::IrOp::StoreLocal {
                     local: tune_resolve::LocalId(0),
                     value: tune_ir::Reg(0),
+                    store: tune_ir::IrLocalStore::Init,
                 },
                 tune_ir::IrOp::LoadLocal {
                     dst: tune_ir::Reg(1),
                     local: tune_resolve::LocalId(0),
+                    access: tune_ir::IrLocalAccess::Read,
                 },
                 tune_ir::IrOp::Return {
                     value: Some(tune_ir::Reg(1)),
@@ -327,6 +329,7 @@ fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
                 tune_ir::IrOp::LoadLocal {
                     dst: tune_ir::Reg(0),
                     local: tune_resolve::LocalId(0),
+                    access: tune_ir::IrLocalAccess::Read,
                 },
                 tune_ir::IrOp::Return {
                     value: Some(tune_ir::Reg(0)),
