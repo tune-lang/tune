@@ -84,6 +84,8 @@ example files.
 
 New users should start with [docs/getting-started.md](docs/getting-started.md).
 Tooling and editor setup lives in [docs/tooling.md](docs/tooling.md).
+The current standard library surface is summarized in
+[docs/stdlib.md](docs/stdlib.md).
 
 ## Language Surface
 
