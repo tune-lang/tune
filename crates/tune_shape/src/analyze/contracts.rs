@@ -354,7 +354,13 @@ impl Analyzer<'_> {
     }
 
     pub(super) fn record_expr_shape(&mut self, expr: ExprId, shape: Shape) {
+        if let Some(index) = self.expr_shape_indices.get(&expr).copied() {
+            self.expr_shapes[index].shape = shape;
+            return;
+        }
+        let index = self.expr_shapes.len();
         self.expr_shapes.push(ExprShape { expr, shape });
+        self.expr_shape_indices.insert(expr, index);
     }
 
     fn bind_named_pattern(&mut self, name: &str, pattern: &Pattern, shape: Shape) {

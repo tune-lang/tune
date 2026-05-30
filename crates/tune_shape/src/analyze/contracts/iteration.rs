@@ -244,6 +244,7 @@ impl Analyzer<'_> {
             item_current_shape: self_shape.clone(),
             frame: crate::StateFrame::new(),
             expr_shapes: Vec::new(),
+            expr_shape_indices: std::collections::HashMap::new(),
             calls: Vec::new(),
             returns: Vec::new(),
             assignments: Vec::new(),
