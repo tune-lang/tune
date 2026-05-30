@@ -19,6 +19,7 @@ const LANGUAGE_EXAMPLES: &[&str] = &[
     "examples/language/07_generics.tn",
     "examples/language/08_std_imports.tn",
     "examples/language/09_tasks.tn",
+    "examples/language/10_tags_meta.tn",
 ];
 
 #[test]

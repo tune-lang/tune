@@ -11,5 +11,5 @@ let cost(command: Command): Int = match command {
 }
 
 let command: Command = Move(3, 4)
-let total_cost: Int = cost(command) + cost(Wait(2))
+let total_cost = cost(command) + cost(Wait(2))
 print("cost={total_cost}")

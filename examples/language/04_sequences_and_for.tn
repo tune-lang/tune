@@ -3,13 +3,13 @@
 let values = [1, 2, 3, 4, 5]
 
 let sum(items): Int = {
-  let total: Int = 0
+  let total = 0
   for item in items {
     total = total + item
   }
   total
 }
 
-let first: Int = values[0]
-let checksum: Int = sum(values) + first
+let first = values[0]
+let checksum = sum(values) + first
 print("{first}:{checksum}")

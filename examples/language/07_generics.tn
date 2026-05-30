@@ -7,7 +7,6 @@ struct Box<T> {
 let id<T>(value: T): T = value
 let read<T>(box: Box<T>): T = box.value
 
-let number: Int = id(4)
-let word: String = read(Box { value = "tune" })
-let display: String = "{number}:{word}"
-print(display)
+let number = id(4)
+let word = read(Box { value = "tune" })
+print("{number}:{word}")

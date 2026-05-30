@@ -1,0 +1,10 @@
+-- Tags attach typed metadata to declarations without changing runtime behavior.
+
+tag route {
+  path: String
+}
+
+@route(path = "/search")
+let search(query: String): String = "query={query}"
+
+print(search("tune"))

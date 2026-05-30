@@ -11,7 +11,6 @@ struct Counter {
   label(): String = "count={self.value}"
 }
 
-let counter: Counter = Counter { value = 10 }
-let bumped: Int = counter.bump(5)
-let counter_report: String = "{counter.label()}:{bumped}"
-print(counter_report)
+let counter = Counter { value = 10 }
+let bumped = counter.bump(5)
+print("{counter.label()}:{bumped}")

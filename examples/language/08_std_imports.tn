@@ -4,10 +4,10 @@ import "parse"
 import "text"
 
 let parse_answer(raw: String): Result<Int, String> = {
-  let cleaned: String = text.trim(raw)
-  let value: Int = parse.int(cleaned)!
+  let cleaned = text.trim(raw)
+  let value = parse.int(cleaned)!
   Ok(value + 1)
 }
 
-let parsed_answer: Result<Int, String> = parse_answer(" 41 ")
+let parsed_answer = parse_answer(" 41 ")
 print("std imports accepted")

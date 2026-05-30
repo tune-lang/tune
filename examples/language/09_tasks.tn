@@ -2,6 +2,6 @@
 
 let compute(seed: Int): Int = seed + 1
 
-let task: Task<Int> = spawn compute(41)
-let answer: Int = task.join()
+let task = spawn compute(41)
+let answer = task.join()
 print("task={answer}")

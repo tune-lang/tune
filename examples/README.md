@@ -58,6 +58,8 @@ Suggested path:
 - [08_std_imports.tn](language/08_std_imports.tn): standard module imports and
   namespace calls.
 - [09_tasks.tn](language/09_tasks.tn): `spawn`, `Task<T>`, and `join`.
+- [10_tags_meta.tn](language/10_tags_meta.tn): declaration tags with typed
+  metadata that does not alter runtime behavior.
 
 ## Standard Library Examples
 
