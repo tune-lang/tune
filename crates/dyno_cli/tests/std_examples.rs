@@ -13,6 +13,7 @@ fn repo_root() -> PathBuf {
 fn std_examples_check_with_dyno() -> Result<(), String> {
     let dyno = env!("CARGO_BIN_EXE_dyno");
     let examples = [
+        "examples/std/bits.tn",
         "examples/std/env.tn",
         "examples/std/fs.tn",
         "examples/std/hash.tn",

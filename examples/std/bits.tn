@@ -1,0 +1,11 @@
+-- Use deterministic bit helpers for Int and Size values.
+
+import "bits"
+
+let flags: Int = 11
+let enabled: Size = bits.count_ones(flags)
+let rotated: Int = bits.rotate_left(flags, 2)
+
+let size_flags: Size = 11
+let size_enabled: Size = bits.size_count_ones(size_flags)
+let size_rotated: Size = bits.size_rotate_left(size_flags, 2)

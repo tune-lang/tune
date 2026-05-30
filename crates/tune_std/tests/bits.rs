@@ -32,6 +32,11 @@ fn bits_module_exposes_task_safe_int_helpers() -> Result<(), &'static str> {
         "trailing_zeros",
         "rotate_left",
         "rotate_right",
+        "size_count_ones",
+        "size_leading_zeros",
+        "size_trailing_zeros",
+        "size_rotate_left",
+        "size_rotate_right",
     ] {
         let function = bits_function(&module, name)?;
         assert!(function.task_safe);
@@ -45,6 +50,10 @@ fn bits_module_exposes_task_safe_int_helpers() -> Result<(), &'static str> {
     assert_eq!(
         bits_function(&module, "rotate_left")?.ret,
         tune_shape::Shape::Int
+    );
+    assert_eq!(
+        bits_function(&module, "size_rotate_left")?.ret,
+        tune_shape::Shape::Size
     );
 
     Ok(())
@@ -89,6 +98,46 @@ fn bits_executors_return_size_and_int_values() -> Result<(), &'static str> {
             vec![tune_runtime::Value::Int(4), tune_runtime::Value::Size(2),]
         )?,
         tune_runtime::Value::Int(1)
+    );
+    assert_eq!(
+        call(
+            &module,
+            "size_count_ones",
+            vec![tune_runtime::Value::Size(0b1011)]
+        )?,
+        tune_runtime::Value::Size(3)
+    );
+    assert_eq!(
+        call(
+            &module,
+            "size_leading_zeros",
+            vec![tune_runtime::Value::Size(1)]
+        )?,
+        tune_runtime::Value::Size(63)
+    );
+    assert_eq!(
+        call(
+            &module,
+            "size_trailing_zeros",
+            vec![tune_runtime::Value::Size(0b1000)]
+        )?,
+        tune_runtime::Value::Size(3)
+    );
+    assert_eq!(
+        call(
+            &module,
+            "size_rotate_left",
+            vec![tune_runtime::Value::Size(1), tune_runtime::Value::Size(2)]
+        )?,
+        tune_runtime::Value::Size(4)
+    );
+    assert_eq!(
+        call(
+            &module,
+            "size_rotate_right",
+            vec![tune_runtime::Value::Size(4), tune_runtime::Value::Size(2)]
+        )?,
+        tune_runtime::Value::Size(1)
     );
 
     Ok(())

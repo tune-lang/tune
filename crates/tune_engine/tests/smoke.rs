@@ -263,7 +263,7 @@ fn engine_registers_default_std_host_modules() {
     let registration = tune.register_std();
 
     assert_eq!(registration.module_count, 13);
-    assert_eq!(registration.function_count, 106);
+    assert_eq!(registration.function_count, 111);
     assert_eq!(registration.value_count, 5);
     assert_eq!(registration.resource_count, 1);
     assert!(tune.host_modules().iter().any(|module| module.name == "io"));

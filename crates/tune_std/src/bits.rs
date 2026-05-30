@@ -12,6 +12,11 @@ pub fn install() -> HostModule {
             size_from_int("trailing_zeros", i64::trailing_zeros),
             rotate("rotate_left", i64::rotate_left),
             rotate("rotate_right", i64::rotate_right),
+            size_from_size("size_count_ones", u64::count_ones),
+            size_from_size("size_leading_zeros", u64::leading_zeros),
+            size_from_size("size_trailing_zeros", u64::trailing_zeros),
+            rotate_size("size_rotate_left", u64::rotate_left),
+            rotate_size("size_rotate_right", u64::rotate_right),
         ],
     )
 }
@@ -23,6 +28,19 @@ fn size_from_int(name: &'static str, op: fn(i64) -> u32) -> HostFunction {
             let value = int_arg(args, 0, "value")?;
             Ok(Value::Size(u64::from(op(value))))
         })
+}
+
+fn size_from_size(name: &'static str, op: fn(u64) -> u32) -> HostFunction {
+    HostFunction::new(
+        name,
+        vec![HostParam::new("value", Shape::Size)],
+        Shape::Size,
+    )
+    .task_safe(true)
+    .with_executor(move |args: &[Value]| {
+        let value = size_arg(args, 0, "value")?;
+        Ok(Value::Size(u64::from(op(value))))
+    })
 }
 
 fn rotate(name: &'static str, op: fn(i64, u32) -> i64) -> HostFunction {
@@ -39,6 +57,23 @@ fn rotate(name: &'static str, op: fn(i64, u32) -> i64) -> HostFunction {
         let value = int_arg(args, 0, "value")?;
         let amount = size_arg(args, 1, "amount")?;
         Ok(Value::Int(op(value, (amount % 64) as u32)))
+    })
+}
+
+fn rotate_size(name: &'static str, op: fn(u64, u32) -> u64) -> HostFunction {
+    HostFunction::new(
+        name,
+        vec![
+            HostParam::new("value", Shape::Size),
+            HostParam::new("amount", Shape::Size),
+        ],
+        Shape::Size,
+    )
+    .task_safe(true)
+    .with_executor(move |args: &[Value]| {
+        let value = size_arg(args, 0, "value")?;
+        let amount = size_arg(args, 1, "amount")?;
+        Ok(Value::Size(op(value, (amount % 64) as u32)))
     })
 }
 
