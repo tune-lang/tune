@@ -10,6 +10,7 @@ pub mod request;
 pub mod semantic_tokens;
 pub mod server;
 pub mod signature;
+pub mod workspace;
 
 pub use code_action::CodeAction;
 pub use completion::{CompletionItem, CompletionKind};
@@ -20,3 +21,4 @@ pub use request::{LspRequest, LspResponse};
 pub use semantic_tokens::{SemanticToken, SemanticTokenKind};
 pub use server::{DiagnosticHover, LspSession};
 pub use signature::SignatureHelp;
+pub use workspace::{WorkspaceIndex, WorkspaceSymbol, WorkspaceSymbolKind};

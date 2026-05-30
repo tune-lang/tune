@@ -7,6 +7,7 @@ use crate::inlay::InlayHint;
 use crate::protocol::WorkspaceEdit;
 use crate::semantic_tokens::SemanticToken;
 use crate::signature::SignatureHelp;
+use crate::workspace::WorkspaceSymbol;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LspRequest {
@@ -44,6 +45,9 @@ pub enum LspRequest {
     CodeActions {
         file: FileId,
     },
+    WorkspaceSymbols {
+        query: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -57,4 +61,5 @@ pub enum LspResponse {
     InlayHints(Vec<InlayHint>),
     SemanticTokens(Vec<SemanticToken>),
     CodeActions(Vec<CodeAction>),
+    WorkspaceSymbols(Vec<WorkspaceSymbol>),
 }

@@ -1,4 +1,5 @@
 use dyno_project::{ProjectSourceLoadError, ProjectSources};
+use std::path::{Path, PathBuf};
 use tune_db::{FileId, TuneDb};
 use tune_diagnostics::Diagnostic;
 use tune_diagnostics::Span;
@@ -16,6 +17,7 @@ use crate::{
     request::{LspRequest, LspResponse},
     semantic_tokens::{self, SemanticToken},
     signature::{self, SignatureHelp},
+    workspace::{WorkspaceIndex, WorkspaceSymbol},
 };
 
 pub fn handle() {
@@ -26,6 +28,8 @@ pub fn handle() {
 pub struct LspSession {
     db: TuneDb,
     documents: DocumentSet,
+    workspace: WorkspaceIndex,
+    project_root: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,12 +53,15 @@ impl LspSession {
         path: impl Into<String>,
         text: impl Into<String>,
     ) -> Option<FileId> {
-        self.documents.open(&mut self.db, path, text)
+        let path = self.normalize_path(path.into());
+        let file = self.documents.open(&mut self.db, path, text)?;
+        self.rebuild_workspace_index();
+        Some(file)
     }
 
     pub fn open_project_dir(
         &mut self,
-        root: impl AsRef<std::path::Path>,
+        root: impl AsRef<Path>,
     ) -> Result<Vec<FileId>, ProjectSourceLoadError> {
         let sources = dyno_project::load_project_dir(root)?;
         Ok(self.open_project_sources(sources))
@@ -62,13 +69,14 @@ impl LspSession {
 
     pub fn open_project_manifest(
         &mut self,
-        manifest_path: impl AsRef<std::path::Path>,
+        manifest_path: impl AsRef<Path>,
     ) -> Result<Vec<FileId>, ProjectSourceLoadError> {
         let sources = dyno_project::load_project_manifest(manifest_path)?;
         Ok(self.open_project_sources(sources))
     }
 
     pub fn open_project_sources(&mut self, sources: ProjectSources) -> Vec<FileId> {
+        self.project_root = Some(sources.root);
         sources
             .sources
             .into_iter()
@@ -81,18 +89,23 @@ impl LspSession {
         path: impl AsRef<str>,
         text: impl Into<String>,
     ) -> Option<FileId> {
-        self.documents.change(&mut self.db, path, text)
+        let path = self.normalize_path(path.as_ref());
+        let file = self.documents.change(&mut self.db, path, text)?;
+        self.rebuild_workspace_index();
+        Some(file)
     }
 
     pub fn close_document(&mut self, path: impl AsRef<str>) -> Option<FileId> {
+        let path = self.normalize_path(path.as_ref());
         self.documents.close(path)
     }
 
     #[must_use]
     pub fn file_for_path(&self, path: impl AsRef<str>) -> Option<FileId> {
+        let path = self.normalize_path(path.as_ref());
         self.documents
-            .file(path.as_ref())
-            .or_else(|| self.db.file_by_path(path.as_ref()))
+            .file(&path)
+            .or_else(|| self.db.file_by_path(&path))
     }
 
     #[must_use]
@@ -189,7 +202,17 @@ impl LspSession {
 
     #[must_use]
     pub fn code_actions(&self, file: FileId) -> Vec<CodeAction> {
-        code_action::actions_for_file(&self.db, file)
+        code_action::actions_for_file_with_index(&self.db, file, Some(&self.workspace))
+    }
+
+    #[must_use]
+    pub fn workspace_symbols(&self, query: &str) -> Vec<WorkspaceSymbol> {
+        self.workspace
+            .symbols()
+            .iter()
+            .filter(|symbol| query.is_empty() || symbol.name.contains(query))
+            .cloned()
+            .collect()
     }
 
     #[must_use]
@@ -220,11 +243,32 @@ impl LspSession {
                 LspResponse::SemanticTokens(self.semantic_tokens(file))
             }
             LspRequest::CodeActions { file } => LspResponse::CodeActions(self.code_actions(file)),
+            LspRequest::WorkspaceSymbols { query } => {
+                LspResponse::WorkspaceSymbols(self.workspace_symbols(&query))
+            }
         }
     }
 
     #[must_use]
     pub const fn db(&self) -> &TuneDb {
         &self.db
+    }
+
+    fn rebuild_workspace_index(&mut self) {
+        self.workspace.rebuild(&self.db);
+    }
+
+    fn normalize_path(&self, path: impl AsRef<str>) -> String {
+        let path = path.as_ref();
+        let Some(root) = &self.project_root else {
+            return path.to_owned();
+        };
+        let Ok(relative) = Path::new(path).strip_prefix(root) else {
+            return path.to_owned();
+        };
+        relative
+            .to_string_lossy()
+            .trim_start_matches("./")
+            .to_owned()
     }
 }

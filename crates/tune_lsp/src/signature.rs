@@ -22,11 +22,18 @@ pub fn signature_help_at(
     let call = cursor.call.as_ref()?;
     let check = call.check.as_ref()?;
     let name = call_target_name(db, file, &cursor, check.target);
+    let param_names = call_param_names(db, file, check.target);
     let params = check
         .params
         .iter()
         .enumerate()
-        .map(|(index, shape)| format!("arg{index}: {}", crate::hover::semantic_shape_text(shape)))
+        .map(|(index, shape)| {
+            let name = param_names
+                .get(index)
+                .and_then(|name| name.as_deref())
+                .map_or_else(|| format!("arg{index}"), str::to_owned);
+            format!("{name}: {}", crate::hover::semantic_shape_text(shape))
+        })
         .collect::<Vec<_>>()
         .join(", ");
     let ret = crate::hover::semantic_shape_text(&check.ret);
@@ -73,6 +80,28 @@ fn call_target_name(
             .unwrap_or_else(|| "call".to_owned()),
         CallTarget::StringLen => "len".to_owned(),
         CallTarget::TaskJoin => "join".to_owned(),
+    }
+}
+
+fn call_param_names(db: &TuneDb, file: FileId, target: CallTarget) -> Vec<Option<String>> {
+    match target {
+        CallTarget::TopLevel(item) => db
+            .analyze_file(file)
+            .and_then(|analysis| {
+                analysis
+                    .module
+                    .items
+                    .iter()
+                    .find(|candidate| candidate.id == item)
+                    .map(|item| {
+                        item.params
+                            .iter()
+                            .map(|param| param.name.clone())
+                            .collect::<Vec<_>>()
+                    })
+            })
+            .unwrap_or_default(),
+        _ => Vec::new(),
     }
 }
 

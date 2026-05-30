@@ -4,6 +4,7 @@ use tune_hir::item::{Item, ItemKind, Visibility};
 use tune_shape::Shape;
 
 use crate::protocol::{TextEdit, WorkspaceEdit};
+use crate::workspace::WorkspaceIndex;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodeAction {
@@ -13,13 +14,22 @@ pub struct CodeAction {
 
 #[must_use]
 pub fn actions_for_file(db: &TuneDb, file: FileId) -> Vec<CodeAction> {
+    actions_for_file_with_index(db, file, None)
+}
+
+#[must_use]
+pub fn actions_for_file_with_index(
+    db: &TuneDb,
+    file: FileId,
+    index: Option<&WorkspaceIndex>,
+) -> Vec<CodeAction> {
     let Some(analysis) = db.analyze_file(file) else {
         return Vec::new();
     };
     analysis
         .diagnostics()
         .iter()
-        .flat_map(|diagnostic| action_for_diagnostic(db, file, &analysis, diagnostic))
+        .flat_map(|diagnostic| action_for_diagnostic(db, file, &analysis, diagnostic, index))
         .collect()
 }
 
@@ -28,6 +38,7 @@ fn action_for_diagnostic(
     file: FileId,
     analysis: &tune_db::ModuleAnalysis,
     diagnostic: &Diagnostic,
+    index: Option<&WorkspaceIndex>,
 ) -> Vec<CodeAction> {
     if diagnostic.code == codes::PUBLIC_API_INFERENCE {
         return materialize_public_signature(db, file, analysis, diagnostic)
@@ -35,7 +46,7 @@ fn action_for_diagnostic(
             .collect();
     }
     if diagnostic.code == codes::UNRESOLVED_NAME {
-        return import_candidates(db, file, diagnostic);
+        return import_candidates(db, file, diagnostic, index);
     }
     Vec::new()
 }
@@ -135,29 +146,41 @@ fn head_span(db: &TuneDb, item: &Item) -> Option<tune_diagnostics::Span> {
     )
 }
 
-fn import_candidates(db: &TuneDb, file: FileId, diagnostic: &Diagnostic) -> Vec<CodeAction> {
+fn import_candidates(
+    db: &TuneDb,
+    file: FileId,
+    diagnostic: &Diagnostic,
+    index: Option<&WorkspaceIndex>,
+) -> Vec<CodeAction> {
     let Some(name) = unresolved_name(&diagnostic.title) else {
         return Vec::new();
     };
+    if already_imported(db, file, name) {
+        return Vec::new();
+    }
     let Some(insert_range) = import_insert_range(db, file) else {
         return Vec::new();
     };
 
-    db.sources()
-        .iter()
-        .filter(|source| source.id != file)
-        .filter_map(|source| {
-            let analysis = db.analyze_file(source.id)?;
-            let exports_name = analysis.module.items.iter().any(|item| {
-                item.visibility == Visibility::Public
-                    && item.kind != ItemKind::Import
-                    && item.name.as_deref() == Some(name)
-            });
-            if !exports_name {
-                return None;
-            }
-            let import_path = source.path.clone();
-            Some(CodeAction {
+    let owned_index;
+    let index = match index {
+        Some(index) => index,
+        None => {
+            owned_index = {
+                let mut index = WorkspaceIndex::new();
+                index.rebuild(db);
+                index
+            };
+            &owned_index
+        }
+    };
+
+    index
+        .exports_named(name)
+        .filter(|symbol| symbol.file != file)
+        .map(|symbol| {
+            let import_path = symbol.path.clone();
+            CodeAction {
                 title: format!("Import `{name}` from \"{import_path}\""),
                 edit: Some(WorkspaceEdit {
                     file,
@@ -166,9 +189,25 @@ fn import_candidates(db: &TuneDb, file: FileId, diagnostic: &Diagnostic) -> Vec<
                         replacement: format!("import \"{import_path}\".{name}\n"),
                     }],
                 }),
-            })
+            }
         })
         .collect()
+}
+
+fn already_imported(db: &TuneDb, file: FileId, name: &str) -> bool {
+    db.analyze_file(file).is_some_and(|analysis| {
+        analysis.module.items.iter().any(|item| {
+            item.import
+                .as_ref()
+                .is_some_and(|import| match &import.selector {
+                    tune_hir::item::ImportSelector::Module => false,
+                    tune_hir::item::ImportSelector::Member(imported) => imported == name,
+                    tune_hir::item::ImportSelector::Members(imported) => {
+                        imported.iter().any(|imported| imported == name)
+                    }
+                })
+        })
+    })
 }
 
 fn unresolved_name(title: &str) -> Option<&str> {
