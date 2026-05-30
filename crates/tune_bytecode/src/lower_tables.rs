@@ -51,11 +51,11 @@ pub(super) fn block_offsets(
     Ok(offsets)
 }
 
-pub(super) fn function_indices(
-    functions: &[IrFunction],
+pub(super) fn function_indices<'ir>(
+    functions: impl IntoIterator<Item = &'ir IrFunction>,
 ) -> Result<HashMap<HirId, u32>, BytecodeLowerError> {
     let mut indices = HashMap::new();
-    for (index, function) in functions.iter().enumerate() {
+    for (index, function) in functions.into_iter().enumerate() {
         if function.member.is_none()
             && function.callable.is_none()
             && let Some(owner) = function.owner
@@ -69,11 +69,11 @@ pub(super) fn function_indices(
     Ok(indices)
 }
 
-pub(super) fn member_function_indices(
-    functions: &[IrFunction],
+pub(super) fn member_function_indices<'ir>(
+    functions: impl IntoIterator<Item = &'ir IrFunction>,
 ) -> Result<HashMap<MemberId, u32>, BytecodeLowerError> {
     let mut indices = HashMap::new();
-    for (index, function) in functions.iter().enumerate() {
+    for (index, function) in functions.into_iter().enumerate() {
         if let Some(member) = function.member {
             indices.insert(
                 member,
@@ -84,11 +84,11 @@ pub(super) fn member_function_indices(
     Ok(indices)
 }
 
-pub(super) fn callable_function_indices(
-    functions: &[IrFunction],
+pub(super) fn callable_function_indices<'ir>(
+    functions: impl IntoIterator<Item = &'ir IrFunction>,
 ) -> Result<HashMap<ExprId, u32>, BytecodeLowerError> {
     let mut indices = HashMap::new();
-    for (index, function) in functions.iter().enumerate() {
+    for (index, function) in functions.into_iter().enumerate() {
         if let Some(callable) = function.callable {
             indices.insert(
                 callable,

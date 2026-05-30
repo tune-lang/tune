@@ -5,6 +5,7 @@ mod compare;
 mod context;
 mod control;
 mod error;
+mod flatten;
 mod frame;
 mod numeric;
 mod string;
@@ -26,24 +27,22 @@ use tune_ir::{IrFunction, IrOp};
 pub(crate) use self::context::FunctionLowerer;
 use self::control::FiniteForNextLowering;
 pub use self::error::BytecodeLowerError;
+use self::flatten::flatten_functions;
 
 pub fn lower_ir_functions(
     functions: &[IrFunction],
 ) -> Result<BytecodeArtifact, BytecodeLowerError> {
     let flat = flatten_functions(functions)?;
-    let flat_functions = flat
-        .iter()
-        .map(|function| function.function.clone())
-        .collect::<Vec<_>>();
-    let function_indices = function_indices(&flat_functions)?;
-    let member_indices = member_function_indices(&flat_functions)?;
-    let callable_indices = callable_function_indices(&flat_functions)?;
+    let function_indices = function_indices(flat.iter().map(|function| function.function))?;
+    let member_indices = member_function_indices(flat.iter().map(|function| function.function))?;
+    let callable_indices =
+        callable_function_indices(flat.iter().map(|function| function.function))?;
     let mut constants = Vec::new();
     let functions = flat
         .iter()
         .map(|function| {
             lower_ir_function_with_constants(
-                &function.function,
+                function.function,
                 &function_indices,
                 &member_indices,
                 &callable_indices,
@@ -54,16 +53,18 @@ pub fn lower_ir_functions(
         .collect::<Result<Vec<_>, _>>()?;
     Ok(BytecodeArtifact {
         entry_function: (!functions.is_empty()).then_some(0),
-        struct_layouts: lower_struct_layouts(&flat_functions),
+        struct_layouts: lower_struct_layouts(flat.iter().map(|function| function.function)),
         functions,
         constants,
     })
 }
 
-fn lower_struct_layouts(functions: &[IrFunction]) -> Vec<BytecodeStructLayout> {
+fn lower_struct_layouts<'ir>(
+    functions: impl IntoIterator<Item = &'ir IrFunction>,
+) -> Vec<BytecodeStructLayout> {
     let mut layouts = Vec::<BytecodeStructLayout>::new();
     for layout in functions
-        .iter()
+        .into_iter()
         .flat_map(|function| &function.struct_layouts)
     {
         if layouts
@@ -82,9 +83,9 @@ fn lower_struct_layouts(functions: &[IrFunction]) -> Vec<BytecodeStructLayout> {
 
 pub fn lower_ir_function(function: &IrFunction) -> Result<BytecodeFunction, BytecodeLowerError> {
     let mut constants = Vec::new();
-    let function_indices = function_indices(std::slice::from_ref(function))?;
-    let member_indices = member_function_indices(std::slice::from_ref(function))?;
-    let callable_indices = callable_function_indices(std::slice::from_ref(function))?;
+    let function_indices = function_indices(std::iter::once(function))?;
+    let member_indices = member_function_indices(std::iter::once(function))?;
+    let callable_indices = callable_function_indices(std::iter::once(function))?;
     lower_ir_function_with_constants(
         function,
         &function_indices,
@@ -163,39 +164,6 @@ fn lower_ir_function_with_constants(
         string_sites: lowerer.string_sites,
         instructions: lowerer.instructions,
     })
-}
-
-#[derive(Clone)]
-struct FlatFunction {
-    function: IrFunction,
-    task_indices: Vec<u32>,
-}
-
-fn flatten_functions(functions: &[IrFunction]) -> Result<Vec<FlatFunction>, BytecodeLowerError> {
-    let mut flat = Vec::new();
-    for function in functions {
-        flatten_function(function, &mut flat)?;
-    }
-    Ok(flat)
-}
-
-fn flatten_function(
-    function: &IrFunction,
-    flat: &mut Vec<FlatFunction>,
-) -> Result<u32, BytecodeLowerError> {
-    let index = u32::try_from(flat.len()).map_err(|_| BytecodeLowerError::ConstantLimit)?;
-    let mut stripped = function.clone();
-    let task_functions = std::mem::take(&mut stripped.task_functions);
-    flat.push(FlatFunction {
-        function: stripped,
-        task_indices: Vec::new(),
-    });
-    let mut task_indices = Vec::new();
-    for task in &task_functions {
-        task_indices.push(flatten_function(task, flat)?);
-    }
-    flat[index as usize].task_indices = task_indices;
-    Ok(index)
 }
 
 impl FunctionLowerer<'_> {
