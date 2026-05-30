@@ -3,7 +3,11 @@
 import "path"
 
 let source: String = path.join("src", "main.tn")
+let same_source: String = path.join_all(["src", "main.tn"])
+let parts: [String] = path.components(source)
 let name: String? = path.file_name(source)
 let stem: String? = path.stem(source)
 let json_name: String = path.with_ext(source, "json")
 let absolute: Bool = path.is_absolute(source)
+let relative: Bool = path.is_relative(source)
+let separator: String = path.separator()

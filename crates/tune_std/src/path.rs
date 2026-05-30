@@ -25,6 +25,23 @@ pub fn install() -> HostModule {
                 ))
             }),
             HostFunction::new(
+                "join_all",
+                vec![HostParam::new(
+                    "parts",
+                    Shape::Sequence(Box::new(Shape::String)),
+                )],
+                Shape::String,
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let parts = crate::string_sequence_arg(args, 0, "parts")?;
+                let mut path = PathBuf::new();
+                for part in parts {
+                    path.push(part);
+                }
+                Ok(Value::String(path.display().to_string()))
+            }),
+            HostFunction::new(
                 "ext",
                 vec![HostParam::new("path", Shape::String)],
                 optional_string_shape(),
@@ -77,6 +94,26 @@ pub fn install() -> HostModule {
                 Ok(Value::String(normalize_lexical(path).display().to_string()))
             }),
             HostFunction::new(
+                "components",
+                vec![HostParam::new("path", Shape::String)],
+                Shape::Sequence(Box::new(Shape::String)),
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let path = crate::string_arg(args, 0, "path")?;
+                Ok(Value::Sequence(
+                    Path::new(path)
+                        .components()
+                        .filter_map(|component| {
+                            component
+                                .as_os_str()
+                                .to_str()
+                                .map(|part| Value::String(part.to_owned()))
+                        })
+                        .collect::<Vec<_>>(),
+                ))
+            }),
+            HostFunction::new(
                 "with_ext",
                 vec![
                     HostParam::new("path", Shape::String),
@@ -102,6 +139,19 @@ pub fn install() -> HostModule {
                 let path = crate::string_arg(args, 0, "path")?;
                 Ok(Value::Bool(Path::new(path).is_absolute()))
             }),
+            HostFunction::new(
+                "is_relative",
+                vec![HostParam::new("path", Shape::String)],
+                Shape::Bool,
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let path = crate::string_arg(args, 0, "path")?;
+                Ok(Value::Bool(Path::new(path).is_relative()))
+            }),
+            HostFunction::new("separator", Vec::new(), Shape::String)
+                .task_safe(true)
+                .with_executor(|_: &[Value]| Ok(Value::String(std::path::MAIN_SEPARATOR.into()))),
         ],
     )
 }
