@@ -154,3 +154,46 @@ let result: Int = pair.count
     assert_eq!(value, tune_runtime::Value::Int(42));
     Ok(())
 }
+
+#[test]
+fn host_resource_shapes_are_available_to_namespace_function_signatures() -> Result<(), &'static str>
+{
+    let mut tune = tune_engine::Tune::new().with_std();
+    let file = tune
+        .add_file(
+            "main.tn",
+            r#"
+import "fs"
+let result = fs.open("missing.txt")
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    let check = tune.check_file(file).ok_or("file should check")?;
+    if !check.diagnostics.is_empty() {
+        eprintln!("{:?}", check.diagnostics);
+        return Err("fs namespace import should resolve resource-shaped signatures");
+    }
+    Ok(())
+}
+
+#[test]
+fn host_resource_types_do_not_become_namespace_value_members() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new().with_std();
+    let file = tune
+        .add_file(
+            "main.tn",
+            r#"
+import "fs"
+let result = fs.File
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    let check = tune.check_file(file).ok_or("file should check")?;
+    assert!(check.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::UNRESOLVED_NAME
+            && diagnostic.title == "unresolved module member `File`"
+    }));
+    Ok(())
+}

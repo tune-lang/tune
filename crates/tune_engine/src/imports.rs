@@ -8,7 +8,7 @@ use tune_hir::item::{
 };
 use tune_hir::module::Module;
 use tune_hir::{HirId, MemberId, MemberKind};
-use tune_host::{HostFunction, HostValueType};
+use tune_host::{HostFunction, HostResourceType, HostValueType};
 use tune_resolve::ResolvedModule;
 
 use crate::host::HostRegistry;
@@ -192,6 +192,9 @@ fn append_host_imports(
         for value in &host_module.values {
             let _ = append_host_value_item(module, path, value, None);
         }
+        for resource in &host_module.resources {
+            let _ = append_host_resource_item(module, path, resource, None);
+        }
     }
     for name in names {
         if let Some(value) = hosts
@@ -237,6 +240,9 @@ fn append_host_module_import(
             item,
         });
     }
+    for resource in &host_module.resources {
+        let _ = append_host_resource_item(module, path, resource, None);
+    }
     for function in &host_module.functions {
         let Some((symbol, function)) = hosts.function(path, &function.name) else {
             continue;
@@ -254,6 +260,36 @@ fn append_host_module_import(
     true
 }
 
+fn append_host_resource_item(
+    module: &mut Module,
+    module_name: &str,
+    resource: &HostResourceType,
+    span: Option<Span>,
+) -> Option<HirId> {
+    let index = u32::try_from(module.items.len()).ok()?;
+    let owner = HirId(index);
+    let type_name = host_type_name(module_name, &resource.name);
+    module.items.push(Item {
+        id: owner,
+        name: Some(type_name.clone()),
+        kind: ItemKind::Struct,
+        visibility: Visibility::Public,
+        span,
+        doc: None,
+        tags: Vec::new(),
+        import: None,
+        type_params: Vec::new(),
+        params: Vec::new(),
+        struct_members: Vec::new(),
+        fields: Vec::new(),
+        variants: Vec::new(),
+        shape: None,
+        body: None,
+        external: Some(ExternalItem::HostResourceType { type_name }),
+    });
+    Some(owner)
+}
+
 fn append_host_value_item(
     module: &mut Module,
     module_name: &str,
@@ -262,7 +298,7 @@ fn append_host_value_item(
 ) -> Option<HirId> {
     let index = u32::try_from(module.items.len()).ok()?;
     let owner = HirId(index);
-    let type_name = host_value_type_name(module_name, &value.name);
+    let type_name = host_type_name(module_name, &value.name);
     let fields = value
         .fields
         .iter()
@@ -504,6 +540,6 @@ fn internal_host_name(path: &str, name: &str, symbol: tune_host::HostSymbolId) -
     out
 }
 
-fn host_value_type_name(module: &str, name: &str) -> String {
+fn host_type_name(module: &str, name: &str) -> String {
     format!("{module}.{name}")
 }

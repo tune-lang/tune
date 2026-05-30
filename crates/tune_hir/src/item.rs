@@ -28,6 +28,9 @@ pub enum ExternalItem {
     HostValueType {
         type_name: String,
     },
+    HostResourceType {
+        type_name: String,
+    },
     ModuleNamespace {
         members: Vec<ModuleNamespaceMember>,
     },
