@@ -3,6 +3,7 @@ use tune_diagnostics::Diagnostic;
 use tune_resolve::{CompilerFact, FactOwner};
 
 use crate::{
+    completion::{self, CompletionItem},
     diagnostics,
     hover::{self, HoverCard},
     protocol::LspDiagnostic,
@@ -54,6 +55,11 @@ impl LspSession {
                 })
             })
             .collect()
+    }
+
+    #[must_use]
+    pub fn completions(&self, file: FileId) -> Vec<CompletionItem> {
+        completion::items_for_file(&self.db, file)
     }
 
     #[must_use]

@@ -36,6 +36,18 @@ let run(input: String): String = input
     assert!(markdown.contains("```tn"));
     assert!(markdown.contains("let run(input: String): String"));
 
+    let completions = session.completions(file);
+    let run = completions
+        .iter()
+        .find(|item| item.label == "run")
+        .ok_or("callable should be offered as a completion")?;
+    assert_eq!(run.kind, tune_lsp::CompletionKind::Function);
+    assert_eq!(run.documentation.as_deref(), Some("Run docs."));
+    assert_eq!(
+        run.detail.as_deref(),
+        Some("let run(input: String): String")
+    );
+
     Ok(())
 }
 
