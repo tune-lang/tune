@@ -1,0 +1,23 @@
+name: Language Design
+description: Discuss Tune language behavior, syntax, or semantics.
+title: "language: "
+labels: ["language"]
+body:
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal Or Question
+      description: Describe the language behavior you want to discuss.
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples
+      description: Show what code should look like.
+      render: tn
+  - type: textarea
+    id: tradeoffs
+    attributes:
+      label: Tradeoffs
+      description: What gets simpler, harder, faster, or riskier?

@@ -1,0 +1,34 @@
+name: Tooling
+description: Report editor, LSP, formatter, diagnostics, docs, or package tooling issues.
+title: "tooling: "
+labels: ["tooling"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Dyno CLI
+        - LSP
+        - VS Code
+        - Zed
+        - Formatter
+        - Diagnostics
+        - Docs
+        - Examples
+        - Project/package tooling
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Commands, editor action, or file contents.
+    validations:
+      required: true
