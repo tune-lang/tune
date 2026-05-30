@@ -5,12 +5,22 @@
   "version": "0.1.0",
   "publisher": "tune-lang",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tune-lang/tune.git",
+    "directory": "editors/vscode"
+  },
+  "keywords": ["tune", "dyno", "language", "lsp"],
   "engines": {
     "vscode": "^1.92.0"
   },
   "categories": ["Programming Languages"],
   "activationEvents": ["onLanguage:tune"],
   "main": "./extension.js",
+  "scripts": {
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
   "contributes": {
     "configuration": {
       "title": "Tune",

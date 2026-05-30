@@ -4,28 +4,49 @@ const { LanguageClient, TransportKind } = require("vscode-languageclient/node");
 let client;
 
 function activate(context) {
-  const config = vscode.workspace.getConfiguration("tune");
-  const command = config.get("dynoPath", "dyno");
-  const serverOptions = {
-    run: { command, args: ["lsp"], transport: TransportKind.stdio },
-    debug: { command, args: ["lsp"], transport: TransportKind.stdio }
-  };
-  const clientOptions = {
-    documentSelector: [{ scheme: "file", language: "tune" }],
-    synchronize: {
-      fileEvents: vscode.workspace.createFileSystemWatcher("**/*.tn")
-    }
-  };
+  startClient(context);
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(async event => {
+      if (!event.affectsConfiguration("tune.dynoPath")) {
+        return;
+      }
+      await stopClient();
+      startClient(context);
+    })
+  );
+}
 
-  client = new LanguageClient("tune", "Tune Language Server", serverOptions, clientOptions);
+function startClient(context) {
+  const command = vscode.workspace.getConfiguration("tune").get("dynoPath", "dyno");
+  client = new LanguageClient("tune", "Tune Language Server", serverOptions(command), clientOptions);
   context.subscriptions.push(client.start());
 }
 
-function deactivate() {
+async function stopClient() {
   if (!client) {
     return undefined;
   }
-  return client.stop();
+  const stopped = client.stop();
+  client = undefined;
+  return stopped;
+}
+
+function serverOptions(command) {
+  return {
+    run: { command, args: ["lsp"], transport: TransportKind.stdio },
+    debug: { command, args: ["lsp"], transport: TransportKind.stdio }
+  };
+}
+
+const clientOptions = {
+  documentSelector: [{ scheme: "file", language: "tune" }],
+  synchronize: {
+    fileEvents: vscode.workspace.createFileSystemWatcher("**/*.tn")
+  }
+};
+
+function deactivate() {
+  return stopClient();
 }
 
 module.exports = {
