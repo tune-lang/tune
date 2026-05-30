@@ -141,6 +141,7 @@ pub(super) fn formatting_value(edits: &[TextEdit]) -> Value {
 }
 
 pub(super) fn diagnostic_value(diagnostic: &crate::LspDiagnostic) -> Value {
+    let code = diagnostic.code.as_str();
     json!({
         "range": range_value(diagnostic.range),
         "severity": match diagnostic.severity {
@@ -148,7 +149,9 @@ pub(super) fn diagnostic_value(diagnostic: &crate::LspDiagnostic) -> Value {
             crate::DiagnosticSeverity::Warning => 2,
             crate::DiagnosticSeverity::Information => 3,
         },
-        "code": diagnostic.code,
+        "source": "tune",
+        "code": code,
+        "codeDescription": { "href": format!("https://github.com/tune-lang/tune/blob/main/docs/diagnostics/{code}.md") },
         "message": diagnostic.message
     })
 }

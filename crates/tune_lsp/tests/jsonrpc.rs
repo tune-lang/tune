@@ -38,6 +38,18 @@ fn jsonrpc_server_handles_formatting() {
 }
 
 #[test]
+fn jsonrpc_diagnostics_include_tune_source_and_code_description() {
+    let mut server = tune_lsp::JsonRpcServer::new();
+    let messages = server.handle_message(
+        r#"{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tmp/bad.tn","text":"let value: Int = \"bad\"\n"}}}"#,
+    );
+
+    assert_eq!(messages.len(), 1);
+    assert!(messages[0].contains("\"source\":\"tune\""));
+    assert!(messages[0].contains("\"codeDescription\""));
+}
+
+#[test]
 fn jsonrpc_initialize_loads_workspace_folder_symbols() -> Result<(), String> {
     let root = std::env::temp_dir().join(format!("tune-lsp-jsonrpc-{}", std::process::id()));
     if root.exists() {
