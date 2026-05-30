@@ -7,6 +7,7 @@ pub enum CliCommand {
     Run { path: Option<String> },
     Profile { path: Option<String> },
     New { name: String },
+    Lsp,
     Help,
 }
 
@@ -18,6 +19,7 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
         [command] if command == "run" => Ok(CliCommand::Run { path: None }),
         [command] if command == "check" => Ok(CliCommand::Check { path: None }),
         [command] if command == "profile" => Ok(CliCommand::Profile { path: None }),
+        [command] if command == "lsp" => Ok(CliCommand::Lsp),
         [path] => Ok(CliCommand::Run {
             path: Some(path.clone()),
         }),
@@ -40,7 +42,7 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
 
 #[must_use]
 pub fn usage() -> &'static str {
-    "usage: dyno new <name>\n       dyno check [file]\n       dyno run [file]\n       dyno build [file]\n       dyno profile [file]\n       dyno <file>"
+    "usage: dyno new <name>\n       dyno check [file]\n       dyno run [file]\n       dyno build [file]\n       dyno profile [file]\n       dyno lsp\n       dyno <file>"
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

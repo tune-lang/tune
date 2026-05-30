@@ -597,6 +597,8 @@ name = "tune_lsp"
 version = "0.1.0"
 dependencies = [
  "dyno_project",
+ "serde",
+ "serde_json",
  "tune_db",
  "tune_diagnostics",
  "tune_hir",

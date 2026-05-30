@@ -46,6 +46,10 @@ fn parses_cli_commands_without_special_entry_names() {
         Ok(dyno_cli::CliCommand::Profile { path: None })
     );
     assert_eq!(
+        dyno_cli::parse_command(&["lsp".to_owned()]),
+        Ok(dyno_cli::CliCommand::Lsp)
+    );
+    assert_eq!(
         dyno_cli::parse_command(&["new".to_owned(), "app".to_owned()]),
         Ok(dyno_cli::CliCommand::New {
             name: "app".to_owned(),

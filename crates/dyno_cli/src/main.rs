@@ -22,6 +22,18 @@ fn main() {
         }
         return;
     }
+    if matches!(command, dyno_cli::CliCommand::Lsp) {
+        let stdin = std::io::stdin();
+        let stdout = std::io::stdout();
+        let mut reader = std::io::BufReader::new(stdin.lock());
+        let mut writer = stdout.lock();
+        let mut server = tune_lsp::JsonRpcServer::new();
+        if let Err(error) = tune_lsp::run_stdio(&mut reader, &mut writer, &mut server) {
+            eprintln!("dyno lsp failed: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
 
     let path = match command {
         dyno_cli::CliCommand::Build { ref path }
@@ -29,6 +41,7 @@ fn main() {
         | dyno_cli::CliCommand::Profile { ref path }
         | dyno_cli::CliCommand::Run { ref path } => path.as_ref(),
         dyno_cli::CliCommand::New { .. } => unreachable!(),
+        dyno_cli::CliCommand::Lsp => unreachable!(),
         dyno_cli::CliCommand::Help => {
             println!("{}", dyno_cli::usage());
             return;
