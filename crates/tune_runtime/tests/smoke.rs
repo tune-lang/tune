@@ -1,10 +1,4 @@
 #[test]
-fn smoke() {
-    let crate_name = env!("CARGO_PKG_NAME");
-    assert!(!crate_name.is_empty());
-}
-
-#[test]
 fn task_join_preserves_pending_and_ready_states() {
     let ready = tune_runtime::Task::ready(tune_runtime::TaskId(1), tune_runtime::Value::Int(20));
     assert_eq!(

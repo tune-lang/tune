@@ -1,10 +1,4 @@
 #[test]
-fn smoke() {
-    let crate_name = env!("CARGO_PKG_NAME");
-    assert!(!crate_name.is_empty());
-}
-
-#[test]
 fn package_exposes_dyno_binary() {
     assert!(option_env!("CARGO_BIN_EXE_dyno").is_some());
 }

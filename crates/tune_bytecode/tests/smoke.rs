@@ -1,10 +1,4 @@
 #[test]
-fn smoke() {
-    let crate_name = env!("CARGO_PKG_NAME");
-    assert!(!crate_name.is_empty());
-}
-
-#[test]
 fn core_opcodes_reserve_dense_bytecode_slots() -> Result<(), &'static str> {
     assert_eq!(tune_bytecode::Opcode::ALL.len(), 97);
     for (index, opcode) in tune_bytecode::Opcode::ALL.iter().enumerate() {

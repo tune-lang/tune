@@ -1,10 +1,4 @@
 #[test]
-fn smoke() {
-    let crate_name = env!("CARGO_PKG_NAME");
-    assert!(!crate_name.is_empty());
-}
-
-#[test]
 fn project_manifest_lockfile_and_resolution_are_typed() {
     let mut manifest = dyno_project::Manifest::new("app", "main.tn");
     manifest.dependencies.push(dyno_project::Dependency {

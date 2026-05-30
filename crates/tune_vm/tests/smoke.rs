@@ -1,10 +1,4 @@
 #[test]
-fn smoke() {
-    let crate_name = env!("CARGO_PKG_NAME");
-    assert!(!crate_name.is_empty());
-}
-
-#[test]
 fn vm_executes_integer_add_bytecode_entry() -> Result<(), &'static str> {
     let artifact = tune_bytecode::artifact::BytecodeArtifact {
         entry_function: Some(1),

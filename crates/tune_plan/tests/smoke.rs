@@ -1,10 +1,4 @@
 #[test]
-fn smoke() {
-    let crate_name = env!("CARGO_PKG_NAME");
-    assert!(!crate_name.is_empty());
-}
-
-#[test]
 fn lowers_hir_body_to_semantic_plan_ops() -> Result<(), &'static str> {
     let source = r#"
 let handle(item) = item

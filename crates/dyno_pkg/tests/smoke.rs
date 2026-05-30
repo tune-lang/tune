@@ -1,10 +1,4 @@
 #[test]
-fn smoke() {
-    let crate_name = env!("CARGO_PKG_NAME");
-    assert!(!crate_name.is_empty());
-}
-
-#[test]
 fn registry_resolves_exact_typed_package_versions() {
     let mut registry = dyno_pkg::Registry::new();
     let package = dyno_pkg::Package::new("json", "1.0.0", "sha256:abc");

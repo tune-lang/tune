@@ -1,10 +1,4 @@
 #[test]
-fn smoke() {
-    let crate_name = env!("CARGO_PKG_NAME");
-    assert!(!crate_name.is_empty());
-}
-
-#[test]
 fn ir_has_typed_slots_for_core_planned_operations() {
     let block = tune_ir::IrBlock {
         id: tune_ir::BlockId(0),

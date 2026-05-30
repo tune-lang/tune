@@ -1,10 +1,4 @@
 #[test]
-fn smoke() {
-    let crate_name = env!("CARGO_PKG_NAME");
-    assert!(!crate_name.is_empty());
-}
-
-#[test]
 fn lsp_session_queries_shared_db_diagnostics_and_facts() -> Result<(), &'static str> {
     let mut session = tune_lsp::LspSession::new();
     let file = session

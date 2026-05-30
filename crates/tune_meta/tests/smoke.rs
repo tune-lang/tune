@@ -1,10 +1,4 @@
 #[test]
-fn smoke() {
-    let crate_name = env!("CARGO_PKG_NAME");
-    assert!(!crate_name.is_empty());
-}
-
-#[test]
 fn meta_facts_use_compiler_ids_and_shapes() {
     let facts = tune_meta::facts::DeclFacts {
         decl_id: tune_hir::HirId(7),

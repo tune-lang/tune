@@ -1,10 +1,4 @@
 #[test]
-fn smoke() {
-    let crate_name = env!("CARGO_PKG_NAME");
-    assert!(!crate_name.is_empty());
-}
-
-#[test]
 fn optimizer_runs_ordered_semantic_passes_over_ir() {
     let mut function = tune_ir::IrFunction {
         params: 0,
