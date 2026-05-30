@@ -92,6 +92,19 @@ pub fn install() -> HostModule {
                 Ok(crate::result_ok(Value::Sequence(values)))
             }),
             HostFunction::new(
+                "metadata",
+                vec![HostParam::new("path", Shape::String)],
+                metadata_result_shape(),
+            )
+            .with_authorities(vec![tune_host::Authority("fs.read".into())])
+            .with_executor(|args: &[Value]| {
+                let path = crate::string_arg(args, 0, "path")?;
+                match std::fs::metadata(path) {
+                    Ok(metadata) => Ok(crate::result_ok(metadata_value(&metadata))),
+                    Err(error) => Ok(crate::result_error(error.to_string())),
+                }
+            }),
+            HostFunction::new(
                 "open",
                 vec![HostParam::new("path", Shape::String)],
                 file_result_shape(),
@@ -167,6 +180,28 @@ pub fn install() -> HostModule {
                 }
             }),
             HostFunction::new(
+                "append_text",
+                vec![
+                    HostParam::new("path", Shape::String),
+                    HostParam::new("text", Shape::String),
+                ],
+                unit_result_shape(),
+            )
+            .with_authorities(vec![tune_host::Authority("fs.write".into())])
+            .with_executor(|args: &[Value]| {
+                let path = crate::string_arg(args, 0, "path")?;
+                let text = crate::string_arg(args, 1, "text")?;
+                match std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(path)
+                    .and_then(|mut file| std::io::Write::write_all(&mut file, text.as_bytes()))
+                {
+                    Ok(()) => Ok(crate::result_ok(Value::Unit)),
+                    Err(error) => Ok(crate::result_error(error.to_string())),
+                }
+            }),
+            HostFunction::new(
                 "write_bytes",
                 vec![
                     HostParam::new("path", Shape::String),
@@ -179,6 +214,43 @@ pub fn install() -> HostModule {
                 let path = crate::string_arg(args, 0, "path")?;
                 let bytes = crate::byte_sequence_arg(args, 1, "data")?;
                 match std::fs::write(path, bytes) {
+                    Ok(()) => Ok(crate::result_ok(Value::Unit)),
+                    Err(error) => Ok(crate::result_error(error.to_string())),
+                }
+            }),
+            HostFunction::new(
+                "copy",
+                vec![
+                    HostParam::new("from", Shape::String),
+                    HostParam::new("to", Shape::String),
+                ],
+                size_result_shape(),
+            )
+            .with_authorities(vec![
+                tune_host::Authority("fs.read".into()),
+                tune_host::Authority("fs.write".into()),
+            ])
+            .with_executor(|args: &[Value]| {
+                let from = crate::string_arg(args, 0, "from")?;
+                let to = crate::string_arg(args, 1, "to")?;
+                match std::fs::copy(from, to) {
+                    Ok(bytes) => Ok(crate::result_ok(Value::Size(bytes))),
+                    Err(error) => Ok(crate::result_error(error.to_string())),
+                }
+            }),
+            HostFunction::new(
+                "rename",
+                vec![
+                    HostParam::new("from", Shape::String),
+                    HostParam::new("to", Shape::String),
+                ],
+                unit_result_shape(),
+            )
+            .with_authorities(vec![tune_host::Authority("fs.write".into())])
+            .with_executor(|args: &[Value]| {
+                let from = crate::string_arg(args, 0, "from")?;
+                let to = crate::string_arg(args, 1, "to")?;
+                match std::fs::rename(from, to) {
                     Ok(()) => Ok(crate::result_ok(Value::Unit)),
                     Err(error) => Ok(crate::result_error(error.to_string())),
                 }
@@ -224,14 +296,25 @@ pub fn install() -> HostModule {
             }),
         ],
     )
-    .with_values(vec![HostValueType::new(
-        "DirEntry",
-        vec![
-            HostValueField::new("name", Shape::String),
-            HostValueField::new("path", Shape::String),
-            HostValueField::new("is_dir", Shape::Bool),
-        ],
-    )])
+    .with_values(vec![
+        HostValueType::new(
+            "DirEntry",
+            vec![
+                HostValueField::new("name", Shape::String),
+                HostValueField::new("path", Shape::String),
+                HostValueField::new("is_dir", Shape::Bool),
+            ],
+        ),
+        HostValueType::new(
+            "Metadata",
+            vec![
+                HostValueField::new("len", Shape::Size),
+                HostValueField::new("is_file", Shape::Bool),
+                HostValueField::new("is_dir", Shape::Bool),
+                HostValueField::new("readonly", Shape::Bool),
+            ],
+        ),
+    ])
     .with_resources(vec![
         HostResourceType::new("File", Shape::Struct("fs.File".into()))
             .with_authorities(vec![
@@ -257,6 +340,13 @@ fn unit_result_shape() -> Shape {
     }
 }
 
+fn size_result_shape() -> Shape {
+    Shape::Result {
+        ok: Box::new(Shape::Size),
+        err: Box::new(Shape::String),
+    }
+}
+
 fn bytes_result_shape() -> Shape {
     Shape::Result {
         ok: Box::new(Shape::Sequence(Box::new(Shape::Byte))),
@@ -273,6 +363,32 @@ fn dir_entries_result_shape() -> Shape {
 
 fn dir_entry_shape() -> Shape {
     Shape::Struct("fs.DirEntry".into())
+}
+
+fn metadata_result_shape() -> Shape {
+    Shape::Result {
+        ok: Box::new(metadata_shape()),
+        err: Box::new(Shape::String),
+    }
+}
+
+fn metadata_shape() -> Shape {
+    Shape::Struct("fs.Metadata".into())
+}
+
+fn metadata_value(metadata: &std::fs::Metadata) -> Value {
+    Value::HostStruct {
+        type_name: "fs.Metadata".into(),
+        fields: vec![
+            ("len".into(), Value::Size(metadata.len())),
+            ("is_file".into(), Value::Bool(metadata.is_file())),
+            ("is_dir".into(), Value::Bool(metadata.is_dir())),
+            (
+                "readonly".into(),
+                Value::Bool(metadata.permissions().readonly()),
+            ),
+        ],
+    }
 }
 
 fn file_result_shape() -> Shape {

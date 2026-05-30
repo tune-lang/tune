@@ -164,6 +164,115 @@ fn fs_read_dir_executor_returns_dir_entry_host_values() -> Result<(), &'static s
     Ok(())
 }
 
+#[test]
+fn fs_metadata_executor_returns_metadata_host_value() -> Result<(), &'static str> {
+    let module = tune_std::fs::install();
+    let path = std::env::temp_dir().join(format!(
+        "dyno-tune-std-{}-{}.txt",
+        std::process::id(),
+        "fs-metadata"
+    ));
+    std::fs::write(&path, "hello").map_err(|_| "fixture file should write")?;
+
+    let metadata = fs_executor(&module, "metadata")?
+        .call(&[tune_runtime::Value::String(
+            path.to_string_lossy().to_string(),
+        )])
+        .map_err(|_| "fs.metadata should execute")?;
+    let tune_runtime::Value::Variant {
+        variant: tune_runtime::value::RuntimeVariant::ResultOk,
+        fields,
+        ..
+    } = metadata
+    else {
+        return Err("fs.metadata should return Ok");
+    };
+    let Some(tune_runtime::Value::HostStruct { type_name, fields }) = fields.first() else {
+        return Err("fs.metadata Ok payload should be a host struct");
+    };
+    assert_eq!(type_name, "fs.Metadata");
+    assert!(
+        fields
+            .iter()
+            .any(|(name, value)| name == "len" && value == &tune_runtime::Value::Size(5))
+    );
+    assert!(
+        fields
+            .iter()
+            .any(|(name, value)| name == "is_file" && value == &tune_runtime::Value::Bool(true))
+    );
+
+    drop(std::fs::remove_file(path));
+    Ok(())
+}
+
+#[test]
+fn fs_copy_rename_and_append_executors_return_result_values() -> Result<(), &'static str> {
+    let module = tune_std::fs::install();
+    let root = std::env::temp_dir().join(format!(
+        "dyno-tune-std-{}-{}",
+        std::process::id(),
+        "fs-file-ops"
+    ));
+    std::fs::create_dir(&root).map_err(|_| "fixture dir should create")?;
+    let source = root.join("source.txt");
+    let copied = root.join("copied.txt");
+    let renamed = root.join("renamed.txt");
+    std::fs::write(&source, "hello").map_err(|_| "fixture source should write")?;
+
+    let append = fs_executor(&module, "append_text")?
+        .call(&[
+            tune_runtime::Value::String(source.to_string_lossy().to_string()),
+            tune_runtime::Value::String(" std".into()),
+        ])
+        .map_err(|_| "fs.append_text should execute")?;
+    assert!(matches!(
+        append,
+        tune_runtime::Value::Variant {
+            variant: tune_runtime::value::RuntimeVariant::ResultOk,
+            ..
+        }
+    ));
+    assert_eq!(
+        std::fs::read_to_string(&source).map_err(|_| "source should read")?,
+        "hello std"
+    );
+
+    let copy = fs_executor(&module, "copy")?
+        .call(&[
+            tune_runtime::Value::String(source.to_string_lossy().to_string()),
+            tune_runtime::Value::String(copied.to_string_lossy().to_string()),
+        ])
+        .map_err(|_| "fs.copy should execute")?;
+    assert!(matches!(
+        copy,
+        tune_runtime::Value::Variant {
+            variant: tune_runtime::value::RuntimeVariant::ResultOk,
+            fields,
+            ..
+        } if matches!(fields.as_slice(), [tune_runtime::Value::Size(9)])
+    ));
+
+    let rename = fs_executor(&module, "rename")?
+        .call(&[
+            tune_runtime::Value::String(copied.to_string_lossy().to_string()),
+            tune_runtime::Value::String(renamed.to_string_lossy().to_string()),
+        ])
+        .map_err(|_| "fs.rename should execute")?;
+    assert!(matches!(
+        rename,
+        tune_runtime::Value::Variant {
+            variant: tune_runtime::value::RuntimeVariant::ResultOk,
+            ..
+        }
+    ));
+    assert!(renamed.exists());
+    assert!(!copied.exists());
+
+    drop(std::fs::remove_dir_all(root));
+    Ok(())
+}
+
 #[derive(Default)]
 struct TestHostContext {
     next: std::sync::atomic::AtomicU64,
