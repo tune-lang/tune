@@ -47,5 +47,6 @@ cargo test -p dyno_cli --test std_examples
 - [fs.tn](std/fs.tn): filesystem text, metadata, and path helpers.
 - [hash.tn](std/hash.tn): stable text and byte hashing.
 - [json.tn](std/json.tn): JSON validation and formatting helpers.
+- [math.tn](std/math.tn): floating-point numeric helpers.
 - [random.tn](std/random.tn): deterministic pseudo-random values.
 - [time.tn](std/time.tn): clock reads and millisecond sleep.

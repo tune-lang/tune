@@ -32,7 +32,8 @@ fn math_module_exposes_task_safe_float_helpers() -> Result<(), &'static str> {
     let module = tune_std::math::install();
 
     for name in [
-        "abs", "min", "max", "clamp", "floor", "ceil", "round", "sqrt", "pow",
+        "abs", "min", "max", "clamp", "floor", "ceil", "round", "sqrt", "pow", "sin", "cos", "tan",
+        "asin", "acos", "atan", "atan2", "exp", "ln", "log10",
     ] {
         let function = math_function(&module, name)?;
         assert!(function.task_safe);
@@ -111,6 +112,34 @@ fn math_executors_return_float_results() -> Result<(), &'static str> {
             ]
         )?,
         8.0
+    );
+    assert!(
+        (call_float(&module, "sin", vec![tune_runtime::Value::Float(0.0)])? - 0.0).abs() < 0.00001
+    );
+    assert!(
+        (call_float(&module, "cos", vec![tune_runtime::Value::Float(0.0)])? - 1.0).abs() < 0.00001
+    );
+    assert!(
+        (call_float(
+            &module,
+            "atan2",
+            vec![
+                tune_runtime::Value::Float(0.0),
+                tune_runtime::Value::Float(1.0)
+            ]
+        )? - 0.0)
+            .abs()
+            < 0.00001
+    );
+    assert!(
+        (call_float(&module, "exp", vec![tune_runtime::Value::Float(0.0)])? - 1.0).abs() < 0.00001
+    );
+    assert!(
+        (call_float(&module, "ln", vec![tune_runtime::Value::Float(1.0)])? - 0.0).abs() < 0.00001
+    );
+    assert!(
+        (call_float(&module, "log10", vec![tune_runtime::Value::Float(100.0)])? - 2.0).abs()
+            < 0.00001
     );
 
     Ok(())

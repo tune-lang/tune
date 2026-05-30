@@ -34,6 +34,16 @@ pub fn install() -> HostModule {
             unary_float("round", f64::round),
             unary_float("sqrt", f64::sqrt),
             binary_float("pow", f64::powf),
+            unary_float("sin", f64::sin),
+            unary_float("cos", f64::cos),
+            unary_float("tan", f64::tan),
+            unary_float("asin", f64::asin),
+            unary_float("acos", f64::acos),
+            unary_float("atan", f64::atan),
+            binary_float("atan2", f64::atan2),
+            unary_float("exp", f64::exp),
+            unary_float("ln", f64::ln),
+            unary_float("log10", f64::log10),
         ],
     )
 }

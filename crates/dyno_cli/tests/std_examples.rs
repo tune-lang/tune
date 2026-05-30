@@ -16,6 +16,7 @@ fn std_examples_check_with_dyno() -> Result<(), String> {
         "examples/std/fs.tn",
         "examples/std/hash.tn",
         "examples/std/json.tn",
+        "examples/std/math.tn",
         "examples/std/random.tn",
         "examples/std/time.tn",
     ];
