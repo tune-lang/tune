@@ -29,7 +29,7 @@ pub(crate) fn link_entry_imports(
     entry: FileId,
     hosts: &HostRegistry,
 ) -> Option<LinkedModule> {
-    link_entry_imports_with_sources(db, entry, hosts, None)
+    link_entry_imports_with_sources(db, entry, hosts, None, &[])
 }
 
 pub(crate) fn link_entry_imports_for_files(
@@ -37,12 +37,13 @@ pub(crate) fn link_entry_imports_for_files(
     entry: FileId,
     hosts: &HostRegistry,
     files: &[FileId],
+    import_aliases: &[(String, FileId)],
 ) -> Option<LinkedModule> {
     let allowed = files.iter().copied().collect::<HashSet<_>>();
     if !allowed.contains(&entry) {
         return None;
     }
-    link_entry_imports_with_sources(db, entry, hosts, Some(&allowed))
+    link_entry_imports_with_sources(db, entry, hosts, Some(&allowed), import_aliases)
 }
 
 fn link_entry_imports_with_sources(
@@ -50,15 +51,17 @@ fn link_entry_imports_with_sources(
     entry: FileId,
     hosts: &HostRegistry,
     allowed: Option<&HashSet<FileId>>,
+    import_aliases: &[(String, FileId)],
 ) -> Option<LinkedModule> {
     let mut parsed = Vec::new();
     let mut diagnostics = Vec::new();
-    let sources_by_path = db
+    let mut sources_by_path = db
         .sources()
         .iter()
         .filter(|source| allowed.is_none_or(|allowed| allowed.contains(&source.id)))
-        .map(|source| (source.path.as_str(), source.id))
+        .map(|source| (source.path.clone(), source.id))
         .collect::<HashMap<_, _>>();
+    sources_by_path.extend(import_aliases.iter().cloned());
     let mut stack = Vec::new();
 
     let module = link_source_imports(
@@ -82,7 +85,7 @@ fn link_source_imports(
     db: &TuneDb,
     file: FileId,
     hosts: &HostRegistry,
-    sources_by_path: &HashMap<&str, FileId>,
+    sources_by_path: &HashMap<String, FileId>,
     stack: &mut Vec<FileId>,
     parsed: &mut Vec<tune_syntax::Parsed>,
     diagnostics: &mut Vec<Diagnostic>,

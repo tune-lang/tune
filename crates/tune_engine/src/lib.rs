@@ -6,6 +6,7 @@ mod imports_internalize;
 mod imports_remap;
 mod paths;
 mod profile;
+mod project_sources;
 mod reachable;
 
 use diagnostics::{diagnostic_from_bytecode_lower_error, diagnostic_from_ir_lower_error};
@@ -22,6 +23,7 @@ pub use profile::{
     BytecodeQuality, IrQuality, OpcodeCount, OptimizerQuality, PlanQuality, ProfileReport,
     StageTiming,
 };
+pub use project_sources::ProjectPackageSources;
 
 use tune_db::{FileId, TuneDb};
 use tune_diagnostics::{Diagnostic, Severity};
@@ -38,7 +40,7 @@ pub struct Tune {
     authorities: Vec<Authority>,
     task_execution: TaskExecutionMode,
     projects: Vec<dyno_project::manifest::Manifest>,
-    project_sources: Vec<Vec<FileId>>,
+    project_sources: Vec<project_sources::ProjectSourceSet>,
 }
 
 impl Default for Tune {
@@ -243,7 +245,8 @@ impl Tune {
     ) -> Result<ProjectHandle, EngineError> {
         let index = u32::try_from(self.projects.len()).map_err(|_| EngineError::AllocationLimit)?;
         self.projects.push(manifest);
-        self.project_sources.push(Vec::new());
+        self.project_sources
+            .push(project_sources::ProjectSourceSet::default());
         Ok(ProjectHandle(index))
     }
 
@@ -277,8 +280,8 @@ impl Tune {
                 entry = Some(file);
             }
         }
-        if let Some(project_sources) = self.project_sources.get_mut(project.0 as usize) {
-            *project_sources = files;
+        if let Some(source_set) = self.project_sources.get_mut(project.0 as usize) {
+            *source_set = project_sources::ProjectSourceSet::new(files);
         }
         let entry = entry.ok_or(EngineError::ProjectEntryNotFound(entry_path))?;
         Ok(ProjectEntry { project, entry })
@@ -383,13 +386,18 @@ impl Tune {
         if self.projects.get(entry.project.0 as usize).is_none() {
             return Err(EngineError::NotImplemented("unknown project handle"));
         }
-        let files = self
+        let source_set = self
             .project_sources
             .get(entry.project.0 as usize)
             .ok_or(EngineError::NotImplemented("unknown project handle"))?;
-        let linked =
-            imports::link_entry_imports_for_files(&self.db, entry.entry, &self.hosts, files)
-                .ok_or(EngineError::FileNotFound(entry.entry))?;
+        let linked = imports::link_entry_imports_for_files(
+            &self.db,
+            entry.entry,
+            &self.hosts,
+            &source_set.files,
+            &source_set.import_aliases,
+        )
+        .ok_or(EngineError::FileNotFound(entry.entry))?;
         let resolved = tune_resolve::resolve_module(&linked.module);
         let shape = tune_shape::analyze_module(&linked.module, &resolved);
         let diagnostics = linked
