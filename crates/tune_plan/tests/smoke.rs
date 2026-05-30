@@ -203,7 +203,7 @@ fn plan_ops_contain_bool_and(ops: &[tune_plan::PlanOp]) -> bool {
                 matches!(
                     op,
                     tune_plan::PlanOp::UnaryOp {
-                        op: tune_hir::expr::UnaryOp::Not,
+                        op: tune_hir::expr::UnaryOp::Invert,
                         ..
                     }
                 )
@@ -239,14 +239,14 @@ fn explicit_return_body_does_not_get_extra_implicit_return() -> Result<(), &'sta
 }
 
 #[test]
-fn structural_match_lowers_to_known_member_witness() -> Result<(), &'static str> {
+fn structural_match_lowers_explicit_scrutinee_member_call() -> Result<(), &'static str> {
     let source = r#"
 struct Duck {
   quack(): Int = 7
 }
 let duck: Duck = Duck {}
 let result: Int = match duck {
-  { quack(): Int } => quack()
+  { quack(): Int } => duck.quack()
   else 0
 }
 "#;

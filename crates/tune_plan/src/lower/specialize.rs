@@ -23,7 +23,6 @@ pub(super) fn infer_direct_call_param_shapes_from_analyses(
             analysis: Some(analysis),
             self_shape: None,
             struct_escape: crate::StructEscapeReason::Local,
-            structural_witnesses: Vec::new(),
             param_shapes: Vec::new(),
             captured_locals: Vec::new(),
         };

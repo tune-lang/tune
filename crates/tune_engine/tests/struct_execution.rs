@@ -85,7 +85,7 @@ struct Duck {
 }
 let duck: Duck = Duck {}
 let result: Int = match duck {
-  { quack(): Int } => quack()
+  { quack(): Int } => duck.quack()
   else 0
 }
 "#,
@@ -131,7 +131,7 @@ fn run_file_executes_structural_match_fallback_when_shape_does_not_match()
 struct Rock {}
 let rock: Rock = Rock {}
 let result: Int = match rock {
-  { quack(): Int } => quack()
+  { quack(): Int } => 1
   else 0
 }
 "#,
@@ -153,7 +153,7 @@ struct Duck {
   quack(): Int = 7
 }
 let speak(duck) = match duck {
-  { quack(): Int } => quack()
+  { quack(): Int } => duck.quack()
   else 0
 }
 let duck: Duck = Duck {}
@@ -177,7 +177,7 @@ struct Duck {
   sound: Int
 }
 let speak(duck) = match duck {
-  { sound: Int } => sound
+  { sound: Int } => duck.sound
   else 0
 }
 let duck: Duck = Duck {

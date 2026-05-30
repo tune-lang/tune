@@ -1,11 +1,11 @@
 use tune_hir::MemberId;
 use tune_hir::expr::{Expr, ExprKind};
 use tune_hir::item::{Item, StructMember};
-use tune_hir::pattern::{Pattern, PatternKind, StructuralRequirement, StructuralRequirementKind};
+use tune_hir::pattern::{StructuralRequirement, StructuralRequirementKind};
 use tune_resolve::NameTarget;
 use tune_shape::{Shape, lower_resolved_hir_shape};
 
-use super::{LowerContext, StructuralWitness, StructuralWitnessKind};
+use super::LowerContext;
 
 impl LowerContext<'_> {
     pub(super) fn struct_item_id(&self, name: &str) -> Option<tune_hir::HirId> {
@@ -135,38 +135,6 @@ impl LowerContext<'_> {
             self.struct_member_for_requirement(struct_name, requirement)
                 .is_some()
         })
-    }
-
-    pub(super) fn structural_witnesses_for(
-        &self,
-        source: NameTarget,
-        struct_name: &str,
-        pattern: &Pattern,
-    ) -> Vec<StructuralWitness> {
-        let PatternKind::StructuralShape(requirements) = &pattern.kind else {
-            return Vec::new();
-        };
-        requirements
-            .iter()
-            .filter_map(|requirement| {
-                let local = self.local_for_expr(requirement.id)?;
-                let (name, kind) = match &requirement.kind {
-                    StructuralRequirementKind::Field { name, .. } => {
-                        (name.clone(), StructuralWitnessKind::Field)
-                    }
-                    StructuralRequirementKind::Callable { name, .. } => {
-                        (name.clone(), StructuralWitnessKind::Callable)
-                    }
-                };
-                Some(StructuralWitness {
-                    local,
-                    source,
-                    member: self.struct_member_for_requirement(struct_name, requirement)?,
-                    name,
-                    kind,
-                })
-            })
-            .collect()
     }
 
     pub(super) fn lower_shape(&self, shape: Option<&tune_hir::shape::ShapeExpr>) -> Option<Shape> {

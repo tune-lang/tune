@@ -236,7 +236,7 @@ struct Duck {
 }
 struct Rock {}
 let speak(x) = match x {
-  { quack(): Int } => quack()
+  { quack(): Int } => x.quack()
   else 0
 }
 let duck: Duck = Duck {}

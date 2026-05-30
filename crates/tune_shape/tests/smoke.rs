@@ -168,10 +168,10 @@ fn bit_operators_reject_bool_operands() -> Result<(), &'static str> {
 }
 
 #[test]
-fn structural_match_pattern_binds_required_callable() -> Result<(), &'static str> {
+fn structural_match_pattern_narrows_scrutinee_only() -> Result<(), &'static str> {
     let source = r#"
 let maybe_quack(duck) = match duck {
-  { quack(): String } => quack()
+  { quack(): String } => duck.quack()
   else none
 }
 "#;
@@ -188,6 +188,13 @@ let maybe_quack(duck) = match duck {
             && call.ret == tune_shape::Shape::String
             && call.target == tune_shape::CallTarget::Bound
     }));
+    assert!(
+        !analysis
+            .frame
+            .bindings
+            .iter()
+            .any(|binding| binding.name.as_deref() == Some("quack"))
+    );
 
     Ok(())
 }

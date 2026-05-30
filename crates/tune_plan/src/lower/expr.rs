@@ -10,9 +10,6 @@ impl LowerContext<'_> {
         match &expr.kind {
             ExprKind::Missing => {}
             ExprKind::Name(_) => {
-                if self.lower_structural_witness_get(expr, ops) {
-                    return;
-                }
                 ops.push(PlanOp::BindingGet {
                     source: self.name_target(expr.id),
                 });

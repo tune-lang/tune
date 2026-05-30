@@ -3,7 +3,6 @@ use tune_resolve::NameTarget;
 use tune_shape::{CallTarget, Shape};
 
 use super::LowerContext;
-use super::StructuralWitnessKind;
 use crate::PlanOp;
 
 impl LowerContext<'_> {
@@ -19,10 +18,6 @@ impl LowerContext<'_> {
         {
             self.lower_expr(base, ops);
             ops.push(PlanOp::TaskJoin { span: callee.span });
-            return;
-        }
-
-        if self.lower_structural_witness_call(callee, args, ops) {
             return;
         }
 
@@ -65,34 +60,6 @@ impl LowerContext<'_> {
             self.lower_expr(arg, ops);
         }
         ops.push(self.call_op(expr, callee, args.len()));
-    }
-
-    fn lower_structural_witness_call(
-        &self,
-        callee: &Expr,
-        args: &[Expr],
-        ops: &mut Vec<PlanOp>,
-    ) -> bool {
-        let Some(witness) = self.structural_witness_for_expr(callee) else {
-            return false;
-        };
-        if witness.kind != StructuralWitnessKind::Callable {
-            return false;
-        }
-
-        ops.push(PlanOp::BindingGet {
-            source: Some(witness.source),
-        });
-        for arg in args {
-            self.lower_expr(arg, ops);
-        }
-        ops.push(PlanOp::MemberCall {
-            member: Some(witness.member),
-            name: witness.name.clone(),
-            arg_count: args.len(),
-            span: callee.span,
-        });
-        true
     }
 
     fn call_op(&self, expr: tune_hir::ExprId, callee: &Expr, arg_count: usize) -> PlanOp {

@@ -2,9 +2,10 @@ use tune_hir::expr::{Expr, ExprKind};
 use tune_hir::item::ItemKind;
 use tune_hir::pattern::PatternKind;
 use tune_resolve::NameTarget;
+use tune_shape::{NominalShape, Shape};
 
 use super::values::expr_produces_value;
-use super::{LowerContext, PlanOp, StructEscapeReason, StructuralWitness, StructuralWitnessKind};
+use super::{LowerContext, PlanOp, StructEscapeReason};
 use crate::PlanIfBranch;
 
 impl LowerContext<'_> {
@@ -15,7 +16,6 @@ impl LowerContext<'_> {
             analysis: self.analysis,
             self_shape: self.self_shape.clone(),
             struct_escape: self.struct_escape,
-            structural_witnesses: self.structural_witnesses.clone(),
             param_shapes: self.param_shapes.clone(),
             captured_locals: self.captured_locals.clone(),
         }
@@ -28,39 +28,9 @@ impl LowerContext<'_> {
             analysis: self.analysis,
             self_shape: self.self_shape.clone(),
             struct_escape,
-            structural_witnesses: self.structural_witnesses.clone(),
             param_shapes: self.param_shapes.clone(),
             captured_locals: self.captured_locals.clone(),
         }
-    }
-
-    pub(super) fn structural_witness_for_expr(&self, expr: &Expr) -> Option<&StructuralWitness> {
-        let local = match self.name_target(expr.id)? {
-            NameTarget::Local(local) => local,
-            _ => return None,
-        };
-        self.structural_witnesses
-            .iter()
-            .rev()
-            .find(|witness| witness.local == local)
-    }
-
-    pub(super) fn lower_structural_witness_get(&self, expr: &Expr, ops: &mut Vec<PlanOp>) -> bool {
-        let Some(witness) = self.structural_witness_for_expr(expr) else {
-            return false;
-        };
-        if witness.kind != StructuralWitnessKind::Field {
-            return false;
-        }
-        ops.push(PlanOp::BindingGet {
-            source: Some(witness.source),
-        });
-        ops.push(PlanOp::FieldGet {
-            field: witness.name.clone(),
-            member: Some(witness.member),
-            span: expr.span,
-        });
-        true
     }
 
     pub(super) fn lower_structural_match(
@@ -90,10 +60,7 @@ impl LowerContext<'_> {
                 PatternKind::StructuralShape(requirements)
                     if self.struct_satisfies_requirements(&struct_name, requirements) =>
                 {
-                    let witnesses =
-                        self.structural_witnesses_for(source, &struct_name, &arm.pattern);
-                    let context = self.with_structural_witnesses(witnesses);
-                    context.lower_expr(&arm.body, ops);
+                    self.lower_expr(&arm.body, ops);
                     return true;
                 }
                 PatternKind::StructuralShape(_) => {}
@@ -135,10 +102,7 @@ impl LowerContext<'_> {
                 PatternKind::StructuralShape(requirements)
                     if self.struct_satisfies_requirements(&struct_name, requirements) =>
                 {
-                    let witnesses =
-                        self.structural_witnesses_for(source, &struct_name, &arm.pattern);
-                    let context = self.with_structural_witnesses(witnesses);
-                    context.lower_return_expr(&arm.body, ops);
+                    self.lower_return_expr(&arm.body, ops);
                     return true;
                 }
                 PatternKind::StructuralShape(_) => {}
@@ -181,9 +145,7 @@ impl LowerContext<'_> {
                         if !self.struct_satisfies_requirements(struct_name, requirements) {
                             continue;
                         }
-                        let witnesses =
-                            self.structural_witnesses_for(source, struct_name, &arm.pattern);
-                        let context = self.with_structural_witnesses(witnesses);
+                        let context = self.with_structural_source_shape(source, item);
                         let body_ops = context.lower_expr_to_ops(&arm.body);
                         branches.push(PlanIfBranch {
                             condition: scrutinee.id,
@@ -222,19 +184,28 @@ impl LowerContext<'_> {
         true
     }
 
-    fn with_structural_witnesses(&self, structural_witnesses: Vec<StructuralWitness>) -> Self {
-        let mut combined = self.structural_witnesses.clone();
-        combined.extend(structural_witnesses);
-        Self {
-            structural_witnesses: combined,
-            ..self.clone_context()
-        }
-    }
-
     fn scrutinee_source(&self, scrutinee: &Expr) -> Option<NameTarget> {
         let ExprKind::Name(_) = &scrutinee.kind else {
             return None;
         };
         self.name_target(scrutinee.id)
+    }
+
+    fn with_structural_source_shape(
+        &self,
+        source: NameTarget,
+        item: &tune_hir::item::Item,
+    ) -> Self {
+        let mut context = self.clone_context();
+        let Some(name) = item.name.as_ref() else {
+            return context;
+        };
+        if let NameTarget::Param(param) = source {
+            context.param_shapes.push((
+                param,
+                Shape::Struct(NominalShape::new(item.id, name.clone())),
+            ));
+        }
+        context
     }
 }

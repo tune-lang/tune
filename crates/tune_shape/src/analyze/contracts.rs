@@ -1,7 +1,7 @@
 use tune_diagnostics::{Diagnostic, Span, codes};
 use tune_hir::expr::Expr;
 use tune_hir::item::{Item, ItemKind, StructMember};
-use tune_hir::pattern::{Pattern, PatternKind, StructuralRequirementKind};
+use tune_hir::pattern::{Pattern, PatternKind};
 use tune_hir::{ExprId, MemberId};
 use tune_resolve::{LocalId, NameTarget};
 
@@ -272,34 +272,7 @@ impl Analyzer<'_> {
                     );
                 }
             }
-            PatternKind::StructuralShape(requirements) => {
-                for requirement in requirements {
-                    let (name, shape) = match &requirement.kind {
-                        StructuralRequirementKind::Field { name, shape } => (
-                            name,
-                            shape
-                                .as_ref()
-                                .map(|shape| self.lower_structural_shape(shape))
-                                .unwrap_or(Shape::Hole),
-                        ),
-                        StructuralRequirementKind::Callable { name, params, ret } => (
-                            name,
-                            Shape::Callable {
-                                params: params
-                                    .iter()
-                                    .map(|shape| self.lower_structural_shape(shape))
-                                    .collect(),
-                                ret: Box::new(
-                                    ret.as_ref()
-                                        .map(|shape| self.lower_structural_shape(shape))
-                                        .unwrap_or(Shape::Hole),
-                                ),
-                            },
-                        ),
-                    };
-                    self.bind_named_pattern_id(name, requirement.id, requirement.span, shape);
-                }
-            }
+            PatternKind::StructuralShape(_) => {}
             PatternKind::Hole | PatternKind::None | PatternKind::Unit | PatternKind::Else => {}
         }
     }

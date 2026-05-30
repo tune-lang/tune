@@ -82,7 +82,6 @@ fn lower_callable_value_function(
         analysis: Some(context.analysis),
         self_shape: None,
         struct_escape: crate::StructEscapeReason::Local,
-        structural_witnesses: Vec::new(),
         param_shapes: context.param_shapes.to_vec(),
         captured_locals: captured_locals_for_body(context.resolved, body),
     };

@@ -111,7 +111,6 @@ fn lower_module_item_into_entry(
         analysis,
         self_shape: None,
         struct_escape: crate::StructEscapeReason::Local,
-        structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
         captured_locals: captured_locals_for_body(resolved, body),
     };
@@ -166,7 +165,6 @@ fn lower_module_callable(
         analysis,
         self_shape: None,
         struct_escape: crate::StructEscapeReason::Local,
-        structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
         captured_locals: captured_locals_for_body(resolved, body),
     };
@@ -260,7 +258,6 @@ fn lower_callable_member(
             .as_ref()
             .map(|name| Shape::Struct(tune_shape::NominalShape::new(owner.id, name))),
         struct_escape: crate::StructEscapeReason::Local,
-        structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
         captured_locals: captured_locals_for_body(resolved, body),
     };
@@ -303,7 +300,6 @@ fn lower_sequence_materializer_member(
             .as_ref()
             .map(|name| Shape::Struct(tune_shape::NominalShape::new(owner.id, name))),
         struct_escape: crate::StructEscapeReason::Local,
-        structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
         captured_locals: captured_locals_for_body(resolved, body),
     };
@@ -346,7 +342,6 @@ fn lower_index_access_member(
             .as_ref()
             .map(|name| Shape::Struct(tune_shape::NominalShape::new(owner.id, name))),
         struct_escape: crate::StructEscapeReason::Local,
-        structural_witnesses: Vec::new(),
         param_shapes: param_shapes.to_vec(),
         captured_locals: captured_locals_for_body(resolved, body),
     };
@@ -379,7 +374,6 @@ pub(super) fn captured_locals_for_body(
         analysis: None,
         self_shape: None,
         struct_escape: crate::StructEscapeReason::Local,
-        structural_witnesses: Vec::new(),
         param_shapes: Vec::new(),
         captured_locals: Vec::new(),
     };

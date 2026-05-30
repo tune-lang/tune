@@ -102,7 +102,6 @@ fn lower_item_with_context(
         analysis,
         self_shape: None,
         struct_escape: StructEscapeReason::Local,
-        structural_witnesses: Vec::new(),
         param_shapes: Vec::new(),
         captured_locals: Vec::new(),
     };
@@ -164,24 +163,8 @@ pub(super) struct LowerContext<'a> {
     pub(super) analysis: Option<&'a tune_shape::ShapeAnalysis>,
     pub(super) self_shape: Option<tune_shape::Shape>,
     pub(super) struct_escape: StructEscapeReason,
-    pub(super) structural_witnesses: Vec<StructuralWitness>,
     pub(super) param_shapes: Vec<(tune_hir::MemberId, tune_shape::Shape)>,
     pub(super) captured_locals: Vec<LocalId>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct StructuralWitness {
-    pub(super) local: LocalId,
-    pub(super) source: NameTarget,
-    pub(super) member: tune_hir::MemberId,
-    pub(super) name: String,
-    pub(super) kind: StructuralWitnessKind,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum StructuralWitnessKind {
-    Field,
-    Callable,
 }
 
 impl LowerContext<'_> {
