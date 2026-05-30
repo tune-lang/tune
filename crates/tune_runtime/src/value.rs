@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::resource::ResourceHandle;
+use crate::sequence::SequenceHandle;
 use crate::state::StateHandle;
 use crate::task::TaskId;
 use tune_diagnostics::Span;
@@ -20,7 +21,10 @@ pub enum Value {
     Byte(u8),
     Bool(bool),
     String(String),
+    /// Host/debug sequence value. VM-built sequences use `SequenceHandle`.
     Sequence(Vec<Value>),
+    /// Current VM sequence storage with explicit exclusive/shared COW mutation.
+    SequenceHandle(SequenceHandle),
     Tuple(Vec<Value>),
     Range(RangeValue),
     Struct {
@@ -54,6 +58,21 @@ impl PartialEq for Value {
             (Self::Bool(left), Self::Bool(right)) => left == right,
             (Self::String(left), Self::String(right)) => left == right,
             (Self::Sequence(left), Self::Sequence(right)) => left == right,
+            (Self::SequenceHandle(left), Self::SequenceHandle(right)) => left == right,
+            (Self::Sequence(left), Self::SequenceHandle(right)) => {
+                left.len() == right.len()
+                    && left
+                        .iter()
+                        .enumerate()
+                        .all(|(index, value)| right.get(index).is_some_and(|right| right == *value))
+            }
+            (Self::SequenceHandle(left), Self::Sequence(right)) => {
+                right.len() == left.len()
+                    && right
+                        .iter()
+                        .enumerate()
+                        .all(|(index, value)| left.get(index).is_some_and(|left| left == *value))
+            }
             (Self::Tuple(left), Self::Tuple(right)) => left == right,
             (Self::Range(left), Self::Range(right)) => left == right,
             (
@@ -119,6 +138,7 @@ impl Value {
             Self::Sequence(values) => {
                 Self::Sequence(values.iter().map(Self::capture_snapshot).collect())
             }
+            Self::SequenceHandle(values) => Self::Sequence(values.snapshot_values()),
             Self::Tuple(values) => Self::Tuple(values.iter().map(Self::capture_snapshot).collect()),
             Self::Variant {
                 variant,
@@ -142,6 +162,7 @@ impl Value {
             Self::Sequence(values) | Self::Tuple(values) => {
                 values.iter().find_map(Self::task_safety_error)
             }
+            Self::SequenceHandle(values) => values.task_safety_error(),
             Self::Struct { fields, .. } => fields.task_safety_error(),
             Self::HostStruct { fields, .. } => fields
                 .iter()

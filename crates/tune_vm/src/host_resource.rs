@@ -96,6 +96,12 @@ impl Vm {
                 .map(|value| self.denormalize_host_value(value))
                 .collect::<Result<Vec<_>, _>>()
                 .map(Value::Sequence),
+            Value::SequenceHandle(values) => values
+                .cloned_values()
+                .into_iter()
+                .map(|value| self.denormalize_host_value(value))
+                .collect::<Result<Vec<_>, _>>()
+                .map(Value::Sequence),
             Value::Tuple(values) => values
                 .into_iter()
                 .map(|value| self.denormalize_host_value(value))
@@ -127,6 +133,12 @@ impl Vm {
                 self.normalize_host_struct(type_name, fields)
             }
             Value::Sequence(values) => values
+                .into_iter()
+                .map(|value| self.normalize_host_value(value))
+                .collect::<Result<Vec<_>, _>>()
+                .map(Value::Sequence),
+            Value::SequenceHandle(values) => values
+                .cloned_values()
                 .into_iter()
                 .map(|value| self.normalize_host_value(value))
                 .collect::<Result<Vec<_>, _>>()

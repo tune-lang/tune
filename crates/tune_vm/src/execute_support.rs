@@ -434,6 +434,7 @@ impl Vm {
 fn finite_iter_len(iterable: &Value) -> Option<u64> {
     match iterable {
         Value::Sequence(values) => u64::try_from(values.len()).ok(),
+        Value::SequenceHandle(values) => u64::try_from(values.len()).ok(),
         value => value_range(value).and_then(range_len),
     }
 }
@@ -443,6 +444,10 @@ fn finite_iter_item(iterable: &Value, iterator: u64) -> Option<Value> {
         Value::Sequence(values) => {
             let index = usize::try_from(iterator).ok()?;
             values.get(index).cloned()
+        }
+        Value::SequenceHandle(values) => {
+            let index = usize::try_from(iterator).ok()?;
+            values.get(index)
         }
         value => range_item(value_range(value)?, iterator).map(|item| item.value),
     }
