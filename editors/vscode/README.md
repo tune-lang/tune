@@ -36,5 +36,20 @@ expects `dyno` to be on `PATH`; set `tune.dynoPath` if you use a local binary.
 ## Packaging
 
 ```sh
+npm run check
 npm run package
+```
+
+The packaged extension is written as `tune-vscode-<version>.vsix`. Install it
+locally with:
+
+```sh
+code --install-extension tune-vscode-0.1.0.vsix
+```
+
+Publishing uses the same package metadata and requires a VS Code Marketplace
+publisher token:
+
+```sh
+npm run publish
 ```

@@ -10,6 +10,12 @@ dyno lsp
 Install it locally with Zed's `zed: install dev extension` command and select
 this `editors/zed` directory. `dyno` must be available on the worktree `PATH`.
 
+Check the extension crate with:
+
+```sh
+cargo check --manifest-path editors/zed/Cargo.toml
+```
+
 ## Grammar
 
 Zed language extensions require a Tree-sitter grammar. The extension manifest
