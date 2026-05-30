@@ -97,6 +97,7 @@ impl Analyzer<'_> {
                 signature.target,
                 CallTarget::TopLevel(_) | CallTarget::Variant(_)
             )
+            || !signature_contains_type_params(signature)
         {
             return;
         }
@@ -322,6 +323,41 @@ impl Analyzer<'_> {
             .iter()
             .find(|name_ref| name_ref.expr == expr.id)
             .map(|name_ref| name_ref.target)
+    }
+}
+
+fn signature_contains_type_params(signature: &CallSignature) -> bool {
+    signature.params.iter().any(shape_contains_type_param)
+        || shape_contains_type_param(&signature.ret)
+}
+
+fn shape_contains_type_param(shape: &Shape) -> bool {
+    match shape {
+        Shape::Param(_) => true,
+        Shape::Sequence(inner)
+        | Shape::Range(inner)
+        | Shape::Optional(inner)
+        | Shape::Task(inner) => shape_contains_type_param(inner),
+        Shape::Tuple(items) | Shape::Union(items) => items.iter().any(shape_contains_type_param),
+        Shape::Callable { params, ret } => {
+            params.iter().any(shape_contains_type_param) || shape_contains_type_param(ret)
+        }
+        Shape::Result { ok, err } => {
+            shape_contains_type_param(ok) || shape_contains_type_param(err)
+        }
+        Shape::Apply { args, .. } => args.iter().any(shape_contains_type_param),
+        Shape::Structural(requirements) => {
+            requirements.iter().any(|requirement| match requirement {
+                MemberRequirement::Field { shape, .. } => {
+                    shape.as_ref().is_some_and(shape_contains_type_param)
+                }
+                MemberRequirement::Callable { params, ret, .. } => {
+                    params.iter().any(shape_contains_type_param)
+                        || ret.as_ref().is_some_and(shape_contains_type_param)
+                }
+            })
+        }
+        _ => false,
     }
 }
 
