@@ -26,7 +26,7 @@ pub fn lower_analyzed_module_to_plan(
     let module_bindings = module
         .items
         .iter()
-        .filter(|item| item.kind == ItemKind::Let && item.body.is_some())
+        .filter(|item| item.kind == ItemKind::Let && (item.body.is_some() || item.shape.is_some()))
         .map(|item| item.id)
         .collect::<Vec<_>>();
     let entry = (!module_bindings.is_empty()).then(|| {
@@ -45,11 +45,9 @@ pub fn lower_analyzed_module_to_plan(
             struct_layouts: super::struct_layouts(module),
             ops: Vec::new(),
         };
-        for item in module
-            .items
-            .iter()
-            .filter(|item| item.kind == ItemKind::Let && item.body.is_some())
-        {
+        for item in module.items.iter().filter(|item| {
+            item.kind == ItemKind::Let && (item.body.is_some() || item.shape.is_some())
+        }) {
             lower_module_item_into_entry(
                 module,
                 item,
@@ -102,9 +100,6 @@ fn lower_module_item_into_entry(
     param_shapes: &[(tune_hir::MemberId, Shape)],
     ops: &mut Vec<PlanOp>,
 ) {
-    let Some(body) = item.body.as_ref() else {
-        return;
-    };
     let context = LowerContext {
         resolved: Some(resolved),
         module: Some(module),
@@ -112,24 +107,42 @@ fn lower_module_item_into_entry(
         self_shape: None,
         struct_escape: crate::StructEscapeReason::Local,
         param_shapes: param_shapes.to_vec(),
-        captured_locals: captured_locals_for_body(resolved, body),
+        captured_locals: item
+            .body
+            .as_ref()
+            .map_or_else(Vec::new, |body| captured_locals_for_body(resolved, body)),
     };
-    context.lower_expr_for_binding(body, item.shape.as_ref(), ops);
-    if matches!(body.kind, tune_hir::expr::ExprKind::Sequence(_))
-        && let Some(target) = context.lower_shape(item.shape.as_ref())
+    let initialized = if let Some(body) = item.body.as_ref() {
+        context.lower_expr_for_binding(body, item.shape.as_ref(), ops);
+        if matches!(body.kind, tune_hir::expr::ExprKind::Sequence(_))
+            && let Some(target) = context.lower_shape(item.shape.as_ref())
+        {
+            let materializer = context.sequence_materializer(&target);
+            ops.push(PlanOp::Materialize {
+                plan: MaterializationPlan {
+                    target: target.clone(),
+                    commitment: tune_shape::Commitment::CommitBinding,
+                },
+                materializer,
+            });
+        }
+        true
+    } else if let Some(default_ops) = context
+        .lower_shape(item.shape.as_ref())
+        .and_then(|shape| super::values::default_value_ops(&shape))
+        .filter(|ops| !ops.is_empty())
     {
-        let materializer = context.sequence_materializer(&target);
-        ops.push(PlanOp::Materialize {
-            plan: MaterializationPlan {
-                target: target.clone(),
-                commitment: tune_shape::Commitment::CommitBinding,
-            },
-            materializer,
-        });
+        ops.extend(default_ops);
+        true
+    } else {
+        false
+    };
+    if !initialized {
+        return;
     }
     ops.push(PlanOp::ModuleLet {
         item: item.id,
-        initialized: true,
+        initialized,
         keep_value: last_binding == Some(item.id),
     });
 }

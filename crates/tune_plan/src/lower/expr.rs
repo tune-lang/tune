@@ -123,8 +123,9 @@ impl LowerContext<'_> {
                 }
             }
             ExprKind::Let { shape, value, .. } => {
-                let initialized = value.is_some();
+                let mut initialized = false;
                 if let Some(value) = value {
+                    initialized = true;
                     let context = if self
                         .local_for_expr(expr.id)
                         .is_some_and(|local| self.captured_locals.contains(&local))
@@ -146,6 +147,13 @@ impl LowerContext<'_> {
                             materializer,
                         });
                     }
+                } else if let Some(default_ops) = self
+                    .lower_shape(shape.as_ref())
+                    .and_then(|shape| default_value_ops(&shape))
+                    .filter(|ops| !ops.is_empty())
+                {
+                    initialized = true;
+                    ops.extend(default_ops);
                 }
                 ops.push(PlanOp::LocalLet {
                     local: self.local_for_expr(expr.id),

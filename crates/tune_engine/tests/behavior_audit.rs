@@ -84,6 +84,26 @@ let result: Int = pick(false)
 }
 
 #[test]
+fn annotated_bindings_without_initializers_use_shape_defaults() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let top: Int
+let result: Int = {
+  let local: Int;
+  top + local
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, Value::Int(0));
+    Ok(())
+}
+
+#[test]
 fn struct_field_default_solves_from_non_literal_member_assignment() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
