@@ -26,10 +26,15 @@ pub(crate) struct ProfileRow {
     pub(crate) stage: String,
     pub(crate) duration_ns: u128,
     pub(crate) plan_ops: usize,
+    pub(crate) dynamic_bound_calls: usize,
     pub(crate) ir_ops: usize,
     pub(crate) ir_shape_holes: usize,
     pub(crate) sequence_build_holes: usize,
     pub(crate) bytecode_instructions: usize,
+    pub(crate) runtime_type_guard_pressure: usize,
+    pub(crate) checked_sequence_ops: usize,
+    pub(crate) unchecked_sequence_ops: usize,
+    pub(crate) bound_calls: usize,
     pub(crate) diagnostics: usize,
 }
 
@@ -156,7 +161,7 @@ fn run(input: TraceInput) -> i32 {
 
     if input.csv {
         println!(
-            "path,mode,stage,duration_ns,plan_ops,ir_ops,ir_shape_holes,sequence_build_holes,bytecode_instructions,diagnostics"
+            "path,mode,stage,duration_ns,plan_ops,dynamic_bound_calls,ir_ops,ir_shape_holes,sequence_build_holes,bytecode_instructions,runtime_type_guard_pressure,checked_sequence_ops,unchecked_sequence_ops,bound_calls,diagnostics"
         );
     }
 
@@ -192,23 +197,33 @@ fn run(input: TraceInput) -> i32 {
                     stage: stage.stage.to_owned(),
                     duration_ns: stage.duration.as_nanos(),
                     plan_ops: report.plan.ops,
+                    dynamic_bound_calls: report.plan.dynamic_bound_calls,
                     ir_ops: report.ir.ops,
                     ir_shape_holes: report.ir.shape_holes,
                     sequence_build_holes: report.ir.sequence_build_holes,
                     bytecode_instructions: report.bytecode.instructions,
+                    runtime_type_guard_pressure: report.bytecode.runtime_type_guard_pressure,
+                    checked_sequence_ops: report.bytecode.checked_sequence_ops,
+                    unchecked_sequence_ops: report.bytecode.unchecked_sequence_ops,
+                    bound_calls: report.bytecode.bound_calls,
                     diagnostics: report.diagnostics.len(),
                 };
                 println!(
-                    "{},{},{},{},{},{},{},{},{},{}",
+                    "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
                     row.path,
                     row.mode,
                     row.stage,
                     row.duration_ns,
                     row.plan_ops,
+                    row.dynamic_bound_calls,
                     row.ir_ops,
                     row.ir_shape_holes,
                     row.sequence_build_holes,
                     row.bytecode_instructions,
+                    row.runtime_type_guard_pressure,
+                    row.checked_sequence_ops,
+                    row.unchecked_sequence_ops,
+                    row.bound_calls,
                     row.diagnostics
                 );
                 rows.push(row);
@@ -247,6 +262,14 @@ fn run(input: TraceInput) -> i32 {
             "  holes: ir_shape_holes={} ir_sequence_build_holes={}",
             report.ir.shape_holes, report.ir.sequence_build_holes
         );
+        println!(
+            "  guards: runtime={} plan_bound_calls={} bytecode_bound_calls={} seq_checked={} seq_unchecked={}",
+            report.bytecode.runtime_type_guard_pressure,
+            report.plan.dynamic_bound_calls,
+            report.bytecode.bound_calls,
+            report.bytecode.checked_sequence_ops,
+            report.bytecode.unchecked_sequence_ops,
+        );
 
         if input.strict && report.ir.shape_holes != 0 {
             eprintln!(
@@ -267,10 +290,15 @@ fn run(input: TraceInput) -> i32 {
                 stage: stage.stage.to_owned(),
                 duration_ns: stage.duration.as_nanos(),
                 plan_ops: report.plan.ops,
+                dynamic_bound_calls: report.plan.dynamic_bound_calls,
                 ir_ops: report.ir.ops,
                 ir_shape_holes: report.ir.shape_holes,
                 sequence_build_holes: report.ir.sequence_build_holes,
                 bytecode_instructions: report.bytecode.instructions,
+                runtime_type_guard_pressure: report.bytecode.runtime_type_guard_pressure,
+                checked_sequence_ops: report.bytecode.checked_sequence_ops,
+                unchecked_sequence_ops: report.bytecode.unchecked_sequence_ops,
+                bound_calls: report.bytecode.bound_calls,
                 diagnostics: report.diagnostics.len(),
             });
         }

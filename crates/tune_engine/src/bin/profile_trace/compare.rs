@@ -85,6 +85,14 @@ pub(crate) fn compare_profile_rows(
         compare_metric(
             &mut report,
             row,
+            "dynamic_bound_calls",
+            expected.dynamic_bound_calls as f64,
+            row.dynamic_bound_calls as f64,
+            compare.max_counter_delta_pct,
+        );
+        compare_metric(
+            &mut report,
+            row,
             "ir_shape_holes",
             expected.ir_shape_holes as f64,
             row.ir_shape_holes as f64,
@@ -104,6 +112,38 @@ pub(crate) fn compare_profile_rows(
             "bytecode_instructions",
             expected.bytecode_instructions as f64,
             row.bytecode_instructions as f64,
+            compare.max_counter_delta_pct,
+        );
+        compare_metric(
+            &mut report,
+            row,
+            "runtime_type_guard_pressure",
+            expected.runtime_type_guard_pressure as f64,
+            row.runtime_type_guard_pressure as f64,
+            compare.max_counter_delta_pct,
+        );
+        compare_metric(
+            &mut report,
+            row,
+            "checked_sequence_ops",
+            expected.checked_sequence_ops as f64,
+            row.checked_sequence_ops as f64,
+            compare.max_counter_delta_pct,
+        );
+        compare_metric(
+            &mut report,
+            row,
+            "unchecked_sequence_ops",
+            expected.unchecked_sequence_ops as f64,
+            row.unchecked_sequence_ops as f64,
+            compare.max_counter_delta_pct,
+        );
+        compare_metric(
+            &mut report,
+            row,
+            "bound_calls",
+            expected.bound_calls as f64,
+            row.bound_calls as f64,
             compare.max_counter_delta_pct,
         );
         compare_metric(
@@ -247,23 +287,48 @@ pub(crate) fn parse_csv_rows(path: &str) -> Result<Vec<ProfileRow>, String> {
         if parts.is_empty() || parts[0].trim().is_empty() {
             continue;
         }
-        if parts.len() != 10 {
+        if parts.len() != 10 && parts.len() != 15 {
             return Err(format!(
-                "invalid baseline csv row: expected 10 fields, found {}",
+                "invalid baseline csv row: expected 10 or 15 fields, found {}",
                 parts.len()
             ));
         }
-        rows.push(ProfileRow {
-            path: parts[0].to_owned(),
-            mode: parts[1].to_owned(),
-            stage: parts[2].to_owned(),
-            duration_ns: parse_u128(parts[3])?,
-            plan_ops: parse_usize(parts[4])?,
-            ir_ops: parse_usize(parts[5])?,
-            ir_shape_holes: parse_usize(parts[6])?,
-            sequence_build_holes: parse_usize(parts[7])?,
-            bytecode_instructions: parse_usize(parts[8])?,
-            diagnostics: parse_usize(parts[9])?,
+        rows.push(if parts.len() == 15 {
+            ProfileRow {
+                path: parts[0].to_owned(),
+                mode: parts[1].to_owned(),
+                stage: parts[2].to_owned(),
+                duration_ns: parse_u128(parts[3])?,
+                plan_ops: parse_usize(parts[4])?,
+                dynamic_bound_calls: parse_usize(parts[5])?,
+                ir_ops: parse_usize(parts[6])?,
+                ir_shape_holes: parse_usize(parts[7])?,
+                sequence_build_holes: parse_usize(parts[8])?,
+                bytecode_instructions: parse_usize(parts[9])?,
+                runtime_type_guard_pressure: parse_usize(parts[10])?,
+                checked_sequence_ops: parse_usize(parts[11])?,
+                unchecked_sequence_ops: parse_usize(parts[12])?,
+                bound_calls: parse_usize(parts[13])?,
+                diagnostics: parse_usize(parts[14])?,
+            }
+        } else {
+            ProfileRow {
+                path: parts[0].to_owned(),
+                mode: parts[1].to_owned(),
+                stage: parts[2].to_owned(),
+                duration_ns: parse_u128(parts[3])?,
+                plan_ops: parse_usize(parts[4])?,
+                dynamic_bound_calls: 0,
+                ir_ops: parse_usize(parts[5])?,
+                ir_shape_holes: parse_usize(parts[6])?,
+                sequence_build_holes: parse_usize(parts[7])?,
+                bytecode_instructions: parse_usize(parts[8])?,
+                runtime_type_guard_pressure: 0,
+                checked_sequence_ops: 0,
+                unchecked_sequence_ops: 0,
+                bound_calls: 0,
+                diagnostics: parse_usize(parts[9])?,
+            }
         });
     }
 
@@ -276,21 +341,26 @@ pub(crate) fn parse_csv_rows(path: &str) -> Result<Vec<ProfileRow>, String> {
 pub(crate) fn write_csv(path: &str, rows: &[ProfileRow]) -> Result<(), String> {
     let mut lines = Vec::new();
     lines.push(
-        "path,mode,stage,duration_ns,plan_ops,ir_ops,ir_shape_holes,sequence_build_holes,bytecode_instructions,diagnostics"
+        "path,mode,stage,duration_ns,plan_ops,dynamic_bound_calls,ir_ops,ir_shape_holes,sequence_build_holes,bytecode_instructions,runtime_type_guard_pressure,checked_sequence_ops,unchecked_sequence_ops,bound_calls,diagnostics"
             .to_owned(),
     );
     for row in rows {
         lines.push(format!(
-            "{},{},{},{},{},{},{},{},{},{}",
+            "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
             row.path,
             row.mode,
             row.stage,
             row.duration_ns,
             row.plan_ops,
+            row.dynamic_bound_calls,
             row.ir_ops,
             row.ir_shape_holes,
             row.sequence_build_holes,
             row.bytecode_instructions,
+            row.runtime_type_guard_pressure,
+            row.checked_sequence_ops,
+            row.unchecked_sequence_ops,
+            row.bound_calls,
             row.diagnostics
         ));
     }

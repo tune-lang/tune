@@ -240,7 +240,7 @@ fn finish_profile(
             });
         }
     };
-    let mut optimized_ir = ir.clone();
+    let mut optimized_ir = ir;
     let (optimizer_quality, duration) = timed(|| optimizer_quality(&mut optimized_ir));
     timings.push(stage("opt", duration));
     let ir_quality = ir_quality(&optimized_ir);

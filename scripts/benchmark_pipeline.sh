@@ -27,9 +27,10 @@ flamegraph
   Record a flamegraph of the pipeline benchmark binary:
     benchmark_pipeline.sh flamegraph tune_pipeline_full_profile/full/structural_match
 
-quality <source.tn...>
+quality [quality_check args...] <source.tn...>
   Run IR-quality checks on one or more Tune sources:
     benchmark_pipeline.sh quality app/main.tn path/to/file.tn
+    benchmark_pipeline.sh quality --full --max-dynamic-bound-calls 0 app/main.tn
 
 trace
   Print stage timings and IR-quality for source files:
@@ -349,7 +350,11 @@ case "$command" in
         --max-counter-delta-pct 10 \
         "${resolved[@]}"
     else
-      cargo run --package tune_engine --bin quality_check -- "${resolved[@]}" --strict-shapes
+      cargo run --package tune_engine --bin quality_check -- \
+        --full \
+        --strict-shapes \
+        --max-dynamic-bound-calls 0 \
+        "${resolved[@]}"
     fi
     ;;
   quality)
