@@ -115,7 +115,7 @@ fn engine_resolves_loaded_project_roots() -> Result<(), &'static str> {
 fn executable_lowering_stops_on_structured_frontend_diagnostics() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file("main.tn", "let value: Int = true & false")
+        .add_file("main.tn", "let value: Bool = true ^ false")
         .ok_or("source should allocate")?;
 
     let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.executable_file(file) else {
