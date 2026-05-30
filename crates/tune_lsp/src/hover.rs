@@ -90,8 +90,93 @@ pub fn hover_card(db: &TuneDb, file: FileId, owner: FactOwner) -> Option<HoverCa
 #[must_use]
 pub fn hover_card_at(db: &TuneDb, file: FileId, position: crate::Position) -> Option<HoverCard> {
     let offset = crate::protocol::byte_offset(db, file, position)?;
-    let owner = owner_at_offset(db, file, offset)?;
-    hover_card(db, file, owner)
+    let cursor = db.semantic_at(file, offset)?;
+    if let Some(owner) = cursor
+        .reference
+        .as_ref()
+        .and_then(|reference| reference.definition.as_ref())
+        .and_then(|definition| definition.owner)
+    {
+        return hover_card(db, file, owner);
+    }
+    if let Some(card) = cursor.expr.and_then(|expr| {
+        expr.shape.map(|shape| HoverCard {
+            documentation: None,
+            signature: None,
+            facts: vec![format!("inferred shape {}", semantic_shape_text(&shape))],
+        })
+    }) {
+        return Some(card);
+    }
+    if let Some(owner) = cursor.owner_fact
+        && let Some(card) = hover_card(db, file, owner)
+    {
+        return Some(card);
+    }
+    None
+}
+
+#[must_use]
+pub fn semantic_shape_text(shape: &tune_shape::Shape) -> String {
+    match shape {
+        tune_shape::Shape::Hole => "_".to_owned(),
+        tune_shape::Shape::Never => "Never".to_owned(),
+        tune_shape::Shape::Unit => "()".to_owned(),
+        tune_shape::Shape::Int => "Int".to_owned(),
+        tune_shape::Shape::Float => "Float".to_owned(),
+        tune_shape::Shape::Size => "Size".to_owned(),
+        tune_shape::Shape::Byte => "Byte".to_owned(),
+        tune_shape::Shape::Bool => "Bool".to_owned(),
+        tune_shape::Shape::String => "String".to_owned(),
+        tune_shape::Shape::Literal(literal) => format!("{literal:?}"),
+        tune_shape::Shape::Param(name) => name.clone(),
+        tune_shape::Shape::Sequence(inner) => format!("[{}]", semantic_shape_text(inner)),
+        tune_shape::Shape::Range(inner) => format!("Range<{}>", semantic_shape_text(inner)),
+        tune_shape::Shape::Tuple(items) => {
+            let items = items
+                .iter()
+                .map(semantic_shape_text)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("({items})")
+        }
+        tune_shape::Shape::Union(items) => items
+            .iter()
+            .map(semantic_shape_text)
+            .collect::<Vec<_>>()
+            .join(" | "),
+        tune_shape::Shape::Optional(inner) => format!("{}?", semantic_shape_text(inner)),
+        tune_shape::Shape::Callable { params, ret } => {
+            let params = params
+                .iter()
+                .map(semantic_shape_text)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("_({params}): {}", semantic_shape_text(ret))
+        }
+        tune_shape::Shape::Result { ok, err } => {
+            format!(
+                "Result<{}, {}>",
+                semantic_shape_text(ok),
+                semantic_shape_text(err)
+            )
+        }
+        tune_shape::Shape::Task(inner) => format!("Task<{}>", semantic_shape_text(inner)),
+        tune_shape::Shape::Apply { nominal, args } => {
+            let args = args
+                .iter()
+                .map(semantic_shape_text)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{}<{args}>", nominal.name)
+        }
+        tune_shape::Shape::Struct(nominal) | tune_shape::Shape::Enum(nominal) => {
+            nominal.name.clone()
+        }
+        tune_shape::Shape::Structural(requirements) => {
+            format!("{requirements:?}")
+        }
+    }
 }
 
 #[must_use]

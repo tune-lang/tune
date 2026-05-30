@@ -130,3 +130,95 @@ fn lsp_ranges_use_utf16_positions() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+#[test]
+fn lsp_session_uses_cursor_facts_for_expression_tooling() -> Result<(), &'static str> {
+    let mut session = tune_lsp::LspSession::new();
+    let source = r#"
+-- Adds two ints.
+let add(a: Int, b: Int): Int = a + b
+let value: Int = add(1, 2)
+"#;
+    let file = session
+        .add_file("main.tn", source)
+        .ok_or("source file should allocate")?;
+
+    let source_file = session.db().source(file).ok_or("source should exist")?;
+    let two_offset = source_file
+        .text
+        .find("2)")
+        .ok_or("fixture should contain second argument")?;
+    let two_position = tune_lsp::protocol::position(
+        &source_file.text,
+        two_offset.try_into().map_err(|_| "offset fits")?,
+    )
+    .ok_or("argument offset should map to position")?;
+
+    let signature = session
+        .signature_help_at(file, two_position)
+        .ok_or("signature help should resolve at argument")?;
+    assert_eq!(signature.active_parameter, Some(1));
+    assert_eq!(signature.signature, "add(arg0: Int, arg1: Int): Int");
+
+    let hover = session
+        .hover_card_at(file, two_position)
+        .ok_or("expression hover should show inferred shape")?;
+    assert!(hover.markdown().contains("inferred shape Int"));
+
+    let call_offset = source_file
+        .text
+        .find("add(1")
+        .ok_or("fixture should contain call")?;
+    let call_position = tune_lsp::protocol::position(
+        &source_file.text,
+        call_offset.try_into().map_err(|_| "offset fits")?,
+    )
+    .ok_or("call offset should map to position")?;
+    let definition = session
+        .definition_at(file, call_position)
+        .ok_or("call target should resolve definition")?;
+    assert_eq!(definition.name.as_deref(), Some("add"));
+
+    Ok(())
+}
+
+#[test]
+fn lsp_session_uses_cursor_facts_for_scoped_completion_and_references() -> Result<(), &'static str>
+{
+    let mut session = tune_lsp::LspSession::new();
+    let source = r#"
+let outer: Int = 1
+let run(input: Int): Int = {
+  let local: Int = input
+  local
+}
+"#;
+    let file = session
+        .add_file("main.tn", source)
+        .ok_or("source file should allocate")?;
+    let source_file = session.db().source(file).ok_or("source should exist")?;
+    let final_local_offset = source_file
+        .text
+        .rfind("local")
+        .ok_or("fixture should contain local reference")?;
+    let final_local_position = tune_lsp::protocol::position(
+        &source_file.text,
+        final_local_offset.try_into().map_err(|_| "offset fits")?,
+    )
+    .ok_or("local offset should map to position")?;
+
+    let completions = session.completions_at(file, final_local_position);
+    assert!(completions.iter().any(|item| item.label == "outer"));
+    assert!(completions.iter().any(|item| item.label == "input"));
+    assert!(completions.iter().any(|item| item.label == "local"));
+
+    let definition = session
+        .definition_at(file, final_local_position)
+        .ok_or("local reference should resolve definition")?;
+    assert_eq!(definition.name.as_deref(), Some("local"));
+
+    let references = session.references_at(file, final_local_position);
+    assert_eq!(references.len(), 2);
+
+    Ok(())
+}

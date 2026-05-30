@@ -1,9 +1,14 @@
 pub mod ids;
 pub mod interner;
+pub mod semantic;
 pub mod source;
 
 pub use ids::*;
 pub use interner::Interner;
+pub use semantic::{
+    SemanticBinding, SemanticCallContext, SemanticCursor, SemanticDefinition, SemanticExpr,
+    SemanticReference,
+};
 pub use source::{SourceFile, SourceMap};
 
 pub struct ModuleAnalysis {
@@ -79,6 +84,15 @@ impl TuneDb {
             resolved,
             shape,
         })
+    }
+
+    #[must_use]
+    pub fn semantic_at(
+        &self,
+        id: FileId,
+        offset: tune_diagnostics::ByteOffset,
+    ) -> Option<SemanticCursor> {
+        semantic::semantic_at(self, id, offset)
     }
 
     #[must_use]

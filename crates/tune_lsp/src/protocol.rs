@@ -69,7 +69,7 @@ fn severity(severity: Severity) -> DiagnosticSeverity {
     }
 }
 
-fn position(text: &str, byte_offset: u32) -> Option<Position> {
+pub fn position(text: &str, byte_offset: u32) -> Option<Position> {
     let offset = usize::try_from(byte_offset).ok()?;
     if offset > text.len() || !text.is_char_boundary(offset) {
         return None;

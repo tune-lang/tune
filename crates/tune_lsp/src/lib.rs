@@ -10,3 +10,4 @@ pub use completion::{CompletionItem, CompletionKind};
 pub use hover::HoverCard;
 pub use protocol::{DiagnosticSeverity, LspDiagnostic, Position, Range};
 pub use server::{DiagnosticHover, LspSession};
+pub use signature::SignatureHelp;
