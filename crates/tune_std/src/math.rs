@@ -7,6 +7,12 @@ pub fn install() -> HostModule {
     HostModule::new(
         "math",
         vec![
+            HostFunction::new("pi", Vec::new(), Shape::Float)
+                .task_safe(true)
+                .with_executor(|_: &[Value]| Ok(Value::Float(std::f64::consts::PI))),
+            HostFunction::new("e", Vec::new(), Shape::Float)
+                .task_safe(true)
+                .with_executor(|_: &[Value]| Ok(Value::Float(std::f64::consts::E))),
             unary_float("abs", f64::abs),
             binary_float("min", f64::min),
             binary_float("max", f64::max),
@@ -44,6 +50,9 @@ pub fn install() -> HostModule {
             unary_float("exp", f64::exp),
             unary_float("ln", f64::ln),
             unary_float("log10", f64::log10),
+            unary_float_bool("is_finite", f64::is_finite),
+            unary_float_bool("is_nan", f64::is_nan),
+            unary_float_bool("is_infinite", f64::is_infinite),
         ],
     )
 }
@@ -58,6 +67,19 @@ fn unary_float(name: &'static str, op: fn(f64) -> f64) -> HostFunction {
     .with_executor(move |args: &[Value]| {
         let value = float_arg(args, 0, "value")?;
         Ok(Value::Float(op(value)))
+    })
+}
+
+fn unary_float_bool(name: &'static str, op: fn(f64) -> bool) -> HostFunction {
+    HostFunction::new(
+        name,
+        vec![HostParam::new("value", Shape::Float)],
+        Shape::Bool,
+    )
+    .task_safe(true)
+    .with_executor(move |args: &[Value]| {
+        let value = float_arg(args, 0, "value")?;
+        Ok(Value::Bool(op(value)))
     })
 }
 

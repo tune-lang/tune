@@ -3,6 +3,9 @@
 import "math"
 
 let radius: Float = 3.0
-let area: Float = math.pow(radius, 2.0) * 3.14159
+let pi: Float = math.pi()
+let area: Float = math.pow(radius, 2.0) * pi
 let wave: Float = math.sin(0.0)
 let bounded: Float = math.clamp(area, 0.0, 100.0)
+let finite: Bool = math.is_finite(bounded)
+let e: Float = math.e()
