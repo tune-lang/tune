@@ -66,6 +66,23 @@ fn state_handles_record_repr_and_ownership_cost() {
 }
 
 #[test]
+fn struct_field_snapshots_require_new_state_identity() {
+    let fields = tune_runtime::value::StructFields::new(
+        tune_runtime::StateHandle::local(tune_runtime::StateId(1)),
+        vec![tune_runtime::Value::Int(1)],
+    );
+    let snapshot =
+        fields.snapshot_with_state(tune_runtime::StateHandle::local(tune_runtime::StateId(2)));
+
+    fields.set(0, tune_runtime::Value::Int(3));
+
+    assert_eq!(fields.state().id, tune_runtime::StateId(1));
+    assert_eq!(snapshot.state().id, tune_runtime::StateId(2));
+    assert_eq!(fields.get(0), Some(tune_runtime::Value::Int(3)));
+    assert_eq!(snapshot.get(0), Some(tune_runtime::Value::Int(1)));
+}
+
+#[test]
 fn resource_handles_are_task_unsafe_by_default() {
     let resource = tune_runtime::Value::Resource(tune_runtime::ResourceHandle::new(
         tune_runtime::ResourceId(1),

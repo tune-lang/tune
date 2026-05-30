@@ -7,6 +7,11 @@ use tune_diagnostics::Span;
 
 #[derive(Debug, Clone)]
 pub enum Value {
+    /// Boxed execution/debug value used by the current VM and host boundary.
+    ///
+    /// Tune's performance contract is the typed plan/IR/bytecode pipeline, not
+    /// dynamic dispatch over this enum. Future optimized VM/native backends
+    /// should use typed register storage or specialized lanes for hot ops.
     Unit,
     None,
     Int(i64),
@@ -86,10 +91,10 @@ impl Value {
     #[must_use]
     pub fn capture_snapshot(&self) -> Self {
         match self {
-            Self::Struct { owner, fields } => Self::Struct {
-                owner: *owner,
-                fields: fields.snapshot(),
-            },
+            // A struct snapshot needs a fresh state identity. The VM owns state
+            // allocation, so use `Vm::capture_snapshot` for executable closure
+            // and task captures.
+            Self::Struct { .. } => self.clone(),
             Self::Sequence(values) => {
                 Self::Sequence(values.iter().map(Self::capture_snapshot).collect())
             }
@@ -146,6 +151,9 @@ pub enum RangeItemKind {
 #[derive(Debug, Clone)]
 pub struct StructFields {
     state: StateHandle,
+    // Current debug/shared-handle storage. This is not the final optimized
+    // state model: ownership plans decide stack/direct-drop/RC/COW/shared
+    // placement, and only genuinely shared state should pay synchronization.
     fields: Arc<Mutex<Vec<Value>>>,
 }
 
@@ -180,19 +188,6 @@ impl StructFields {
         let field = fields.get_mut(index)?;
         *field = value;
         Some(())
-    }
-
-    #[must_use]
-    pub fn snapshot(&self) -> Self {
-        let fields = self
-            .fields
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .clone();
-        Self::new(
-            self.state,
-            fields.iter().map(Value::capture_snapshot).collect(),
-        )
     }
 
     #[must_use]
