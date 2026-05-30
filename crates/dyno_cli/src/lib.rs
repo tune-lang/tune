@@ -1,14 +1,15 @@
 mod report;
 
 pub use report::{
-    render_build_report, render_engine_error, render_engine_error_with_sources,
-    render_profile_report, render_runtime_boundary, render_runtime_boundary_with_sources,
+    render_build_report, render_diagnostics_json, render_engine_error, render_engine_error_json,
+    render_engine_error_with_sources, render_profile_report, render_runtime_boundary,
+    render_runtime_boundary_with_sources,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CliCommand {
     Build { path: Option<String> },
-    Check { path: Option<String> },
+    Check { path: Option<String>, json: bool },
     Run { path: Option<String> },
     Profile { path: Option<String> },
     Fmt { path: Option<String>, check: bool },
@@ -24,7 +25,10 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
         [flag] if flag == "-h" || flag == "--help" => Ok(CliCommand::Help),
         [command] if command == "build" => Ok(CliCommand::Build { path: None }),
         [command] if command == "run" => Ok(CliCommand::Run { path: None }),
-        [command] if command == "check" => Ok(CliCommand::Check { path: None }),
+        [command] if command == "check" => Ok(CliCommand::Check {
+            path: None,
+            json: false,
+        }),
         [command] if command == "profile" => Ok(CliCommand::Profile { path: None }),
         [command] if command == "fmt" => Ok(CliCommand::Fmt {
             path: None,
@@ -38,8 +42,21 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
         [command, path] if command == "run" => Ok(CliCommand::Run {
             path: Some(path.clone()),
         }),
+        [command, flag] if command == "check" && flag == "--json" => Ok(CliCommand::Check {
+            path: None,
+            json: true,
+        }),
         [command, path] if command == "check" => Ok(CliCommand::Check {
             path: Some(path.clone()),
+            json: false,
+        }),
+        [command, flag, path] if command == "check" && flag == "--json" => Ok(CliCommand::Check {
+            path: Some(path.clone()),
+            json: true,
+        }),
+        [command, path, flag] if command == "check" && flag == "--json" => Ok(CliCommand::Check {
+            path: Some(path.clone()),
+            json: true,
         }),
         [command, path] if command == "build" => Ok(CliCommand::Build {
             path: Some(path.clone()),
@@ -73,7 +90,7 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
 
 #[must_use]
 pub fn usage() -> &'static str {
-    "usage: dyno new <name>\n       dyno check [file]\n       dyno run [file]\n       dyno build [file]\n       dyno profile [file]\n       dyno fmt [--check] [file]\n       dyno explain [code]\n       dyno lsp\n       dyno <file>"
+    "usage: dyno new <name>\n       dyno check [--json] [file]\n       dyno run [file]\n       dyno build [file]\n       dyno profile [file]\n       dyno fmt [--check] [file]\n       dyno explain [code]\n       dyno lsp\n       dyno <file>"
 }
 
 #[must_use]

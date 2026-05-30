@@ -225,6 +225,40 @@ pub fn render_engine_error_with_sources(
 }
 
 #[must_use]
+pub fn render_engine_error_json(error: &tune_engine::EngineError) -> String {
+    match error {
+        tune_engine::EngineError::Diagnostics(diagnostics) => render_diagnostics_json(diagnostics),
+        tune_engine::EngineError::ProjectLoad(message)
+        | tune_engine::EngineError::SourceLoad(message) => {
+            format!(
+                "[{{\"severity\":\"error\",\"message\":{}}}]\n",
+                json_string(message)
+            )
+        }
+        _ => format!(
+            "[{{\"severity\":\"error\",\"message\":{}}}]\n",
+            json_string(&format!("execution failed: {error:?}"))
+        ),
+    }
+}
+
+#[must_use]
+pub fn render_diagnostics_json(diagnostics: &[tune_diagnostics::Diagnostic]) -> String {
+    let mut out = String::from("[");
+    for (index, diagnostic) in diagnostics.iter().enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        out.push_str(&render::render(
+            diagnostic,
+            render::DiagnosticRenderMode::JsonMachine,
+        ));
+    }
+    out.push_str("]\n");
+    out
+}
+
+#[must_use]
 pub fn render_runtime_boundary(value: &tune_runtime::Value) -> Vec<String> {
     tune_engine::diagnostics_from_runtime_value(value)
         .iter()
@@ -246,4 +280,8 @@ pub fn render_runtime_boundary_with_sources(
 fn push_line(output: &mut String, line: &str) {
     output.push_str(line);
     output.push('\n');
+}
+
+fn json_string(message: &str) -> String {
+    format!("{message:?}")
 }

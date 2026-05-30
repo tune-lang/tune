@@ -21,12 +21,34 @@ fn parses_cli_commands_without_special_entry_names() {
     );
     assert_eq!(
         dyno_cli::parse_command(&["check".to_owned()]),
-        Ok(dyno_cli::CliCommand::Check { path: None })
+        Ok(dyno_cli::CliCommand::Check {
+            path: None,
+            json: false,
+        })
     );
     assert_eq!(
         dyno_cli::parse_command(&["check".to_owned(), "main.tn".to_owned()]),
         Ok(dyno_cli::CliCommand::Check {
             path: Some("main.tn".to_owned()),
+            json: false,
+        })
+    );
+    assert_eq!(
+        dyno_cli::parse_command(&["check".to_owned(), "--json".to_owned()]),
+        Ok(dyno_cli::CliCommand::Check {
+            path: None,
+            json: true,
+        })
+    );
+    assert_eq!(
+        dyno_cli::parse_command(&[
+            "check".to_owned(),
+            "--json".to_owned(),
+            "main.tn".to_owned()
+        ]),
+        Ok(dyno_cli::CliCommand::Check {
+            path: Some("main.tn".to_owned()),
+            json: true,
         })
     );
     assert_eq!(
@@ -112,6 +134,29 @@ fn renders_diagnostic_explanations() {
 }
 
 #[test]
+fn renders_diagnostics_json_array() -> Result<(), serde_json::Error> {
+    let span = tune_diagnostics::Span::new(
+        tune_diagnostics::FileId(0),
+        tune_diagnostics::ByteOffset::new(1),
+        tune_diagnostics::ByteOffset::new(3),
+    );
+    let diagnostic = tune_diagnostics::Diagnostic::error(
+        tune_diagnostics::codes::SHAPE_MISMATCH,
+        "shape mismatch",
+        span,
+        "expected Int",
+    )
+    .build();
+    let rendered = dyno_cli::render_diagnostics_json(&[diagnostic]);
+    let value: serde_json::Value = serde_json::from_str(&rendered)?;
+
+    assert_eq!(value[0]["code"], "T0301");
+    assert_eq!(value[0]["primary"]["message"], "expected Int");
+
+    Ok(())
+}
+
+#[test]
 fn formats_single_file_in_place() -> Result<(), String> {
     let path = std::env::temp_dir().join(format!("dyno-fmt-{}.tn", std::process::id()));
     std::fs::write(&path, "let value:Int=1\n").map_err(|error| error.to_string())?;
@@ -191,6 +236,30 @@ fn dyno_run_does_not_dump_last_value() -> Result<(), String> {
     );
     assert_eq!(String::from_utf8_lossy(&output.stdout), "");
     assert_eq!(String::from_utf8_lossy(&output.stderr), "");
+
+    Ok(())
+}
+
+#[test]
+fn dyno_check_json_prints_machine_diagnostics() -> Result<(), String> {
+    let path = std::env::temp_dir().join(format!("dyno-check-json-{}.tn", std::process::id()));
+    std::fs::write(&path, "let value: Int = \"bad\"\n").map_err(|error| error.to_string())?;
+
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_dyno"))
+        .arg("check")
+        .arg("--json")
+        .arg(&path)
+        .output()
+        .map_err(|error| error.to_string())?;
+
+    std::fs::remove_file(path).map_err(|error| error.to_string())?;
+
+    assert!(!output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stderr), "");
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).map_err(|error| error.to_string())?;
+    assert_eq!(value[0]["code"], "T0204");
+    assert_eq!(value[0]["severity"], "error");
 
     Ok(())
 }

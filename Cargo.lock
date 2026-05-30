@@ -172,6 +172,7 @@ version = "0.1.0"
 dependencies = [
  "dyno_pkg",
  "dyno_project",
+ "serde_json",
  "tune_db",
  "tune_diagnostics",
  "tune_engine",

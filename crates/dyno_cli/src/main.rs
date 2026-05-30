@@ -98,7 +98,7 @@ fn main() {
 
     let path = match command {
         dyno_cli::CliCommand::Build { ref path }
-        | dyno_cli::CliCommand::Check { ref path }
+        | dyno_cli::CliCommand::Check { ref path, .. }
         | dyno_cli::CliCommand::Fmt { ref path, .. }
         | dyno_cli::CliCommand::Profile { ref path }
         | dyno_cli::CliCommand::Run { ref path } => path.as_ref(),
@@ -159,22 +159,34 @@ fn main() {
         return;
     }
 
-    if matches!(command, dyno_cli::CliCommand::Check { .. }) {
+    if let dyno_cli::CliCommand::Check { json, .. } = command {
         match tune.check_file(path) {
             Ok(report) => {
-                for diagnostic in &report.diagnostics {
-                    eprintln!(
-                        "{}",
-                        tune_diagnostics::render::render_plain_with_sources(diagnostic, tune.db())
-                    );
+                if json {
+                    print!("{}", dyno_cli::render_diagnostics_json(&report.diagnostics));
+                } else {
+                    for diagnostic in &report.diagnostics {
+                        eprintln!(
+                            "{}",
+                            tune_diagnostics::render::render_plain_with_sources(
+                                diagnostic,
+                                tune.db()
+                            )
+                        );
+                    }
                 }
                 if report.diagnostics.is_empty() {
                     return;
                 }
             }
             Err(error) => {
-                for diagnostic in dyno_cli::render_engine_error_with_sources(&error, tune.db()) {
-                    eprintln!("{diagnostic}");
+                if json {
+                    print!("{}", dyno_cli::render_engine_error_json(&error));
+                } else {
+                    for diagnostic in dyno_cli::render_engine_error_with_sources(&error, tune.db())
+                    {
+                        eprintln!("{diagnostic}");
+                    }
                 }
             }
         }
@@ -206,21 +218,30 @@ fn run_project_command(command: dyno_cli::CliCommand) {
         }
     };
 
-    if matches!(command, dyno_cli::CliCommand::Check { .. }) {
+    if let dyno_cli::CliCommand::Check { json, .. } = command {
         let report = match tune.check_project_entry(entry) {
             Ok(report) => report,
             Err(error) => {
-                for diagnostic in dyno_cli::render_engine_error_with_sources(&error, tune.db()) {
-                    eprintln!("{diagnostic}");
+                if json {
+                    print!("{}", dyno_cli::render_engine_error_json(&error));
+                } else {
+                    for diagnostic in dyno_cli::render_engine_error_with_sources(&error, tune.db())
+                    {
+                        eprintln!("{diagnostic}");
+                    }
                 }
                 std::process::exit(1);
             }
         };
-        for diagnostic in &report.diagnostics {
-            eprintln!(
-                "{}",
-                tune_diagnostics::render::render_plain_with_sources(diagnostic, tune.db())
-            );
+        if json {
+            print!("{}", dyno_cli::render_diagnostics_json(&report.diagnostics));
+        } else {
+            for diagnostic in &report.diagnostics {
+                eprintln!(
+                    "{}",
+                    tune_diagnostics::render::render_plain_with_sources(diagnostic, tune.db())
+                );
+            }
         }
         if !report.diagnostics.is_empty() {
             std::process::exit(1);

@@ -24,3 +24,6 @@ tune_host = { path = "../tune_host" }
 tune_std = { path = "../tune_std" }
 tune_lsp = { path = "../tune_lsp" }
 tune_diagnostics = { path = "../tune_diagnostics" }
+
+[dev-dependencies]
+serde_json.workspace = true
