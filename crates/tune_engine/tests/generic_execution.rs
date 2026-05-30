@@ -4,7 +4,7 @@ use tune_runtime::Value;
 fn run_file_executes_generic_callable_with_multiple_instantiations() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let id<T>(value: T): T = value
@@ -23,7 +23,7 @@ let result: String = "{left}:{right}"
 fn run_file_executes_generic_struct_field_access() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Box<T> {
@@ -45,7 +45,7 @@ let result: String = "{int_value}:{string_value}"
 fn executable_preserves_generic_function_arity_metadata() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let id<T>(value: T): T = value
@@ -54,7 +54,7 @@ let result: Int = id(2)
         )
         .ok_or("file should allocate")?;
 
-    let executable = tune.executable_file(file).map_err(|error| {
+    let executable = tune.executable_source(file).map_err(|error| {
         eprintln!("{error:?}");
         "file should compile"
     })?;
@@ -84,7 +84,7 @@ let result: Int = id(2)
 fn executable_marks_forwarded_generic_call_as_shared_witness() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let id<T>(value: T): T = value
@@ -94,7 +94,7 @@ let result: Int = wrap(2)
         )
         .ok_or("file should allocate")?;
 
-    let executable = tune.executable_file(file).map_err(|error| {
+    let executable = tune.executable_source(file).map_err(|error| {
         eprintln!("{error:?}");
         "file should compile"
     })?;
@@ -121,7 +121,7 @@ let result: Int = wrap(2)
 fn check_file_rejects_unsolved_generic_call_type_args() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let make<T>(): T = panic("unsolved")
@@ -130,7 +130,7 @@ let result = make()
         )
         .ok_or("file should allocate")?;
 
-    let check = tune.check_file(file).ok_or("file should check")?;
+    let check = tune.check_source(file).ok_or("file should check")?;
 
     assert!(check.diagnostics.iter().any(|diagnostic| {
         diagnostic.code == tune_diagnostics::codes::CALLABLE_MISMATCH
@@ -141,7 +141,7 @@ let result = make()
 }
 
 fn run_file(tune: &tune_engine::Tune, file: tune_db::FileId) -> Result<Value, &'static str> {
-    tune.run_file(file).map_err(|error| {
+    tune.run_source(file).map_err(|error| {
         eprintln!("{error:?}");
         "file entry should run"
     })

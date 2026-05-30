@@ -4,7 +4,7 @@ use tune_runtime::Value;
 fn run_file_narrows_optional_present_branch() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let value: Int? = 41
@@ -25,7 +25,7 @@ let result: Int = if value is not none {
 fn run_file_narrows_optional_none_else_branch() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let value: Int? = 41
@@ -46,7 +46,7 @@ let result: Int = if value is none {
 fn run_file_allows_optional_copy_warning() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let maybe(): Int? = none
@@ -56,7 +56,7 @@ let result: Int = 1
 "#,
         )
         .ok_or("file should allocate")?;
-    let check = tune.check_file(file).ok_or("file should check")?;
+    let check = tune.check_source(file).ok_or("file should check")?;
 
     assert!(check.diagnostics.iter().any(|diagnostic| {
         diagnostic.severity == tune_diagnostics::Severity::Warning
@@ -71,7 +71,7 @@ let result: Int = 1
 fn run_file_rejects_proven_none_optional_copy() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let x: Int?
@@ -80,7 +80,7 @@ let y = x
         )
         .ok_or("file should allocate")?;
 
-    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_file(file) else {
+    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_source(file) else {
         return Err("proven-none optional copy should stop execution");
     };
     assert!(diagnostics.iter().any(|diagnostic| {
@@ -92,7 +92,7 @@ let y = x
 }
 
 fn run_file(tune: &tune_engine::Tune, file: tune_db::FileId) -> Result<Value, &'static str> {
-    tune.run_file(file).map_err(|error| {
+    tune.run_source(file).map_err(|error| {
         eprintln!("{error:?}");
         "file entry should run"
     })

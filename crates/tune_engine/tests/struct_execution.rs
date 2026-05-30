@@ -4,7 +4,7 @@ use tune_runtime::value::Value;
 fn run_file_executes_struct_literal_field_get() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct User {
@@ -26,7 +26,7 @@ let result: Int = user.age
 fn run_file_executes_struct_field_set_on_local() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct User {
@@ -51,7 +51,7 @@ let result: Int = {
 fn run_file_executes_struct_member_call_with_self_receiver() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Counter {
@@ -77,7 +77,7 @@ let result: Int = counter.next()
 fn run_file_executes_structural_match_member_witness() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Duck {
@@ -100,7 +100,7 @@ let result: Int = match duck {
 fn run_file_executes_explicit_structural_generic_call() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Duck {
@@ -125,7 +125,7 @@ fn run_file_executes_structural_match_fallback_when_shape_does_not_match()
 -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Rock {}
@@ -146,7 +146,7 @@ let result: Int = match rock {
 fn run_file_specializes_unannotated_structural_match_param() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Duck {
@@ -170,7 +170,7 @@ let result: Int = speak(duck)
 fn run_file_executes_structural_match_field_witness() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Duck {
@@ -196,7 +196,7 @@ let result: Int = speak(duck)
 fn run_file_preserves_member_receiver_mutation_for_caller() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Counter {
@@ -223,7 +223,7 @@ let result: Int = counter.value
 fn run_file_constructs_struct_with_local_non_atomic_state() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Counter {
@@ -253,7 +253,7 @@ let result: Counter = Counter {
 fn run_file_spawned_struct_uses_shared_atomic_state() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Counter {
@@ -284,7 +284,7 @@ let result: Counter = task.join()
 fn run_file_executes_sequence_materializer() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Stack {
@@ -304,7 +304,7 @@ let result: Int = stack.value
 }
 
 fn run_file(tune: &tune_engine::Tune, file: tune_db::FileId) -> Result<Value, &'static str> {
-    tune.run_file(file).map_err(|error| {
+    tune.run_source(file).map_err(|error| {
         eprintln!("{error:?}");
         "file entry should run"
     })

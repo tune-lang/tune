@@ -2,7 +2,7 @@
 fn run_file_executes_exclusive_sequence_mutation() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result: Int = {
@@ -23,7 +23,7 @@ let result: Int = {
 fn run_file_executes_shared_cow_sequence_mutation() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result: Int = {
@@ -45,7 +45,7 @@ fn run_file(
     tune: &tune_engine::Tune,
     file: tune_db::FileId,
 ) -> Result<tune_runtime::Value, &'static str> {
-    tune.run_file(file).map_err(|error| {
+    tune.run_source(file).map_err(|error| {
         eprintln!("{error:?}");
         "file entry should run"
     })

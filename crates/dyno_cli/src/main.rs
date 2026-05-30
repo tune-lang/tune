@@ -41,7 +41,7 @@ fn main() {
     let mut tune = tune_engine::Tune::new().with_std();
 
     if matches!(command, dyno_cli::CliCommand::Profile { .. }) {
-        match tune.profile_path(path) {
+        match tune.profile_file(path) {
             Ok(report) => {
                 print!("{}", dyno_cli::render_profile_report(&report));
                 if !report.diagnostics.is_empty() {
@@ -71,7 +71,7 @@ fn main() {
     }
 
     if matches!(command, dyno_cli::CliCommand::Build { .. }) {
-        match tune.executable_path(path) {
+        match tune.executable_file(path) {
             Ok(report) => println!("{}", dyno_cli::render_build_report(&report)),
             Err(error) => {
                 for diagnostic in dyno_cli::render_engine_error_with_sources(&error, tune.db()) {
@@ -84,7 +84,7 @@ fn main() {
     }
 
     if matches!(command, dyno_cli::CliCommand::Check { .. }) {
-        match tune.check_path(path) {
+        match tune.check_file(path) {
             Ok(report) => {
                 for diagnostic in &report.diagnostics {
                     eprintln!(
@@ -105,7 +105,7 @@ fn main() {
         std::process::exit(1);
     }
 
-    match tune.run_path(path) {
+    match tune.run_file(path) {
         Ok(value) => {
             let diagnostics = dyno_cli::render_runtime_boundary_with_sources(&value, tune.db());
             if diagnostics.is_empty() {

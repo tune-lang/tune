@@ -4,7 +4,7 @@ use tune_runtime::value::Value;
 fn run_file_executes_match_on_result_variant() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let input: Result = Ok(1)
@@ -24,7 +24,7 @@ let result: Int = match input {
 fn run_file_executes_match_on_user_enum_variant() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 enum Choice {
@@ -48,7 +48,7 @@ let result: Int = match choice {
 fn run_file_executes_match_on_user_enum_param() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 enum Choice {
@@ -72,7 +72,7 @@ let result: Int = pick(Two(4))
 fn run_file_executes_direct_call_nested_in_match_arm() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 enum Choice {
@@ -97,7 +97,7 @@ let result: Int = match choice {
 fn run_file_executes_nested_enum_pattern_match() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 enum Inner {
@@ -124,7 +124,7 @@ let result: Int = match outer {
 fn run_file_executes_tuple_pattern_match() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let pair = (2, 5)
@@ -143,7 +143,7 @@ let result: Int = match pair {
 fn run_file_executes_tuple_pattern_nested_in_variant() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 enum Wrapped {
@@ -165,7 +165,7 @@ let result: Int = match wrapped {
 fn run_file_executes_none_pattern_match() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let value: Int? = none
@@ -182,7 +182,7 @@ let result: Int = match value {
 }
 
 fn run_file(tune: &tune_engine::Tune, file: tune_db::FileId) -> Result<Value, &'static str> {
-    tune.run_file(file).map_err(|error| {
+    tune.run_source(file).map_err(|error| {
         eprintln!("{error:?}");
         "file entry should run"
     })

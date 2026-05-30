@@ -2,7 +2,7 @@
 fn run_file_executes_while_local_mutation() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result: Int = {
@@ -25,7 +25,7 @@ let result: Int = {
 fn run_file_executes_integer_comparison_operators() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let eq: Int = if 3 == 3 { 1 } else { 0 }
@@ -46,7 +46,7 @@ let result: Int = eq + ne + le + ge
 fn run_file_executes_integer_arithmetic_operators() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result: Int = ((20 - 4) * 3 / 2) % 10
@@ -63,7 +63,7 @@ let result: Int = ((20 - 4) * 3 / 2) % 10
 fn run_file_executes_loop_break_and_continue() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result: Int = {
@@ -94,7 +94,7 @@ let result: Int = {
 fn run_file_executes_unary_negation_and_not() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let offset: Int = -4
@@ -113,7 +113,7 @@ let result: Int = gate + offset
 fn run_file_executes_integer_bit_not() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file("app.tn", "let result: Int = ~1")
+        .add_source("app.tn", "let result: Int = ~1")
         .ok_or("file should allocate")?;
 
     assert_eq!(run_file(&tune, file)?, tune_runtime::value::Value::Int(!1));
@@ -125,7 +125,7 @@ fn run_file_executes_integer_bit_not() -> Result<(), &'static str> {
 fn run_file_executes_integer_bit_ops_and_shifts() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result: Int = {
@@ -148,7 +148,7 @@ let result: Int = {
 fn run_file_executes_float_arithmetic_and_comparisons() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result: Int = {
@@ -172,7 +172,7 @@ let result: Int = {
 fn run_file_executes_size_arithmetic_and_comparisons() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result: Int = {
@@ -200,7 +200,7 @@ let result: Int = {
 fn run_file_executes_byte_arithmetic_bits_and_comparisons() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result: Byte = {
@@ -228,7 +228,7 @@ let result: Byte = {
 fn run_file_executes_boolean_short_circuit_ops() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let fail(): Bool = panic("short circuit")
@@ -250,7 +250,7 @@ let result: Int = {
 fn run_file_executes_finite_for_over_sequence() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result: Int = {
@@ -280,7 +280,7 @@ let result: Int = {
 fn run_file_executes_finite_for_over_ranges() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result: Int = {
@@ -306,7 +306,7 @@ let result: Int = {
 fn run_file_executes_finite_for_over_struct_contract() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Window {
@@ -337,7 +337,7 @@ let result: Int = {
 fn run_file_executes_direct_struct_index_access() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Window {
@@ -363,7 +363,7 @@ let result: Int = {
 fn run_file_executes_sequence_get_and_set() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result: Int = {
@@ -384,7 +384,7 @@ fn run_file(
     tune: &tune_engine::Tune,
     file: tune_db::FileId,
 ) -> Result<tune_runtime::value::Value, &'static str> {
-    tune.run_file(file).map_err(|error| {
+    tune.run_source(file).map_err(|error| {
         eprintln!("{error:?}");
         "file entry should run"
     })

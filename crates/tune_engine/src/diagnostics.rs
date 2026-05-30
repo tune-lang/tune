@@ -1,4 +1,4 @@
-use tune_db::TuneDb;
+use tune_diagnostics::render::SourceProvider;
 use tune_diagnostics::{Diagnostic, FactEntry, Span};
 use tune_runtime::value::{RuntimeVariant, Value};
 
@@ -53,8 +53,11 @@ pub fn diagnostic_from_vm_fault(fault: &tune_vm::VmFault) -> Diagnostic {
 }
 
 #[must_use]
-pub fn diagnostic_from_vm_fault_with_sources(fault: &tune_vm::VmFault, db: &TuneDb) -> Diagnostic {
-    vm_fault_diagnostic(fault, |span| source_summary(db, span))
+pub fn diagnostic_from_vm_fault_with_sources(
+    fault: &tune_vm::VmFault,
+    sources: &impl SourceProvider,
+) -> Diagnostic {
+    vm_fault_diagnostic(fault, |span| source_summary(sources, span))
 }
 
 fn vm_fault_diagnostic(
@@ -111,8 +114,11 @@ pub fn diagnostics_from_runtime_value(value: &Value) -> Vec<Diagnostic> {
 }
 
 #[must_use]
-pub fn diagnostics_from_runtime_value_with_sources(value: &Value, db: &TuneDb) -> Vec<Diagnostic> {
-    diagnostic_from_result_error_with_sources(value, db)
+pub fn diagnostics_from_runtime_value_with_sources(
+    value: &Value,
+    sources: &impl SourceProvider,
+) -> Vec<Diagnostic> {
+    diagnostic_from_result_error_with_sources(value, sources)
         .into_iter()
         .collect()
 }
@@ -123,8 +129,11 @@ pub fn diagnostic_from_result_error(value: &Value) -> Option<Diagnostic> {
 }
 
 #[must_use]
-pub fn diagnostic_from_result_error_with_sources(value: &Value, db: &TuneDb) -> Option<Diagnostic> {
-    result_error_diagnostic(value, |span| source_summary(db, span))
+pub fn diagnostic_from_result_error_with_sources(
+    value: &Value,
+    sources: &impl SourceProvider,
+) -> Option<Diagnostic> {
+    result_error_diagnostic(value, |span| source_summary(sources, span))
 }
 
 fn result_error_diagnostic(
@@ -180,8 +189,8 @@ fn result_error_diagnostic(
     )
 }
 
-fn source_summary(db: &TuneDb, span: Span) -> Option<String> {
-    let source = db.source(span.file)?;
+fn source_summary(sources: &impl SourceProvider, span: Span) -> Option<String> {
+    let source = sources.source(span.file)?;
     let start = usize::try_from(span.start.get()).ok()?;
     let end = usize::try_from(span.end.get()).ok()?;
     let text = source.text.get(start..end)?;

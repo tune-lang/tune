@@ -2,10 +2,10 @@
 fn run_file_reports_proven_integer_divide_by_zero_before_execution() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file("app.tn", "let result: Int = 1 / 0")
+        .add_source("app.tn", "let result: Int = 1 / 0")
         .ok_or("file should allocate")?;
 
-    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_file(file) else {
+    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_source(file) else {
         return Err("divide by zero should report diagnostics");
     };
 
@@ -22,10 +22,10 @@ fn run_file_reports_proven_integer_divide_by_zero_before_execution() -> Result<(
 fn run_file_reports_panic_with_message() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file("app.tn", r#"let result: Int = panic("bad")"#)
+        .add_source("app.tn", r#"let result: Int = panic("bad")"#)
         .ok_or("file should allocate")?;
 
-    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_file(file) else {
+    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_source(file) else {
         return Err("panic should report a runtime diagnostic");
     };
 

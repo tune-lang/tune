@@ -24,10 +24,10 @@ const BENCH_CASES: &[(&str, &str)] = &[
 
 fn run_frontend_profile(source: &str) -> usize {
     let mut tune = tune_engine::Tune::new().with_std();
-    let Some(file) = tune.add_file("case.tn", source) else {
+    let Some(file) = tune.add_source("case.tn", source) else {
         exit_benchmark("fixture should load");
     };
-    let report = match tune.profile_file_frontend(file) {
+    let report = match tune.profile_source_frontend(file) {
         Ok(report) => report,
         Err(error) => exit_benchmark(&format!("frontend profile should succeed: {error:?}")),
     };
@@ -36,10 +36,10 @@ fn run_frontend_profile(source: &str) -> usize {
 
 fn run_full_profile(source: &str) -> usize {
     let mut tune = tune_engine::Tune::new().with_std();
-    let Some(file) = tune.add_file("case.tn", source) else {
+    let Some(file) = tune.add_source("case.tn", source) else {
         exit_benchmark("fixture should load");
     };
-    let report = match tune.profile_file(file) {
+    let report = match tune.profile_source(file) {
         Ok(report) => report,
         Err(error) => exit_benchmark(&format!("full pipeline profile should succeed: {error:?}")),
     };
@@ -48,10 +48,10 @@ fn run_full_profile(source: &str) -> usize {
 
 fn compile_vm_artifact(source: &str) -> tune_bytecode::artifact::BytecodeArtifact {
     let mut tune = tune_engine::Tune::new().with_std();
-    let Some(file) = tune.add_file("case.tn", source) else {
+    let Some(file) = tune.add_source("case.tn", source) else {
         exit_benchmark("fixture should load");
     };
-    let executable = match tune.executable_file(file) {
+    let executable = match tune.executable_source(file) {
         Ok(executable) => executable,
         Err(error) => exit_benchmark(&format!("executable should build: {error:?}")),
     };

@@ -2,7 +2,7 @@
 fn frontend_profile_skips_bytecode_and_collects_ir_quality() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new().with_std();
     let file = tune
-        .add_file(
+        .add_source(
             "case.tn",
             r#"
 let a: Int = 10
@@ -14,7 +14,7 @@ let result: Int = if c > 10 { c } else { a }
         .ok_or("source should allocate")?;
 
     let report = tune
-        .profile_file_frontend(file)
+        .profile_source_frontend(file)
         .map_err(|_| "profile should succeed")?;
 
     assert_eq!(report.bytecode.instructions, 0);
@@ -38,7 +38,7 @@ let result: Int = if c > 10 { c } else { a }
 fn full_profile_reports_backend_guard_pressure() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new().with_std();
     let file = tune
-        .add_file(
+        .add_source(
             "case.tn",
             r#"
 let values: [Int] = [1, 2, 3]
@@ -48,7 +48,7 @@ let result: Int = values[1]
         .ok_or("source should allocate")?;
 
     let report = tune
-        .profile_file(file)
+        .profile_source(file)
         .map_err(|_| "profile should succeed")?;
 
     assert!(report.bytecode.instructions > 0);

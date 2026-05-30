@@ -9,7 +9,7 @@ impl Tune {
         decl_id: tune_hir::HirId,
     ) -> Result<tune_meta::facts::DeclFacts, EngineError> {
         let check = self
-            .check_file(file)
+            .check_source(file)
             .ok_or(EngineError::FileNotFound(file))?;
         if has_error_diagnostics(&check.diagnostics) {
             return Err(EngineError::Diagnostics(check.diagnostics));
@@ -33,7 +33,7 @@ impl Tune {
         decl_id: tune_hir::HirId,
     ) -> Result<tune_meta::type_schema::DeclTypeSchema, EngineError> {
         let check = self
-            .check_file(file)
+            .check_source(file)
             .ok_or(EngineError::FileNotFound(file))?;
         if has_error_diagnostics(&check.diagnostics) {
             return Err(EngineError::Diagnostics(check.diagnostics));
@@ -59,7 +59,7 @@ impl Tune {
         tag_name: &str,
     ) -> Result<Vec<tune_meta::tagged::TaggedDecl<tune_resolve::TagFact>>, EngineError> {
         let check = self
-            .check_file(file)
+            .check_source(file)
             .ok_or(EngineError::FileNotFound(file))?;
         if has_error_diagnostics(&check.diagnostics) {
             return Err(EngineError::Diagnostics(check.diagnostics));

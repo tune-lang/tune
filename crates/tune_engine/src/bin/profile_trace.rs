@@ -167,7 +167,7 @@ fn run(input: TraceInput) -> i32 {
 
     for path in input.paths {
         let mut tune = Tune::new().with_std();
-        let file = match tune.add_path(&path) {
+        let file = match tune.load_file(&path) {
             Ok(file) => file,
             Err(error) => {
                 eprintln!("{path}: {error:?}");
@@ -177,9 +177,9 @@ fn run(input: TraceInput) -> i32 {
         };
 
         let report = match if input.full_pipeline {
-            tune.profile_file(file)
+            tune.profile_source(file)
         } else {
-            tune.profile_file_frontend(file)
+            tune.profile_source_frontend(file)
         } {
             Ok(report) => report,
             Err(error) => {

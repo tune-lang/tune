@@ -11,6 +11,7 @@ mod paths;
 mod profile;
 mod project_sources;
 mod reachable;
+mod runtime;
 
 use diagnostics::{diagnostic_from_bytecode_lower_error, diagnostic_from_ir_lower_error};
 pub use diagnostics::{
@@ -27,6 +28,7 @@ pub use profile::{
     StageTiming,
 };
 pub use project_sources::ProjectPackageSources;
+pub use runtime::Runtime;
 
 use tune_db::{FileId, TuneDb};
 use tune_diagnostics::{Diagnostic, Severity};
@@ -36,6 +38,8 @@ use tune_runtime::TaskExecutionMode;
 use tune_runtime::value::Value;
 
 use crate::reachable::reachable_functions;
+
+pub type SourceId = FileId;
 
 pub struct Tune {
     db: TuneDb,
@@ -60,7 +64,7 @@ impl Default for Tune {
 }
 
 pub struct CheckReport {
-    pub file: FileId,
+    pub file: SourceId,
     pub diagnostics: Vec<Diagnostic>,
     pub module: tune_hir::module::Module,
     pub resolved: tune_resolve::ResolvedModule,
@@ -81,7 +85,7 @@ pub struct ExecutableReport {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EntryPoint {
-    File(FileId),
+    Source(SourceId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -113,12 +117,16 @@ impl Tune {
         Self::default()
     }
 
-    pub fn add_file(&mut self, path: impl Into<String>, text: impl Into<String>) -> Option<FileId> {
+    pub fn add_source(
+        &mut self,
+        path: impl Into<String>,
+        text: impl Into<String>,
+    ) -> Option<SourceId> {
         self.db.add_file(path, text)
     }
 
     #[must_use]
-    pub fn check_file(&self, file: FileId) -> Option<CheckReport> {
+    pub fn check_source(&self, file: SourceId) -> Option<CheckReport> {
         let linked = imports::link_entry_imports(&self.db, file, &self.hosts)?;
         let resolved = tune_resolve::resolve_module(&linked.module);
         let shape = tune_shape::analyze_module(&linked.module, &resolved);
@@ -144,18 +152,18 @@ impl Tune {
         })
     }
 
-    pub fn check_source(
+    pub fn check_text(
         &mut self,
         path: impl Into<String>,
         text: impl Into<String>,
     ) -> Option<CheckReport> {
-        let file = self.add_file(path, text)?;
-        self.check_file(file)
+        let file = self.add_source(path, text)?;
+        self.check_source(file)
     }
 
-    pub fn compile_file(&self, file: FileId) -> Result<CompileReport, EngineError> {
+    pub fn compile_source(&self, file: SourceId) -> Result<CompileReport, EngineError> {
         let check = self
-            .check_file(file)
+            .check_source(file)
             .ok_or(EngineError::FileNotFound(file))?;
         let module_plan =
             tune_plan::lower_analyzed_module_to_plan(&check.module, &check.resolved, &check.shape);
@@ -163,44 +171,55 @@ impl Tune {
         Ok(CompileReport { check, module_plan })
     }
 
-    pub fn compile_source(
+    pub fn compile_text(
         &mut self,
         path: impl Into<String>,
         text: impl Into<String>,
     ) -> Result<CompileReport, EngineError> {
         let file = self
-            .add_file(path, text)
+            .add_source(path, text)
             .ok_or(EngineError::AllocationLimit)?;
-        self.compile_file(file)
+        self.compile_source(file)
     }
 
-    pub fn run_file(&self, file: FileId) -> Result<Value, EngineError> {
-        self.run_entry(EntryPoint::File(file))
+    pub fn executable_text(
+        &mut self,
+        path: impl Into<String>,
+        text: impl Into<String>,
+    ) -> Result<ExecutableReport, EngineError> {
+        let file = self
+            .add_source(path, text)
+            .ok_or(EngineError::AllocationLimit)?;
+        self.executable_source(file)
+    }
+
+    pub fn run_text(
+        &mut self,
+        path: impl Into<String>,
+        text: impl Into<String>,
+    ) -> Result<Value, EngineError> {
+        let file = self
+            .add_source(path, text)
+            .ok_or(EngineError::AllocationLimit)?;
+        self.run_source(file)
+    }
+
+    pub fn run_source(&self, file: SourceId) -> Result<Value, EngineError> {
+        self.run_entry(EntryPoint::Source(file))
     }
 
     pub fn run_entry(&self, entry: EntryPoint) -> Result<Value, EngineError> {
         let executable = self.executable_entry(entry)?;
-        let mut vm = tune_vm::Vm::new(executable.bytecode)
-            .with_task_execution(self.task_execution)
-            .with_host_executor_slots(self.hosts.executors())
-            .with_host_authority_slots(self.hosts.authorities())
-            .with_host_resource_types(self.hosts.vm_resource_types())
-            .with_host_value_types(executable.host_value_types.clone())
-            .with_authorities(self.authorities.clone());
-        vm.run_entry().map_err(|fault| {
-            EngineError::Diagnostics(vec![diagnostic_from_vm_fault_with_sources(
-                &fault, &self.db,
-            )])
-        })
+        self.runtime(executable).run_entry()
     }
 
-    pub fn executable_file(&self, file: FileId) -> Result<ExecutableReport, EngineError> {
-        self.executable_entry(EntryPoint::File(file))
+    pub fn executable_source(&self, file: SourceId) -> Result<ExecutableReport, EngineError> {
+        self.executable_entry(EntryPoint::Source(file))
     }
 
     pub fn executable_entry(&self, entry: EntryPoint) -> Result<ExecutableReport, EngineError> {
-        let EntryPoint::File(file) = entry;
-        let compile = self.compile_file(file)?;
+        let EntryPoint::Source(file) = entry;
+        let compile = self.compile_source(file)?;
         executable_from_compile(compile)
     }
 
@@ -238,7 +257,7 @@ impl Tune {
         let mut files = Vec::new();
         for (path, text) in sources {
             let file = self
-                .add_file(path.clone(), text)
+                .add_source(path.clone(), text)
                 .ok_or(EngineError::AllocationLimit)?;
             files.push(file);
             if path == entry_path {
@@ -307,18 +326,19 @@ impl Tune {
             return Err(EngineError::NotImplemented("unknown project handle"));
         }
         let executable = self.executable_project_entry(entry)?;
-        let mut vm = tune_vm::Vm::new(executable.bytecode)
+        self.runtime(executable).run_entry()
+    }
+
+    #[must_use]
+    pub fn runtime(&self, executable: ExecutableReport) -> Runtime {
+        let vm = tune_vm::Vm::new(executable.bytecode)
             .with_task_execution(self.task_execution)
             .with_host_executor_slots(self.hosts.executors())
             .with_host_authority_slots(self.hosts.authorities())
             .with_host_resource_types(self.hosts.vm_resource_types())
             .with_host_value_types(executable.host_value_types.clone())
             .with_authorities(self.authorities.clone());
-        vm.run_entry().map_err(|fault| {
-            EngineError::Diagnostics(vec![diagnostic_from_vm_fault_with_sources(
-                &fault, &self.db,
-            )])
-        })
+        Runtime::new(vm, self.db.sources().clone())
     }
 
     pub fn executable_project_entry(

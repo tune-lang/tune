@@ -4,16 +4,15 @@ use std::time::{Duration, Instant};
 
 use quality::{bytecode_quality, ir_quality, optimizer_quality, plan_quality};
 use tune_bytecode::Opcode;
-use tune_db::FileId;
 use tune_diagnostics::Diagnostic;
 
 use crate::diagnostics::{diagnostic_from_bytecode_lower_error, diagnostic_from_ir_lower_error};
 use crate::reachable::reachable_functions;
-use crate::{CheckReport, EngineError, ProjectEntry, Tune, has_error_diagnostics};
+use crate::{CheckReport, EngineError, ProjectEntry, SourceId, Tune, has_error_diagnostics};
 
 #[derive(Debug, Clone)]
 pub struct ProfileReport {
-    pub file: FileId,
+    pub file: SourceId,
     pub diagnostics: Vec<Diagnostic>,
     pub timings: Vec<StageTiming>,
     pub plan: PlanQuality,
@@ -134,22 +133,46 @@ impl Tune {
         finish_profile(check?, timings, ProfileScope::Full)
     }
 
-    pub fn profile_file_frontend(&self, file: FileId) -> Result<ProfileReport, EngineError> {
-        self.profile_file_with_scope(file, ProfileScope::Frontend)
+    pub fn profile_text(
+        &mut self,
+        path: impl Into<String>,
+        text: impl Into<String>,
+    ) -> Result<ProfileReport, EngineError> {
+        let file = self
+            .add_source(path, text)
+            .ok_or(EngineError::AllocationLimit)?;
+        self.profile_source(file)
     }
 
-    pub fn profile_file(&self, file: FileId) -> Result<ProfileReport, EngineError> {
-        self.profile_file_with_scope(file, ProfileScope::Full)
+    pub fn profile_text_frontend(
+        &mut self,
+        path: impl Into<String>,
+        text: impl Into<String>,
+    ) -> Result<ProfileReport, EngineError> {
+        let file = self
+            .add_source(path, text)
+            .ok_or(EngineError::AllocationLimit)?;
+        self.profile_source_frontend(file)
     }
 
-    fn profile_file_with_scope(
+    pub fn profile_source_frontend(&self, file: SourceId) -> Result<ProfileReport, EngineError> {
+        self.profile_source_with_scope(file, ProfileScope::Frontend)
+    }
+
+    pub fn profile_source(&self, file: SourceId) -> Result<ProfileReport, EngineError> {
+        self.profile_source_with_scope(file, ProfileScope::Full)
+    }
+
+    fn profile_source_with_scope(
         &self,
-        file: FileId,
+        file: SourceId,
         scope: ProfileScope,
     ) -> Result<ProfileReport, EngineError> {
         let mut timings = Vec::new();
-        let (check, duration) =
-            timed(|| self.check_file(file).ok_or(EngineError::FileNotFound(file)));
+        let (check, duration) = timed(|| {
+            self.check_source(file)
+                .ok_or(EngineError::FileNotFound(file))
+        });
         timings.push(stage("check", duration));
         finish_profile(check?, timings, scope)
     }

@@ -2,7 +2,7 @@
 fn checks_source_through_engine_facade() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let report = tune
-        .check_source(
+        .check_text(
             "main.tn",
             r#"
 tag tool {}
@@ -31,7 +31,7 @@ fn checks_source_from_path_through_engine_facade() -> Result<(), String> {
 
     let mut tune = tune_engine::Tune::new();
     let report = tune
-        .check_path(&path)
+        .check_file(&path)
         .map_err(|error| format!("{error:?}"))?;
     std::fs::remove_dir_all(&root).map_err(|error| error.to_string())?;
 
@@ -43,7 +43,7 @@ fn checks_source_from_path_through_engine_facade() -> Result<(), String> {
 fn compile_source_returns_semantic_plans() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let report = tune
-        .compile_source(
+        .compile_text(
             "main.tn",
             r#"
 let helper(value) = value
@@ -77,7 +77,7 @@ let run(input) = helper(input)
 fn compile_source_uses_module_aware_member_lowering() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let report = tune
-        .compile_source(
+        .compile_text(
             "main.tn",
             r#"
 struct Stack {
@@ -125,10 +125,11 @@ fn engine_resolves_loaded_project_roots() -> Result<(), &'static str> {
 fn executable_lowering_stops_on_structured_frontend_diagnostics() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file("main.tn", "let value: Bool = true ^ false")
+        .add_source("main.tn", "let value: Bool = true ^ false")
         .ok_or("source should allocate")?;
 
-    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.executable_file(file) else {
+    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.executable_source(file)
+    else {
         return Err("frontend diagnostics should stop executable lowering");
     };
 
@@ -336,7 +337,7 @@ fn engine_registers_default_std_host_modules() {
 fn engine_runs_imported_std_host_function() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new().with_std();
     let file = tune
-        .add_file(
+        .add_source(
             "main.tn",
             r#"
 import "parse".int
@@ -345,7 +346,7 @@ let value: Result<Int, String> = int("42")
         )
         .ok_or("source should allocate")?;
 
-    let value = tune.run_file(file).map_err(|error| {
+    let value = tune.run_source(file).map_err(|error| {
         eprintln!("{error:?}");
         "std host import should execute"
     })?;
@@ -366,7 +367,7 @@ let value: Result<Int, String> = int("42")
 fn engine_exposes_stdcore_print_without_import() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new().with_std();
     let file = tune
-        .add_file(
+        .add_source(
             "main.tn",
             r#"
 let result: () = print("hello")
@@ -374,7 +375,7 @@ let result: () = print("hello")
         )
         .ok_or("source should allocate")?;
 
-    let executable = tune.executable_file(file).map_err(|error| {
+    let executable = tune.executable_source(file).map_err(|error| {
         eprintln!("{error:?}");
         "stdcore print should compile through the normal pipeline"
     })?;
@@ -431,7 +432,7 @@ fn vm_faults_convert_to_structured_diagnostics() {
 fn vm_fault_diagnostics_can_include_source_summary() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file("main.tn", "let value = 1 + true")
+        .add_source("main.tn", "let value = 1 + true")
         .ok_or("source should allocate")?;
     let span = tune_diagnostics::Span::new(
         file,

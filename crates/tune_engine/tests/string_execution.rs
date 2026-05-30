@@ -2,7 +2,7 @@
 fn run_file_executes_string_len_and_index() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result: String = {
@@ -25,7 +25,7 @@ let result: String = {
 fn run_file_uses_unicode_scalar_string_indexing_policy() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result: String = {
@@ -48,7 +48,7 @@ fn run_file(
     tune: &tune_engine::Tune,
     file: tune_db::FileId,
 ) -> Result<tune_runtime::value::Value, &'static str> {
-    tune.run_file(file).map_err(|error| {
+    tune.run_source(file).map_err(|error| {
         eprintln!("{error:?}");
         "file entry should run"
     })

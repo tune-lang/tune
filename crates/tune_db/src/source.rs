@@ -8,7 +8,7 @@ pub struct SourceFile {
     pub text: String,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct SourceMap {
     files: Vec<SourceFile>,
 }

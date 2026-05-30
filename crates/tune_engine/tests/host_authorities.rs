@@ -17,7 +17,7 @@ impl tune_host::Host for SecretHost {
 fn engine_rejects_host_call_without_required_authority() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new().with_host(&SecretHost);
     let file = tune
-        .add_file(
+        .add_source(
             "main.tn",
             r#"
 import "secret".answer
@@ -26,7 +26,7 @@ let result: Int = answer()
         )
         .ok_or("source should allocate")?;
 
-    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_file(file) else {
+    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_source(file) else {
         return Err("host call should require authority");
     };
     assert!(diagnostics.iter().any(|diagnostic| {
@@ -46,7 +46,7 @@ fn engine_executes_host_call_with_required_authority() -> Result<(), &'static st
         .with_host(&SecretHost)
         .with_authority(tune_host::Authority("secret.read".into()));
     let file = tune
-        .add_file(
+        .add_source(
             "main.tn",
             r#"
 import "secret".answer
@@ -56,7 +56,7 @@ let result: Int = answer()
         .ok_or("source should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "host call should execute"
         })?,

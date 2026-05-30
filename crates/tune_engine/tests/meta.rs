@@ -2,7 +2,7 @@
 fn engine_exposes_meta_decl_facts_from_shared_compiler_facts() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 -- Runs the app.
@@ -10,7 +10,7 @@ let run(): String = "ok"
 "#,
         )
         .ok_or("source should allocate")?;
-    let check = tune.check_file(file).ok_or("source should check")?;
+    let check = tune.check_source(file).ok_or("source should check")?;
     let run = check.module.items[0].id;
 
     let facts = tune
@@ -39,7 +39,7 @@ let run(): String = "ok"
 fn engine_exposes_analysis_backed_meta_signature_facts() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Counter {
@@ -51,7 +51,7 @@ let make(seed) = Counter {
 "#,
         )
         .ok_or("source should allocate")?;
-    let check = tune.check_file(file).ok_or("source should check")?;
+    let check = tune.check_source(file).ok_or("source should check")?;
     let make = check.module.items[1].id;
 
     let facts = tune
@@ -75,7 +75,7 @@ let make(seed) = Counter {
 fn engine_exposes_analysis_backed_type_schema() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Box<T> {
@@ -87,7 +87,7 @@ let make(seed): Box<Int> = Box {
 "#,
         )
         .ok_or("source should allocate")?;
-    let check = tune.check_file(file).ok_or("source should check")?;
+    let check = tune.check_source(file).ok_or("source should check")?;
     let make = check.module.items[1].id;
 
     let schema = tune
@@ -145,7 +145,7 @@ impl tune_host::Host for MetaValueHost {
 fn engine_exposes_host_value_type_schema() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new().with_host(&MetaValueHost);
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 import "meta".make
@@ -153,7 +153,7 @@ let result = make()
 "#,
         )
         .ok_or("source should allocate")?;
-    let check = tune.check_file(file).ok_or("source should check")?;
+    let check = tune.check_source(file).ok_or("source should check")?;
     let result = check
         .module
         .items
@@ -186,7 +186,7 @@ let result = make()
 fn engine_exposes_tagged_decls_without_tag_name_special_cases() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 tag route {}

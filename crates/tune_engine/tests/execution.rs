@@ -2,11 +2,11 @@
 fn run_file_executes_tiny_integer_file_entry_through_vm() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file("app.tn", "let helper(): Int = 99\nlet value: Int = 1 + 2")
+        .add_source("app.tn", "let helper(): Int = 99\nlet value: Int = 1 + 2")
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "file entry should run"
         })?,
@@ -20,11 +20,11 @@ fn run_file_executes_tiny_integer_file_entry_through_vm() -> Result<(), &'static
 fn executable_file_uses_module_entry_plan() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file("app.tn", "let helper(): Int = 99\nlet value: Int = 1 + 2")
+        .add_source("app.tn", "let helper(): Int = 99\nlet value: Int = 1 + 2")
         .ok_or("file should allocate")?;
 
     let executable = tune
-        .executable_entry(tune_engine::EntryPoint::File(file))
+        .executable_entry(tune_engine::EntryPoint::Source(file))
         .map_err(|_| "file should lower to executable")?;
 
     assert_eq!(executable.compile.module_plan.functions.len(), 1);
@@ -39,11 +39,11 @@ fn executable_file_uses_module_entry_plan() -> Result<(), &'static str> {
 fn run_file_executes_top_level_value_bindings_in_order() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file("app.tn", "let a: Int = 1\nlet b: Int = a + 2")
+        .add_source("app.tn", "let a: Int = 1\nlet b: Int = a + 2")
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "file entry should run"
         })?,
@@ -57,11 +57,11 @@ fn run_file_executes_top_level_value_bindings_in_order() -> Result<(), &'static 
 fn run_file_executes_tuple_expression_value() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(r#"app.tn"#, r#"let pair = (10, "hello")"#)
+        .add_source(r#"app.tn"#, r#"let pair = (10, "hello")"#)
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "file entry should run"
         })?,
@@ -78,14 +78,14 @@ fn run_file_executes_tuple_expression_value() -> Result<(), &'static str> {
 fn run_file_executes_direct_callable_invocation() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             "let add(a: Int, b: Int): Int = a + b\nlet value: Int = add(1, 2)",
         )
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "file entry should run"
         })?,
@@ -99,14 +99,14 @@ fn run_file_executes_direct_callable_invocation() -> Result<(), &'static str> {
 fn run_file_executes_explicit_return_from_callable() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             "let id(value: Int): Int = { return value; 99 }\nlet result: Int = id(3)",
         )
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "file entry should run"
         })?,
@@ -120,7 +120,7 @@ fn run_file_executes_explicit_return_from_callable() -> Result<(), &'static str>
 fn run_file_executes_if_return_from_callable() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let pick(flag: Bool): Int = {
@@ -135,7 +135,7 @@ let result: Int = pick(true)
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "file entry should run"
         })?,
@@ -149,14 +149,14 @@ let result: Int = pick(true)
 fn run_file_executes_if_expression_value() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             "let pick(flag: Bool): Int = if flag { 1 } else { 2 }\nlet result: Int = pick(false)",
         )
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "file entry should run"
         })?,
@@ -170,14 +170,14 @@ fn run_file_executes_if_expression_value() -> Result<(), &'static str> {
 fn run_file_executes_comparison_fed_if_expression() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             "let pick(value: Int): Int = if value > 10 { 1 } else { 2 }\nlet result: Int = pick(20)",
         )
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "file entry should run"
         })?,
@@ -191,7 +191,7 @@ fn run_file_executes_comparison_fed_if_expression() -> Result<(), &'static str> 
 fn run_file_executes_elif_expression_value() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let pick(value: Int): Int = if value > 10 { 1 } elif value > 5 { 2 } else { 3 }
@@ -201,7 +201,7 @@ let result: Int = pick(7)
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "file entry should run"
         })?,
@@ -215,7 +215,7 @@ let result: Int = pick(7)
 fn run_file_executes_inline_if_expression_value() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let label(flag: Bool): Int = if flag => 1 else 2
@@ -225,7 +225,7 @@ let result: Int = label(false)
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "file entry should run"
         })?,
@@ -239,7 +239,7 @@ let result: Int = label(false)
 fn run_file_executes_branch_local_assignment() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let pick(flag: Bool): Int = {
@@ -257,7 +257,7 @@ let value: Int = pick(false)
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "file entry should run"
         })?,
@@ -271,7 +271,7 @@ let value: Int = pick(false)
 fn run_file_executes_result_propagation_ok_path() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let pass(): Result<Int, Int> = {
@@ -284,7 +284,7 @@ let result = pass()
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "file entry should run"
         })?,
@@ -302,7 +302,7 @@ let result = pass()
 fn run_file_executes_result_propagation_error_path() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let fail(): Result<Int, Int> = {
@@ -314,7 +314,7 @@ let result = fail()
         )
         .ok_or("file should allocate")?;
 
-    let value = tune.run_file(file).map_err(|error| {
+    let value = tune.run_source(file).map_err(|error| {
         eprintln!("{error:?}");
         "file entry should run"
     })?;
@@ -365,7 +365,7 @@ let result = fail()
 fn run_file_executes_callable_value_with_capture() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result: Int = {
@@ -378,7 +378,7 @@ let result: Int = {
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "file should run"
         })?,
@@ -391,10 +391,10 @@ let result: Int = {
 fn run_file_reports_proven_integer_overflow_before_execution() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file("app.tn", "let result: Int = 9223372036854775807 + 1")
+        .add_source("app.tn", "let result: Int = 9223372036854775807 + 1")
         .ok_or("file should allocate")?;
 
-    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_file(file) else {
+    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_source(file) else {
         return Err("overflow should fail with diagnostics");
     };
     assert!(
@@ -410,7 +410,7 @@ fn run_file_reports_proven_integer_overflow_before_execution() -> Result<(), &'s
 fn run_file_executes_struct_field_defaults() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Counter {
@@ -423,7 +423,7 @@ let result: Int = counter.value
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "file entry should run"
         })?,
@@ -437,7 +437,7 @@ let result: Int = counter.value
 fn run_file_executes_compound_assignment() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Counter {
@@ -459,7 +459,7 @@ let result: Int = {
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "file entry should run"
         })?,
@@ -473,11 +473,11 @@ let result: Int = {
 fn run_file_executes_local_binding_slice_through_vm() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file("app.tn", "let value: Int = { let x: Int = 1; x + 2 }")
+        .add_source("app.tn", "let value: Int = { let x: Int = 1; x + 2 }")
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_entry(tune_engine::EntryPoint::File(file))
+        tune.run_entry(tune_engine::EntryPoint::Source(file))
             .map_err(|error| {
                 eprintln!("{error:?}");
                 "file entry should run"
@@ -492,11 +492,11 @@ fn run_file_executes_local_binding_slice_through_vm() -> Result<(), &'static str
 fn run_file_executes_none_optional_literal() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file("app.tn", "let result: Int? = none")
+        .add_source("app.tn", "let result: Int? = none")
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "file entry should run"
         })?,
@@ -510,7 +510,7 @@ fn run_file_executes_none_optional_literal() -> Result<(), &'static str> {
 fn run_file_executes_none_equality_checks() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let missing: Int? = none
@@ -532,7 +532,7 @@ let result: Int = {
         .ok_or("file should allocate")?;
 
     assert_eq!(
-        tune.run_file(file).map_err(|error| {
+        tune.run_source(file).map_err(|error| {
             eprintln!("{error:?}");
             "file entry should run"
         })?,

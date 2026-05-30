@@ -57,7 +57,7 @@ impl Tune {
         let mut source_set = ProjectSourceSet::default();
         for (path, text) in sources {
             let file = self
-                .add_file(path.clone(), text)
+                .add_source(path.clone(), text)
                 .ok_or(EngineError::AllocationLimit)?;
             source_set.files.push(file);
             if path == entry_path {
@@ -98,7 +98,7 @@ impl Tune {
         for (path, text) in package.sources {
             let internal_path = format!("packages/{}/{}", package.package.name, path);
             let file = self
-                .add_file(internal_path, text)
+                .add_source(internal_path, text)
                 .ok_or(EngineError::AllocationLimit)?;
             source_set.files.push(file);
             for alias in package_import_aliases(&package.package, &path) {

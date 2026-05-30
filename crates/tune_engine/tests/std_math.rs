@@ -4,7 +4,7 @@ use tune_runtime::Value;
 fn inline_no_arg_host_float_call_flows_through_binary_ops() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new().with_std();
     let file = tune
-        .add_file(
+        .add_source(
             "main.tn",
             r#"
 import "math"
@@ -14,13 +14,13 @@ let result: Float = math.pow(radius, 2.0) * math.pi()
         )
         .ok_or("file should allocate")?;
 
-    let check = tune.check_file(file).ok_or("file should check")?;
+    let check = tune.check_source(file).ok_or("file should check")?;
     if !check.diagnostics.is_empty() {
         eprintln!("{:?}", check.diagnostics);
         return Err("inline host Float call should check");
     }
 
-    let value = tune.run_file(file).map_err(|error| {
+    let value = tune.run_source(file).map_err(|error| {
         eprintln!("{error:?}");
         "inline host Float call should execute"
     })?;

@@ -4,7 +4,7 @@ use tune_runtime::value::Value;
 fn run_file_solves_numeric_literal_binding_to_float_assignment() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result = {
@@ -24,10 +24,10 @@ let result = {
 fn run_file_materializes_size_and_byte_scalars() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let size_file = tune
-        .add_file("size.tn", "let start: Size = 1\nlet result: Size = start")
+        .add_source("size.tn", "let start: Size = 1\nlet result: Size = start")
         .ok_or("file should allocate")?;
     let byte_file = tune
-        .add_file("byte.tn", "let b: Byte = 255\nlet result: Byte = b + 1")
+        .add_source("byte.tn", "let b: Byte = 255\nlet result: Byte = b + 1")
         .ok_or("file should allocate")?;
 
     assert_eq!(run_file(&tune, size_file)?, Value::Size(1));
@@ -39,10 +39,10 @@ fn run_file_materializes_size_and_byte_scalars() -> Result<(), &'static str> {
 fn run_file_executes_prefixed_integer_literals() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let int_file = tune
-        .add_file("int.tn", "let result: Int = 0b1011 + 0o7 + 0x10")
+        .add_source("int.tn", "let result: Int = 0b1011 + 0o7 + 0x10")
         .ok_or("file should allocate")?;
     let size_file = tune
-        .add_file("size.tn", "let result: Size = 0b1011")
+        .add_source("size.tn", "let result: Size = 0b1011")
         .ok_or("file should allocate")?;
 
     assert_eq!(run_file(&tune, int_file)?, Value::Int(34));
@@ -54,7 +54,7 @@ fn run_file_executes_prefixed_integer_literals() -> Result<(), &'static str> {
 fn run_file_materializes_same_literal_binding_per_call_site() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let byte_plus(value: Byte): Byte = value + 1
@@ -76,7 +76,7 @@ let result: Int = {
 fn run_file_executes_is_aliases() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let a: Int = if 3 is 3 { 1 } else { 0 }
@@ -94,7 +94,7 @@ let result: Int = a + b
 fn run_file_executes_simple_string_interpolation() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let name: String = "Tune"
@@ -115,7 +115,7 @@ let result: String = "hello {name} {count}"
 fn run_file_executes_expression_string_interpolation() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let count: Int = 3
@@ -132,7 +132,7 @@ let result: String = "next {count + 1}"
 fn run_file_treats_non_expression_braces_as_string_text() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result: String = "{} { } {\"name\":1}"
@@ -151,7 +151,7 @@ let result: String = "{} { } {\"name\":1}"
 fn run_file_preserves_private_callable_capture_state() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let result: Int = {
@@ -176,7 +176,7 @@ let result: Int = {
 fn run_file_captures_structs_by_private_snapshot() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Counter {
@@ -203,7 +203,7 @@ let result: Int = c.value + b
 fn run_file_captures_read_only_structs_by_reference() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Counter {
@@ -229,7 +229,7 @@ let result: Int = f()
 fn run_file_keeps_read_only_struct_captures_referenced_after_calls() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Counter {
@@ -257,7 +257,7 @@ let result: Int = before + after
 fn run_file_snapshots_captured_structs_passed_to_calls() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Counter {
@@ -284,7 +284,7 @@ let result: Int = c.value + inner
 fn run_file_executes_mixed_structural_match_calls() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Duck {
@@ -308,7 +308,7 @@ let result: Int = a + speak(rock)
 }
 
 fn run_file(tune: &tune_engine::Tune, file: tune_db::FileId) -> Result<Value, &'static str> {
-    tune.run_file(file).map_err(|error| {
+    tune.run_source(file).map_err(|error| {
         eprintln!("{error:?}");
         "file entry should run"
     })

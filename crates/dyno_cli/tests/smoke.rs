@@ -153,10 +153,10 @@ fn creates_new_project_scaffold() -> Result<(), String> {
 fn renders_profile_report_sections() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file("main.tn", "let value: Int = 40 + 2")
+        .add_source("main.tn", "let value: Int = 40 + 2")
         .ok_or("source should allocate")?;
     let report = tune
-        .profile_file(file)
+        .profile_source(file)
         .map_err(|_| "profile should be produced")?;
     let rendered = dyno_cli::render_profile_report(&report);
 

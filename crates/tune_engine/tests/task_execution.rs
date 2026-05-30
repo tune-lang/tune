@@ -10,7 +10,7 @@ use tune_runtime::value::Value;
 fn run_file_executes_spawn_join_ready_value() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let task: Task<Int> = spawn 20
@@ -27,7 +27,7 @@ let result: Int = task.join()
 fn run_file_executes_direct_call_inside_spawn_body() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let helper(): Int = 41
@@ -45,7 +45,7 @@ let result: Int = task.join() + 1
 fn run_file_executes_spawn_body_with_captured_param() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let start(seed: Int): Int = {
@@ -66,7 +66,7 @@ fn run_file_spawned_functions_share_struct_receiver_state() -> Result<(), &'stat
     let mut tune = tune_engine::Tune::new()
         .with_task_execution(tune_runtime::TaskExecutionMode::DeferredUntilJoin);
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 struct Counter {
@@ -96,7 +96,7 @@ let result: Int = counter.value
 fn run_file_does_not_execute_spawned_work_before_join() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let task: Task<Int> = spawn panic("deferred")
@@ -114,7 +114,7 @@ fn run_file_can_execute_spawned_work_immediately() -> Result<(), &'static str> {
     let mut tune =
         tune_engine::Tune::new().with_task_execution(tune_runtime::TaskExecutionMode::Immediate);
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let task: Task<Int> = spawn panic("immediate")
@@ -123,7 +123,7 @@ let result: Int = 1
         )
         .ok_or("file should allocate")?;
 
-    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_file(file) else {
+    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_source(file) else {
         return Err("immediate task mode should report spawned panic at spawn");
     };
 
@@ -142,7 +142,7 @@ let result: Int = 1
 fn run_file_reports_spawned_panic_at_join() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 let task: Task<Int> = spawn panic("joined")
@@ -151,7 +151,7 @@ let result: Int = task.join()
         )
         .ok_or("file should allocate")?;
 
-    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_file(file) else {
+    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_source(file) else {
         return Err("joining a panicked task should report diagnostics");
     };
 
@@ -208,7 +208,7 @@ fn run_file_starts_spawned_work_before_join_by_default() -> Result<(), &'static 
     };
     let mut tune = tune_engine::Tune::new().with_host(&host);
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 import "sync".{mark, wait}
@@ -229,7 +229,7 @@ fn run_file_rejects_task_unsafe_host_call_inside_spawn() -> Result<(), &'static 
         .with_std()
         .with_authority(tune_host::Authority("io.write".into()));
     let file = tune
-        .add_file(
+        .add_source(
             "app.tn",
             r#"
 import "io".print
@@ -240,7 +240,7 @@ let result: Unit = task.join()
         )
         .ok_or("file should allocate")?;
 
-    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_file(file) else {
+    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_source(file) else {
         return Err("task-unsafe host call should fail before execution");
     };
 
@@ -255,7 +255,7 @@ let result: Unit = task.join()
 }
 
 fn run_file(tune: &tune_engine::Tune, file: tune_db::FileId) -> Result<Value, &'static str> {
-    tune.run_file(file).map_err(|error| {
+    tune.run_source(file).map_err(|error| {
         eprintln!("{error:?}");
         "file entry should run"
     })
