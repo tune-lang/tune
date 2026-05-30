@@ -9,7 +9,7 @@ use tune_runtime::{
     value::Value,
 };
 
-use crate::{VmError, VmFault};
+use crate::{VmError, VmFault, resource_table::SharedResourceTable};
 
 pub struct Vm {
     pub artifact: BytecodeArtifact,
@@ -18,6 +18,7 @@ pub struct Vm {
     pub(crate) host_authorities: Vec<Vec<tune_host::Authority>>,
     pub(crate) host_resource_types: Vec<crate::VmHostResourceType>,
     pub(crate) granted_authorities: HashSet<tune_host::Authority>,
+    pub(crate) resources: SharedResourceTable,
     pub(crate) next_state_id: Arc<AtomicU64>,
     pub(crate) tasks: RefCell<Vec<VmTask>>,
     pub(crate) task_context: bool,
@@ -48,6 +49,7 @@ impl Vm {
             host_authorities: Vec::new(),
             host_resource_types: Vec::new(),
             granted_authorities: HashSet::new(),
+            resources: SharedResourceTable::default(),
             next_state_id: Arc::new(AtomicU64::new(0)),
             tasks: RefCell::new(Vec::new()),
             task_context: false,
@@ -113,6 +115,7 @@ impl Vm {
             host_authorities: self.host_authorities.clone(),
             host_resource_types: self.host_resource_types.clone(),
             granted_authorities: self.granted_authorities.clone(),
+            resources: self.resources.clone(),
             next_state_id: Arc::clone(&self.next_state_id),
             tasks: RefCell::new(Vec::new()),
             task_context: true,
@@ -129,5 +132,11 @@ impl Vm {
             .entry_function
             .ok_or_else(|| VmFault::new(VmError::MissingEntry, None))? as usize;
         self.execute_function(entry, Vec::new())
+    }
+
+    pub fn cleanup_resources(&mut self) -> Result<(), VmError> {
+        self.resources
+            .cleanup()
+            .map_err(|message| VmError::HostCallFailed { message })
     }
 }

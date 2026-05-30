@@ -10,6 +10,7 @@ mod execute_support;
 mod execute_tasks;
 pub mod frame;
 mod host_resource;
+mod resource_table;
 pub mod vm;
 mod vm_state;
 

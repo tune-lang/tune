@@ -7,7 +7,10 @@ pub mod symbol;
 pub use authority::Authority;
 pub use function::{HostCallError, HostCallResult, HostExecutor, HostFunction, HostParam};
 pub use module::HostModule;
-pub use resource::{HostResourceType, ResourceCleanup, ResourceRetention};
+pub use resource::{
+    HostResourceType, ResourceCleaner, ResourceCleanup, ResourceCleanupExecutor,
+    ResourceCleanupResult, ResourceRetention,
+};
 pub use symbol::HostSymbolId;
 
 pub trait Host {

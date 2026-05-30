@@ -1,13 +1,16 @@
 use tune_runtime::{ResourceHandle, ResourceTypeId, Value};
 
-use crate::{Vm, VmError};
+use crate::{Vm, VmError, resource_table::ResourceLifecycle};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct VmHostResourceType {
     pub id: ResourceTypeId,
     pub type_name: String,
     pub task_safe: bool,
     pub authorities: Vec<tune_host::Authority>,
+    pub retention: tune_host::ResourceRetention,
+    pub cleanup: tune_host::ResourceCleanup,
+    pub cleanup_executor: Option<tune_host::ResourceCleanupExecutor>,
 }
 
 impl VmHostResourceType {
@@ -18,6 +21,9 @@ impl VmHostResourceType {
             type_name: type_name.into(),
             task_safe: false,
             authorities: Vec::new(),
+            retention: tune_host::ResourceRetention::Owned,
+            cleanup: tune_host::ResourceCleanup::Close,
+            cleanup_executor: None,
         }
     }
 
@@ -30,6 +36,33 @@ impl VmHostResourceType {
     #[must_use]
     pub fn with_authorities(mut self, authorities: Vec<tune_host::Authority>) -> Self {
         self.authorities = authorities;
+        self
+    }
+
+    #[must_use]
+    pub fn retention(mut self, retention: tune_host::ResourceRetention) -> Self {
+        self.retention = retention;
+        self
+    }
+
+    #[must_use]
+    pub fn cleanup(mut self, cleanup: tune_host::ResourceCleanup) -> Self {
+        self.cleanup = cleanup;
+        self
+    }
+
+    #[must_use]
+    pub fn with_cleanup_executor(mut self, cleanup: tune_host::ResourceCleanupExecutor) -> Self {
+        self.cleanup_executor = Some(cleanup);
+        self
+    }
+
+    #[must_use]
+    pub fn with_cleanup_executor_if_present(
+        mut self,
+        cleanup: Option<tune_host::ResourceCleanupExecutor>,
+    ) -> Self {
+        self.cleanup_executor = cleanup;
         self
     }
 }
@@ -85,12 +118,21 @@ impl Vm {
             }
         }
 
-        Ok(ResourceHandle {
+        let normalized = ResourceHandle {
             id: resource.id,
             type_id: Some(resource_type.id),
             type_name: resource_type.type_name.clone(),
             task_safe: resource_type.task_safe,
-        })
+        };
+        self.resources.register(
+            normalized.clone(),
+            ResourceLifecycle {
+                retention: resource_type.retention.clone(),
+                cleanup: resource_type.cleanup.clone(),
+                cleanup_executor: resource_type.cleanup_executor.clone(),
+            },
+        );
+        Ok(normalized)
     }
 
     fn resolve_host_resource_type(&self, resource: &ResourceHandle) -> Option<&VmHostResourceType> {

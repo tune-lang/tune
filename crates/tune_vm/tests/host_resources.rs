@@ -119,3 +119,51 @@ fn vm_enforces_registered_resource_authorities() {
         })
     ));
 }
+
+#[test]
+fn vm_runs_host_resource_cleanup_once() -> Result<(), &'static str> {
+    let cleaned = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let cleaned_for_callback = std::sync::Arc::clone(&cleaned);
+    let cleanup =
+        tune_host::ResourceCleanupExecutor::new(move |resource: &tune_runtime::ResourceHandle| {
+            cleaned_for_callback
+                .lock()
+                .map_err(|_| tune_host::HostCallError::new("cleanup log poisoned"))?
+                .push(resource.id);
+            Ok(())
+        });
+    let executor = tune_host::HostExecutor::new(|_: &[tune_runtime::Value]| {
+        Ok(tune_runtime::Value::Tuple(vec![
+            tune_runtime::Value::Resource(tune_runtime::ResourceHandle::new(
+                tune_runtime::ResourceId(7),
+                "fs.File",
+            )),
+            tune_runtime::Value::Resource(tune_runtime::ResourceHandle::new(
+                tune_runtime::ResourceId(7),
+                "fs.File",
+            )),
+        ]))
+    });
+    let resource_type =
+        tune_vm::VmHostResourceType::new(tune_runtime::ResourceTypeId(0), "fs.File")
+            .cleanup(tune_host::ResourceCleanup::HostCallback)
+            .with_cleanup_executor(cleanup);
+    let mut vm = tune_vm::Vm::new(host_resource_artifact())
+        .with_host_executors(vec![executor])
+        .with_host_resource_types(vec![resource_type]);
+
+    let _value = vm.run_entry().map_err(|_| "vm should run entry")?;
+    vm.cleanup_resources()
+        .map_err(|_| "resource cleanup should succeed")?;
+    vm.cleanup_resources()
+        .map_err(|_| "resource cleanup should be idempotent")?;
+
+    assert_eq!(
+        cleaned
+            .lock()
+            .map_err(|_| "cleanup log should not be poisoned")?
+            .as_slice(),
+        &[tune_runtime::ResourceId(7)]
+    );
+    Ok(())
+}

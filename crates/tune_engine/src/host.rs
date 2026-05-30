@@ -122,7 +122,10 @@ impl HostRegistry {
                     format!("{}.{}", resource.module, resource.resource.name),
                 )
                 .task_safe(resource.resource.task_safe)
+                .retention(resource.resource.retention.clone())
+                .cleanup(resource.resource.cleanup.clone())
                 .with_authorities(resource.resource.authorities.clone())
+                .with_cleanup_executor_if_present(resource.resource.cleanup_executor.clone())
             })
             .collect()
     }
