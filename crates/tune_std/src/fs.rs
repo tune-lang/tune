@@ -53,6 +53,26 @@ pub fn install() -> HostModule {
                 Ok(Value::Bool(std::path::Path::new(path).exists()))
             }),
             HostFunction::new(
+                "is_file",
+                vec![HostParam::new("path", Shape::String)],
+                Shape::Bool,
+            )
+            .with_authorities(vec![tune_host::Authority("fs.read".into())])
+            .with_executor(|args: &[Value]| {
+                let path = crate::string_arg(args, 0, "path")?;
+                Ok(Value::Bool(std::path::Path::new(path).is_file()))
+            }),
+            HostFunction::new(
+                "is_dir",
+                vec![HostParam::new("path", Shape::String)],
+                Shape::Bool,
+            )
+            .with_authorities(vec![tune_host::Authority("fs.read".into())])
+            .with_executor(|args: &[Value]| {
+                let path = crate::string_arg(args, 0, "path")?;
+                Ok(Value::Bool(std::path::Path::new(path).is_dir()))
+            }),
+            HostFunction::new(
                 "read_dir",
                 vec![HostParam::new("path", Shape::String)],
                 dir_entries_result_shape(),
@@ -269,6 +289,19 @@ pub fn install() -> HostModule {
                 }
             }),
             HostFunction::new(
+                "create_dir_all",
+                vec![HostParam::new("path", Shape::String)],
+                unit_result_shape(),
+            )
+            .with_authorities(vec![tune_host::Authority("fs.write".into())])
+            .with_executor(|args: &[Value]| {
+                let path = crate::string_arg(args, 0, "path")?;
+                match std::fs::create_dir_all(path) {
+                    Ok(()) => Ok(crate::result_ok(Value::Unit)),
+                    Err(error) => Ok(crate::result_error(error.to_string())),
+                }
+            }),
+            HostFunction::new(
                 "remove_file",
                 vec![HostParam::new("path", Shape::String)],
                 unit_result_shape(),
@@ -290,6 +323,19 @@ pub fn install() -> HostModule {
             .with_executor(|args: &[Value]| {
                 let path = crate::string_arg(args, 0, "path")?;
                 match std::fs::remove_dir(path) {
+                    Ok(()) => Ok(crate::result_ok(Value::Unit)),
+                    Err(error) => Ok(crate::result_error(error.to_string())),
+                }
+            }),
+            HostFunction::new(
+                "remove_dir_all",
+                vec![HostParam::new("path", Shape::String)],
+                unit_result_shape(),
+            )
+            .with_authorities(vec![tune_host::Authority("fs.write".into())])
+            .with_executor(|args: &[Value]| {
+                let path = crate::string_arg(args, 0, "path")?;
+                match std::fs::remove_dir_all(path) {
                     Ok(()) => Ok(crate::result_ok(Value::Unit)),
                     Err(error) => Ok(crate::result_error(error.to_string())),
                 }

@@ -45,6 +45,16 @@ fn fs_byte_executors_return_result_values() -> Result<(), &'static str> {
         .map_err(|_| "fs.exists should execute")?;
     assert_eq!(exists, tune_runtime::Value::Bool(true));
 
+    let is_file = fs_executor(&module, "is_file")?
+        .call(&[tune_runtime::Value::String(path_text.clone())])
+        .map_err(|_| "fs.is_file should execute")?;
+    assert_eq!(is_file, tune_runtime::Value::Bool(true));
+
+    let is_dir = fs_executor(&module, "is_dir")?
+        .call(&[tune_runtime::Value::String(path_text.clone())])
+        .map_err(|_| "fs.is_dir should execute")?;
+    assert_eq!(is_dir, tune_runtime::Value::Bool(false));
+
     let read_result = fs_executor(&module, "read_bytes")?
         .call(&[tune_runtime::Value::String(path_text)])
         .map_err(|_| "fs.read_bytes should execute")?;
@@ -118,6 +128,51 @@ fn fs_mutation_executors_return_result_values() -> Result<(), &'static str> {
     ));
 
     drop(std::fs::remove_dir_all(root));
+    Ok(())
+}
+
+#[test]
+fn fs_recursive_directory_executors_return_result_values() -> Result<(), &'static str> {
+    let module = tune_std::fs::install();
+    let root = std::env::temp_dir().join(format!(
+        "dyno-tune-std-{}-{}",
+        std::process::id(),
+        "fs-recursive"
+    ));
+    let nested = root.join("a").join("b");
+    let root_text = root.to_string_lossy().to_string();
+    let nested_text = nested.to_string_lossy().to_string();
+
+    let create_result = fs_executor(&module, "create_dir_all")?
+        .call(&[tune_runtime::Value::String(nested_text.clone())])
+        .map_err(|_| "fs.create_dir_all should execute")?;
+    assert!(matches!(
+        create_result,
+        tune_runtime::Value::Variant {
+            variant: tune_runtime::value::RuntimeVariant::ResultOk,
+            ..
+        }
+    ));
+    assert!(nested.is_dir());
+
+    let is_dir = fs_executor(&module, "is_dir")?
+        .call(&[tune_runtime::Value::String(nested_text)])
+        .map_err(|_| "fs.is_dir should execute")?;
+    assert_eq!(is_dir, tune_runtime::Value::Bool(true));
+
+    let remove_result = fs_executor(&module, "remove_dir_all")?
+        .call(&[tune_runtime::Value::String(root_text.clone())])
+        .map_err(|_| "fs.remove_dir_all should execute")?;
+    assert!(matches!(
+        remove_result,
+        tune_runtime::Value::Variant {
+            variant: tune_runtime::value::RuntimeVariant::ResultOk,
+            ..
+        }
+    ));
+    assert!(!root.exists());
+
+    drop(std::fs::remove_dir_all(root_text));
     Ok(())
 }
 

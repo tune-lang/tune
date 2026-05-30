@@ -5,5 +5,6 @@ import "path"
 
 let file_path: String = path.join("examples", "README.md")
 let file_exists: Bool = fs.exists(file_path)
+let file_is_file: Bool = fs.is_file(file_path)
 let file_metadata: Result<fs.Metadata, String> = fs.metadata(file_path)
 let contents: Result<String, String> = fs.read_text(file_path)
