@@ -5,7 +5,10 @@ import "text"
 
 let raw: String = text.trim(" 42 ")
 let count: Result<Int, String> = parse.int(raw)
+let hex_count: Result<Int, String> = parse.int_radix("ff", 16)
 let ratio: Result<Float, String> = parse.float("3.5")
 let size: Result<Size, String> = parse.size("8")
+let binary_size: Result<Size, String> = parse.size_radix("1000", 2)
 let byte: Result<Byte, String> = parse.byte("255")
+let hex_byte: Result<Byte, String> = parse.byte_radix("ff", 16)
 let enabled: Result<Bool, String> = parse.bool("true")
