@@ -4,11 +4,29 @@
   "description": "Tree-sitter grammar seed for Tune.",
   "license": "MIT",
   "main": "grammar.js",
-  "keywords": ["tree-sitter", "tune", "dyno"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tune-lang/tree-sitter-tune.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tune-lang/tree-sitter-tune/issues"
+  },
+  "homepage": "https://github.com/tune-lang/tree-sitter-tune#readme",
+  "scripts": {
+    "check": "node --check grammar.js",
+    "pack:dry": "npm pack --dry-run"
+  },
+  "keywords": [
+    "tree-sitter",
+    "tune",
+    "dyno"
+  ],
   "tree-sitter": [
     {
       "scope": "source.tune",
-      "file-types": ["tn"]
+      "file-types": [
+        "tn"
+      ]
     }
   ]
 }
