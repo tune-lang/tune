@@ -170,3 +170,28 @@ fn analysis_records_expression_materialization_target() -> Result<(), &'static s
 
     Ok(())
 }
+
+#[test]
+fn unmaterialized_numeric_binding_solves_from_later_rhs_shape() {
+    let source = r#"
+let make_float(): Float = 2.5
+let result = {
+  let x = 0
+  x = make_float()
+  x
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[1]);
+
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    assert!(analysis.frame.bindings.iter().any(|binding| {
+        binding.name.as_deref() == Some("x") && binding.storage_shape == tune_shape::Shape::Float
+    }));
+}

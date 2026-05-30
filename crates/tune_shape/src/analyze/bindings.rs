@@ -82,6 +82,9 @@ impl Analyzer<'_> {
     pub(super) fn analyze_assign(&mut self, target: &Expr, value: &Expr) -> Shape {
         let actual = self.analyze_expr(value);
         if let Some(key) = self.binding_key(target) {
+            if self.reject_const_assignment(key, target.span) {
+                return actual;
+            }
             let expected = self.assignment_expected_shape(key, &actual);
             self.check_value_against(&expected, &actual, value.span);
             self.assignments.push(AssignmentCheck {
@@ -95,6 +98,42 @@ impl Analyzer<'_> {
             self.analyze_expr(target);
         }
         actual
+    }
+
+    fn reject_const_assignment(&mut self, key: BindingKey, span: Option<Span>) -> bool {
+        match key {
+            BindingKey::Param(_) => {
+                self.diagnostics.push(
+                    Diagnostic::error(
+                        codes::INVALID_ASSIGNMENT_TARGET,
+                        "cannot assign to parameter binding",
+                        span.unwrap_or_else(Span::synthetic),
+                        "callable parameters are const bindings",
+                    )
+                    .with_help("introduce a local binding if you need a new value")
+                    .build(),
+                );
+                true
+            }
+            BindingKey::TopLevel(item)
+                if self.module.items.iter().any(|candidate| {
+                    candidate.id == item && candidate.kind == tune_hir::item::ItemKind::CallableDecl
+                }) =>
+            {
+                self.diagnostics.push(
+                    Diagnostic::error(
+                        codes::INVALID_ASSIGNMENT_TARGET,
+                        "cannot assign to stable callable declaration",
+                        span.unwrap_or_else(Span::synthetic),
+                        "`let name(args) = ...` declares a stable callable identity",
+                    )
+                    .with_help("use `let name = _(args) = ...` for an assignable callable value")
+                    .build(),
+                );
+                true
+            }
+            _ => false,
+        }
     }
 
     fn assignment_expected_shape(&mut self, key: BindingKey, actual: &Shape) -> Shape {
@@ -122,6 +161,15 @@ impl Analyzer<'_> {
                 binding.storage_shape = solved.clone();
             }
             return solved;
+        }
+        if matches!(
+            actual,
+            Shape::Int | Shape::Float | Shape::Size | Shape::Byte
+        ) {
+            if let Some(binding) = self.frame.get_mut(key) {
+                binding.storage_shape = actual.clone();
+            }
+            return actual.clone();
         }
         Shape::Int
     }

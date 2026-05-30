@@ -81,6 +81,45 @@ fn state_frame_tracks_bindings_by_typed_key() {
 }
 
 #[test]
+fn analyzer_rejects_assignment_to_parameter_binding() {
+    let source = r#"
+let run(value: Int): Int = {
+  value = 2
+  value
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert!(analysis.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::INVALID_ASSIGNMENT_TARGET
+            && diagnostic.title == "cannot assign to parameter binding"
+    }));
+}
+
+#[test]
+fn analyzer_rejects_assignment_to_stable_callable_declaration() {
+    let source = r#"
+let stable(): Int = 1
+let run(): Int = {
+  stable = 2
+  stable()
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[1]);
+
+    assert!(analysis.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::INVALID_ASSIGNMENT_TARGET
+            && diagnostic.title == "cannot assign to stable callable declaration"
+    }));
+}
+
+#[test]
 fn state_frame_joins_current_shapes_without_changing_storage() {
     let key = tune_shape::BindingKey::Local(tune_resolve::LocalId(3));
     let mut left = tune_shape::StateFrame::new();
