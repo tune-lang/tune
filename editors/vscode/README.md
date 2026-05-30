@@ -24,6 +24,15 @@ expects `dyno` to be on `PATH`; set `tune.dynoPath` if you use a local binary.
 }
 ```
 
+## Commands
+
+- `Tune: Restart Language Server`
+- `Tune: Check Current File`
+- `Tune: Check Formatting`
+
+`Check Current File` runs `dyno check <file>`. `Check Formatting` runs
+`dyno fmt --check <file>` and does not modify the source.
+
 ## Packaging
 
 ```sh

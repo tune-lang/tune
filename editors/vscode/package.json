@@ -15,7 +15,12 @@
     "vscode": "^1.92.0"
   },
   "categories": ["Programming Languages"],
-  "activationEvents": ["onLanguage:tune"],
+  "activationEvents": [
+    "onLanguage:tune",
+    "onCommand:tune.restartLanguageServer",
+    "onCommand:tune.checkFile",
+    "onCommand:tune.formatCheckFile"
+  ],
   "main": "./extension.js",
   "scripts": {
     "package": "vsce package",
@@ -45,6 +50,20 @@
         "language": "tune",
         "scopeName": "source.tune",
         "path": "./syntaxes/tune.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "tune.restartLanguageServer",
+        "title": "Tune: Restart Language Server"
+      },
+      {
+        "command": "tune.checkFile",
+        "title": "Tune: Check Current File"
+      },
+      {
+        "command": "tune.formatCheckFile",
+        "title": "Tune: Check Formatting"
       }
     ]
   },

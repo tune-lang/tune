@@ -9,7 +9,8 @@ shape inference for semantic features.
 The VS Code extension lives in [vscode](vscode). It registers `.tn` files,
 starts `dyno lsp`, and exposes the Tune formatter, diagnostics, hover,
 completion, semantic tokens, inlay hints, rename, references, and code actions
-through the LSP server.
+through the LSP server. It also includes commands for `dyno check` and
+`dyno fmt --check` on the active Tune file.
 
 ## Zed
 
