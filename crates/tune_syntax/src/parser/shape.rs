@@ -60,6 +60,11 @@ impl<'src> Parser<'src> {
         let checkpoint = self.builder.checkpoint();
         self.start_node(SyntaxKind::Shape);
         self.bump();
+        while self.at(TokenKind::Dot) {
+            self.bump();
+            self.skip_whitespace();
+            self.expect_shape_end(TokenKind::Ident, "expected shape name after `.`");
+        }
         self.finish_node();
         self.skip_whitespace();
 

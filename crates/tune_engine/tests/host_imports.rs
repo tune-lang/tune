@@ -197,3 +197,25 @@ let result = fs.File
     }));
     Ok(())
 }
+
+#[test]
+fn namespace_qualified_host_shapes_lower_through_annotations() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new().with_std();
+    let file = tune
+        .add_file(
+            "main.tn",
+            r#"
+import "fs"
+let metadata: Result<fs.Metadata, String> = fs.metadata("missing.txt")
+let file: Result<fs.File, String> = fs.open("missing.txt")
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    let check = tune.check_file(file).ok_or("file should check")?;
+    if !check.diagnostics.is_empty() {
+        eprintln!("{:?}", check.diagnostics);
+        return Err("namespace-qualified host shapes should check");
+    }
+    Ok(())
+}

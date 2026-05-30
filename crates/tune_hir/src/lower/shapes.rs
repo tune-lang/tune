@@ -9,13 +9,12 @@ use crate::shape::{
 pub(super) fn lower_shape(source: &str, shape: AstShape<'_>) -> ShapeExpr {
     let span = shape.syntax().span;
     let kind = match shape {
-        AstShape::Named(node) => first_shape_name(node.syntax(), source)
-            .map(str::to_owned)
+        AstShape::Named(node) => shape_name(node.syntax(), source)
             .map(ShapeExprKind::Named)
             .unwrap_or(ShapeExprKind::Missing),
-        AstShape::Generic(node) => first_shape_name(node.syntax(), source)
+        AstShape::Generic(node) => shape_name(node.syntax(), source)
             .map(|name| ShapeExprKind::Generic {
-                name: name.to_owned(),
+                name,
                 args: generic_shape_args(source, node.syntax()),
             })
             .unwrap_or(ShapeExprKind::Missing),
@@ -160,4 +159,25 @@ fn first_shape_name<'src>(node: &CstNode, source: &'src str) -> Option<&'src str
         CstElement::Node(node) => first_shape_name(node, source),
         CstElement::Token(_) => None,
     })
+}
+
+fn shape_name(node: &CstNode, source: &str) -> Option<String> {
+    let mut name = String::new();
+    for child in &node.children {
+        match child {
+            CstElement::Token(token)
+                if matches!(token.kind, TokenKind::Ident | TokenKind::KeywordNever) =>
+            {
+                let start = token.span.start.get() as usize;
+                let end = token.span.end.get() as usize;
+                if !name.is_empty() {
+                    name.push('.');
+                }
+                name.push_str(source.get(start..end)?);
+            }
+            CstElement::Node(node) => return shape_name(node, source),
+            CstElement::Token(_) => {}
+        }
+    }
+    (!name.is_empty()).then_some(name)
 }
