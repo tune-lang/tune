@@ -2,7 +2,7 @@ use tune_hir::expr::{BinaryOp, Expr, ExprKind, LiteralKind};
 use tune_hir::pattern::{Pattern, PatternKind};
 
 use super::{Analyzer, FiniteForCheck};
-use crate::{BindingKey, LiteralFact, Shape, StateFrame};
+use crate::{BindingKey, BindingState, LiteralFact, Shape, StateFrame};
 
 impl Analyzer<'_> {
     pub(super) fn analyze_match(
@@ -202,9 +202,17 @@ impl Analyzer<'_> {
     }
 
     pub(super) fn apply_condition_narrowing(&mut self, condition: &Expr, truthy: bool) {
-        for (key, narrowed) in optional_none_narrowings(condition, truthy, self) {
-            if let Some(binding) = self.frame.get_mut(key) {
-                binding.narrow_current(narrowed);
+        for narrowing in optional_none_narrowings(condition, truthy, self) {
+            if let Some(binding) = self.frame.get_mut(narrowing.key) {
+                binding.narrow_current(narrowing.narrowed);
+            } else {
+                self.frame.define(BindingState::new(
+                    narrowing.key,
+                    None,
+                    narrowing.storage,
+                    narrowing.narrowed,
+                    condition.span,
+                ));
             }
         }
     }
@@ -222,11 +230,17 @@ impl Analyzer<'_> {
     }
 }
 
+struct OptionalNarrowing {
+    key: BindingKey,
+    storage: Shape,
+    narrowed: Shape,
+}
+
 fn optional_none_narrowings(
     condition: &Expr,
     truthy: bool,
     analyzer: &Analyzer<'_>,
-) -> Vec<(BindingKey, Shape)> {
+) -> Vec<OptionalNarrowing> {
     if let Some(narrowing) = optional_truthiness_narrowing(condition, truthy, analyzer) {
         return vec![narrowing];
     }
@@ -257,32 +271,43 @@ fn optional_none_narrowings(
     let Some(key) = analyzer.binding_key(value) else {
         return Vec::new();
     };
-    let Some(binding) = analyzer.frame.get(key) else {
-        return Vec::new();
-    };
-    let Shape::Optional(payload) = &binding.current_shape else {
+    let storage = analyzer.name_shape(value);
+    let current = analyzer
+        .frame
+        .get(key)
+        .map_or(storage.clone(), |binding| binding.current_shape.clone());
+    let Shape::Optional(payload) = &current else {
         return Vec::new();
     };
 
     let narrows_to_payload = is_not_equal == truthy;
-    let narrowed = optional_narrowed_shape(payload, narrows_to_payload, &binding.current_shape);
-    vec![(key, narrowed)]
+    let narrowed = optional_narrowed_shape(payload, narrows_to_payload, &current);
+    vec![OptionalNarrowing {
+        key,
+        storage,
+        narrowed,
+    }]
 }
 
 fn optional_truthiness_narrowing(
     condition: &Expr,
     truthy: bool,
     analyzer: &Analyzer<'_>,
-) -> Option<(BindingKey, Shape)> {
+) -> Option<OptionalNarrowing> {
     let key = analyzer.binding_key(condition)?;
-    let binding = analyzer.frame.get(key)?;
-    let Shape::Optional(payload) = &binding.current_shape else {
+    let storage = analyzer.name_shape(condition);
+    let current = analyzer
+        .frame
+        .get(key)
+        .map_or(storage.clone(), |binding| binding.current_shape.clone());
+    let Shape::Optional(payload) = &current else {
         return None;
     };
-    Some((
+    Some(OptionalNarrowing {
         key,
-        optional_narrowed_shape(payload, truthy, &binding.current_shape),
-    ))
+        storage,
+        narrowed: optional_narrowed_shape(payload, truthy, &current),
+    })
 }
 
 fn optional_narrowed_shape(payload: &Shape, present: bool, fallback: &Shape) -> Shape {

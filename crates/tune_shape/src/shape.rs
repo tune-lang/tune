@@ -172,6 +172,7 @@ impl Shape {
             (expected, Self::Union(items)) => items.iter().all(|item| expected.accepts(item)),
             (Self::Optional(inner), Self::Optional(actual)) => inner.accepts(actual),
             (Self::Optional(_), Self::Literal(crate::literal::LiteralFact::None)) => true,
+            (Self::Optional(inner), actual) => inner.accepts(actual),
             (Self::Sequence(expected), Self::Sequence(actual)) => expected.accepts(actual),
             (Self::Range(expected), Self::Range(actual)) => expected.accepts(actual),
             (Self::Tuple(expected), Self::Tuple(actual)) if expected.len() == actual.len() => {
