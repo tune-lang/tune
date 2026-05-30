@@ -8,9 +8,9 @@ impl Lowerer {
     pub(super) fn lower_unary(&mut self, op: UnaryOp, shape: &Shape) -> Result<(), IrLowerError> {
         match op {
             UnaryOp::Neg => self.lower_neg_int(),
-            UnaryOp::Not => self.lower_not_bool(),
-            UnaryOp::BitNot if matches!(shape, Shape::Byte) => self.lower_bit_not_byte(),
-            UnaryOp::BitNot => self.lower_bit_not_int(),
+            UnaryOp::Invert if matches!(shape, Shape::Bool) => self.lower_not_bool(),
+            UnaryOp::Invert if matches!(shape, Shape::Byte) => self.lower_bit_not_byte(),
+            UnaryOp::Invert => self.lower_bit_not_int(),
         }
     }
 

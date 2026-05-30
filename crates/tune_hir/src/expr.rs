@@ -143,9 +143,8 @@ pub struct MatchArm {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnaryOp {
-    Not,
     Neg,
-    BitNot,
+    Invert,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

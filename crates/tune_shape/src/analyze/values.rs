@@ -39,10 +39,10 @@ impl Analyzer<'_> {
     pub(super) fn analyze_unary(&mut self, op: UnaryOp, expr: &Expr) -> Shape {
         let shape = self.analyze_expr(expr);
         match op {
-            UnaryOp::Not => Shape::Bool,
-            UnaryOp::Neg | UnaryOp::BitNot if Shape::Int.accepts(&shape) => Shape::Int,
-            UnaryOp::BitNot if Shape::Byte.accepts(&shape) => Shape::Byte,
-            UnaryOp::Neg | UnaryOp::BitNot => Shape::Hole,
+            UnaryOp::Invert if Shape::Bool.accepts(&shape) => Shape::Bool,
+            UnaryOp::Neg | UnaryOp::Invert if Shape::Int.accepts(&shape) => Shape::Int,
+            UnaryOp::Invert if Shape::Byte.accepts(&shape) => Shape::Byte,
+            UnaryOp::Neg | UnaryOp::Invert => Shape::Hole,
         }
     }
 }

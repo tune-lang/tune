@@ -422,9 +422,9 @@ fn first_shape<'tree>(node: &'tree CstNode) -> Option<AstShape<'tree>> {
 fn unary_op(node: &CstNode) -> Option<UnaryOp> {
     node.children.iter().find_map(|child| match child {
         CstElement::Token(token) => match token.kind {
-            TokenKind::KeywordNot => Some(UnaryOp::Not),
+            TokenKind::KeywordNot => Some(UnaryOp::Invert),
             TokenKind::Minus => Some(UnaryOp::Neg),
-            TokenKind::Tilde => Some(UnaryOp::BitNot),
+            TokenKind::Tilde => Some(UnaryOp::Invert),
             _ => None,
         },
         CstElement::Node(_) => None,
