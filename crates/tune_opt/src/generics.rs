@@ -16,6 +16,12 @@ pub fn run(_function: &mut IrFunction, _options: OptimizeOptions) -> PassReport 
 
 #[must_use]
 pub fn run_module(functions: &mut [IrFunction], options: OptimizeOptions) -> PassReport {
+    if !functions.iter().any(has_generic_direct_call) {
+        return PassReport {
+            pass: Pass::Generics,
+            changed: false,
+        };
+    }
     let summaries = functions
         .iter()
         .map(FunctionSummary::new)
@@ -61,6 +67,17 @@ fn instantiation_counts(functions: &[IrFunction]) -> HashMap<HirId, usize> {
         *counts.entry(target).or_default() += 1;
     }
     counts
+}
+
+fn has_generic_direct_call(function: &IrFunction) -> bool {
+    function.blocks.iter().any(|block| {
+        block.ops.iter().any(|op| {
+            matches!(
+                op,
+                IrOp::CallDirect { type_args, .. } if !type_args.is_empty()
+            )
+        })
+    }) || function.task_functions.iter().any(has_generic_direct_call)
 }
 
 fn collect_instantiations(function: &IrFunction, seen: &mut HashSet<(HirId, Vec<Shape>)>) {
