@@ -146,6 +146,7 @@ impl Analyzer<'_> {
                     return Some(CallSignature {
                         target: CallTarget::Bound,
                         params,
+                        param_type_params: Vec::new(),
                         ret: *ret,
                         type_params: Vec::new(),
                         type_args: Vec::new(),
@@ -172,6 +173,7 @@ impl Analyzer<'_> {
             return Some(CallSignature {
                 target: CallTarget::StringLen,
                 params: Vec::new(),
+                param_type_params: Vec::new(),
                 ret: Shape::Size,
                 type_params: Vec::new(),
                 type_args: Vec::new(),
@@ -185,6 +187,7 @@ impl Analyzer<'_> {
             return Some(CallSignature {
                 target: CallTarget::TaskJoin,
                 params: Vec::new(),
+                param_type_params: Vec::new(),
                 ret: inner.as_ref().clone(),
                 type_params: Vec::new(),
                 type_args: Vec::new(),
@@ -228,6 +231,7 @@ impl Analyzer<'_> {
         Some(CallSignature {
             target: CallTarget::Member(callable.id),
             params,
+            param_type_params: Vec::new(),
             ret,
             type_params: item
                 .type_params
@@ -252,6 +256,11 @@ impl Analyzer<'_> {
                 .iter()
                 .map(|param| self.lower_item_shape_or_hole(item, param.shape.as_ref()))
                 .collect(),
+            param_type_params: item
+                .params
+                .iter()
+                .map(|param| direct_type_param_name(item, param.shape.as_ref()))
+                .collect(),
             ret: self.lower_item_shape_or_hole(item, item.shape.as_ref()),
             type_params: item
                 .type_params
@@ -269,6 +278,7 @@ impl Analyzer<'_> {
             VariantId::Prelude(PreludeVariant::Ok | PreludeVariant::Error) => Some(CallSignature {
                 target: CallTarget::Variant(variant),
                 params: vec![Shape::Hole],
+                param_type_params: Vec::new(),
                 ret: Shape::Result {
                     ok: Box::new(Shape::Hole),
                     err: Box::new(Shape::Hole),
@@ -303,6 +313,7 @@ impl Analyzer<'_> {
                 Some(CallSignature {
                     target: CallTarget::Variant(variant),
                     params,
+                    param_type_params: Vec::new(),
                     ret: variant_return_shape(&item, &variant_item),
                     type_params: item
                         .type_params
@@ -327,8 +338,26 @@ impl Analyzer<'_> {
 }
 
 fn signature_contains_type_params(signature: &CallSignature) -> bool {
-    signature.params.iter().any(shape_contains_type_param)
+    signature.param_type_params.iter().any(Option::is_some)
+        || signature.params.iter().any(shape_contains_type_param)
         || shape_contains_type_param(&signature.ret)
+}
+
+fn direct_type_param_name(
+    item: &Item,
+    shape: Option<&tune_hir::shape::ShapeExpr>,
+) -> Option<String> {
+    let Some(tune_hir::shape::ShapeExpr {
+        kind: tune_hir::shape::ShapeExprKind::Named(name),
+        ..
+    }) = shape
+    else {
+        return None;
+    };
+    item.type_params
+        .iter()
+        .any(|param| param.name.as_deref() == Some(name.as_str()))
+        .then(|| name.clone())
 }
 
 fn shape_contains_type_param(shape: &Shape) -> bool {
@@ -380,6 +409,7 @@ fn structural_member_call_signature(
         (Some(name.as_str()) == member_name).then(|| CallSignature {
             target: CallTarget::Bound,
             params: params.clone(),
+            param_type_params: Vec::new(),
             ret: ret.clone().unwrap_or(Shape::Hole),
             type_params: Vec::new(),
             type_args: Vec::new(),

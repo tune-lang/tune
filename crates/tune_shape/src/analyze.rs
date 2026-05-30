@@ -80,6 +80,7 @@ pub enum CallTarget {
 pub struct CallSignature {
     pub target: CallTarget,
     pub params: Vec<Shape>,
+    pub param_type_params: Vec<Option<String>>,
     pub ret: Shape,
     pub type_params: Vec<String>,
     pub type_args: Vec<Shape>,
@@ -239,6 +240,7 @@ impl Analyzer<'_> {
         self.inferred_signature = Some(CallSignature {
             target: CallTarget::TopLevel(item.id),
             params,
+            param_type_params: Vec::new(),
             ret,
             type_params: item
                 .type_params

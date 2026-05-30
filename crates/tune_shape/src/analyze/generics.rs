@@ -14,6 +14,11 @@ pub(super) fn solve_generic_call_signature(
     for (param, arg) in signature.params.iter().zip(args) {
         collect_generic_shape_constraints(param, arg, &mut solved);
     }
+    for (source, arg) in signature.param_type_params.iter().zip(args) {
+        if let Some(source) = source {
+            merge_generic_solution(source, arg.clone(), &mut solved);
+        }
+    }
     if let Some(expected) = expected_ret {
         collect_generic_shape_constraints(&signature.ret, expected, &mut solved);
     }
