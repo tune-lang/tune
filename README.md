@@ -142,7 +142,7 @@ expectations.
 ## Editor Support
 
 Editor integrations live in [editors](editors). VS Code support is in
-[editors/vscode](editors/vscode), and the Zed scaffold is in
+[editors/vscode](editors/vscode), and Zed support is in
 [editors/zed](editors/zed). Both start `dyno lsp` and consume the same Tune LSP
 server. Set `tune.dynoPath` in VS Code if `dyno` is not on `PATH`; Zed resolves
 `dyno` from the worktree `PATH`. The VS Code extension also exposes commands for

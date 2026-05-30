@@ -1,7 +1,7 @@
 # Tune for Zed
 
-This is the Zed extension scaffold for Tune. It registers `.tn` files as Tune
-and starts the language server through:
+This is the Zed extension for Tune. It registers `.tn` files as Tune and starts
+the language server through:
 
 ```sh
 dyno lsp
@@ -19,7 +19,7 @@ cargo check --manifest-path editors/zed/Cargo.toml
 ## Grammar
 
 Zed language extensions require a Tree-sitter grammar. The extension manifest
-points at the future public grammar repository:
+points at the public grammar repository location:
 
 ```toml
 [grammars.tune]
@@ -27,6 +27,6 @@ repository = "https://github.com/tune-lang/tree-sitter-tune"
 rev = "main"
 ```
 
-The seed grammar source currently lives at
-[`../tree-sitter-tune`](../tree-sitter-tune) so it can be split into that
-repository before publishing the extension.
+The split-ready grammar seed currently lives at
+[`../tree-sitter-tune`](../tree-sitter-tune). Move that directory into the
+grammar repository before publishing the extension.
