@@ -429,6 +429,21 @@ fn vm_faults_convert_to_structured_diagnostics() {
 }
 
 #[test]
+fn recursive_state_vm_fault_uses_self_state_diagnostic() {
+    let fault = tune_vm::VmFault::new(tune_vm::VmError::RecursiveStructState, None);
+
+    let diagnostic = tune_engine::diagnostic_from_vm_fault(&fault);
+
+    assert_eq!(diagnostic.code, tune_diagnostics::codes::SELF_STATE_ERROR);
+    assert!(
+        diagnostic
+            .helps
+            .iter()
+            .any(|help| help.message.contains("handle"))
+    );
+}
+
+#[test]
 fn vm_fault_diagnostics_can_include_source_summary() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

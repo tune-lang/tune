@@ -111,12 +111,16 @@ let result: Int = {
         )
         .ok_or("file should allocate")?;
 
-    let error = tune
+    let tune_engine::EngineError::Diagnostics(diagnostics) = tune
         .run_source(file)
         .err()
-        .ok_or("expected runtime error")?;
-    let rendered = format!("{error:?}");
-    assert!(rendered.contains("RecursiveStructState"), "{rendered}");
+        .ok_or("expected runtime error")?
+    else {
+        return Err("expected diagnostic error");
+    };
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic.severity == Severity::Error && diagnostic.code == codes::SELF_STATE_ERROR
+    }));
 
     Ok(())
 }

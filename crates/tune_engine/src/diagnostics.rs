@@ -82,15 +82,29 @@ fn vm_fault_diagnostic(
             )));
         }
     }
-    Diagnostic::error(
-        tune_diagnostics::codes::RUNTIME_ERROR,
-        "runtime execution failed",
-        span,
-        "execution failed here",
-    )
-    .with_fact_entries("runtime provenance", facts)
-    .with_note("this diagnostic was produced from a VM fault")
-    .build()
+    let (code, title, primary, help) = match &fault.error {
+        tune_vm::VmError::RecursiveStructState => (
+            tune_diagnostics::codes::SELF_STATE_ERROR,
+            "owned struct field would create a receiver-state cycle",
+            "ordinary struct fields own their values; this assignment would create cyclic ownership",
+            Some(
+                "use an explicit handle, resource, or future weak reference for graph back-references",
+            ),
+        ),
+        _ => (
+            tune_diagnostics::codes::RUNTIME_ERROR,
+            "runtime execution failed",
+            "execution failed here",
+            None,
+        ),
+    };
+    let mut diagnostic = Diagnostic::error(code, title, span, primary)
+        .with_fact_entries("runtime provenance", facts)
+        .with_note("this diagnostic was produced from a VM fault");
+    if let Some(help) = help {
+        diagnostic = diagnostic.with_help(help);
+    }
+    diagnostic.build()
 }
 
 fn location_fact(
