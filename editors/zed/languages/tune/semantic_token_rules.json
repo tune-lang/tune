@@ -1,0 +1,9 @@
+[
+  { "token_type": "function", "style": ["function"] },
+  { "token_type": "type", "style": ["type"] },
+  { "token_type": "variable", "style": ["variable"] },
+  { "token_type": "parameter", "style": ["variable.parameter"] },
+  { "token_type": "property", "style": ["property"] },
+  { "token_type": "enumMember", "style": ["variant"] },
+  { "token_type": "namespace", "style": ["namespace"] }
+]

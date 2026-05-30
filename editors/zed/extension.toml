@@ -1,0 +1,15 @@
+id = "tune"
+name = "Tune"
+description = "Tune language support powered by dyno lsp."
+version = "0.1.0"
+schema_version = 1
+authors = ["Tune contributors"]
+repository = "https://github.com/tune-lang/tune"
+
+[language_servers.tune-language-server]
+name = "Tune Language Server"
+languages = ["Tune"]
+
+[grammars.tune]
+repository = "https://github.com/tune-lang/tree-sitter-tune"
+rev = "main"

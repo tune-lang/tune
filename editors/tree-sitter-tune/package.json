@@ -1,0 +1,14 @@
+{
+  "name": "tree-sitter-tune",
+  "version": "0.1.0",
+  "description": "Tree-sitter grammar seed for Tune.",
+  "license": "MIT",
+  "main": "grammar.js",
+  "keywords": ["tree-sitter", "tune", "dyno"],
+  "tree-sitter": [
+    {
+      "scope": "source.tune",
+      "file-types": ["tn"]
+    }
+  ]
+}

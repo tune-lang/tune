@@ -110,9 +110,11 @@ Rust is pinned by [rust-toolchain.toml](rust-toolchain.toml).
 
 ## Editor Support
 
-The VS Code extension scaffold lives in [editors/vscode](editors/vscode). It
-registers `.tn` files, starts `dyno lsp`, and uses the same Tune LSP server as
-other editors should consume. Set `tune.dynoPath` if `dyno` is not on `PATH`.
+Editor integrations live in [editors](editors). VS Code support is in
+[editors/vscode](editors/vscode), and the Zed scaffold is in
+[editors/zed](editors/zed). Both start `dyno lsp` and consume the same Tune LSP
+server. Set `tune.dynoPath` in VS Code if `dyno` is not on `PATH`; Zed resolves
+`dyno` from the worktree `PATH`.
 
 Core checks:
 
