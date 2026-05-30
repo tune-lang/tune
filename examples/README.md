@@ -60,6 +60,8 @@ Suggested path:
 - [09_tasks.tn](language/09_tasks.tn): `spawn`, `Task<T>`, and `join`.
 - [10_tags_meta.tn](language/10_tags_meta.tn): declaration tags with typed
   metadata that does not alter runtime behavior.
+- [11_literal_materialization.tn](language/11_literal_materialization.tn):
+  numeric literal facts materializing into typed uses.
 
 ## Standard Library Examples
 

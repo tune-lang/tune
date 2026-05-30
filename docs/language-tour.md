@@ -210,3 +210,40 @@ let answer: Int = task.join()
 
 `spawn` creates planned work. `join()` waits for the task and returns the
 computed value.
+
+## 10. Tags And Metadata
+
+[10_tags_meta.tn](../examples/language/10_tags_meta.tn) shows declaration tags.
+Tags are typed declarations. They attach compiler-visible metadata without
+changing ordinary runtime behavior.
+
+```tn
+tag route {
+  path: String
+}
+
+@route(path = "/search")
+let search(query: String): String = "query={query}"
+```
+
+The tag is not special because it is named `route`. User code can define other
+tags, and tooling can query the same compiler facts.
+
+## 11. Literal Materialization
+
+[11_literal_materialization.tn](../examples/language/11_literal_materialization.tn)
+shows literal facts. A literal binding can stay flexible while compatible typed
+uses solve its representation.
+
+```tn
+let takes_byte(value: Byte): Byte = value
+let takes_int(value: Int): Int = value
+
+let small_literal = 20
+
+let small = takes_byte(small_literal)
+let normal = takes_int(small_literal)
+```
+
+The value `20` is not vague. The compiler keeps its literal fact until each
+typed use commits it.

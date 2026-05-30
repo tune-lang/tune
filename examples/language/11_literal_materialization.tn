@@ -1,0 +1,14 @@
+-- Literal bindings stay flexible until a typed use commits them.
+
+let takes_byte(value: Byte): Byte = value
+let takes_int(value: Int): Int = value
+let takes_float(value: Float): Float = value
+
+let small_literal = 20
+let decimal_literal = 2.5
+
+let small = takes_byte(small_literal)
+let normal = takes_int(small_literal)
+let decimal = takes_float(decimal_literal)
+
+print("{small}:{normal}:{decimal}")
