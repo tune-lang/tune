@@ -371,6 +371,9 @@ impl Vm {
                             },
                         )
                     })?;
+                    let value = self
+                        .normalize_host_value(value)
+                        .map_err(|error| self.fault_at(function_index, ip, error))?;
                     self.at(
                         function_index,
                         ip,

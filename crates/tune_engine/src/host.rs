@@ -113,6 +113,20 @@ impl HostRegistry {
         self.authorities.clone()
     }
 
+    pub(crate) fn vm_resource_types(&self) -> Vec<tune_vm::VmHostResourceType> {
+        self.resources
+            .iter()
+            .map(|resource| {
+                tune_vm::VmHostResourceType::new(
+                    resource.id,
+                    format!("{}.{}", resource.module, resource.resource.name),
+                )
+                .task_safe(resource.resource.task_safe)
+                .with_authorities(resource.resource.authorities.clone())
+            })
+            .collect()
+    }
+
     pub(crate) fn function(
         &self,
         module_name: &str,

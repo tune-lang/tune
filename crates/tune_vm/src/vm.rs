@@ -16,6 +16,7 @@ pub struct Vm {
     pub task_execution: TaskExecutionMode,
     pub(crate) host_executors: Vec<Option<tune_host::HostExecutor>>,
     pub(crate) host_authorities: Vec<Vec<tune_host::Authority>>,
+    pub(crate) host_resource_types: Vec<crate::VmHostResourceType>,
     pub(crate) granted_authorities: HashSet<tune_host::Authority>,
     pub(crate) next_state_id: Arc<AtomicU64>,
     pub(crate) tasks: RefCell<Vec<VmTask>>,
@@ -45,6 +46,7 @@ impl Vm {
             task_execution: TaskExecutionMode::Parallel,
             host_executors: Vec::new(),
             host_authorities: Vec::new(),
+            host_resource_types: Vec::new(),
             granted_authorities: HashSet::new(),
             next_state_id: Arc::new(AtomicU64::new(0)),
             tasks: RefCell::new(Vec::new()),
@@ -86,6 +88,15 @@ impl Vm {
     }
 
     #[must_use]
+    pub fn with_host_resource_types(
+        mut self,
+        resources: impl IntoIterator<Item = crate::VmHostResourceType>,
+    ) -> Self {
+        self.host_resource_types = resources.into_iter().collect();
+        self
+    }
+
+    #[must_use]
     pub fn with_authorities(
         mut self,
         authorities: impl IntoIterator<Item = tune_host::Authority>,
@@ -100,6 +111,7 @@ impl Vm {
             task_execution: self.task_execution,
             host_executors: self.host_executors.clone(),
             host_authorities: self.host_authorities.clone(),
+            host_resource_types: self.host_resource_types.clone(),
             granted_authorities: self.granted_authorities.clone(),
             next_state_id: Arc::clone(&self.next_state_id),
             tasks: RefCell::new(Vec::new()),

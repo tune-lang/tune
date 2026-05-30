@@ -40,6 +40,7 @@ pub enum VmError {
     SequenceIndexOutOfBounds,
     TaskUnsafeCapture { resource_type: String },
     TaskUnsafeHostCall { symbol: u32 },
+    UnknownHostResourceType { resource_type: String },
     MissingHostAuthority { authority: String },
     HostCallFailed { message: String },
     UnsupportedStructState,

@@ -216,6 +216,7 @@ impl Tune {
             .with_task_execution(self.task_execution)
             .with_host_executor_slots(self.hosts.executors())
             .with_host_authority_slots(self.hosts.authorities())
+            .with_host_resource_types(self.hosts.vm_resource_types())
             .with_authorities(self.authorities.clone());
         vm.run_entry().map_err(|fault| {
             EngineError::Diagnostics(vec![diagnostic_from_vm_fault_with_sources(
@@ -334,6 +335,7 @@ impl Tune {
             .with_task_execution(self.task_execution)
             .with_host_executor_slots(self.hosts.executors())
             .with_host_authority_slots(self.hosts.authorities())
+            .with_host_resource_types(self.hosts.vm_resource_types())
             .with_authorities(self.authorities.clone());
         vm.run_entry().map_err(|fault| {
             EngineError::Diagnostics(vec![diagnostic_from_vm_fault_with_sources(
