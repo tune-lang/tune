@@ -4,3 +4,4 @@ let compute(seed: Int): Int = seed + 1
 
 let task: Task<Int> = spawn compute(41)
 let answer: Int = task.join()
+let shown: () = print("task={answer}")

@@ -1,8 +1,8 @@
 # Tune Language Tour
 
 This tour follows the executable examples in
-[examples/language](../examples/language). Each `.tn` file introduces one idea and
-is kept small enough to read in one sitting.
+[examples/language](../examples/language). Each `.tn` file introduces one idea,
+prints a small result, and is kept short enough to read in one sitting.
 
 ```sh
 cargo run -p dyno_cli -- check examples/language/01_values_and_flow.tn
@@ -11,7 +11,9 @@ cargo run -p dyno_cli -- fmt --check examples/language/01_values_and_flow.tn
 ```
 
 `dyno run` is silent unless the program writes output with `print` or a host IO
-function. `dyno check --json <file>` emits structured diagnostics for tools.
+function. The language examples all call `print(...)` so they are useful as
+smoke tests and as reading material. `dyno check --json <file>` emits structured
+diagnostics for tools.
 
 The examples are part of the repository test suite:
 
@@ -35,6 +37,13 @@ let passed: Bool = score > 30
 
 ```tn
 let status: String = if passed { "pass" } else { "retry" }
+```
+
+The example prints the interpolated report:
+
+```tn
+let report: String = "{status}:{score}:{retry}"
+let shown: () = print(report)
 ```
 
 ## 2. Functions And Blocks

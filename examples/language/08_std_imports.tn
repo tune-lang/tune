@@ -10,3 +10,4 @@ let parse_answer(raw: String): Result<Int, String> = {
 }
 
 let parsed_answer: Result<Int, String> = parse_answer(" 41 ")
+let shown: () = print("std imports accepted")

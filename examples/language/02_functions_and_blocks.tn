@@ -18,3 +18,4 @@ let distance_from_zero(value: Int): Int = if value < 0 {
 
 let limited: Int = clamp(17, 0, 10)
 let adjusted_score: Int = limited + distance_from_zero(0 - 4)
+let shown: () = print("{limited}:{adjusted_score}")

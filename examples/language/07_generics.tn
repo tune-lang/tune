@@ -10,3 +10,4 @@ let read<T>(box: Box<T>): T = box.value
 let number: Int = id(4)
 let word: String = read(Box { value = "tune" })
 let display: String = "{number}:{word}"
+let shown: () = print(display)

@@ -71,3 +71,31 @@ fn language_examples_are_formatter_stable() -> Result<(), String> {
 
     Ok(())
 }
+
+#[test]
+fn language_examples_run_with_dyno() -> Result<(), String> {
+    let dyno = env!("CARGO_BIN_EXE_dyno");
+    let root = repo_root();
+
+    for example in LANGUAGE_EXAMPLES {
+        let output = Command::new(dyno)
+            .arg("run")
+            .arg(root.join(example))
+            .current_dir(&root)
+            .output()
+            .map_err(|error| format!("failed to run dyno run for {example}: {error}"))?;
+
+        if !output.status.success() {
+            return Err(format!(
+                "dyno run failed for {example}\nstdout:\n{}\nstderr:\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            ));
+        }
+        if output.stdout.is_empty() {
+            return Err(format!("dyno run produced no output for {example}"));
+        }
+    }
+
+    Ok(())
+}

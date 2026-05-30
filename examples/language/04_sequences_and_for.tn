@@ -12,3 +12,4 @@ let sum(items): Int = {
 
 let first: Int = values[0]
 let checksum: Int = sum(values) + first
+let shown: () = print("{first}:{checksum}")
