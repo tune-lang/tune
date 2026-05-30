@@ -52,6 +52,36 @@ pub fn install() -> HostModule {
                 Ok(Value::Bool(code == 0))
             }),
             HostFunction::new(
+                "code",
+                vec![HostParam::new("result", process_result_shape())],
+                Shape::Int,
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let result = process_result_arg(args, 0, "result")?;
+                Ok(Value::Int(process_result_code(result)?))
+            }),
+            HostFunction::new(
+                "stdout",
+                vec![HostParam::new("result", process_result_shape())],
+                Shape::String,
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let result = process_result_arg(args, 0, "result")?;
+                Ok(Value::String(process_result_text(result, "stdout")?.into()))
+            }),
+            HostFunction::new(
+                "stderr",
+                vec![HostParam::new("result", process_result_shape())],
+                Shape::String,
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let result = process_result_arg(args, 0, "result")?;
+                Ok(Value::String(process_result_text(result, "stderr")?.into()))
+            }),
+            HostFunction::new(
                 "stdout_lines",
                 vec![HostParam::new("result", process_result_shape())],
                 Shape::Sequence(Box::new(Shape::String)),

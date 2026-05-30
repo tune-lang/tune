@@ -3,3 +3,8 @@
 import "process"
 
 let result = process.run("echo", ["Tune"])
+
+let command_ok(): Result<Bool, String> = {
+  let completed: process.ProcessResult = process.run("echo", ["Tune"])!
+  process.success(completed)
+}

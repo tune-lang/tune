@@ -28,7 +28,14 @@ fn process_module_exposes_authorized_run_function() -> Result<(), &'static str> 
             .iter()
             .any(|authority| authority.0 == "process.run")
     );
-    for name in ["success", "stdout_lines", "stderr_lines"] {
+    for name in [
+        "success",
+        "code",
+        "stdout",
+        "stderr",
+        "stdout_lines",
+        "stderr_lines",
+    ] {
         let helper = module
             .functions
             .iter()
@@ -76,6 +83,24 @@ fn process_result_helpers_read_host_struct_fields() -> Result<(), &'static str> 
         tune_runtime::Value::Bool(true)
     );
     assert_eq!(
+        executor("code")?
+            .call(std::slice::from_ref(&result))
+            .map_err(|_| "process.code should execute")?,
+        tune_runtime::Value::Int(0)
+    );
+    assert_eq!(
+        executor("stdout")?
+            .call(std::slice::from_ref(&result))
+            .map_err(|_| "process.stdout should execute")?,
+        tune_runtime::Value::String("one\ntwo\n".into())
+    );
+    assert_eq!(
+        executor("stderr")?
+            .call(std::slice::from_ref(&result))
+            .map_err(|_| "process.stderr should execute")?,
+        tune_runtime::Value::String("warn\n".into())
+    );
+    assert_eq!(
         executor("stdout_lines")?
             .call(std::slice::from_ref(&result))
             .map_err(|_| "process.stdout_lines should execute")?,
@@ -86,7 +111,7 @@ fn process_result_helpers_read_host_struct_fields() -> Result<(), &'static str> 
     );
     assert_eq!(
         executor("stderr_lines")?
-            .call(&[result])
+            .call(std::slice::from_ref(&result))
             .map_err(|_| "process.stderr_lines should execute")?,
         tune_runtime::Value::Sequence(vec![tune_runtime::Value::String("warn".into())])
     );
