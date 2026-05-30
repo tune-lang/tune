@@ -88,6 +88,36 @@ impl VmHostResourceType {
 }
 
 impl Vm {
+    pub(crate) fn denormalize_host_value(&self, value: Value) -> Result<Value, VmError> {
+        match value {
+            Value::Struct { owner, fields } => self.denormalize_host_struct(owner, fields),
+            Value::Sequence(values) => values
+                .into_iter()
+                .map(|value| self.denormalize_host_value(value))
+                .collect::<Result<Vec<_>, _>>()
+                .map(Value::Sequence),
+            Value::Tuple(values) => values
+                .into_iter()
+                .map(|value| self.denormalize_host_value(value))
+                .collect::<Result<Vec<_>, _>>()
+                .map(Value::Tuple),
+            Value::Variant {
+                variant,
+                fields,
+                propagation_frames,
+            } => fields
+                .into_iter()
+                .map(|field| self.denormalize_host_value(field))
+                .collect::<Result<Vec<_>, _>>()
+                .map(|fields| Value::Variant {
+                    variant,
+                    fields,
+                    propagation_frames,
+                }),
+            value => Ok(value),
+        }
+    }
+
     pub(crate) fn normalize_host_value(&self, value: Value) -> Result<Value, VmError> {
         match value {
             Value::Resource(resource) => {
@@ -121,6 +151,30 @@ impl Vm {
                 }),
             value => Ok(value),
         }
+    }
+
+    fn denormalize_host_struct(&self, owner: u32, fields: StructFields) -> Result<Value, VmError> {
+        let Some(value_type) = self
+            .host_value_types
+            .iter()
+            .find(|value_type| value_type.owner == owner)
+        else {
+            return Ok(Value::Struct { owner, fields });
+        };
+        let mut named = Vec::with_capacity(value_type.fields.len());
+        for (index, name) in value_type.fields.iter().enumerate() {
+            let Some(value) = fields.get(index) else {
+                return Err(VmError::MissingHostValueField {
+                    type_name: value_type.type_name.clone(),
+                    field: name.clone(),
+                });
+            };
+            named.push((name.clone(), self.denormalize_host_value(value)?));
+        }
+        Ok(Value::HostStruct {
+            type_name: value_type.type_name.clone(),
+            fields: named,
+        })
     }
 
     fn normalize_host_struct(

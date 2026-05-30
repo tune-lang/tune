@@ -385,6 +385,12 @@ impl Vm {
                         .args
                         .iter()
                         .map(|arg| self.at(function_index, ip, read_reg(&registers, *arg)))
+                        .map(|value| {
+                            value.and_then(|value| {
+                                self.denormalize_host_value(value)
+                                    .map_err(|error| self.fault_at(function_index, ip, error))
+                            })
+                        })
                         .collect::<Result<Vec<_>, _>>()?;
                     let value = executor.call_with_context(&args, self).map_err(|error| {
                         self.fault_at(

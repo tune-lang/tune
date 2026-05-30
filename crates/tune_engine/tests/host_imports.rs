@@ -219,3 +219,29 @@ let file: Result<fs.File, String> = fs.open("missing.txt")
     }
     Ok(())
 }
+
+#[test]
+fn std_json_host_values_round_trip_through_vm_host_calls() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new().with_std();
+    let file = tune
+        .add_file(
+            "main.tn",
+            r#"
+import "json"
+let payload = json.object([
+  json.field("name", json.string("Tune")),
+  json.field("ok", json.bool(true)),
+])
+let result: String = json.kind(payload)
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    let value = tune.run_file(file).map_err(|error| {
+        eprintln!("{error:?}");
+        "json host values should remain valid across host calls"
+    })?;
+
+    assert_eq!(value, tune_runtime::Value::String("object".into()));
+    Ok(())
+}
