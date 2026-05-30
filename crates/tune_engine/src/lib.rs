@@ -6,6 +6,7 @@ mod imports_diagnostics;
 mod imports_internalize;
 mod imports_remap;
 mod imports_shapes;
+mod meta;
 mod paths;
 mod profile;
 mod project_sources;
@@ -160,47 +161,6 @@ impl Tune {
             tune_plan::lower_analyzed_module_to_plan(&check.module, &check.resolved, &check.shape);
 
         Ok(CompileReport { check, module_plan })
-    }
-
-    pub fn meta_decl_facts(
-        &self,
-        file: FileId,
-        decl_id: tune_hir::HirId,
-    ) -> Result<tune_meta::facts::DeclFacts, EngineError> {
-        let check = self
-            .check_file(file)
-            .ok_or(EngineError::FileNotFound(file))?;
-        if has_error_diagnostics(&check.diagnostics) {
-            return Err(EngineError::Diagnostics(check.diagnostics));
-        }
-        let analysis = check
-            .module
-            .items
-            .iter()
-            .position(|item| item.id == decl_id)
-            .and_then(|index| check.shape.get(index));
-        Ok(tune_meta::facts::from_compiler_facts_and_analysis(
-            decl_id,
-            &check.resolved.facts,
-            analysis,
-        ))
-    }
-
-    pub fn meta_tagged(
-        &self,
-        file: FileId,
-        tag_name: &str,
-    ) -> Result<Vec<tune_meta::tagged::TaggedDecl<tune_resolve::TagFact>>, EngineError> {
-        let check = self
-            .check_file(file)
-            .ok_or(EngineError::FileNotFound(file))?;
-        if has_error_diagnostics(&check.diagnostics) {
-            return Err(EngineError::Diagnostics(check.diagnostics));
-        }
-        Ok(tune_meta::tagged::tagged_decls(
-            tag_name,
-            &check.resolved.facts,
-        ))
     }
 
     pub fn compile_source(
