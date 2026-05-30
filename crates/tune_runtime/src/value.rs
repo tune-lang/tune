@@ -1,8 +1,9 @@
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use crate::resource::ResourceHandle;
 use crate::sequence::SequenceHandle;
-use crate::state::StateHandle;
+use crate::state::{StateHandle, StateId};
 use crate::task::TaskId;
 use tune_diagnostics::Span;
 
@@ -177,6 +178,38 @@ impl Value {
     pub fn is_task_safe(&self) -> bool {
         self.task_safety_error().is_none()
     }
+
+    #[must_use]
+    pub fn contains_state(&self, state: StateHandle) -> bool {
+        let mut visited = HashSet::new();
+        self.contains_state_inner(state.id, &mut visited)
+    }
+
+    pub(crate) fn contains_state_inner(
+        &self,
+        state: StateId,
+        visited: &mut HashSet<StateId>,
+    ) -> bool {
+        match self {
+            Self::Struct { fields, .. } => fields.contains_state_inner(state, visited),
+            Self::StructState(handle) => handle.id == state,
+            Self::Sequence(values) | Self::Tuple(values) => values
+                .iter()
+                .any(|value| value.contains_state_inner(state, visited)),
+            Self::SequenceHandle(values) => values.contains_state_inner(state, visited),
+            Self::HostStruct { fields, .. } => fields
+                .iter()
+                .any(|(_, value)| value.contains_state_inner(state, visited)),
+            Self::Variant { fields, .. } => fields
+                .iter()
+                .any(|value| value.contains_state_inner(state, visited)),
+            Self::Callable(callable) => callable
+                .captures
+                .iter()
+                .any(|capture| capture.get().contains_state_inner(state, visited)),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -252,6 +285,26 @@ impl StructFields {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .iter()
             .find_map(Value::task_safety_error)
+    }
+
+    #[must_use]
+    pub fn contains_state(&self, state: StateHandle) -> bool {
+        let mut visited = HashSet::new();
+        self.contains_state_inner(state.id, &mut visited)
+    }
+
+    fn contains_state_inner(&self, state: StateId, visited: &mut HashSet<StateId>) -> bool {
+        if self.state.id == state {
+            return true;
+        }
+        if !visited.insert(self.state.id) {
+            return false;
+        }
+        self.fields
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .iter()
+            .any(|value| value.contains_state_inner(state, visited))
     }
 }
 

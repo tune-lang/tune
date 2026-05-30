@@ -136,6 +136,9 @@ impl Vm {
         match self.at(function_index, ip, read_reg(registers, instruction.a))? {
             Value::Struct { owner, fields } if owner == site.owner => {
                 let value = self.at(function_index, ip, read_reg(registers, instruction.c))?;
+                if value.contains_state(fields.state()) {
+                    return Err(self.fault_at(function_index, ip, VmError::RecursiveStructState));
+                }
                 fields
                     .set(site.field as usize, value)
                     .ok_or_else(|| self.fault_at(function_index, ip, VmError::RegisterOutOfBounds))

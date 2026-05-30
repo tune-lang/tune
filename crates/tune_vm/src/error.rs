@@ -46,6 +46,7 @@ pub enum VmError {
     MissingHostAuthority { authority: String },
     MissingHostExecutor { symbol: u32 },
     HostCallFailed { message: String },
+    RecursiveStructState,
     UnsupportedStructState,
     Panic(TunePanic),
     InvalidBytecode(BytecodeValidationError),

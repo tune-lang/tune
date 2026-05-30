@@ -67,6 +67,61 @@ let result: Int = speak(Duck {})
 }
 
 #[test]
+fn direct_owned_struct_self_cycle_is_rejected_by_shape_analysis() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_source(
+            "app.tn",
+            r#"
+struct Node {
+  next: Node?
+}
+let node: Node = Node { next = none }
+node.next = node
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    let check = tune.check_source(file).ok_or("file should check")?;
+
+    assert!(check.diagnostics.iter().any(|diagnostic| {
+        diagnostic.severity == Severity::Error && diagnostic.code == codes::SELF_STATE_ERROR
+    }));
+
+    Ok(())
+}
+
+#[test]
+fn aliased_owned_struct_cycle_is_rejected_before_field_set() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_source(
+            "app.tn",
+            r#"
+struct Node {
+  next: Node?
+}
+let result: Int = {
+  let node: Node = Node { next = none }
+  let alias = node
+  node.next = alias
+  1
+}
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    let error = tune
+        .run_source(file)
+        .err()
+        .ok_or("expected runtime error")?;
+    let rendered = format!("{error:?}");
+    assert!(rendered.contains("RecursiveStructState"), "{rendered}");
+
+    Ok(())
+}
+
+#[test]
 fn missing_else_default_hole_solves_from_expected_shape() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

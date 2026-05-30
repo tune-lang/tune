@@ -95,6 +95,7 @@ impl Analyzer<'_> {
             });
             self.frame.assign_shape(key, actual.clone());
         } else {
+            self.reject_direct_owned_state_cycle(target, value, &actual);
             self.analyze_expr(target);
         }
         actual
@@ -134,6 +135,31 @@ impl Analyzer<'_> {
             }
             _ => false,
         }
+    }
+
+    fn reject_direct_owned_state_cycle(&mut self, target: &Expr, value: &Expr, actual: &Shape) {
+        let ExprKind::Field { base, .. } = &target.kind else {
+            return;
+        };
+        let Some(base_key) = self.binding_key(base) else {
+            return;
+        };
+        if self.binding_key(value) != Some(base_key) {
+            return;
+        }
+        if !matches!(actual, Shape::Struct(_) | Shape::Apply { .. }) {
+            return;
+        }
+        self.diagnostics.push(
+            Diagnostic::error(
+                codes::SELF_STATE_ERROR,
+                "owned struct field would create a receiver-state cycle",
+                value.span.unwrap_or_else(Span::synthetic),
+                "ordinary struct fields own their values; assigning a value into its own field would require cyclic ownership",
+            )
+            .with_help("use an explicit handle, resource, or future weak reference for graph back-references")
+            .build(),
+        );
     }
 
     fn assignment_expected_shape(&mut self, key: BindingKey, actual: &Shape) -> Shape {

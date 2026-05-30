@@ -1,5 +1,7 @@
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
+use crate::state::StateId;
 use crate::value::{TaskSafetyError, Value};
 
 #[derive(Debug, Clone)]
@@ -65,6 +67,18 @@ impl SequenceHandle {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .iter()
             .find_map(Value::task_safety_error)
+    }
+
+    pub(crate) fn contains_state_inner(
+        &self,
+        state: StateId,
+        visited: &mut HashSet<StateId>,
+    ) -> bool {
+        self.storage
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .iter()
+            .any(|value| value.contains_state_inner(state, visited))
     }
 
     pub fn push_exclusive(&mut self, value: Value) {
