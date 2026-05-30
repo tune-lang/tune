@@ -1,7 +1,7 @@
 # Tune Examples
 
-These examples are executable Tune programs. Each file focuses on one language
-concept and is used by the test suite as public documentation.
+These examples are Tune programs. Each file focuses on one concept and is checked
+by the test suite as public documentation.
 
 Run one example:
 
