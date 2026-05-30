@@ -299,6 +299,7 @@ fn lowers_direct_call_ir_to_call_site() -> Result<(), &'static str> {
                     function: tune_hir::HirId(1),
                     args: vec![tune_ir::Reg(0)],
                     type_args: vec![tune_shape::Shape::Int],
+                    generic_strategy: tune_ir::IrGenericStrategy::DirectSpecialization,
                     span: Some(call_span),
                 },
                 tune_ir::IrOp::Return {

@@ -139,16 +139,14 @@ fn collect_ir_function(function: &tune_ir::IrFunction, quality: &mut IrQuality) 
 
 pub(super) fn optimizer_quality(functions: &mut [tune_ir::IrFunction]) -> OptimizerQuality {
     let mut quality = OptimizerQuality::default();
-    for function in functions {
-        let report = tune_opt::optimize(function);
-        quality.changed_passes += report.passes.iter().filter(|pass| pass.changed).count();
-        quality.stack += report.ownership.stack;
-        quality.direct_drop += report.ownership.direct_drop;
-        quality.non_atomic_rc += report.ownership.non_atomic_rc;
-        quality.cow += report.ownership.cow;
-        quality.shared_atomic += report.ownership.shared_atomic;
-        quality.host_retained += report.ownership.host_retained;
-    }
+    let report = tune_opt::optimize_functions(functions);
+    quality.changed_passes += report.passes.iter().filter(|pass| pass.changed).count();
+    quality.stack += report.ownership.stack;
+    quality.direct_drop += report.ownership.direct_drop;
+    quality.non_atomic_rc += report.ownership.non_atomic_rc;
+    quality.cow += report.ownership.cow;
+    quality.shared_atomic += report.ownership.shared_atomic;
+    quality.host_retained += report.ownership.host_retained;
     quality
 }
 

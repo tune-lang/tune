@@ -5,7 +5,7 @@ use tune_plan::{Capture, CaptureSource};
 use tune_shape::Shape;
 
 use crate::lower::{IrLowerError, Lowerer};
-use crate::{IrCapture, IrCaptureMode, IrOp};
+use crate::{IrCapture, IrCaptureMode, IrGenericStrategy, IrOp};
 
 impl Lowerer {
     pub(super) fn lower_direct_call(
@@ -26,6 +26,7 @@ impl Lowerer {
             function: target,
             args,
             type_args: type_args.to_vec(),
+            generic_strategy: generic_strategy(type_args),
             span,
         });
         self.stack.push(dst);
@@ -145,5 +146,13 @@ impl Lowerer {
         });
         self.stack.push(dst);
         Ok(())
+    }
+}
+
+fn generic_strategy(type_args: &[Shape]) -> IrGenericStrategy {
+    if type_args.is_empty() {
+        IrGenericStrategy::None
+    } else {
+        IrGenericStrategy::WitnessShared
     }
 }

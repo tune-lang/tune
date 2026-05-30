@@ -386,8 +386,9 @@ impl FunctionLowerer<'_> {
                 function,
                 args,
                 type_args,
+                generic_strategy,
                 ..
-            } => self.lower_direct_call(*dst, *function, args, type_args),
+            } => self.lower_direct_call(*dst, *function, args, type_args, *generic_strategy),
             IrOp::CallMember {
                 dst, member, args, ..
             } => self.lower_member_call(*dst, *member, args),

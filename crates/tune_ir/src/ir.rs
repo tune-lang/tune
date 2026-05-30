@@ -28,6 +28,13 @@ pub enum IrCaptureMode {
     PrivateSnapshot,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrGenericStrategy {
+    None,
+    DirectSpecialization,
+    WitnessShared,
+}
+
 #[derive(Debug, Clone)]
 pub struct IrFunction {
     pub owner: Option<HirId>,
@@ -407,6 +414,7 @@ pub enum IrOp {
         function: HirId,
         args: Vec<Reg>,
         type_args: Vec<Shape>,
+        generic_strategy: IrGenericStrategy,
         span: Option<Span>,
     },
     CallMember {

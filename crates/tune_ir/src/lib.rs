@@ -16,8 +16,8 @@ mod lower_unary;
 
 pub use ir::{
     BlockId, ConstId, FieldId, IrBlock, IrByteBinary, IrCapture, IrCaptureMode, IrConst,
-    IrFunction, IrIntComparison, IrOp, IrOwnershipPlan, IrStateRepr, IrStructLayout, IrStructState,
-    Reg, StructField, VariantArm,
+    IrFunction, IrGenericStrategy, IrIntComparison, IrOp, IrOwnershipPlan, IrStateRepr,
+    IrStructLayout, IrStructState, Reg, StructField, VariantArm,
 };
 pub use lower::{IrLowerError, lower_plan_function};
 pub use tune_host::HostSymbolId;

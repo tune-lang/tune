@@ -39,21 +39,98 @@ pub struct OwnershipReport {
     pub host_retained: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OptimizationProfile {
+    Debug,
+    Release,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OptimizeOptions {
+    pub profile: OptimizationProfile,
+    pub generic_max_instantiations: usize,
+    pub generic_max_ops: usize,
+}
+
+impl OptimizeOptions {
+    #[must_use]
+    pub const fn debug() -> Self {
+        Self {
+            profile: OptimizationProfile::Debug,
+            generic_max_instantiations: 0,
+            generic_max_ops: 0,
+        }
+    }
+
+    #[must_use]
+    pub const fn release() -> Self {
+        Self {
+            profile: OptimizationProfile::Release,
+            generic_max_instantiations: 4,
+            generic_max_ops: 64,
+        }
+    }
+}
+
 #[must_use]
 pub fn optimize(function: &mut IrFunction) -> OptimizationReport {
+    optimize_with_options(function, OptimizeOptions::release())
+}
+
+#[must_use]
+pub fn optimize_with_options(
+    function: &mut IrFunction,
+    options: OptimizeOptions,
+) -> OptimizationReport {
+    let passes = run_local_passes(function, options);
+
+    OptimizationReport {
+        passes,
+        ownership: ownership_report(function),
+    }
+}
+
+#[must_use]
+pub fn optimize_functions(functions: &mut [IrFunction]) -> OptimizationReport {
+    optimize_functions_with_options(functions, OptimizeOptions::release())
+}
+
+#[must_use]
+pub fn optimize_functions_with_options(
+    functions: &mut [IrFunction],
+    options: OptimizeOptions,
+) -> OptimizationReport {
+    let mut passes = Vec::new();
+    for function in functions.iter_mut() {
+        passes.extend(run_local_passes(function, options));
+    }
+    passes.push(generics::run_module(functions, options));
+
+    let mut ownership = OwnershipReport::default();
+    for function in functions.iter() {
+        let report = ownership_report(function);
+        ownership.stack += report.stack;
+        ownership.direct_drop += report.direct_drop;
+        ownership.non_atomic_rc += report.non_atomic_rc;
+        ownership.cow += report.cow;
+        ownership.shared_atomic += report.shared_atomic;
+        ownership.host_retained += report.host_retained;
+    }
+
+    OptimizationReport { passes, ownership }
+}
+
+fn run_local_passes(function: &mut IrFunction, options: OptimizeOptions) -> Vec<PassReport> {
     let passes = [
         escape::run(function),
         thread_escape::run(function),
         rc_elim::run(function),
         bce::run(function),
-        generics::run(function),
+        generics::run(function, options),
         strings::run(function),
     ];
 
-    OptimizationReport {
-        passes: passes.into_iter().collect(),
-        ownership: ownership_report(function),
-    }
+    passes.into_iter().collect()
 }
 
 #[must_use]

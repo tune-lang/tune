@@ -242,7 +242,8 @@ fn finish_profile(
     };
     let ir_quality = ir_quality(&ir);
 
-    let (optimizer_quality, duration) = timed(|| optimizer_quality(&mut ir.clone()));
+    let mut optimized_ir = ir.clone();
+    let (optimizer_quality, duration) = timed(|| optimizer_quality(&mut optimized_ir));
     timings.push(stage("opt", duration));
 
     if scope == ProfileScope::Frontend {
@@ -258,7 +259,7 @@ fn finish_profile(
         });
     }
 
-    let (bytecode_result, duration) = timed(|| tune_bytecode::lower_ir_functions(&ir));
+    let (bytecode_result, duration) = timed(|| tune_bytecode::lower_ir_functions(&optimized_ir));
     timings.push(stage("bytecode", duration));
     let mut bytecode = match bytecode_result {
         Ok(bytecode) => bytecode,

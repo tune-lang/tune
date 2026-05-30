@@ -43,7 +43,7 @@ pub(super) fn validate_call_generics(
             target: site.function,
         });
     }
-    if expected_generic_strategy(&site.type_args) != site.generic_strategy {
+    if !generic_strategy_allowed(&site.type_args, site.generic_strategy) {
         return Err(BytecodeValidationError::GenericStrategyMismatch {
             function: function_id,
             target: site.function,
@@ -52,14 +52,20 @@ pub(super) fn validate_call_generics(
     Ok(())
 }
 
-fn expected_generic_strategy(type_args: &[tune_shape::Shape]) -> BytecodeGenericStrategy {
+fn generic_strategy_allowed(
+    type_args: &[tune_shape::Shape],
+    strategy: BytecodeGenericStrategy,
+) -> bool {
     if type_args.is_empty() {
-        return BytecodeGenericStrategy::None;
+        return strategy == BytecodeGenericStrategy::None;
     }
     if type_args.iter().any(shape_contains_type_param) {
-        BytecodeGenericStrategy::WitnessShared
+        strategy == BytecodeGenericStrategy::WitnessShared
     } else {
-        BytecodeGenericStrategy::DirectSpecialization
+        matches!(
+            strategy,
+            BytecodeGenericStrategy::DirectSpecialization | BytecodeGenericStrategy::WitnessShared
+        )
     }
 }
 

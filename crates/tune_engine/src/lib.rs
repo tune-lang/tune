@@ -523,6 +523,7 @@ fn executable_from_compile(compile: CompileReport) -> Result<ExecutableReport, E
         })?;
         ir.push(function);
     }
+    let _report = tune_opt::optimize_functions(&mut ir);
     let mut bytecode = tune_bytecode::lower_ir_functions(&ir).map_err(|error| {
         EngineError::Diagnostics(vec![diagnostic_from_bytecode_lower_error(&error)])
     })?;
