@@ -1,6 +1,6 @@
 use crate::Opcode;
 use crate::artifact::BytecodeArtifact;
-use crate::function::{BytecodeFunction, Instruction};
+use crate::function::{BytecodeFunction, BytecodeGenericStrategy, Instruction};
 
 mod support;
 
@@ -108,6 +108,14 @@ pub enum BytecodeValidationError {
         target: u32,
         expected: u32,
         actual: u32,
+    },
+    UnsolvedGenericArg {
+        function: u32,
+        target: u32,
+    },
+    GenericStrategyMismatch {
+        function: u32,
+        target: u32,
     },
 }
 
@@ -524,10 +532,87 @@ fn validate_call(
             actual: type_arg_count,
         });
     }
+    if target.generic_param_count == 0 && site.generic_strategy != BytecodeGenericStrategy::None {
+        return Err(BytecodeValidationError::GenericStrategyMismatch {
+            function: function_id,
+            target: site.function,
+        });
+    }
+    if target.generic_param_count != 0 && type_arg_count == 0 {
+        return Err(BytecodeValidationError::GenericArgArityMismatch {
+            function: function_id,
+            target: site.function,
+            expected: target.generic_param_count,
+            actual: 0,
+        });
+    }
+    if site.type_args.iter().any(shape_contains_hole) {
+        return Err(BytecodeValidationError::UnsolvedGenericArg {
+            function: function_id,
+            target: site.function,
+        });
+    }
+    if expected_generic_strategy(&site.type_args) != site.generic_strategy {
+        return Err(BytecodeValidationError::GenericStrategyMismatch {
+            function: function_id,
+            target: site.function,
+        });
+    }
     for arg in &site.args {
         register(function_id, function, *arg)?;
     }
     Ok(())
+}
+
+fn expected_generic_strategy(type_args: &[tune_shape::Shape]) -> BytecodeGenericStrategy {
+    if type_args.is_empty() {
+        return BytecodeGenericStrategy::None;
+    }
+    if type_args.iter().any(shape_contains_type_param) {
+        BytecodeGenericStrategy::WitnessShared
+    } else {
+        BytecodeGenericStrategy::DirectSpecialization
+    }
+}
+
+fn shape_contains_hole(shape: &tune_shape::Shape) -> bool {
+    match shape {
+        tune_shape::Shape::Hole => true,
+        _ => shape_children(shape).any(shape_contains_hole),
+    }
+}
+
+fn shape_contains_type_param(shape: &tune_shape::Shape) -> bool {
+    match shape {
+        tune_shape::Shape::Param(_) => true,
+        _ => shape_children(shape).any(shape_contains_type_param),
+    }
+}
+
+fn shape_children(shape: &tune_shape::Shape) -> Box<dyn Iterator<Item = &tune_shape::Shape> + '_> {
+    match shape {
+        tune_shape::Shape::Sequence(inner)
+        | tune_shape::Shape::Range(inner)
+        | tune_shape::Shape::Optional(inner)
+        | tune_shape::Shape::Task(inner) => Box::new(std::iter::once(inner.as_ref())),
+        tune_shape::Shape::Tuple(items) | tune_shape::Shape::Union(items) => Box::new(items.iter()),
+        tune_shape::Shape::Callable { params, ret } => {
+            Box::new(params.iter().chain(std::iter::once(ret.as_ref())))
+        }
+        tune_shape::Shape::Result { ok, err } => Box::new([ok.as_ref(), err.as_ref()].into_iter()),
+        tune_shape::Shape::Apply { args, .. } => Box::new(args.iter()),
+        tune_shape::Shape::Structural(requirements) => Box::new(requirements.iter().flat_map(
+            |requirement| match requirement {
+                tune_shape::MemberRequirement::Field { shape, .. } => {
+                    shape.iter().collect::<Vec<_>>()
+                }
+                tune_shape::MemberRequirement::Callable { params, ret, .. } => {
+                    params.iter().chain(ret.iter()).collect::<Vec<_>>()
+                }
+            },
+        )),
+        _ => Box::new(std::iter::empty()),
+    }
 }
 
 fn validate_variant(

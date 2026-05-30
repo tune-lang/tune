@@ -37,6 +37,8 @@ fn rejects_call_arity_mismatch() {
             function: 1,
             args: Vec::new(),
             type_args: vec![tune_shape::Shape::Int],
+            generic_strategy:
+                tune_bytecode::function::BytecodeGenericStrategy::DirectSpecialization,
         });
     entry
         .instructions
@@ -86,6 +88,8 @@ fn rejects_generic_arg_arity_mismatch() {
             function: 1,
             args: Vec::new(),
             type_args: vec![tune_shape::Shape::Int],
+            generic_strategy:
+                tune_bytecode::function::BytecodeGenericStrategy::DirectSpecialization,
         });
     entry
         .instructions

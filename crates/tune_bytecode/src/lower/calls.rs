@@ -4,7 +4,7 @@ use tune_ir::Reg;
 use crate::Opcode;
 use crate::function::{
     BytecodeBoundCallSite, BytecodeCallSite, BytecodeCallableSite, BytecodeCapture,
-    BytecodeCaptureMode, BytecodeHostCallSite, Instruction,
+    BytecodeCaptureMode, BytecodeGenericStrategy, BytecodeHostCallSite, Instruction,
 };
 use crate::lower::{BytecodeLowerError, FunctionLowerer};
 
@@ -128,6 +128,7 @@ impl FunctionLowerer<'_> {
             function,
             args: args.iter().map(|arg| arg.0).collect(),
             type_args: type_args.to_vec(),
+            generic_strategy: generic_strategy(type_args),
         });
         self.instructions.push(Instruction {
             opcode: Opcode::CallDirect,
@@ -136,5 +137,48 @@ impl FunctionLowerer<'_> {
             c: 0,
         });
         Ok(())
+    }
+}
+
+fn generic_strategy(type_args: &[tune_shape::Shape]) -> BytecodeGenericStrategy {
+    if type_args.is_empty() {
+        return BytecodeGenericStrategy::None;
+    }
+    if type_args.iter().any(shape_contains_type_param) {
+        BytecodeGenericStrategy::WitnessShared
+    } else {
+        BytecodeGenericStrategy::DirectSpecialization
+    }
+}
+
+fn shape_contains_type_param(shape: &tune_shape::Shape) -> bool {
+    match shape {
+        tune_shape::Shape::Param(_) => true,
+        tune_shape::Shape::Sequence(inner)
+        | tune_shape::Shape::Range(inner)
+        | tune_shape::Shape::Optional(inner)
+        | tune_shape::Shape::Task(inner) => shape_contains_type_param(inner),
+        tune_shape::Shape::Tuple(items) | tune_shape::Shape::Union(items) => {
+            items.iter().any(shape_contains_type_param)
+        }
+        tune_shape::Shape::Callable { params, ret } => {
+            params.iter().any(shape_contains_type_param) || shape_contains_type_param(ret)
+        }
+        tune_shape::Shape::Result { ok, err } => {
+            shape_contains_type_param(ok) || shape_contains_type_param(err)
+        }
+        tune_shape::Shape::Apply { args, .. } => args.iter().any(shape_contains_type_param),
+        tune_shape::Shape::Structural(requirements) => {
+            requirements.iter().any(|requirement| match requirement {
+                tune_shape::MemberRequirement::Field { shape, .. } => {
+                    shape.as_ref().is_some_and(shape_contains_type_param)
+                }
+                tune_shape::MemberRequirement::Callable { params, ret, .. } => {
+                    params.iter().any(shape_contains_type_param)
+                        || ret.as_ref().is_some_and(shape_contains_type_param)
+                }
+            })
+        }
+        _ => false,
     }
 }

@@ -16,6 +16,14 @@ pub struct BytecodeCallSite {
     pub function: u32,
     pub args: Vec<u32>,
     pub type_args: Vec<Shape>,
+    pub generic_strategy: BytecodeGenericStrategy,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BytecodeGenericStrategy {
+    None,
+    DirectSpecialization,
+    WitnessShared,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

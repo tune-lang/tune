@@ -65,13 +65,53 @@ let result: Int = id(2)
         .find(|function| function.name == "id")
         .ok_or("generic function should lower")?;
     assert_eq!(generic.generic_param_count, 1);
-    assert!(
-        executable
-            .bytecode
-            .functions
-            .iter()
-            .flat_map(|function| &function.call_sites)
-            .any(|site| site.type_args == vec![tune_shape::Shape::Int])
+    let call_site = executable
+        .bytecode
+        .functions
+        .iter()
+        .flat_map(|function| &function.call_sites)
+        .find(|site| site.type_args == vec![tune_shape::Shape::Int])
+        .ok_or("generic direct call should carry type args")?;
+    assert_eq!(
+        call_site.generic_strategy,
+        tune_bytecode::function::BytecodeGenericStrategy::DirectSpecialization
+    );
+
+    Ok(())
+}
+
+#[test]
+fn executable_marks_forwarded_generic_call_as_shared_witness() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let id<T>(value: T): T = value
+let wrap<T>(value: T): T = id(value)
+let result: Int = wrap(2)
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    let executable = tune.executable_file(file).map_err(|error| {
+        eprintln!("{error:?}");
+        "file should compile"
+    })?;
+    let wrap = executable
+        .bytecode
+        .functions
+        .iter()
+        .find(|function| function.name == "wrap")
+        .ok_or("wrap function should lower")?;
+    let forwarded = wrap
+        .call_sites
+        .iter()
+        .find(|site| site.type_args == vec![tune_shape::Shape::Param("T".into())])
+        .ok_or("forwarded generic call should carry param type arg")?;
+    assert_eq!(
+        forwarded.generic_strategy,
+        tune_bytecode::function::BytecodeGenericStrategy::WitnessShared
     );
 
     Ok(())
