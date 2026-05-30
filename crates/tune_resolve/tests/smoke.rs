@@ -64,16 +64,16 @@ import "std/json".{parse, stringify}
 }
 
 #[test]
-fn reports_duplicate_top_level_bindings() {
+fn top_level_bindings_shadow_in_scope() {
     let source = "let value = 1\nlet value = 2";
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
     let resolved = tune_resolve::resolve_module(&module);
 
-    assert_eq!(resolved.diagnostics.len(), 1);
+    assert!(resolved.diagnostics.is_empty());
     assert_eq!(
-        resolved.diagnostics[0].code,
-        tune_diagnostics::codes::DUPLICATE_NAME
+        resolved.scope.get("value").map(|binding| binding.id),
+        Some(module.items[1].id)
     );
 }
 

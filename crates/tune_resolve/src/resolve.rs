@@ -9,7 +9,7 @@ use crate::facts::CompilerFact;
 use crate::locals::{LocalBinding, NameRef, VariantPatternRef};
 use crate::prelude::{Prelude, VariantId};
 use crate::scope::{Binding, BindingKind, Scope};
-use tune_diagnostics::{Diagnostic, Span, codes};
+use tune_diagnostics::{Diagnostic, Span};
 use tune_hir::item::{Item, ItemKind};
 use tune_hir::module::Module;
 
@@ -90,24 +90,7 @@ fn define_item(resolved: &mut ResolvedModule, item: &Item) {
         generic_arity: item.type_params.len(),
     };
 
-    match resolved.scope.define(name, binding) {
-        Ok(()) => {}
-        Err(duplicate) => {
-            let span = item.span.unwrap_or_else(Span::synthetic);
-            let mut builder = Diagnostic::error(
-                codes::DUPLICATE_NAME,
-                format!("duplicate declaration `{}`", duplicate.name),
-                span,
-                "this declaration repeats an existing name",
-            );
-
-            if let Some(existing_span) = duplicate.existing.span {
-                builder = builder.with_secondary(existing_span, "first declaration is here");
-            }
-
-            resolved.diagnostics.push(builder.build());
-        }
-    }
+    let _shadowed = resolved.scope.define(name, binding);
 }
 
 const fn binding_kind(kind: ItemKind) -> BindingKind {

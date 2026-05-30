@@ -22,30 +22,14 @@ pub struct Binding {
     pub generic_arity: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DuplicateBinding {
-    pub name: String,
-    pub existing: Binding,
-}
-
 #[derive(Default)]
 pub struct Scope {
     bindings: HashMap<String, Binding>,
 }
 
 impl Scope {
-    pub fn define(
-        &mut self,
-        name: impl Into<String>,
-        binding: Binding,
-    ) -> Result<(), DuplicateBinding> {
-        let name = name.into();
-        if let Some(existing) = self.bindings.get(&name).copied() {
-            return Err(DuplicateBinding { name, existing });
-        }
-
-        self.bindings.insert(name, binding);
-        Ok(())
+    pub fn define(&mut self, name: impl Into<String>, binding: Binding) -> Option<Binding> {
+        self.bindings.insert(name.into(), binding)
     }
 
     #[must_use]
