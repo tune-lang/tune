@@ -98,6 +98,19 @@ fn vm_rejects_unknown_host_resource_when_registry_is_installed() {
 }
 
 #[test]
+fn vm_reports_declaration_only_host_function_without_executor() {
+    let mut vm = tune_vm::Vm::new(host_resource_artifact()).with_host_executor_slots(vec![None]);
+
+    assert!(matches!(
+        vm.run_entry(),
+        Err(tune_vm::VmFault {
+            error: tune_vm::VmError::MissingHostExecutor { symbol: 0 },
+            ..
+        })
+    ));
+}
+
+#[test]
 fn vm_enforces_registered_resource_authorities() {
     let executor = tune_host::HostExecutor::new(|_: &[tune_runtime::Value]| {
         Ok(tune_runtime::Value::Resource(

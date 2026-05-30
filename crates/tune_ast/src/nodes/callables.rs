@@ -5,12 +5,6 @@ use crate::AstNode;
 use super::Shape;
 use super::text::direct_ident_text;
 
-#[derive(Debug, Clone)]
-pub struct CallableHead {
-    pub name: Option<String>, // None represents `_` anonymous callable.
-    pub params: Vec<String>,
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct ParamList<'tree> {
     node: &'tree CstNode,

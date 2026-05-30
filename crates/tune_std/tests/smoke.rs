@@ -77,6 +77,26 @@ fn parse_int_executor_returns_result_values() -> Result<(), &'static str> {
 }
 
 #[test]
+fn std_host_reports_missing_string_arguments_before_type_mismatch() -> Result<(), &'static str> {
+    let module = tune_std::text::install();
+    let executor = module
+        .functions
+        .iter()
+        .find(|function| function.name == "contains")
+        .and_then(|function| function.executor.as_ref())
+        .ok_or("text.contains should carry an executor")?;
+
+    let error = match executor.call(&[tune_runtime::Value::String("hello".into())]) {
+        Ok(_) => return Err("missing needle should be a host call error"),
+        Err(error) => error,
+    };
+
+    assert!(error.message.contains("missing argument `needle`"));
+    assert!(error.message.contains("index 1"));
+    Ok(())
+}
+
+#[test]
 fn fs_text_executors_return_result_values() -> Result<(), &'static str> {
     let module = tune_std::fs::install();
     let write = module

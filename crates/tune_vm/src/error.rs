@@ -42,6 +42,7 @@ pub enum VmError {
     TaskUnsafeHostCall { symbol: u32 },
     UnknownHostResourceType { resource_type: String },
     MissingHostAuthority { authority: String },
+    MissingHostExecutor { symbol: u32 },
     HostCallFailed { message: String },
     UnsupportedStructState,
     Panic(TunePanic),

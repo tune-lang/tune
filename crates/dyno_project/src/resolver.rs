@@ -14,6 +14,8 @@ pub fn resolve(manifest: &Manifest, lockfile: &Lockfile) -> ProjectResolution {
     let mut locked_package_count = 0;
     let mut missing_dependencies = Vec::new();
     for dependency in &manifest.dependencies {
+        // v1 resolver skeleton uses exact lockfile requirements. Semver range satisfaction
+        // belongs in the package solver, not in this project-root assembly step.
         if lockfile.packages.iter().any(|locked| {
             locked.package == dependency.package && locked.version == dependency.requirement
         }) {

@@ -55,6 +55,9 @@ pub(crate) fn string_arg<'a>(
 ) -> Result<&'a str, tune_host::HostCallError> {
     match args.get(index) {
         Some(tune_runtime::Value::String(value)) => Ok(value),
+        None => Err(tune_host::HostCallError::new(format!(
+            "missing argument `{name}` at index {index}"
+        ))),
         _ => Err(tune_host::HostCallError::new(format!(
             "expected String for `{name}`"
         ))),

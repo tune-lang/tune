@@ -331,9 +331,18 @@ impl Vm {
                     let executor = self
                         .host_executors
                         .get(site.symbol.0 as usize)
-                        .and_then(Option::as_ref)
                         .ok_or_else(|| {
                             self.fault_at(function_index, ip, VmError::HostSymbolOutOfBounds)
+                        })?
+                        .as_ref()
+                        .ok_or_else(|| {
+                            self.fault_at(
+                                function_index,
+                                ip,
+                                VmError::MissingHostExecutor {
+                                    symbol: site.symbol.0,
+                                },
+                            )
                         })?;
                     if self.task_context && !site.task_safe {
                         return Err(self.fault_at(

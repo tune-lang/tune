@@ -113,6 +113,8 @@ fn capture_is_mutated(body: &Expr, context: &LowerContext<'_>, source: CaptureSo
             ExprKind::Call { callee, args } => {
                 mutated =
                     member_receiver_source(callee, context).is_some_and(|target| target == source);
+                // Until Tune has explicit function effect facts for mutation through parameters,
+                // captured values passed to calls are treated as possibly mutated snapshots.
                 mutated |= args.iter().any(|arg| {
                     call_arg_capture_source(arg, context).is_some_and(|target| target == source)
                 });

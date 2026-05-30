@@ -12,7 +12,7 @@ pub mod tags;
 mod text;
 
 pub use bindings::LetDecl;
-pub use callables::{CallableHead, CallableParam, ParamList};
+pub use callables::{CallableParam, ParamList};
 pub use comments::Comment;
 pub use enums::{DocumentedVariant, EnumDecl, VariantDecl};
 pub use exprs::{

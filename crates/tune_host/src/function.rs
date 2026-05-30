@@ -66,6 +66,8 @@ pub struct HostFunction {
     pub ret: Shape,
     pub authorities: Vec<Authority>,
     pub task_safe: bool,
+    /// `None` means declaration-only: the compiler may type-check against this host function,
+    /// but VM execution must report a missing executor if the function is called.
     pub executor: Option<HostExecutor>,
 }
 
