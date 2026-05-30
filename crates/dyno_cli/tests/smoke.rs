@@ -354,6 +354,35 @@ fn creates_new_project_scaffold() -> Result<(), String> {
     assert!(manifest.contains("[project]"));
     assert!(manifest.contains("entry = \"src/main.tn\""));
     assert!(entry.contains("let message"));
+    assert!(entry.contains("print(message)"));
+
+    Ok(())
+}
+
+#[test]
+fn new_project_scaffold_runs_with_visible_output() -> Result<(), String> {
+    let root =
+        std::env::temp_dir().join(format!("dyno-cli-new-project-run-{}", std::process::id()));
+    if root.exists() {
+        std::fs::remove_dir_all(&root).map_err(|error| error.to_string())?;
+    }
+    std::fs::create_dir_all(&root).map_err(|error| error.to_string())?;
+
+    let project = dyno_cli::create_project_in(&root, "demo_app")?;
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_dyno"))
+        .arg("run")
+        .current_dir(&project.root)
+        .output()
+        .map_err(|error| error.to_string())?;
+
+    std::fs::remove_dir_all(&root).map_err(|error| error.to_string())?;
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "hello from Dyno\n");
 
     Ok(())
 }
