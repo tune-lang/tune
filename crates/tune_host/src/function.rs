@@ -100,6 +100,7 @@ impl fmt::Debug for HostExecutor {
 #[derive(Debug, Clone)]
 pub struct HostFunction {
     pub name: String,
+    pub doc: Option<String>,
     pub params: Vec<HostParam>,
     pub ret: Shape,
     pub authorities: Vec<Authority>,
@@ -114,12 +115,19 @@ impl HostFunction {
     pub fn new(name: impl Into<String>, params: Vec<HostParam>, ret: Shape) -> Self {
         Self {
             name: name.into(),
+            doc: None,
             params,
             ret,
             authorities: Vec::new(),
             task_safe: false,
             executor: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
+        self.doc = Some(doc.into());
+        self
     }
 
     #[must_use]

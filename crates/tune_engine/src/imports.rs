@@ -168,7 +168,7 @@ fn append_stdcore_prelude(module: &mut Module, hosts: &HostRegistry) {
         else {
             continue;
         };
-        append_host_item(module, symbol, function, None);
+        append_host_item(module, host_function.module, symbol, function, None);
     }
 }
 
@@ -215,7 +215,7 @@ fn append_host_imports(
             continue;
         };
         matched_module = true;
-        append_host_item(module, symbol, function, span);
+        append_host_item(module, path, symbol, function, span);
     }
     matched_module
 }
@@ -248,7 +248,8 @@ fn append_host_module_import(
             continue;
         };
         let item_name = internal_host_name(path, &function.name, symbol);
-        let Some(item) = append_host_item_named(module, symbol, function, item_name, None) else {
+        let Some(item) = append_host_item_named(module, path, symbol, function, item_name, None)
+        else {
             continue;
         };
         members.push(ModuleNamespaceMember {
@@ -346,15 +347,24 @@ fn append_host_value_item(
 
 fn append_host_item(
     module: &mut Module,
+    module_name: &str,
     symbol: tune_host::HostSymbolId,
     function: &HostFunction,
     span: Option<Span>,
 ) {
-    let _ = append_host_item_named(module, symbol, function, function.name.clone(), span);
+    let _ = append_host_item_named(
+        module,
+        module_name,
+        symbol,
+        function,
+        function.name.clone(),
+        span,
+    );
 }
 
 fn append_host_item_named(
     module: &mut Module,
+    module_name: &str,
     symbol: tune_host::HostSymbolId,
     function: &HostFunction,
     item_name: String,
@@ -385,7 +395,7 @@ fn append_host_item_named(
         kind: ItemKind::CallableDecl,
         visibility: Visibility::Public,
         span,
-        doc: None,
+        doc: host_function_doc(module_name, function),
         tags: Vec::new(),
         import: None,
         type_params: Vec::new(),
@@ -401,6 +411,15 @@ fn append_host_item_named(
         }),
     });
     Some(owner)
+}
+
+fn host_function_doc(module_name: &str, function: &HostFunction) -> Option<String> {
+    function.doc.clone().or_else(|| {
+        Some(format!(
+            "Standard host function `{module_name}.{}`.",
+            function.name
+        ))
+    })
 }
 
 fn append_selected_imports(

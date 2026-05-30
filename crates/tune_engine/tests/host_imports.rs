@@ -111,6 +111,41 @@ let result: String = join("src", "main.tn")
 }
 
 #[test]
+fn host_imports_expose_docs_for_tooling_hover() -> Result<(), &'static str> {
+    struct DocHost;
+
+    impl tune_host::Host for DocHost {
+        fn modules(&self) -> Vec<tune_host::HostModule> {
+            vec![tune_host::HostModule::new(
+                "doc",
+                vec![
+                    tune_host::HostFunction::new("answer", Vec::new(), tune_shape::Shape::Int)
+                        .with_doc("Returns the documented answer."),
+                ],
+            )]
+        }
+    }
+
+    let mut tune = tune_engine::Tune::new().with_host(&DocHost);
+    let file = tune
+        .add_source(
+            "main.tn",
+            "import \"doc\".answer\nlet value: Int = answer()\n",
+        )
+        .ok_or("file should allocate")?;
+    let report = tune.check_source(file).ok_or("source should check")?;
+
+    assert!(report.resolved.facts.iter().any(|fact| {
+        matches!(
+            &fact.payload,
+            tune_resolve::CompilerFactPayload::Doc(doc)
+                if doc == "Returns the documented answer."
+        )
+    }));
+    Ok(())
+}
+
+#[test]
 fn host_value_structs_flow_through_shape_plan_and_vm() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new().with_host(&MetaHost);
     let file = tune
