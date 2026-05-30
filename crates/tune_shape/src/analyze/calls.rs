@@ -14,11 +14,25 @@ impl Analyzer<'_> {
         if !matches!(callee.kind, ExprKind::Field { .. }) {
             self.analyze_expr(callee);
         }
-        let arg_shapes = args
-            .iter()
-            .map(|arg| self.analyze_expr(arg))
-            .collect::<Vec<_>>();
-        let signature = self.call_signature(callee).map(|signature| {
+        let signature = self.call_signature(callee);
+        let arg_shapes = match signature.as_ref() {
+            Some(signature) if !signature_contains_type_params(signature) => args
+                .iter()
+                .enumerate()
+                .map(|(index, arg)| {
+                    if let Some(param) = signature.params.get(index) {
+                        self.analyze_expr_expected(arg, param)
+                    } else {
+                        self.analyze_expr(arg)
+                    }
+                })
+                .collect::<Vec<_>>(),
+            _ => args
+                .iter()
+                .map(|arg| self.analyze_expr(arg))
+                .collect::<Vec<_>>(),
+        };
+        let signature = signature.map(|signature| {
             solve_generic_call_signature(signature, &arg_shapes, self.expected_shape())
         });
         let ret = signature.as_ref().map_or_else(
@@ -129,6 +143,11 @@ impl Analyzer<'_> {
     }
 
     fn call_signature(&mut self, callee: &Expr) -> Option<CallSignature> {
+        match self.name_target(callee) {
+            Some(NameTarget::TopLevel(id)) => return self.top_level_signature(id),
+            Some(NameTarget::Variant(variant)) => return self.variant_signature(variant),
+            Some(NameTarget::Local(_) | NameTarget::Param(_) | NameTarget::SelfValue) | None => {}
+        }
         match &callee.kind {
             ExprKind::Name(_) => self.name_call_signature(callee),
             ExprKind::Field { base, name } => self.member_call_signature(base, name.as_deref()),
