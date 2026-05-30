@@ -1,0 +1,9 @@
+-- Produce stable hashes for text and bytes.
+
+import "hash"
+import "text"
+
+let name_hash: Size = hash.text("Tune")
+let name_bytes: [Byte] = text.bytes("Tune")
+let bytes_hash: Size = hash.bytes(name_bytes)
+let combined: Size = hash.combine(name_hash, bytes_hash)

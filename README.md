@@ -100,7 +100,7 @@ should go through the facade instead of stitching compiler internals together.
 ## Standard Library And Hosts
 
 Tune ships a default host/std profile through `tune_std`. Current modules include
-`io`, `math`, `bits`, `parse`, `text`, `path`, `env`, `fs`, `json`, and
+`io`, `math`, `bits`, `parse`, `text`, `path`, `env`, `fs`, `hash`, `json`,
 `process`, `random`, and `time`.
 
 Outside-world operations are explicit host calls with known shapes, authority

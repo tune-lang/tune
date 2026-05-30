@@ -1,6 +1,7 @@
 pub mod bits;
 pub mod env;
 pub mod fs;
+pub mod hash;
 pub mod io;
 pub mod json;
 pub mod math;
@@ -38,6 +39,7 @@ pub fn modules() -> Vec<tune_host::HostModule> {
         path::install(),
         env::install(),
         fs::install(),
+        hash::install(),
         json::install(),
         process::install(),
         random::install(),
