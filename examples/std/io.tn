@@ -3,4 +3,6 @@
 import "io"
 
 let printed: Result<Unit, String> = io.write_line("hello from Tune")
+let flushed: Result<Unit, String> = io.flush()
+let error_text: Result<Unit, String> = io.error("diagnostic: ")
 let error_printed: Result<Unit, String> = io.error_line("diagnostic text")

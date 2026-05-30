@@ -65,6 +65,32 @@ pub fn install() -> HostModule {
                     Err(error) => Ok(crate::result_error(error.to_string())),
                 }
             }),
+            HostFunction::new(
+                "error",
+                vec![HostParam::new("text", Shape::String)],
+                unit_result_shape(),
+            )
+            .with_authorities(vec![tune_host::Authority("io.error".into())])
+            .with_executor(|args: &[Value]| {
+                let text = crate::string_arg(args, 0, "text")?;
+                let mut stderr = std::io::stderr().lock();
+                match stderr
+                    .write_all(text.as_bytes())
+                    .and_then(|()| stderr.flush())
+                {
+                    Ok(()) => Ok(crate::result_ok(Value::Unit)),
+                    Err(error) => Ok(crate::result_error(error.to_string())),
+                }
+            }),
+            HostFunction::new("flush", Vec::new(), unit_result_shape())
+                .with_authorities(vec![tune_host::Authority("io.write".into())])
+                .with_executor(|_: &[Value]| {
+                    let mut stdout = std::io::stdout().lock();
+                    match stdout.flush() {
+                        Ok(()) => Ok(crate::result_ok(Value::Unit)),
+                        Err(error) => Ok(crate::result_error(error.to_string())),
+                    }
+                }),
             HostFunction::new("read_line", Vec::new(), string_result_shape())
                 .with_authorities(vec![tune_host::Authority("io.read".into())])
                 .with_executor(|_: &[Value]| {

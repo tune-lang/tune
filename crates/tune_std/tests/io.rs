@@ -2,7 +2,14 @@
 fn io_module_exposes_result_io_functions() -> Result<(), &'static str> {
     let module = tune_std::io::install();
 
-    for name in ["write", "write_line", "error_line", "read_line"] {
+    for name in [
+        "write",
+        "write_line",
+        "error",
+        "error_line",
+        "flush",
+        "read_line",
+    ] {
         let function = module
             .functions
             .iter()
@@ -36,6 +43,33 @@ fn io_module_exposes_result_io_functions() -> Result<(), &'static str> {
             .iter()
             .any(|authority| authority.0 == "io.error")
     );
+
+    let error = module
+        .functions
+        .iter()
+        .find(|function| function.name == "error")
+        .ok_or("io.error should be installed")?;
+    assert!(
+        error
+            .authorities
+            .iter()
+            .any(|authority| authority.0 == "io.error")
+    );
+
+    let flush = module
+        .functions
+        .iter()
+        .find(|function| function.name == "flush")
+        .and_then(|function| function.executor.as_ref())
+        .ok_or("io.flush should carry an executor")?;
+    let flushed = flush.call(&[]).map_err(|_| "io.flush should execute")?;
+    assert!(matches!(
+        flushed,
+        tune_runtime::Value::Variant {
+            variant: tune_runtime::value::RuntimeVariant::ResultOk,
+            ..
+        }
+    ));
 
     let read_line = module
         .functions
