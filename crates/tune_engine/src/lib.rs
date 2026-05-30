@@ -38,6 +38,7 @@ pub struct Tune {
     authorities: Vec<Authority>,
     task_execution: TaskExecutionMode,
     projects: Vec<dyno_project::manifest::Manifest>,
+    project_sources: Vec<Vec<FileId>>,
 }
 
 impl Default for Tune {
@@ -48,6 +49,7 @@ impl Default for Tune {
             authorities: Vec::new(),
             task_execution: TaskExecutionMode::Parallel,
             projects: Vec::new(),
+            project_sources: Vec::new(),
         }
     }
 }
@@ -241,6 +243,7 @@ impl Tune {
     ) -> Result<ProjectHandle, EngineError> {
         let index = u32::try_from(self.projects.len()).map_err(|_| EngineError::AllocationLimit)?;
         self.projects.push(manifest);
+        self.project_sources.push(Vec::new());
         Ok(ProjectHandle(index))
     }
 
@@ -264,13 +267,18 @@ impl Tune {
         let entry_path = manifest.entry.0.clone();
         let project = self.load_project(manifest)?;
         let mut entry = None;
+        let mut files = Vec::new();
         for (path, text) in sources {
             let file = self
                 .add_file(path.clone(), text)
                 .ok_or(EngineError::AllocationLimit)?;
+            files.push(file);
             if path == entry_path {
                 entry = Some(file);
             }
+        }
+        if let Some(project_sources) = self.project_sources.get_mut(project.0 as usize) {
+            *project_sources = files;
         }
         let entry = entry.ok_or(EngineError::ProjectEntryNotFound(entry_path))?;
         Ok(ProjectEntry { project, entry })
@@ -375,8 +383,13 @@ impl Tune {
         if self.projects.get(entry.project.0 as usize).is_none() {
             return Err(EngineError::NotImplemented("unknown project handle"));
         }
-        let linked = imports::link_entry_imports(&self.db, entry.entry, &self.hosts)
-            .ok_or(EngineError::FileNotFound(entry.entry))?;
+        let files = self
+            .project_sources
+            .get(entry.project.0 as usize)
+            .ok_or(EngineError::NotImplemented("unknown project handle"))?;
+        let linked =
+            imports::link_entry_imports_for_files(&self.db, entry.entry, &self.hosts, files)
+                .ok_or(EngineError::FileNotFound(entry.entry))?;
         let resolved = tune_resolve::resolve_module(&linked.module);
         let shape = tune_shape::analyze_module(&linked.module, &resolved);
         let diagnostics = linked

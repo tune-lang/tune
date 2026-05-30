@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use tune_db::{FileId, TuneDb};
 use tune_diagnostics::{Diagnostic, Span, codes};
@@ -29,11 +29,34 @@ pub(crate) fn link_entry_imports(
     entry: FileId,
     hosts: &HostRegistry,
 ) -> Option<LinkedModule> {
+    link_entry_imports_with_sources(db, entry, hosts, None)
+}
+
+pub(crate) fn link_entry_imports_for_files(
+    db: &TuneDb,
+    entry: FileId,
+    hosts: &HostRegistry,
+    files: &[FileId],
+) -> Option<LinkedModule> {
+    let allowed = files.iter().copied().collect::<HashSet<_>>();
+    if !allowed.contains(&entry) {
+        return None;
+    }
+    link_entry_imports_with_sources(db, entry, hosts, Some(&allowed))
+}
+
+fn link_entry_imports_with_sources(
+    db: &TuneDb,
+    entry: FileId,
+    hosts: &HostRegistry,
+    allowed: Option<&HashSet<FileId>>,
+) -> Option<LinkedModule> {
     let mut parsed = Vec::new();
     let mut diagnostics = Vec::new();
     let sources_by_path = db
         .sources()
         .iter()
+        .filter(|source| allowed.is_none_or(|allowed| allowed.contains(&source.id)))
         .map(|source| (source.path.as_str(), source.id))
         .collect::<HashMap<_, _>>();
     let mut stack = Vec::new();

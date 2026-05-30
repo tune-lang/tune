@@ -57,6 +57,61 @@ let result: Int = add(20, 22)
 }
 
 #[test]
+fn project_imports_are_isolated_by_project_file_set() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let first = tune
+        .load_project_sources(
+            dyno_project::Manifest::new("first", "src/app.tn"),
+            vec![
+                (
+                    "src/math.tn".to_owned(),
+                    "pub let value: Int = 1".to_owned(),
+                ),
+                (
+                    "src/app.tn".to_owned(),
+                    r#"
+import "src/math.tn".value
+let result: Int = value
+"#
+                    .to_owned(),
+                ),
+            ],
+        )
+        .map_err(|_| "first project should load")?;
+    let second = tune
+        .load_project_sources(
+            dyno_project::Manifest::new("second", "src/app.tn"),
+            vec![
+                (
+                    "src/math.tn".to_owned(),
+                    "pub let value: Int = 42".to_owned(),
+                ),
+                (
+                    "src/app.tn".to_owned(),
+                    r#"
+import "src/math.tn".value
+let result: Int = value
+"#
+                    .to_owned(),
+                ),
+            ],
+        )
+        .map_err(|_| "second project should load")?;
+
+    assert_eq!(
+        tune.run_project_entry(first)
+            .map_err(|_| "first project should run")?,
+        tune_runtime::Value::Int(1)
+    );
+    assert_eq!(
+        tune.run_project_entry(second)
+            .map_err(|_| "second project should run")?,
+        tune_runtime::Value::Int(42)
+    );
+    Ok(())
+}
+
+#[test]
 fn project_entry_imports_selected_member_dependencies() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let entry = tune
