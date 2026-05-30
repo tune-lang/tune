@@ -125,6 +125,15 @@ facts rather than hard-coded standard-library names.
 
 Rust is pinned by [rust-toolchain.toml](rust-toolchain.toml).
 
+Install the local Dyno CLI from this checkout with:
+
+```sh
+cargo install --path crates/dyno_cli
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution checks and repository
+expectations.
+
 ## Editor Support
 
 Editor integrations live in [editors](editors). VS Code support is in
