@@ -1,0 +1,12 @@
+-- Import selected standard host functions.
+
+import "parse".int
+import "text".trim
+
+let parse_answer(text: String): Result<Int, String> = {
+  let cleaned: String = trim(text)
+  let value: Int = int(cleaned)!
+  Ok(value + 1)
+}
+
+let parsed_answer: Result<Int, String> = parse_answer(" 41 ")

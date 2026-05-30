@@ -1,0 +1,14 @@
+-- Postfix `!` unwraps Ok values and propagates Error values.
+
+let choose(okay: Bool): Result<Int, String> = if okay {
+  Ok(41)
+} else {
+  Error("not ready")
+}
+
+let add_one(okay: Bool): Result<Int, String> = {
+  let value: Int = choose(okay)!
+  Ok(value + 1)
+}
+
+let next_value: Result<Int, String> = add_one(true)

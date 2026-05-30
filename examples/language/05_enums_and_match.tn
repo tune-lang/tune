@@ -1,0 +1,14 @@
+-- Enum variants carry typed payloads. Match patterns bind payload values.
+
+enum Command {
+  Move(Int, Int)
+  Wait(Int)
+}
+
+let cost(command: Command): Int = match command {
+  Move(x, y) => x + y
+  Wait(seconds) => seconds
+}
+
+let command: Command = Move(3, 4)
+let total_cost: Int = cost(command) + cost(Wait(2))

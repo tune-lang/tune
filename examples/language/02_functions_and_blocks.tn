@@ -1,0 +1,20 @@
+-- Callables can use expression bodies or block bodies.
+
+let clamp(value: Int, low: Int, high: Int): Int = {
+  if value < low {
+    low
+  } elif value > high {
+    high
+  } else {
+    value
+  }
+}
+
+let distance_from_zero(value: Int): Int = if value < 0 {
+  0 - value
+} else {
+  value
+}
+
+let limited: Int = clamp(17, 0, 10)
+let adjusted_score: Int = limited + distance_from_zero(0 - 4)

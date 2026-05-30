@@ -1,0 +1,6 @@
+-- Spawned work produces a Task<T>; join returns the planned result shape.
+
+let compute(seed: Int): Int = seed + 1
+
+let task: Task<Int> = spawn compute(41)
+let answer: Int = task.join()

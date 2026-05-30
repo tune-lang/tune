@@ -1,0 +1,16 @@
+-- Structs carry fields and callable members. Methods use `self`.
+
+struct Counter {
+  value: Int
+
+  bump(amount: Int): Int = {
+    self.value = self.value + amount
+    self.value
+  }
+
+  label(): String = "count={self.value}"
+}
+
+let counter: Counter = Counter { value = 10 }
+let bumped: Int = counter.bump(5)
+let counter_report: String = "{counter.label()}:{bumped}"
