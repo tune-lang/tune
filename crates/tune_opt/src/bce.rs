@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use tune_ir::{ConstId, IrConst, IrFunction, IrOp, LocalId, Reg};
+use tune_ir::{ConstId, IrBlock, IrConst, IrFunction, IrOp, LocalId, Reg};
 
 use crate::{Pass, PassReport};
 
@@ -15,9 +15,10 @@ pub fn run(function: &mut IrFunction) -> PassReport {
 
 fn eliminate_function(function: &mut IrFunction) -> bool {
     let constants = function.constants.clone();
+    let stable_local_seq_lengths = stable_local_sequence_lengths(&function.blocks);
     let mut changed = false;
     for block in &mut function.blocks {
-        changed |= eliminate_block(&constants, &mut block.ops);
+        changed |= eliminate_block(&constants, &stable_local_seq_lengths, &mut block.ops);
     }
     for task in &mut function.task_functions {
         changed |= eliminate_function(task);
@@ -25,9 +26,13 @@ fn eliminate_function(function: &mut IrFunction) -> bool {
     changed
 }
 
-fn eliminate_block(constants: &[IrConst], ops: &mut [IrOp]) -> bool {
+fn eliminate_block(
+    constants: &[IrConst],
+    stable_local_seq_lengths: &HashMap<LocalId, usize>,
+    ops: &mut [IrOp],
+) -> bool {
     let mut seq_lengths = HashMap::<Reg, usize>::new();
-    let mut local_seq_lengths = HashMap::<LocalId, usize>::new();
+    let mut local_seq_lengths = stable_local_seq_lengths.clone();
     let mut const_regs = HashMap::<Reg, IrConst>::new();
     let mut local_consts = HashMap::<LocalId, IrConst>::new();
     let mut changed = false;
@@ -115,6 +120,66 @@ fn eliminate_block(constants: &[IrConst], ops: &mut [IrOp]) -> bool {
     }
 
     changed
+}
+
+fn stable_local_sequence_lengths(blocks: &[IrBlock]) -> HashMap<LocalId, usize> {
+    let mut candidates = HashMap::<LocalId, Option<usize>>::new();
+
+    for block in blocks {
+        let mut seq_lengths = HashMap::<Reg, usize>::new();
+        let mut const_regs = HashMap::<Reg, IrConst>::new();
+
+        for op in &block.ops {
+            match op {
+                IrOp::LoadConst { dst, .. } => {
+                    forget_reg(*dst, &mut seq_lengths, &mut const_regs);
+                }
+                IrOp::SeqBuild { dst, .. } => {
+                    forget_reg(*dst, &mut seq_lengths, &mut const_regs);
+                    seq_lengths.insert(*dst, 0);
+                }
+                IrOp::SeqPush { seq, .. } => {
+                    if let Some(length) = seq_lengths.get_mut(seq) {
+                        *length = length.saturating_add(1);
+                    }
+                }
+                IrOp::Move { dst, src } => {
+                    let length = seq_lengths.get(src).copied();
+                    forget_reg(*dst, &mut seq_lengths, &mut const_regs);
+                    if let Some(length) = length {
+                        seq_lengths.insert(*dst, length);
+                    }
+                }
+                IrOp::StoreLocal { local, value } => {
+                    record_local_length(&mut candidates, *local, seq_lengths.get(value).copied());
+                }
+                _ => {
+                    if let Some(dst) = op_dst(op) {
+                        forget_reg(dst, &mut seq_lengths, &mut const_regs);
+                    }
+                }
+            }
+        }
+    }
+
+    candidates
+        .into_iter()
+        .filter_map(|(local, length)| length.map(|length| (local, length)))
+        .collect()
+}
+
+fn record_local_length(
+    candidates: &mut HashMap<LocalId, Option<usize>>,
+    local: LocalId,
+    length: Option<usize>,
+) {
+    match candidates.get_mut(&local) {
+        Some(candidate) if *candidate == length => {}
+        Some(candidate) => *candidate = None,
+        None => {
+            candidates.insert(local, length);
+        }
+    }
 }
 
 fn constant_value(constants: &[IrConst], constant: ConstId) -> Option<IrConst> {
