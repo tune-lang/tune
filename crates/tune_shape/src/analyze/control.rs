@@ -76,9 +76,10 @@ impl Analyzer<'_> {
             span: expr.span,
         });
         self.check_iteration_source_mutation(iterable, body, expr.span);
+        let item_shape = self.iteration_item_shape(&iterable_shape, index_member);
         let entry = self.frame.clone();
         self.frame = entry.clone();
-        self.bind_pattern(pattern, iteration_item_shape(&iterable_shape));
+        self.bind_pattern(pattern, item_shape);
         self.analyze_expr(body);
         let body_frame = self.frame.clone();
         self.frame = entry;
@@ -340,12 +341,5 @@ fn join_continuing_shapes(shapes: Vec<Shape>) -> Shape {
         Shape::Never
     } else {
         Shape::join_all(continuing)
-    }
-}
-
-fn iteration_item_shape(iterable: &Shape) -> Shape {
-    match iterable {
-        Shape::Sequence(item) | Shape::Range(item) => item.as_ref().clone(),
-        _ => Shape::Hole,
     }
 }

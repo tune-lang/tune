@@ -181,6 +181,18 @@ impl Analyzer<'_> {
                 span: base.span,
             });
         }
+        if matches!(base_shape, Shape::Sequence(_)) && member_name == Some("len") {
+            return Some(CallSignature {
+                target: CallTarget::Bound,
+                params: Vec::new(),
+                param_type_params: Vec::new(),
+                ret: Shape::Size,
+                type_params: Vec::new(),
+                type_args: Vec::new(),
+                receiver: Some(base_shape),
+                span: base.span,
+            });
+        }
         if let Shape::Task(inner) = &base_shape
             && member_name == Some("join")
         {

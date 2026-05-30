@@ -14,7 +14,7 @@ mod item_shapes;
 mod operators;
 mod values;
 
-use tune_hir::item::{Item, ItemKind};
+use tune_hir::item::{Item, ItemKind, Param};
 use tune_hir::module::Module;
 use tune_hir::shape::{ShapeExpr, ShapeExprKind};
 use tune_hir::{ExprId, MemberId};
@@ -278,6 +278,43 @@ impl Analyzer<'_> {
         });
     }
 
+    fn seed_self_value(&mut self, shape: Shape, span: Option<Span>) {
+        self.frame.define(BindingState::new(
+            BindingKey::SelfValue,
+            Some("self".to_owned()),
+            shape.clone(),
+            shape,
+            span,
+        ));
+    }
+
+    fn seed_member_param(&mut self, param: &Param, owner: &Item) {
+        let shape = self.lower_item_shape_or_hole(owner, param.shape.as_ref());
+        self.frame.define(BindingState::new(
+            BindingKey::Param(param.id),
+            param.name.clone(),
+            shape.clone(),
+            shape,
+            param.span,
+        ));
+    }
+
+    fn seed_member_param_shape(
+        &mut self,
+        id: MemberId,
+        name: Option<String>,
+        shape: Shape,
+        span: Option<Span>,
+    ) {
+        self.frame.define(BindingState::new(
+            BindingKey::Param(id),
+            name,
+            shape.clone(),
+            shape,
+            span,
+        ));
+    }
+
     fn commit_item_current_shape(&mut self, item: &Item, declared: &Shape, actual: &Shape) {
         if item.kind == ItemKind::CallableDecl
             && let Some(signature) = &self.inferred_signature
@@ -410,8 +447,14 @@ impl Analyzer<'_> {
                 let base_shape = self.analyze_expr(base);
                 if base_shape == Shape::String {
                     let index_shape = self.analyze_expr_expected(index, &Shape::Size);
+                    self.constrain_expr_to_shape(index, &Shape::Size);
                     self.check_value_against(&Shape::Size, &index_shape, index.span);
                     Shape::String
+                } else if let Shape::Sequence(item) = base_shape {
+                    let index_shape = self.analyze_expr_expected(index, &Shape::Size);
+                    self.constrain_expr_to_shape(index, &Shape::Size);
+                    self.check_value_against(&Shape::Size, &index_shape, index.span);
+                    item.as_ref().clone()
                 } else {
                     self.analyze_expr(index);
                     Shape::Hole

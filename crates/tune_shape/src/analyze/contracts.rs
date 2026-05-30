@@ -6,13 +6,14 @@ use tune_hir::{ExprId, MemberId};
 use tune_resolve::{LocalId, NameTarget};
 
 use super::generics::{item_type_param_solution, substitute_generic_params};
-use super::{Analyzer, ExprShape, FiniteForContractKind, MaterializerCheck};
+use super::{Analyzer, ExprShape, MaterializerCheck};
 use crate::lower_resolved_hir_shape;
 use crate::{
     BindingKey, BindingState, LiteralFact, Shape, can_materialize, expr_literal_fact,
     expr_shape_fact,
 };
 mod effects;
+mod iteration;
 mod structural;
 
 use effects::{expr_assigns_binding, expr_has_materializer_effect};
@@ -153,55 +154,6 @@ impl Analyzer<'_> {
             .with_help("add both a `none` arm and a present-value arm, or add an `else` arm")
             .build(),
         );
-    }
-
-    pub(super) fn iteration_contract(
-        &mut self,
-        shape: &Shape,
-        span: Option<Span>,
-    ) -> (FiniteForContractKind, Option<MemberId>, Option<MemberId>) {
-        match shape {
-            Shape::Hole => (FiniteForContractKind::Unknown, None, None),
-            Shape::Sequence(_) | Shape::Literal(LiteralFact::Sequence { .. }) => {
-                (FiniteForContractKind::Sequence, None, None)
-            }
-            Shape::Range(_) => (FiniteForContractKind::Range, None, None),
-            Shape::Struct(nominal) | Shape::Apply { nominal, .. } => {
-                let Some(id) = nominal.id else {
-                    return (FiniteForContractKind::Unknown, None, None);
-                };
-                let len = self.callable_member(id, "len");
-                let index = self.index_member(id);
-                if len.is_none() || !self.len_member_returns_size(id) {
-                    self.diagnostics.push(iter_diag(
-                        codes::ITERATION_LEN_MISSING,
-                        "finite `for` source has no `len(): Size` contract",
-                        span,
-                    ));
-                }
-                if index.is_none() || !self.index_member_accepts_size(id) {
-                    self.diagnostics.push(iter_diag(
-                        codes::ITERATION_INDEX_MISSING,
-                        "finite `for` source has no indexed access contract",
-                        span,
-                    ));
-                }
-                (FiniteForContractKind::MemberAccess, len, index)
-            }
-            _ => {
-                self.diagnostics.push(iter_diag(
-                    codes::ITERATION_LEN_MISSING,
-                    "finite `for` source has no `len(): Size` contract",
-                    span,
-                ));
-                self.diagnostics.push(iter_diag(
-                    codes::ITERATION_INDEX_MISSING,
-                    "finite `for` source has no indexed access contract",
-                    span,
-                ));
-                (FiniteForContractKind::Unknown, None, None)
-            }
-        }
     }
 
     pub(super) fn name_shape(&self, expr: &Expr) -> Shape {
@@ -446,56 +398,6 @@ impl Analyzer<'_> {
             .find(|item| item.kind == ItemKind::Struct && item.id == id)
     }
 
-    fn callable_member(&self, struct_id: tune_hir::HirId, member_name: &str) -> Option<MemberId> {
-        self.struct_item(struct_id)?
-            .struct_members
-            .iter()
-            .find_map(|member| match member {
-                StructMember::Callable(callable)
-                    if callable.name.as_deref() == Some(member_name) =>
-                {
-                    Some(callable.id)
-                }
-                _ => None,
-            })
-    }
-
-    fn index_member(&self, struct_id: tune_hir::HirId) -> Option<MemberId> {
-        self.struct_item(struct_id)?
-            .struct_members
-            .iter()
-            .find_map(|member| match member {
-                StructMember::IndexAccess(access) => Some(access.id),
-                _ => None,
-            })
-    }
-
-    fn len_member_returns_size(&mut self, struct_id: tune_hir::HirId) -> bool {
-        self.struct_item(struct_id)
-            .and_then(|item| {
-                item.struct_members.iter().find_map(|member| match member {
-                    StructMember::Callable(callable) if callable.name.as_deref() == Some("len") => {
-                        callable.shape.as_ref()
-                    }
-                    _ => None,
-                })
-            })
-            .map(|shape| lower_resolved_hir_shape(shape, &self.resolved.scope).shape == Shape::Size)
-            .unwrap_or(false)
-    }
-
-    fn index_member_accepts_size(&mut self, struct_id: tune_hir::HirId) -> bool {
-        self.struct_item(struct_id)
-            .and_then(|item| {
-                item.struct_members.iter().find_map(|member| match member {
-                    StructMember::IndexAccess(access) => access.index_shape.as_ref(),
-                    _ => None,
-                })
-            })
-            .map(|shape| lower_resolved_hir_shape(shape, &self.resolved.scope).shape == Shape::Size)
-            .unwrap_or(false)
-    }
-
     pub(super) fn sequence_materializer(&self, shape: &Shape) -> Option<MemberId> {
         let id = match shape {
             Shape::Struct(nominal) | Shape::Apply { nominal, .. } => nominal.id?,
@@ -556,20 +458,6 @@ fn top_level_current_shape_from_actual(storage: &Shape, actual: &Shape) -> Shape
         (Shape::Optional(inner), actual) if inner.accepts(actual) => actual.clone(),
         (storage, _) => storage.clone(),
     }
-}
-
-fn iter_diag(
-    code: tune_diagnostics::DiagnosticCode,
-    title: &str,
-    span: Option<Span>,
-) -> Diagnostic {
-    Diagnostic::error(
-        code,
-        title,
-        span.unwrap_or_else(Span::synthetic),
-        "finite `for` only lowers over sources with known length and indexed access",
-    )
-    .build()
 }
 
 fn pattern_variant_name(pattern: &Pattern) -> Option<&str> {

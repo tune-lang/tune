@@ -271,6 +271,48 @@ let broken(value: Int) = for item in value { item }
 }
 
 #[test]
+fn analyzer_binds_finite_for_pattern_from_index_result_shape() -> Result<(), &'static str> {
+    let source = r#"
+struct Stack {
+  values: [Int]
+  len(): Size = self.values.len()
+  Stack[index: Size] = self.values[index]
+}
+let each(items: Stack) = for item in items {
+  let value: Int = item
+}
+"#;
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analyses = tune_shape::analyze_module(&module, &resolved);
+    let each = &analyses[1];
+
+    assert!(each.diagnostics.is_empty());
+    let item_local = resolved
+        .locals
+        .iter()
+        .find(|local| local.name == "item")
+        .map(|local| local.id)
+        .ok_or("item pattern local should resolve")?;
+    let item_expr = resolved
+        .name_refs
+        .iter()
+        .find(|name_ref| name_ref.target == tune_resolve::NameTarget::Local(item_local))
+        .map(|name_ref| name_ref.expr)
+        .ok_or("item use should resolve")?;
+    assert_eq!(
+        each.expr_shapes
+            .iter()
+            .find(|expr_shape| expr_shape.expr == item_expr)
+            .map(|expr_shape| &expr_shape.shape),
+        Some(&tune_shape::Shape::Int)
+    );
+
+    Ok(())
+}
+
+#[test]
 fn analyzer_reports_non_exhaustive_enum_matches() -> Result<(), &'static str> {
     let source = r#"
 enum Color {
