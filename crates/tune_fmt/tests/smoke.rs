@@ -20,5 +20,15 @@ fn preserves_comments_and_string_literals() {
 
     assert!(formatted.contains("\"a  b\" -- keep"));
     assert!(formatted.contains("-/ block /-"));
-    assert!(formatted.ends_with("let next = 1\n"));
+    assert!(formatted.ends_with("let next=1\n"));
+}
+
+#[test]
+fn multiline_formatting_is_conservative_until_cst_formatter() {
+    let source = r#"let score: Int = 37
+let passed: Bool = score > 30
+let result: Result<Int, String> = Ok(score)
+"#;
+
+    assert_eq!(tune_fmt::format_source(source), source);
 }

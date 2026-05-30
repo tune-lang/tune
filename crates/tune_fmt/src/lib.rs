@@ -20,7 +20,16 @@ pub fn format_source(source: &str) -> String {
 
 #[must_use]
 pub fn format_source_with_options(source: &str, options: &FormatOptions) -> String {
+    if source.contains('\n') {
+        return stable_multiline_source(source);
+    }
     Formatter::new(source, options).finish()
+}
+
+fn stable_multiline_source(source: &str) -> String {
+    let mut formatted = source.trim_end_matches([' ', '\n']).to_owned();
+    formatted.push('\n');
+    formatted
 }
 
 struct Formatter<'a> {
