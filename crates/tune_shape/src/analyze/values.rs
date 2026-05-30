@@ -41,6 +41,7 @@ impl Analyzer<'_> {
         match op {
             UnaryOp::Invert if Shape::Bool.accepts(&shape) => Shape::Bool,
             UnaryOp::Neg | UnaryOp::Invert if Shape::Int.accepts(&shape) => Shape::Int,
+            UnaryOp::Invert if Shape::Size.accepts(&shape) => Shape::Size,
             UnaryOp::Invert if Shape::Byte.accepts(&shape) => Shape::Byte,
             UnaryOp::Neg | UnaryOp::Invert => Shape::Hole,
         }

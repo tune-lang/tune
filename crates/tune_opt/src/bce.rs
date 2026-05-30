@@ -238,6 +238,7 @@ fn op_dst(op: &IrOp) -> Option<Reg> {
         | IrOp::NegInt { dst, .. }
         | IrOp::NotBool { dst, .. }
         | IrOp::BitNotInt { dst, .. }
+        | IrOp::BitNotSize { dst, .. }
         | IrOp::NoneCheck { dst, .. }
         | IrOp::GreaterInt { dst, .. }
         | IrOp::CompareInt { dst, .. }
@@ -252,6 +253,9 @@ fn op_dst(op: &IrOp) -> Option<Reg> {
         | IrOp::MulSizeChecked { dst, .. }
         | IrOp::DivSize { dst, .. }
         | IrOp::RemSize { dst, .. }
+        | IrOp::BitAndSize { dst, .. }
+        | IrOp::BitOrSize { dst, .. }
+        | IrOp::BitXorSize { dst, .. }
         | IrOp::ShiftLeftSize { dst, .. }
         | IrOp::ShiftRightSize { dst, .. }
         | IrOp::GreaterSize { dst, .. }

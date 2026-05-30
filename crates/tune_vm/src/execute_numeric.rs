@@ -177,6 +177,21 @@ impl Vm {
                     .ok_or_else(|| self.fault_at(function_index, ip, divide_size_error(right)))?;
                 self.write_size(function_index, ip, registers, instruction, value)
             }
+            Opcode::BitAndSize => {
+                let (left, right) =
+                    self.read_size_pair(function_index, ip, registers, instruction)?;
+                self.write_size(function_index, ip, registers, instruction, left & right)
+            }
+            Opcode::BitOrSize => {
+                let (left, right) =
+                    self.read_size_pair(function_index, ip, registers, instruction)?;
+                self.write_size(function_index, ip, registers, instruction, left | right)
+            }
+            Opcode::BitXorSize => {
+                let (left, right) =
+                    self.read_size_pair(function_index, ip, registers, instruction)?;
+                self.write_size(function_index, ip, registers, instruction, left ^ right)
+            }
             Opcode::ShiftLeftSize => {
                 let (left, right) =
                     self.read_size_pair(function_index, ip, registers, instruction)?;

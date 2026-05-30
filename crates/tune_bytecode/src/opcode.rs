@@ -100,6 +100,10 @@ pub enum Opcode {
     TupleField = 96,
     ShiftLeftSize = 97,
     ShiftRightSize = 98,
+    BitNotSize = 99,
+    BitAndSize = 100,
+    BitOrSize = 101,
+    BitXorSize = 102,
 }
 
 impl Opcode {
@@ -203,5 +207,9 @@ impl Opcode {
         Self::TupleField,
         Self::ShiftLeftSize,
         Self::ShiftRightSize,
+        Self::BitNotSize,
+        Self::BitAndSize,
+        Self::BitOrSize,
+        Self::BitXorSize,
     ];
 }

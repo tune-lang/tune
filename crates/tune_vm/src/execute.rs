@@ -148,6 +148,9 @@ impl Vm {
                 | Opcode::MulSizeChecked
                 | Opcode::DivSize
                 | Opcode::RemSize
+                | Opcode::BitAndSize
+                | Opcode::BitOrSize
+                | Opcode::BitXorSize
                 | Opcode::ShiftLeftSize
                 | Opcode::ShiftRightSize
                 | Opcode::AddByteWrap
@@ -188,9 +191,12 @@ impl Vm {
                         ),
                     )?;
                 }
-                Opcode::NegInt | Opcode::NotBool | Opcode::BitNotInt | Opcode::NoneCheck => {
-                    self.execute_unary(function_index, ip, &mut registers, instruction)?;
-                }
+                Opcode::NegInt
+                | Opcode::NotBool
+                | Opcode::BitNotInt
+                | Opcode::BitNotSize
+                | Opcode::NoneCheck => self
+                    .execute_unary(function_index, ip, &mut registers, instruction)?,
                 Opcode::GreaterInt
                 | Opcode::EqualInt
                 | Opcode::NotEqualInt

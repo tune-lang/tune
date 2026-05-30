@@ -178,6 +178,39 @@ impl Lowerer {
         Ok(())
     }
 
+    pub(super) fn lower_size_bit_op(
+        &mut self,
+        op: IntArithmetic,
+        span: Option<Span>,
+    ) -> Result<(), IrLowerError> {
+        let rhs = self.pop("binary rhs")?;
+        let lhs = self.pop("binary lhs")?;
+        let dst = self.alloc_reg()?;
+        match op {
+            IntArithmetic::BitAnd => self.push_op(IrOp::BitAndSize {
+                dst,
+                a: lhs,
+                b: rhs,
+                span,
+            }),
+            IntArithmetic::BitOr => self.push_op(IrOp::BitOrSize {
+                dst,
+                a: lhs,
+                b: rhs,
+                span,
+            }),
+            IntArithmetic::BitXor => self.push_op(IrOp::BitXorSize {
+                dst,
+                a: lhs,
+                b: rhs,
+                span,
+            }),
+            _ => return Err(IrLowerError::UnsupportedOp("size bit op")),
+        }
+        self.stack.push(dst);
+        Ok(())
+    }
+
     fn lower_add(
         &mut self,
         shape: &tune_shape::Shape,

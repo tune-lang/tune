@@ -3,6 +3,7 @@ fn not_and_tilde_are_the_same_inversion_operator() {
     let source = r#"
 let bool_value: Bool = not false
 let int_value: Int = not 1
+let size_value: Size = ~1
 let byte_value: Byte = ~1
 "#;
     let parsed = tune_syntax::parse(source);
@@ -21,6 +22,10 @@ let byte_value: Byte = ~1
     ));
     assert!(matches!(
         analysis[2].expr_shapes.last().map(|shape| &shape.shape),
+        Some(tune_shape::Shape::Size)
+    ));
+    assert!(matches!(
+        analysis[3].expr_shapes.last().map(|shape| &shape.shape),
         Some(tune_shape::Shape::Byte)
     ));
 }

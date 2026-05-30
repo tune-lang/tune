@@ -48,8 +48,12 @@ pub(super) fn infer_frame_layout(function: &IrFunction) -> BytecodeFrameLayout {
             | IrOp::MulSizeChecked { dst, .. }
             | IrOp::DivSize { dst, .. }
             | IrOp::RemSize { dst, .. }
+            | IrOp::BitAndSize { dst, .. }
+            | IrOp::BitOrSize { dst, .. }
+            | IrOp::BitXorSize { dst, .. }
             | IrOp::ShiftLeftSize { dst, .. }
-            | IrOp::ShiftRightSize { dst, .. } => set_register(&mut layout, *dst, Shape::Size),
+            | IrOp::ShiftRightSize { dst, .. }
+            | IrOp::BitNotSize { dst, .. } => set_register(&mut layout, *dst, Shape::Size),
             IrOp::AddByteWrap { dst, .. } => {
                 set_register(&mut layout, *dst, Shape::Byte);
             }

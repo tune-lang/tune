@@ -180,7 +180,9 @@ let result: Int = {
   let y: Size = (x * 3) - 1
   let z: Size = y % 5
   let shifted: Size = (z << 3) >> 2
-  if (y >= 11) and (shifted == 2) {
+  let masked: Size = (y & 6) | (y ^ 3)
+  let inverted: Size = ~~masked
+  if (y >= 11) and (shifted == 2) and (inverted == 10) {
     1
   } else {
     0

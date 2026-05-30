@@ -235,12 +235,16 @@ impl FunctionLowerer<'_> {
             | IrOp::MulSizeChecked { .. }
             | IrOp::DivSize { .. }
             | IrOp::RemSize { .. }
+            | IrOp::BitAndSize { .. }
+            | IrOp::BitOrSize { .. }
+            | IrOp::BitXorSize { .. }
             | IrOp::ShiftLeftSize { .. }
             | IrOp::ShiftRightSize { .. }
             | IrOp::AddByteWrap { .. }
             | IrOp::NegInt { .. }
             | IrOp::NotBool { .. }
             | IrOp::BitNotInt { .. }
+            | IrOp::BitNotSize { .. }
             | IrOp::NoneCheck { .. }
             | IrOp::GreaterInt { .. }
             | IrOp::GreaterFloat { .. }

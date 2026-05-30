@@ -64,6 +64,15 @@ impl FunctionLowerer<'_> {
             IrOp::RemSize { dst, a, b, .. } => {
                 self.push_instruction(Opcode::RemSize, dst.0, a.0, b.0);
             }
+            IrOp::BitAndSize { dst, a, b, .. } => {
+                self.push_instruction(Opcode::BitAndSize, dst.0, a.0, b.0);
+            }
+            IrOp::BitOrSize { dst, a, b, .. } => {
+                self.push_instruction(Opcode::BitOrSize, dst.0, a.0, b.0);
+            }
+            IrOp::BitXorSize { dst, a, b, .. } => {
+                self.push_instruction(Opcode::BitXorSize, dst.0, a.0, b.0);
+            }
             IrOp::ShiftLeftSize { dst, a, b, .. } => {
                 self.push_instruction(Opcode::ShiftLeftSize, dst.0, a.0, b.0);
             }
@@ -84,6 +93,9 @@ impl FunctionLowerer<'_> {
             }
             IrOp::BitNotInt { dst, value, .. } => {
                 self.push_instruction(Opcode::BitNotInt, dst.0, value.0, 0);
+            }
+            IrOp::BitNotSize { dst, value, .. } => {
+                self.push_instruction(Opcode::BitNotSize, dst.0, value.0, 0);
             }
             IrOp::NoneCheck {
                 dst, value, is_not, ..

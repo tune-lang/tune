@@ -210,7 +210,11 @@ fn validate_instruction(
             register(function_id, function, instruction.b)?;
             register(function_id, function, instruction.c)?;
         }
-        Opcode::NegInt | Opcode::NotBool | Opcode::BitNotInt | Opcode::NoneCheck => {
+        Opcode::NegInt
+        | Opcode::NotBool
+        | Opcode::BitNotInt
+        | Opcode::BitNotSize
+        | Opcode::NoneCheck => {
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
         }
@@ -233,6 +237,9 @@ fn validate_instruction(
         | Opcode::MulSizeChecked
         | Opcode::DivSize
         | Opcode::RemSize
+        | Opcode::BitAndSize
+        | Opcode::BitOrSize
+        | Opcode::BitXorSize
         | Opcode::ShiftLeftSize
         | Opcode::ShiftRightSize
         | Opcode::AddByteWrap

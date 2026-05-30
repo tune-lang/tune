@@ -28,10 +28,12 @@ impl Lowerer {
         if matches!(shape, tune_shape::Shape::Byte) {
             return self.lower_byte_binary(byte_op, span);
         }
-        if matches!(shape, tune_shape::Shape::Size)
-            && matches!(int_op, IntArithmetic::ShiftLeft | IntArithmetic::ShiftRight)
-        {
-            return self.lower_size_shift(int_op, span);
+        if matches!(shape, tune_shape::Shape::Size) {
+            return if matches!(int_op, IntArithmetic::ShiftLeft | IntArithmetic::ShiftRight) {
+                self.lower_size_shift(int_op, span)
+            } else {
+                self.lower_size_bit_op(int_op, span)
+            };
         }
         self.lower_int_arithmetic(int_op, span)
     }

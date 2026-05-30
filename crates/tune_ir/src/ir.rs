@@ -77,12 +77,16 @@ impl IrOp {
             | Self::MulSizeChecked { span, .. }
             | Self::DivSize { span, .. }
             | Self::RemSize { span, .. }
+            | Self::BitAndSize { span, .. }
+            | Self::BitOrSize { span, .. }
+            | Self::BitXorSize { span, .. }
             | Self::ShiftLeftSize { span, .. }
             | Self::ShiftRightSize { span, .. }
             | Self::RangeInt { span, .. }
             | Self::NegInt { span, .. }
             | Self::NotBool { span, .. }
             | Self::BitNotInt { span, .. }
+            | Self::BitNotSize { span, .. }
             | Self::NoneCheck { span, .. }
             | Self::GreaterInt { span, .. }
             | Self::CompareInt { span, .. }
@@ -233,6 +237,11 @@ pub enum IrOp {
         value: Reg,
         span: Option<Span>,
     },
+    BitNotSize {
+        dst: Reg,
+        value: Reg,
+        span: Option<Span>,
+    },
     NoneCheck {
         dst: Reg,
         value: Reg,
@@ -314,6 +323,24 @@ pub enum IrOp {
         span: Option<Span>,
     },
     RemSize {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    BitAndSize {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    BitOrSize {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    BitXorSize {
         dst: Reg,
         a: Reg,
         b: Reg,

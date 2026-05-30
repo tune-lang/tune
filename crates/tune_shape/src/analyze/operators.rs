@@ -79,6 +79,11 @@ impl Analyzer<'_> {
             | BinaryOp::Mul
             | BinaryOp::Div
             | BinaryOp::Rem
+            | BinaryOp::Or
+            | BinaryOp::And
+            | BinaryOp::BitOr
+            | BinaryOp::BitXor
+            | BinaryOp::BitAnd
             | BinaryOp::ShiftLeft
             | BinaryOp::ShiftRight
                 if Shape::Size.accepts(&lhs_shape) && Shape::Size.accepts(&rhs_shape) =>
@@ -398,7 +403,7 @@ fn can_diagnose_operands(lhs: &Shape, rhs: &Shape) -> bool {
 
 fn expected_operands(op: BinaryOp) -> &'static str {
     match op {
-        BinaryOp::Or | BinaryOp::And => "`Bool`, `Int`, or `Byte` operands",
+        BinaryOp::Or | BinaryOp::And => "`Bool`, `Int`, `Size`, or `Byte` operands",
         BinaryOp::Add => "compatible numeric operands",
         BinaryOp::RangeExclusive | BinaryOp::RangeInclusive => {
             "`Int`/`Int` or `Size`/`Size` endpoints"
@@ -414,8 +419,8 @@ fn expected_operands(op: BinaryOp) -> &'static str {
         BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Rem => {
             "`Int`/`Int`, `Size`/`Size`, or `Byte`/`Byte` operands"
         }
-        BinaryOp::BitOr | BinaryOp::BitAnd => "`Bool`, `Int`, or `Byte` operands",
-        BinaryOp::BitXor => "`Int`/`Int` or `Byte`/`Byte` operands",
+        BinaryOp::BitOr | BinaryOp::BitAnd => "`Bool`, `Int`, `Size`, or `Byte` operands",
+        BinaryOp::BitXor => "`Int`/`Int`, `Size`/`Size`, or `Byte`/`Byte` operands",
         BinaryOp::ShiftLeft | BinaryOp::ShiftRight => {
             "`Int`/`Int`, `Size`/`Size`, or `Byte`/`Byte` operands"
         }
