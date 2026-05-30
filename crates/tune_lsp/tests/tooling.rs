@@ -145,3 +145,58 @@ fn lsp_formatting_uses_shared_formatter() -> Result<(), &'static str> {
 
     Ok(())
 }
+
+#[test]
+fn lsp_completion_filters_visible_names_by_prefix() -> Result<(), &'static str> {
+    let mut session = tune_lsp::LspSession::new();
+    let source = "let apple: Int = 1\nlet banana: Int = 2\nlet result = ap\n";
+    let file = session
+        .open_document("main.tn", source)
+        .ok_or("document should open")?;
+    let offset = source.find("ap\n").ok_or("cursor marker should exist")? + "ap".len();
+    let position =
+        tune_lsp::protocol::position(source, u32::try_from(offset).map_err(|_| "bad offset")?)
+            .ok_or("position should map")?;
+
+    let completions = session.completions_at(file, position);
+    assert!(completions.iter().any(|item| item.label == "apple"));
+    assert!(completions.iter().all(|item| item.label != "banana"));
+
+    Ok(())
+}
+
+#[test]
+fn lsp_completion_suggests_struct_members_after_dot() -> Result<(), &'static str> {
+    let mut session = tune_lsp::LspSession::new();
+    let source = r#"struct Counter {
+  value: Int
+
+  bump(amount: Int): Int = self.value + amount
+}
+
+let counter: Counter = Counter {
+  value = 1
+}
+let result = counter.b
+"#;
+    let file = session
+        .open_document("main.tn", source)
+        .ok_or("document should open")?;
+    let offset = source
+        .find("counter.b")
+        .ok_or("cursor marker should exist")?
+        + "counter.b".len();
+    let position =
+        tune_lsp::protocol::position(source, u32::try_from(offset).map_err(|_| "bad offset")?)
+            .ok_or("position should map")?;
+
+    let completions = session.completions_at(file, position);
+    assert!(completions.iter().any(|item| {
+        item.label == "bump"
+            && item.kind == tune_lsp::CompletionKind::Method
+            && item.detail.as_deref() == Some("bump(amount: Int): Int")
+    }));
+    assert!(completions.iter().all(|item| item.label != "value"));
+
+    Ok(())
+}

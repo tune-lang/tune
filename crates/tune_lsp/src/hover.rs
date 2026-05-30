@@ -270,11 +270,11 @@ fn signature_for_owner(
         _ => None,
     });
     let ret = owner_facts.iter().find_map(|fact| match &fact.payload {
-        CompilerFactPayload::Return(shape) => Some(shape_text(shape)),
+        CompilerFactPayload::Return(shape) => Some(surface_shape_text(shape)),
         _ => None,
     });
     let shape = owner_facts.iter().find_map(|fact| match &fact.payload {
-        CompilerFactPayload::Shape(shape) => Some(shape_text(shape)),
+        CompilerFactPayload::Shape(shape) => Some(surface_shape_text(shape)),
         _ => None,
     });
 
@@ -306,7 +306,7 @@ fn member_signature(all_facts: &[CompilerFact], member: MemberId) -> String {
         _ => None,
     });
     let shape = facts.iter().find_map(|fact| match &fact.payload {
-        CompilerFactPayload::Shape(shape) => Some(shape_text(shape)),
+        CompilerFactPayload::Shape(shape) => Some(surface_shape_text(shape)),
         _ => None,
     });
 
@@ -321,8 +321,10 @@ fn member_signature(all_facts: &[CompilerFact], member: MemberId) -> String {
 fn fact_summary(payload: &CompilerFactPayload) -> Option<String> {
     match payload {
         CompilerFactPayload::Doc(_) | CompilerFactPayload::Name(_) => None,
-        CompilerFactPayload::Return(shape) => Some(format!("returns {}", shape_text(shape))),
-        CompilerFactPayload::Shape(shape) => Some(format!("shape {}", shape_text(shape))),
+        CompilerFactPayload::Return(shape) => {
+            Some(format!("returns {}", surface_shape_text(shape)))
+        }
+        CompilerFactPayload::Shape(shape) => Some(format!("shape {}", surface_shape_text(shape))),
         CompilerFactPayload::Module(module) => Some(format!("module {module}")),
         CompilerFactPayload::Visibility(visibility) => Some(format!("visibility {visibility:?}")),
         CompilerFactPayload::Import(import) => Some(format!("import {import:?}")),
@@ -335,32 +337,50 @@ fn fact_summary(payload: &CompilerFactPayload) -> Option<String> {
     }
 }
 
-fn shape_text(shape: &ShapeExpr) -> String {
+pub(crate) fn surface_shape_text(shape: &ShapeExpr) -> String {
     match &shape.kind {
         ShapeExprKind::Missing => "_".to_owned(),
         ShapeExprKind::Named(name) => name.clone(),
         ShapeExprKind::Generic { name, args } => {
-            let args = args.iter().map(shape_text).collect::<Vec<_>>().join(", ");
+            let args = args
+                .iter()
+                .map(surface_shape_text)
+                .collect::<Vec<_>>()
+                .join(", ");
             format!("{name}<{args}>")
         }
-        ShapeExprKind::Sequence(inner) => format!("[{}]", shape_text(inner)),
+        ShapeExprKind::Sequence(inner) => format!("[{}]", surface_shape_text(inner)),
         ShapeExprKind::Tuple(items) => {
-            let items = items.iter().map(shape_text).collect::<Vec<_>>().join(", ");
+            let items = items
+                .iter()
+                .map(surface_shape_text)
+                .collect::<Vec<_>>()
+                .join(", ");
             format!("({items})")
         }
-        ShapeExprKind::Optional(inner) => format!("{}?", shape_text(inner)),
-        ShapeExprKind::Union(items) => items.iter().map(shape_text).collect::<Vec<_>>().join(" | "),
+        ShapeExprKind::Optional(inner) => format!("{}?", surface_shape_text(inner)),
+        ShapeExprKind::Union(items) => items
+            .iter()
+            .map(surface_shape_text)
+            .collect::<Vec<_>>()
+            .join(" | "),
         ShapeExprKind::Structural(requirements) => {
             let requirements = requirements
                 .iter()
                 .map(|requirement| match &requirement.kind {
                     StructuralShapeRequirementKind::Field { shape } => shape.as_ref().map_or_else(
                         || requirement.name.clone(),
-                        |shape| format!("{}: {}", requirement.name, shape_text(shape)),
+                        |shape| format!("{}: {}", requirement.name, surface_shape_text(shape)),
                     ),
                     StructuralShapeRequirementKind::Callable { params, ret } => {
-                        let params = params.iter().map(shape_text).collect::<Vec<_>>().join(", ");
-                        let ret = ret.as_ref().map_or_else(|| "_".to_owned(), shape_text);
+                        let params = params
+                            .iter()
+                            .map(surface_shape_text)
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        let ret = ret
+                            .as_ref()
+                            .map_or_else(|| "_".to_owned(), surface_shape_text);
                         format!("{}({params}): {ret}", requirement.name)
                     }
                 })
@@ -369,8 +389,12 @@ fn shape_text(shape: &ShapeExpr) -> String {
             format!("{{ {requirements} }}")
         }
         ShapeExprKind::Callable { params, ret } => {
-            let params = params.iter().map(shape_text).collect::<Vec<_>>().join(", ");
-            format!("_({params}): {}", shape_text(ret))
+            let params = params
+                .iter()
+                .map(surface_shape_text)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("_({params}): {}", surface_shape_text(ret))
         }
     }
 }

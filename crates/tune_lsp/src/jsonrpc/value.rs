@@ -83,6 +83,8 @@ pub(super) fn completion_value(item: &CompletionItem) -> Value {
         "label": item.label,
         "kind": completion_kind(item.kind),
         "detail": item.detail,
+        "filterText": item.filter_text,
+        "sortText": item.sort_text,
         "documentation": item.documentation.as_ref().map(|doc| {
             json!({ "kind": "markdown", "value": doc })
         })
@@ -92,6 +94,8 @@ pub(super) fn completion_value(item: &CompletionItem) -> Value {
 fn completion_kind(kind: CompletionKind) -> u32 {
     match kind {
         CompletionKind::Function => 3,
+        CompletionKind::Method => 2,
+        CompletionKind::Field => 5,
         CompletionKind::Type => 7,
         CompletionKind::Value => 6,
         CompletionKind::Module => 9,
