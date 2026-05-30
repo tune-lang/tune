@@ -1,4 +1,5 @@
 mod diagnostics;
+mod executable;
 mod host;
 mod imports;
 mod imports_closure;
@@ -9,11 +10,12 @@ mod imports_shapes;
 mod meta;
 mod paths;
 mod profile;
+mod project;
 mod project_sources;
 mod reachable;
+mod reports;
 mod runtime;
 
-use diagnostics::{diagnostic_from_bytecode_lower_error, diagnostic_from_ir_lower_error};
 pub use diagnostics::{
     diagnostic_from_result_error, diagnostic_from_result_error_with_sources,
     diagnostic_from_vm_fault, diagnostic_from_vm_fault_with_sources,
@@ -28,18 +30,19 @@ pub use profile::{
     StageTiming,
 };
 pub use project_sources::ProjectPackageSources;
+pub use reports::{
+    CheckReport, CompileReport, EngineError, EntryPoint, ExecutableReport, ProjectEntry,
+    ProjectHandle, SourceId,
+};
 pub use runtime::Runtime;
 
-use tune_db::{FileId, TuneDb};
+use executable::executable_from_compile;
+use tune_db::TuneDb;
 use tune_diagnostics::{Diagnostic, Severity};
 use tune_host::Authority;
 use tune_host::module::HostModule;
 use tune_runtime::TaskExecutionMode;
 use tune_runtime::value::Value;
-
-use crate::reachable::reachable_functions;
-
-pub type SourceId = FileId;
 
 pub struct Tune {
     db: TuneDb,
@@ -61,54 +64,6 @@ impl Default for Tune {
             project_sources: Vec::new(),
         }
     }
-}
-
-pub struct CheckReport {
-    pub file: SourceId,
-    pub diagnostics: Vec<Diagnostic>,
-    pub module: tune_hir::module::Module,
-    pub resolved: tune_resolve::ResolvedModule,
-    pub shape: Vec<tune_shape::ShapeAnalysis>,
-}
-
-pub struct CompileReport {
-    pub check: CheckReport,
-    pub module_plan: tune_plan::PlanModule,
-}
-
-pub struct ExecutableReport {
-    pub compile: CompileReport,
-    pub ir: Vec<tune_ir::IrFunction>,
-    pub bytecode: tune_bytecode::artifact::BytecodeArtifact,
-    pub host_value_types: Vec<tune_vm::VmHostValueType>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EntryPoint {
-    Source(SourceId),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ProjectHandle(pub u32);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ProjectEntry {
-    pub project: ProjectHandle,
-    pub entry: FileId,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum EngineError {
-    FileNotFound(FileId),
-    AllocationLimit,
-    Diagnostics(Vec<Diagnostic>),
-    IrLower(String),
-    BytecodeLower(String),
-    MissingEntry,
-    ProjectEntryNotFound(String),
-    ProjectLoad(String),
-    SourceLoad(String),
-    NotImplemented(&'static str),
 }
 
 impl Tune {
@@ -223,112 +178,6 @@ impl Tune {
         executable_from_compile(compile)
     }
 
-    pub fn load_project(
-        &mut self,
-        manifest: dyno_project::manifest::Manifest,
-    ) -> Result<ProjectHandle, EngineError> {
-        let index = u32::try_from(self.projects.len()).map_err(|_| EngineError::AllocationLimit)?;
-        self.projects.push(manifest);
-        self.project_sources
-            .push(project_sources::ProjectSourceSet::default());
-        Ok(ProjectHandle(index))
-    }
-
-    pub fn resolve_project(
-        &self,
-        project: ProjectHandle,
-        lockfile: &dyno_project::lockfile::Lockfile,
-    ) -> Result<dyno_project::ProjectResolution, EngineError> {
-        let manifest = self
-            .projects
-            .get(project.0 as usize)
-            .ok_or(EngineError::NotImplemented("unknown project handle"))?;
-        Ok(dyno_project::resolve(manifest, lockfile))
-    }
-
-    pub fn load_project_sources(
-        &mut self,
-        manifest: dyno_project::manifest::Manifest,
-        sources: impl IntoIterator<Item = (String, String)>,
-    ) -> Result<ProjectEntry, EngineError> {
-        let entry_path = manifest.entry.0.clone();
-        let project = self.load_project(manifest)?;
-        let mut entry = None;
-        let mut files = Vec::new();
-        for (path, text) in sources {
-            let file = self
-                .add_source(path.clone(), text)
-                .ok_or(EngineError::AllocationLimit)?;
-            files.push(file);
-            if path == entry_path {
-                entry = Some(file);
-            }
-        }
-        if let Some(source_set) = self.project_sources.get_mut(project.0 as usize) {
-            *source_set = project_sources::ProjectSourceSet::new(files);
-        }
-        let entry = entry.ok_or(EngineError::ProjectEntryNotFound(entry_path))?;
-        Ok(ProjectEntry { project, entry })
-    }
-
-    pub fn load_project_manifest(
-        &mut self,
-        manifest_path: impl AsRef<std::path::Path>,
-    ) -> Result<ProjectEntry, EngineError> {
-        let loaded = dyno_project::load_project_manifest(manifest_path)
-            .map_err(|error| EngineError::ProjectLoad(format!("{error:?}")))?;
-        self.load_project_sources(loaded.manifest, loaded.sources)
-    }
-
-    pub fn load_project_dir(
-        &mut self,
-        root: impl AsRef<std::path::Path>,
-    ) -> Result<ProjectEntry, EngineError> {
-        let loaded = dyno_project::load_project_dir(root)
-            .map_err(|error| EngineError::ProjectLoad(format!("{error:?}")))?;
-        self.load_project_sources(loaded.manifest, loaded.sources)
-    }
-
-    pub fn check_project(
-        &mut self,
-        manifest_path: impl AsRef<std::path::Path>,
-    ) -> Result<CheckReport, EngineError> {
-        let entry = self.load_project_manifest(manifest_path)?;
-        self.check_project_entry(entry)
-    }
-
-    pub fn compile_project(
-        &mut self,
-        manifest_path: impl AsRef<std::path::Path>,
-    ) -> Result<CompileReport, EngineError> {
-        let entry = self.load_project_manifest(manifest_path)?;
-        self.compile_project_entry(entry)
-    }
-
-    pub fn executable_project(
-        &mut self,
-        manifest_path: impl AsRef<std::path::Path>,
-    ) -> Result<ExecutableReport, EngineError> {
-        let entry = self.load_project_manifest(manifest_path)?;
-        self.executable_project_entry(entry)
-    }
-
-    pub fn run_project(
-        &mut self,
-        manifest_path: impl AsRef<std::path::Path>,
-    ) -> Result<Value, EngineError> {
-        let entry = self.load_project_manifest(manifest_path)?;
-        self.run_project_entry(entry)
-    }
-
-    pub fn run_project_entry(&self, entry: ProjectEntry) -> Result<Value, EngineError> {
-        if self.projects.get(entry.project.0 as usize).is_none() {
-            return Err(EngineError::NotImplemented("unknown project handle"));
-        }
-        let executable = self.executable_project_entry(entry)?;
-        self.runtime(executable).run_entry()
-    }
-
     #[must_use]
     pub fn runtime(&self, executable: ExecutableReport) -> Runtime {
         let vm = tune_vm::Vm::new(executable.bytecode)
@@ -339,69 +188,6 @@ impl Tune {
             .with_host_value_types(executable.host_value_types.clone())
             .with_authorities(self.authorities.clone());
         Runtime::new(vm, self.db.sources().clone())
-    }
-
-    pub fn executable_project_entry(
-        &self,
-        entry: ProjectEntry,
-    ) -> Result<ExecutableReport, EngineError> {
-        if self.projects.get(entry.project.0 as usize).is_none() {
-            return Err(EngineError::NotImplemented("unknown project handle"));
-        }
-        let compile = self.compile_project_entry(entry)?;
-        executable_from_compile(compile)
-    }
-
-    pub fn compile_project_entry(&self, entry: ProjectEntry) -> Result<CompileReport, EngineError> {
-        if self.projects.get(entry.project.0 as usize).is_none() {
-            return Err(EngineError::NotImplemented("unknown project handle"));
-        }
-        let check = self.check_project_entry(entry)?;
-        let module_plan =
-            tune_plan::lower_analyzed_module_to_plan(&check.module, &check.resolved, &check.shape);
-
-        Ok(CompileReport { check, module_plan })
-    }
-
-    pub fn check_project_entry(&self, entry: ProjectEntry) -> Result<CheckReport, EngineError> {
-        if self.projects.get(entry.project.0 as usize).is_none() {
-            return Err(EngineError::NotImplemented("unknown project handle"));
-        }
-        let source_set = self
-            .project_sources
-            .get(entry.project.0 as usize)
-            .ok_or(EngineError::NotImplemented("unknown project handle"))?;
-        let linked = imports::link_entry_imports_for_files(
-            &self.db,
-            entry.entry,
-            &self.hosts,
-            &source_set.files,
-            &source_set.import_aliases,
-        )
-        .ok_or(EngineError::FileNotFound(entry.entry))?;
-        let resolved = tune_resolve::resolve_module(&linked.module);
-        let shape = tune_shape::analyze_module(&linked.module, &resolved);
-        let diagnostics = linked
-            .parsed
-            .iter()
-            .flat_map(|parsed| parsed.diagnostics.iter())
-            .chain(linked.diagnostics.iter())
-            .chain(resolved.diagnostics.iter())
-            .chain(
-                shape
-                    .iter()
-                    .flat_map(|analysis| analysis.diagnostics.iter()),
-            )
-            .cloned()
-            .collect();
-
-        Ok(CheckReport {
-            file: entry.entry,
-            diagnostics,
-            module: linked.module,
-            resolved,
-            shape,
-        })
     }
 
     pub fn register_host(&mut self, host: &impl tune_host::Host) -> HostRegistration {
@@ -473,11 +259,6 @@ impl Tune {
     }
 
     #[must_use]
-    pub fn projects(&self) -> &[dyno_project::manifest::Manifest] {
-        &self.projects
-    }
-
-    #[must_use]
     pub const fn db(&self) -> &TuneDb {
         &self.db
     }
@@ -485,67 +266,6 @@ impl Tune {
     pub const fn db_mut(&mut self) -> &mut TuneDb {
         &mut self.db
     }
-}
-
-fn executable_from_compile(compile: CompileReport) -> Result<ExecutableReport, EngineError> {
-    if has_error_diagnostics(&compile.check.diagnostics) {
-        return Err(EngineError::Diagnostics(compile.check.diagnostics.clone()));
-    }
-    let entry_plan = compile
-        .module_plan
-        .entry
-        .as_ref()
-        .ok_or(EngineError::MissingEntry)?;
-    let reachable = reachable_functions(&compile.module_plan.functions, entry_plan);
-    let planned = core::iter::once(entry_plan)
-        .chain(
-            reachable
-                .iter()
-                .map(|index| &compile.module_plan.functions[*index]),
-        )
-        .collect::<Vec<_>>();
-    let mut ir = Vec::new();
-    for plan in planned {
-        let function = tune_ir::lower_plan_function(plan).map_err(|error| {
-            EngineError::Diagnostics(vec![diagnostic_from_ir_lower_error(
-                &plan.name, plan.span, &error,
-            )])
-        })?;
-        ir.push(function);
-    }
-    let _report = tune_opt::optimize_functions(&mut ir);
-    let host_value_types = host_value_types(&compile.check.module);
-    let mut bytecode = tune_bytecode::lower_ir_functions(&ir).map_err(|error| {
-        EngineError::Diagnostics(vec![diagnostic_from_bytecode_lower_error(&error)])
-    })?;
-    bytecode.entry_function = Some(0);
-    Ok(ExecutableReport {
-        compile,
-        ir,
-        bytecode,
-        host_value_types,
-    })
-}
-
-fn host_value_types(module: &tune_hir::module::Module) -> Vec<tune_vm::VmHostValueType> {
-    module
-        .items
-        .iter()
-        .filter_map(|item| {
-            let Some(tune_hir::item::ExternalItem::HostValueType { type_name }) = &item.external
-            else {
-                return None;
-            };
-            Some(tune_vm::VmHostValueType::new(
-                type_name.clone(),
-                item.id.0,
-                item.fields
-                    .iter()
-                    .filter_map(|field| field.name.clone())
-                    .collect(),
-            ))
-        })
-        .collect()
 }
 
 pub(crate) fn has_error_diagnostics(diagnostics: &[Diagnostic]) -> bool {
