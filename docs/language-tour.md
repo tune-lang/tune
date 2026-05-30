@@ -7,7 +7,11 @@ is kept small enough to read in one sitting.
 ```sh
 cargo run -p dyno_cli -- check examples/language/01_values_and_flow.tn
 cargo run -p dyno_cli -- run examples/language/01_values_and_flow.tn
+cargo run -p dyno_cli -- fmt --check examples/language/01_values_and_flow.tn
 ```
+
+`dyno run` is silent unless the program writes output with `print` or a host IO
+function. `dyno check --json <file>` emits structured diagnostics for tools.
 
 The examples are part of the repository test suite:
 

@@ -29,6 +29,7 @@ let passed = score > 30
 let status: String = if passed => "pass" else "retry"
 
 let report = "{status}:{score}"
+let shown: () = print(report)
 ```
 
 Run it with Dyno:
@@ -42,6 +43,22 @@ Check without running:
 ```sh
 cargo run -p dyno_cli -- check examples/language/01_values_and_flow.tn
 ```
+
+Machine-readable diagnostics for tools and CI:
+
+```sh
+cargo run -p dyno_cli -- check --json examples/language/01_values_and_flow.tn
+```
+
+Format or check formatting:
+
+```sh
+cargo run -p dyno_cli -- fmt examples/language/01_values_and_flow.tn
+cargo run -p dyno_cli -- fmt --check examples/language/01_values_and_flow.tn
+```
+
+`dyno run` prints only program output. Use `print(...)` or an explicit `io`
+function when a script should write to the console.
 
 Create a project:
 
@@ -114,7 +131,8 @@ Editor integrations live in [editors](editors). VS Code support is in
 [editors/vscode](editors/vscode), and the Zed scaffold is in
 [editors/zed](editors/zed). Both start `dyno lsp` and consume the same Tune LSP
 server. Set `tune.dynoPath` in VS Code if `dyno` is not on `PATH`; Zed resolves
-`dyno` from the worktree `PATH`.
+`dyno` from the worktree `PATH`. The VS Code extension also exposes commands for
+checking the current file and checking formatting through the Dyno CLI.
 
 Core checks:
 
