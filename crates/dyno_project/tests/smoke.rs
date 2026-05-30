@@ -29,6 +29,16 @@ fn project_manifest_lockfile_and_resolution_are_typed() {
 
     let resolution = dyno_project::resolve(&manifest, &lockfile);
     assert_eq!(resolution.locked_package_count, 1);
+    assert!(resolution.missing_dependencies.is_empty());
+    assert!(
+        resolution
+            .roots
+            .contains(&dyno_project::ModuleRoot::Package(
+                dyno_project::PackageRef {
+                    name: "json".into()
+                }
+            ))
+    );
     assert!(resolution.roots.contains(&dyno_project::ModuleRoot::Std));
     assert!(
         resolution
@@ -48,6 +58,7 @@ entry = "src/main.tn"
 strict = false
 
 [dependencies]
+json = "1.0.0"
 
 [host]
 profile = "dyno.default"
@@ -72,9 +83,44 @@ profile = "dyno.default"
             .roots
             .contains(&dyno_project::ModuleRoot::Host("dyno.default".to_owned()))
     );
+    assert_eq!(
+        manifest.dependencies,
+        vec![dyno_project::Dependency {
+            package: dyno_project::PackageRef {
+                name: "json".into()
+            },
+            requirement: dyno_project::VersionReq("1.0.0".into())
+        }]
+    );
     assert!(manifest.to_toml().contains("edition = \"2026\""));
+    assert!(manifest.to_toml().contains("json = \"1.0.0\""));
 
     Ok(())
+}
+
+#[test]
+fn project_resolution_reports_missing_dependency_locks() {
+    let mut manifest = dyno_project::Manifest::new("app", "main.tn");
+    manifest.dependencies.push(dyno_project::Dependency {
+        package: dyno_project::PackageRef {
+            name: "json".into(),
+        },
+        requirement: dyno_project::VersionReq("1.0.0".into()),
+    });
+
+    let resolution = dyno_project::resolve(&manifest, &dyno_project::Lockfile::new());
+
+    assert_eq!(resolution.locked_package_count, 0);
+    assert_eq!(resolution.missing_dependencies, manifest.dependencies);
+    assert!(
+        !resolution
+            .roots
+            .contains(&dyno_project::ModuleRoot::Package(
+                dyno_project::PackageRef {
+                    name: "json".into()
+                }
+            ))
+    );
 }
 
 #[test]

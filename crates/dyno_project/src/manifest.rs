@@ -27,6 +27,7 @@ impl Manifest {
         let mut edition = None;
         let mut entry = None;
         let mut host_profile = None;
+        let mut dependencies = Vec::new();
 
         for raw_line in text.lines() {
             let line = raw_line.split('#').next().unwrap_or("").trim();
@@ -53,7 +54,12 @@ impl Manifest {
                 ("project", "edition") => edition = Some(value),
                 ("project", "entry") => entry = Some(value),
                 ("host", "profile") => host_profile = Some(value),
-                ("dependencies", _) => {}
+                ("dependencies", package) => dependencies.push(Dependency {
+                    package: PackageRef {
+                        name: package.to_owned(),
+                    },
+                    requirement: VersionReq(value),
+                }),
                 _ => {}
             }
         }
@@ -67,12 +73,23 @@ impl Manifest {
         if let Some(profile) = host_profile {
             manifest.roots.push(ModuleRoot::Host(profile));
         }
+        manifest.dependencies = dependencies;
         Ok(manifest)
     }
 
     #[must_use]
     pub fn to_toml(&self) -> String {
         let edition = self.edition.manifest_value();
+        let dependencies = self
+            .dependencies
+            .iter()
+            .map(|dependency| {
+                format!(
+                    "{} = \"{}\"\n",
+                    dependency.package.name, dependency.requirement.0
+                )
+            })
+            .collect::<String>();
         format!(
             r#"[project]
 name = "{}"
@@ -81,6 +98,7 @@ entry = "{}"
 strict = false
 
 [dependencies]
+{dependencies}
 
 [host]
 profile = "dyno.default"
