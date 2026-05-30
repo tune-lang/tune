@@ -1,5 +1,7 @@
 use tune_bytecode::Opcode;
-use tune_ir::{IrGenericStrategy, IrLocalAccess, IrLocalStore, IrOwnershipPlan, IrTransfer};
+use tune_ir::{
+    IrGenericStrategy, IrLocalAccess, IrLocalStore, IrMutationMode, IrOwnershipPlan, IrTransfer,
+};
 use tune_plan::{FiniteForContractKind, PlanOp};
 use tune_shape::Shape;
 
@@ -129,15 +131,14 @@ fn collect_ir_function(function: &tune_ir::IrFunction, quality: &mut IrQuality) 
                         quality.sequence_build_holes += 1;
                     }
                 }
-                tune_ir::IrOp::SeqPush { .. } => {
+                tune_ir::IrOp::SeqPush { mode, .. } => {
                     quality.sequence_pushes += 1;
+                    collect_sequence_mutation(*mode, quality);
                 }
-                tune_ir::IrOp::SeqGet { checked, .. } | tune_ir::IrOp::SeqSet { checked, .. } => {
-                    if *checked {
-                        quality.checked_sequence_ops += 1;
-                    } else {
-                        quality.unchecked_sequence_ops += 1;
-                    }
+                tune_ir::IrOp::SeqGet { checked, .. } => collect_sequence_access(*checked, quality),
+                tune_ir::IrOp::SeqSet { checked, mode, .. } => {
+                    collect_sequence_access(*checked, quality);
+                    collect_sequence_mutation(*mode, quality);
                 }
                 tune_ir::IrOp::GetField { .. } | tune_ir::IrOp::SetField { .. } => {
                     quality.field_accesses += 1;
@@ -206,6 +207,21 @@ fn collect_transfer(transfer: IrTransfer, quality: &mut IrQuality) {
         IrTransfer::Move => quality.transfer_moves += 1,
         IrTransfer::Alias => quality.transfer_aliases += 1,
         IrTransfer::Borrow => quality.transfer_borrows += 1,
+    }
+}
+
+fn collect_sequence_access(checked: bool, quality: &mut IrQuality) {
+    if checked {
+        quality.checked_sequence_ops += 1;
+    } else {
+        quality.unchecked_sequence_ops += 1;
+    }
+}
+
+fn collect_sequence_mutation(mode: IrMutationMode, quality: &mut IrQuality) {
+    match mode {
+        IrMutationMode::Exclusive => quality.exclusive_sequence_mutations += 1,
+        IrMutationMode::SharedCow => quality.shared_cow_sequence_mutations += 1,
     }
 }
 

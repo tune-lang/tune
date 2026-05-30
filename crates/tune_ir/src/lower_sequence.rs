@@ -1,8 +1,8 @@
 use tune_resolve::NameTarget;
 use tune_shape::Shape;
 
-use crate::IrOp;
 use crate::lower::{IrLowerError, Lowerer};
+use crate::{IrMutationMode, IrOp};
 
 impl Lowerer {
     pub(super) fn lower_sequence_build(
@@ -22,7 +22,11 @@ impl Lowerer {
     pub(super) fn lower_sequence_push(&mut self) -> Result<(), IrLowerError> {
         let value = self.pop("sequence element")?;
         let seq = self.pop("sequence value")?;
-        self.push_op(IrOp::SeqPush { seq, value });
+        self.push_op(IrOp::SeqPush {
+            seq,
+            value,
+            mode: IrMutationMode::Exclusive,
+        });
         self.stack.push(seq);
         Ok(())
     }
@@ -84,6 +88,7 @@ impl Lowerer {
             index,
             value,
             checked,
+            mode: IrMutationMode::SharedCow,
         });
         if let Some(target) = base_target {
             self.store_binding_target(target, seq)?;

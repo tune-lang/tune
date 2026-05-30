@@ -22,6 +22,6 @@ pub use ir::{
     IrStructLayout, IrStructState, Reg, StructField, VariantArm,
 };
 pub use lower::{IrLowerError, lower_plan_function};
-pub use ownership::{IrLocalAccess, IrLocalStore, IrTransfer};
+pub use ownership::{IrLocalAccess, IrLocalStore, IrMutationMode, IrTransfer};
 pub use tune_host::HostSymbolId;
 pub use tune_resolve::LocalId;

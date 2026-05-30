@@ -18,3 +18,9 @@ pub enum IrTransfer {
     Alias,
     Borrow,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrMutationMode {
+    Exclusive,
+    SharedCow,
+}

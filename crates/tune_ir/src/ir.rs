@@ -4,7 +4,7 @@ use tune_host::HostSymbolId;
 use tune_resolve::{LocalId, VariantId};
 use tune_shape::Shape;
 
-use crate::{IrLocalAccess, IrLocalStore, IrTransfer};
+use crate::{IrLocalAccess, IrLocalStore, IrMutationMode, IrTransfer};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Reg(pub u32);
@@ -338,6 +338,7 @@ pub enum IrOp {
     SeqPush {
         seq: Reg,
         value: Reg,
+        mode: IrMutationMode,
     },
     GetField {
         dst: Reg,
@@ -364,6 +365,7 @@ pub enum IrOp {
         index: Reg,
         value: Reg,
         checked: bool,
+        mode: IrMutationMode,
     },
     VariantConstruct {
         dst: Reg,

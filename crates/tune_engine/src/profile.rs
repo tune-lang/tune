@@ -54,6 +54,8 @@ pub struct IrQuality {
     pub sequence_build_holes: usize,
     pub sequence_builds: usize,
     pub sequence_pushes: usize,
+    pub exclusive_sequence_mutations: usize,
+    pub shared_cow_sequence_mutations: usize,
     pub checked_sequence_ops: usize,
     pub unchecked_sequence_ops: usize,
     pub generic_finite_for_ops: usize,

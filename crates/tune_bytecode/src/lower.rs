@@ -240,7 +240,7 @@ impl FunctionLowerer<'_> {
                 self.push_instruction(Opcode::SeqBuild, dst.0, 0, 0);
                 Ok(())
             }
-            IrOp::SeqPush { seq, value } => {
+            IrOp::SeqPush { seq, value, .. } => {
                 self.push_instruction(Opcode::SeqPush, seq.0, value.0, 0);
                 Ok(())
             }
@@ -263,6 +263,7 @@ impl FunctionLowerer<'_> {
                 index,
                 value,
                 checked,
+                ..
             } => {
                 let opcode = if *checked {
                     Opcode::SeqSetChecked

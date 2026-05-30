@@ -56,6 +56,8 @@ let result: Int = values[1]
     assert_eq!(report.ir.shape_holes, 0);
     assert_eq!(report.ir.sequence_builds, 1);
     assert_eq!(report.ir.sequence_pushes, 3);
+    assert_eq!(report.ir.exclusive_sequence_mutations, 3);
+    assert_eq!(report.ir.shared_cow_sequence_mutations, 0);
     assert_eq!(report.bytecode.bound_calls, 0);
     assert_eq!(report.bytecode.runtime_type_guard_pressure, 0);
     assert_eq!(report.bytecode.checked_sequence_ops, 0);

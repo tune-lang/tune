@@ -106,6 +106,7 @@ fn optimizer_eliminates_proven_sequence_bounds_checks() {
                 tune_ir::IrOp::SeqPush {
                     seq: tune_ir::Reg(0),
                     value: tune_ir::Reg(1),
+                    mode: tune_ir::IrMutationMode::Exclusive,
                 },
                 tune_ir::IrOp::LoadConst {
                     dst: tune_ir::Reg(1),
@@ -115,6 +116,7 @@ fn optimizer_eliminates_proven_sequence_bounds_checks() {
                 tune_ir::IrOp::SeqPush {
                     seq: tune_ir::Reg(0),
                     value: tune_ir::Reg(1),
+                    mode: tune_ir::IrMutationMode::Exclusive,
                 },
                 tune_ir::IrOp::StoreLocal {
                     local: tune_ir::LocalId(0),
@@ -189,6 +191,7 @@ fn optimizer_eliminates_sequence_bounds_checks_across_blocks_for_stable_locals()
                     tune_ir::IrOp::SeqPush {
                         seq: tune_ir::Reg(0),
                         value: tune_ir::Reg(1),
+                        mode: tune_ir::IrMutationMode::Exclusive,
                     },
                     tune_ir::IrOp::LoadConst {
                         dst: tune_ir::Reg(1),
@@ -198,6 +201,7 @@ fn optimizer_eliminates_sequence_bounds_checks_across_blocks_for_stable_locals()
                     tune_ir::IrOp::SeqPush {
                         seq: tune_ir::Reg(0),
                         value: tune_ir::Reg(1),
+                        mode: tune_ir::IrMutationMode::Exclusive,
                     },
                     tune_ir::IrOp::StoreLocal {
                         local: tune_ir::LocalId(0),
