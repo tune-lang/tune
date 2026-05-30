@@ -45,6 +45,16 @@ pub fn install() -> HostModule {
                 Ok(optional_path_part(Path::new(path).file_stem()))
             }),
             HostFunction::new(
+                "file_name",
+                vec![HostParam::new("path", Shape::String)],
+                optional_string_shape(),
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let path = crate::string_arg(args, 0, "path")?;
+                Ok(optional_path_part(Path::new(path).file_name()))
+            }),
+            HostFunction::new(
                 "parent",
                 vec![HostParam::new("path", Shape::String)],
                 optional_string_shape(),
@@ -65,6 +75,32 @@ pub fn install() -> HostModule {
             .with_executor(|args: &[Value]| {
                 let path = crate::string_arg(args, 0, "path")?;
                 Ok(Value::String(normalize_lexical(path).display().to_string()))
+            }),
+            HostFunction::new(
+                "with_ext",
+                vec![
+                    HostParam::new("path", Shape::String),
+                    HostParam::new("ext", Shape::String),
+                ],
+                Shape::String,
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let path = crate::string_arg(args, 0, "path")?;
+                let ext = crate::string_arg(args, 1, "ext")?;
+                Ok(Value::String(
+                    Path::new(path).with_extension(ext).display().to_string(),
+                ))
+            }),
+            HostFunction::new(
+                "is_absolute",
+                vec![HostParam::new("path", Shape::String)],
+                Shape::Bool,
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let path = crate::string_arg(args, 0, "path")?;
+                Ok(Value::Bool(Path::new(path).is_absolute()))
             }),
         ],
     )

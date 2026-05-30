@@ -242,7 +242,16 @@ fn env_cwd_executor_returns_result_value() -> Result<(), &'static str> {
 fn path_module_exposes_task_safe_pure_helpers() -> Result<(), &'static str> {
     let module = tune_std::path::install();
 
-    for name in ["join", "ext", "stem", "parent", "normalize"] {
+    for name in [
+        "join",
+        "ext",
+        "stem",
+        "file_name",
+        "parent",
+        "normalize",
+        "with_ext",
+        "is_absolute",
+    ] {
         let function = module
             .functions
             .iter()
@@ -314,6 +323,12 @@ fn path_executors_return_string_and_optional_values() -> Result<(), &'static str
         tune_runtime::Value::String("main".into())
     );
     assert_eq!(
+        executor("file_name")?
+            .call(&[tune_runtime::Value::String("src/main.tn".into())])
+            .map_err(|_| "path.file_name should execute")?,
+        tune_runtime::Value::String("main.tn".into())
+    );
+    assert_eq!(
         executor("parent")?
             .call(&[tune_runtime::Value::String("src/main.tn".into())])
             .map_err(|_| "path.parent should execute")?,
@@ -329,6 +344,26 @@ fn path_executors_return_string_and_optional_values() -> Result<(), &'static str
                 .display()
                 .to_string()
         )
+    );
+    assert_eq!(
+        executor("with_ext")?
+            .call(&[
+                tune_runtime::Value::String("src/main.tn".into()),
+                tune_runtime::Value::String("json".into()),
+            ])
+            .map_err(|_| "path.with_ext should execute")?,
+        tune_runtime::Value::String(
+            std::path::Path::new("src")
+                .join("main.json")
+                .display()
+                .to_string()
+        )
+    );
+    assert_eq!(
+        executor("is_absolute")?
+            .call(&[tune_runtime::Value::String("src/main.tn".into())])
+            .map_err(|_| "path.is_absolute should execute")?,
+        tune_runtime::Value::Bool(false)
     );
 
     Ok(())

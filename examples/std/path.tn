@@ -1,0 +1,9 @@
+-- Work with path components without filesystem access.
+
+import "path"
+
+let source: String = path.join("src", "main.tn")
+let name: String? = path.file_name(source)
+let stem: String? = path.stem(source)
+let json_name: String = path.with_ext(source, "json")
+let absolute: Bool = path.is_absolute(source)
