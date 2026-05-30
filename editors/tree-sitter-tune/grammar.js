@@ -126,6 +126,8 @@ module.exports = grammar({
       $.for_expr,
       $.while_expr,
       $.loop_expr,
+      $.break_expr,
+      $.continue_expr,
       $.return_expr,
       $.spawn_expr,
       $.assignment,
@@ -139,6 +141,7 @@ module.exports = grammar({
       $.tuple,
       $.block,
       $.literal,
+      $.self_expr,
       $.identifier
     ),
 
@@ -153,6 +156,8 @@ module.exports = grammar({
     for_expr: $ => seq("for", $.identifier, "in", $.expression, $.block),
     while_expr: $ => seq("while", $.expression, $.block),
     loop_expr: $ => seq("loop", $.block),
+    break_expr: $ => "break",
+    continue_expr: $ => "continue",
     return_expr: $ => seq("return", optional($.expression)),
     spawn_expr: $ => seq("spawn", $.expression),
 
@@ -187,13 +192,21 @@ module.exports = grammar({
     tuple: $ => seq("(", optional(seq($.expression, repeat(seq(",", $.expression)), optional(","))), ")"),
 
     literal: $ => choice($.float, $.int, $.string, $.multiline_string, "true", "false", "none", "Ok", "Error", "Never"),
+    self_expr: $ => "self",
 
     identifier: _ => /[A-Za-z_][A-Za-z0-9_]*/,
     type_identifier: _ => /[A-Z][A-Za-z0-9_]*/,
     tag_name: _ => /[A-Za-z_][A-Za-z0-9_]*/,
     int: _ => /[0-9][0-9_]*/,
     float: _ => /[0-9][0-9_]*\.[0-9][0-9_]*/,
-    string: _ => /"([^"\\]|\\.)*"/,
+    string: $ => seq(
+      "\"",
+      repeat(choice($.string_fragment, $.escape_sequence, $.interpolation)),
+      "\""
+    ),
+    string_fragment: _ => token.immediate(prec(1, /[^"\\{}]+/)),
+    escape_sequence: _ => token.immediate(/\\./),
+    interpolation: $ => seq("{", $.expression, "}"),
     multiline_string: _ => /"""[^]*?"""/,
     line_comment: _ => /--[^\n]*/,
     block_comment: _ => /-\/[^]*?\/-/

@@ -2,7 +2,9 @@
 (block_comment) @comment
 
 (string) @string
+(string_fragment) @string
 (multiline_string) @string
+(escape_sequence) @string.escape
 (interpolation) @embedded
 
 (int) @number
@@ -57,6 +59,8 @@
   "Error"
   "Never"
 ] @constant.builtin
+
+(self_expr) @constant.builtin
 
 (tag_name) @attribute
 (type_identifier) @type

@@ -6,6 +6,7 @@
     { "include": "#strings" },
     { "include": "#numbers" },
     { "include": "#keywords" },
+    { "include": "#operators" },
     { "include": "#types" },
     { "include": "#tags" }
   ],
@@ -74,6 +75,14 @@
         {
           "name": "constant.language.tune",
           "match": "\\b(true|false|none|self|Ok|Error|Never)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.tune",
+          "match": "\\.\\.=|\\.\\.|==|~=|<=|>=|<<=?|>>=?|[-+*/%&|^~]=?|[<>!=]"
         }
       ]
     },
