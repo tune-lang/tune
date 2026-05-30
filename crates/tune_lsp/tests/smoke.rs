@@ -293,6 +293,7 @@ fn lsp_session_reports_inlays_semantic_tokens_and_code_actions() -> Result<(), &
     let mut session = tune_lsp::LspSession::new();
     let source = r#"
 pub let add(a, b) = a + b
+let count = 1
 let value = add(1, 2)
 "#;
     let file = session

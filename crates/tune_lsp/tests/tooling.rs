@@ -200,3 +200,36 @@ let result = counter.b
 
     Ok(())
 }
+
+#[test]
+fn lsp_semantic_tokens_distinguish_struct_members() -> Result<(), &'static str> {
+    let mut session = tune_lsp::LspSession::new();
+    let source = r#"struct Counter {
+  value: Int
+
+  bump(): Int = self.value
+}
+
+let counter: Counter = Counter {
+  value = 1
+}
+let result = counter.bump()
+"#;
+    let file = session
+        .open_document("main.tn", source)
+        .ok_or("document should open")?;
+
+    let tokens = session.semantic_tokens(file);
+    assert!(
+        tokens
+            .iter()
+            .any(|token| token.kind == tune_lsp::SemanticTokenKind::Property)
+    );
+    assert!(
+        tokens
+            .iter()
+            .any(|token| token.kind == tune_lsp::SemanticTokenKind::Function)
+    );
+
+    Ok(())
+}

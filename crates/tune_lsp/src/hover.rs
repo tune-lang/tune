@@ -128,7 +128,7 @@ pub fn semantic_shape_text(shape: &tune_shape::Shape) -> String {
         tune_shape::Shape::Byte => "Byte".to_owned(),
         tune_shape::Shape::Bool => "Bool".to_owned(),
         tune_shape::Shape::String => "String".to_owned(),
-        tune_shape::Shape::Literal(literal) => format!("{literal:?}"),
+        tune_shape::Shape::Literal(literal) => semantic_shape_text(&literal.storage_shape()),
         tune_shape::Shape::Param(name) => name.clone(),
         tune_shape::Shape::Sequence(inner) => format!("[{}]", semantic_shape_text(inner)),
         tune_shape::Shape::Range(inner) => format!("Range<{}>", semantic_shape_text(inner)),
