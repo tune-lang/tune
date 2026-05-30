@@ -1,0 +1,7 @@
+-- Read clocks and sleep through the standard time module.
+
+import "time"
+
+let started: Result<Int, String> = time.now_millis()
+let elapsed: Size = time.monotonic_millis()
+let paused: Result<Unit, String> = time.sleep_millis(0)

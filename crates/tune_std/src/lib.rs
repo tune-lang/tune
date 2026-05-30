@@ -10,6 +10,7 @@ pub mod path;
 pub mod prelude;
 pub mod process;
 pub mod text;
+pub mod time;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct StdHost;
@@ -38,6 +39,7 @@ pub fn modules() -> Vec<tune_host::HostModule> {
         fs::install(),
         json::install(),
         process::install(),
+        time::install(),
     ]
 }
 

@@ -45,6 +45,7 @@ fn std_host_installs_default_modules() {
     assert!(modules.iter().any(|module| module.name == "fs"));
     assert!(modules.iter().any(|module| module.name == "json"));
     assert!(modules.iter().any(|module| module.name == "process"));
+    assert!(modules.iter().any(|module| module.name == "time"));
 }
 
 #[test]

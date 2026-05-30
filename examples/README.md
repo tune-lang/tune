@@ -45,3 +45,4 @@ cargo test -p dyno_cli --test std_examples
 ## Standard Library Examples
 
 - [json.tn](std/json.tn): JSON validation and formatting helpers.
+- [time.tn](std/time.tn): clock reads and millisecond sleep.
