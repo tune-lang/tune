@@ -5,6 +5,7 @@ cargo test -p tune_lsp --all-targets
 cargo test -p tune_fmt --all-targets
 cargo test -p dyno_cli --test language_examples
 cargo test -p dyno_cli --test std_examples
+cargo test -p dyno_cli --test docs
 cargo check --manifest-path editors/zed/Cargo.toml
 
 (
