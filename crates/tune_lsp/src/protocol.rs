@@ -1,5 +1,5 @@
 use tune_db::TuneDb;
-use tune_diagnostics::{Diagnostic, Severity, Span};
+use tune_diagnostics::{ByteOffset, Diagnostic, Severity, Span};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Position {
@@ -55,6 +55,12 @@ pub fn range(db: &TuneDb, span: Span) -> Option<Range> {
     })
 }
 
+#[must_use]
+pub fn byte_offset(db: &TuneDb, file: tune_db::FileId, position: Position) -> Option<ByteOffset> {
+    let source = db.source(file)?;
+    offset(&source.text, position).and_then(|offset| offset.try_into().ok().map(ByteOffset::new))
+}
+
 fn severity(severity: Severity) -> DiagnosticSeverity {
     match severity {
         Severity::Error => DiagnosticSeverity::Error,
@@ -87,4 +93,43 @@ fn position(text: &str, byte_offset: u32) -> Option<Position> {
         .try_into()
         .ok()?;
     Some(Position { line, character })
+}
+
+fn offset(text: &str, position: Position) -> Option<usize> {
+    let target_line = usize::try_from(position.line).ok()?;
+    let target_character = usize::try_from(position.character).ok()?;
+    let mut line = 0_usize;
+    let mut line_start = 0_usize;
+    for (index, byte) in text.bytes().enumerate() {
+        if line == target_line {
+            break;
+        }
+        if byte == b'\n' {
+            line += 1;
+            line_start = index + 1;
+        }
+    }
+    if line != target_line {
+        return None;
+    }
+
+    let line_end = text[line_start..]
+        .find('\n')
+        .map_or(text.len(), |index| line_start + index);
+    let line_text = &text[line_start..line_end];
+    let mut utf16_units = 0_usize;
+    for (relative_index, character) in line_text.char_indices() {
+        if utf16_units == target_character {
+            return Some(line_start + relative_index);
+        }
+        utf16_units += character.len_utf16();
+        if utf16_units > target_character {
+            return None;
+        }
+    }
+    if utf16_units == target_character {
+        Some(line_end)
+    } else {
+        None
+    }
 }

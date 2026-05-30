@@ -35,6 +35,23 @@ let run(input: String): String = input
     assert!(markdown.contains("Run docs."));
     assert!(markdown.contains("```tn"));
     assert!(markdown.contains("let run(input: String): String"));
+    let source = session.db().source(file).ok_or("source should exist")?;
+    let run_offset = source
+        .text
+        .find("run")
+        .ok_or("fixture should contain callable name")?;
+    let run_span = tune_diagnostics::Span::new(
+        file,
+        tune_diagnostics::ByteOffset::new(run_offset.try_into().map_err(|_| "start fits")?),
+        tune_diagnostics::ByteOffset::new((run_offset + 1).try_into().map_err(|_| "end fits")?),
+    );
+    let run_position = tune_lsp::protocol::range(session.db(), run_span)
+        .ok_or("callable span should map")?
+        .start;
+    let position_hover = session
+        .hover_card_at(file, run_position)
+        .ok_or("callable position should map to a hover card")?;
+    assert_eq!(position_hover.signature, hover.signature);
 
     let completions = session.completions(file);
     let run = completions

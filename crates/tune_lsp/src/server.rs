@@ -73,6 +73,11 @@ impl LspSession {
     }
 
     #[must_use]
+    pub fn hover_card_at(&self, file: FileId, position: crate::Position) -> Option<HoverCard> {
+        hover::hover_card_at(&self.db, file, position)
+    }
+
+    #[must_use]
     pub const fn db(&self) -> &TuneDb {
         &self.db
     }

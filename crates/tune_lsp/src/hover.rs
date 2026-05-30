@@ -1,5 +1,7 @@
 use tune_db::{FileId, TuneDb};
+use tune_diagnostics::{ByteOffset, Span};
 use tune_hir::MemberId;
+use tune_hir::item::{Item, StructMember};
 use tune_hir::shape::{ShapeExpr, ShapeExprKind, StructuralShapeRequirementKind};
 use tune_resolve::{CompilerFact, CompilerFactPayload, FactOwner};
 
@@ -83,6 +85,90 @@ pub fn hover_card(db: &TuneDb, file: FileId, owner: FactOwner) -> Option<HoverCa
         signature,
         facts,
     })
+}
+
+#[must_use]
+pub fn hover_card_at(db: &TuneDb, file: FileId, position: crate::Position) -> Option<HoverCard> {
+    let offset = crate::protocol::byte_offset(db, file, position)?;
+    let owner = owner_at_offset(db, file, offset)?;
+    hover_card(db, file, owner)
+}
+
+#[must_use]
+pub fn owner_at_offset(db: &TuneDb, file: FileId, offset: ByteOffset) -> Option<FactOwner> {
+    let analysis = db.analyze_file(file)?;
+    let mut best = None;
+    for item in &analysis.module.items {
+        consider_span(&mut best, item.span, FactOwner::Item(item.id), offset);
+        for (span, owner) in member_spans(item) {
+            consider_span(&mut best, span, owner, offset);
+        }
+    }
+    best.map(|(_, owner)| owner)
+}
+
+fn consider_span(
+    best: &mut Option<(u32, FactOwner)>,
+    span: Option<Span>,
+    owner: FactOwner,
+    offset: ByteOffset,
+) {
+    let Some(span) = span else {
+        return;
+    };
+    if !span.contains(offset) {
+        return;
+    }
+    let len = span.len();
+    if best.is_none_or(|(best_len, _)| len < best_len) {
+        *best = Some((len, owner));
+    }
+}
+
+fn member_spans(item: &Item) -> Vec<(Option<Span>, FactOwner)> {
+    let mut spans = Vec::new();
+    spans.extend(
+        item.type_params
+            .iter()
+            .map(|param| (param.span, FactOwner::Member(param.id))),
+    );
+    spans.extend(
+        item.params
+            .iter()
+            .map(|param| (param.span, FactOwner::Member(param.id))),
+    );
+    spans.extend(
+        item.fields
+            .iter()
+            .map(|field| (field.span, FactOwner::Member(field.id))),
+    );
+    spans.extend(
+        item.variants
+            .iter()
+            .map(|variant| (variant.span, FactOwner::Member(variant.id))),
+    );
+    for member in &item.struct_members {
+        match member {
+            StructMember::Field(field) => spans.push((field.span, FactOwner::Member(field.id))),
+            StructMember::Callable(callable) => {
+                spans.push((callable.span, FactOwner::Member(callable.id)));
+                spans.extend(
+                    callable
+                        .params
+                        .iter()
+                        .map(|param| (param.span, FactOwner::Member(param.id))),
+                );
+            }
+            StructMember::SequenceMaterializer(materializer) => {
+                spans.push((materializer.span, FactOwner::Member(materializer.id)));
+            }
+            StructMember::IndexAccess(access) => {
+                spans.push((access.span, FactOwner::Member(access.id)));
+                spans.push((access.span, FactOwner::Member(access.index_param_id)));
+            }
+        }
+    }
+    spans
 }
 
 fn signature_for_owner(
