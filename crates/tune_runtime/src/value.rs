@@ -27,6 +27,10 @@ pub enum Value {
         owner: u32,
         fields: StructFields,
     },
+    HostStruct {
+        type_name: String,
+        fields: Vec<(String, Value)>,
+    },
     Variant {
         variant: RuntimeVariant,
         fields: Vec<Value>,
@@ -63,6 +67,16 @@ impl PartialEq for Value {
                 },
             ) => left_owner == right_owner && left_fields == right_fields,
             (
+                Self::HostStruct {
+                    type_name: left_type,
+                    fields: left_fields,
+                },
+                Self::HostStruct {
+                    type_name: right_type,
+                    fields: right_fields,
+                },
+            ) => left_type == right_type && left_fields == right_fields,
+            (
                 Self::Variant {
                     variant: left_variant,
                     fields: left_fields,
@@ -95,6 +109,13 @@ impl Value {
             // allocation, so use `Vm::capture_snapshot` for executable closure
             // and task captures.
             Self::Struct { .. } => self.clone(),
+            Self::HostStruct { type_name, fields } => Self::HostStruct {
+                type_name: type_name.clone(),
+                fields: fields
+                    .iter()
+                    .map(|(name, value)| (name.clone(), value.capture_snapshot()))
+                    .collect(),
+            },
             Self::Sequence(values) => {
                 Self::Sequence(values.iter().map(Self::capture_snapshot).collect())
             }
@@ -122,6 +143,9 @@ impl Value {
                 values.iter().find_map(Self::task_safety_error)
             }
             Self::Struct { fields, .. } => fields.task_safety_error(),
+            Self::HostStruct { fields, .. } => fields
+                .iter()
+                .find_map(|(_, value)| value.task_safety_error()),
             Self::Variant { fields, .. } => fields.iter().find_map(Self::task_safety_error),
             Self::Callable(callable) => callable.task_safety_error(),
             _ => None,

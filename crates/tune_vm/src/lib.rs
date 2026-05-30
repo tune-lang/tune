@@ -15,5 +15,5 @@ pub mod vm;
 mod vm_state;
 
 pub use error::{VmError, VmFault, VmLocation};
-pub use host_resource::VmHostResourceType;
+pub use host_resource::{VmHostResourceType, VmHostValueType};
 pub use vm::Vm;

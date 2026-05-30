@@ -18,8 +18,8 @@ pub use diagnostics::{
     diagnostics_from_runtime_value, diagnostics_from_runtime_value_with_sources,
 };
 pub use host::{
-    EngineHostResourceType, EngineHostSymbol, EngineHostSymbolId, EngineResourceTypeId,
-    HostRegistration,
+    EngineHostResourceType, EngineHostSymbol, EngineHostSymbolId, EngineHostValueType,
+    EngineResourceTypeId, HostRegistration,
 };
 pub use profile::{
     BytecodeQuality, IrQuality, OpcodeCount, OptimizerQuality, PlanQuality, ProfileReport,
@@ -75,6 +75,7 @@ pub struct ExecutableReport {
     pub compile: CompileReport,
     pub ir: Vec<tune_ir::IrFunction>,
     pub bytecode: tune_bytecode::artifact::BytecodeArtifact,
+    pub host_value_types: Vec<tune_vm::VmHostValueType>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -224,6 +225,7 @@ impl Tune {
             .with_host_executor_slots(self.hosts.executors())
             .with_host_authority_slots(self.hosts.authorities())
             .with_host_resource_types(self.hosts.vm_resource_types())
+            .with_host_value_types(executable.host_value_types.clone())
             .with_authorities(self.authorities.clone());
         vm.run_entry().map_err(|fault| {
             EngineError::Diagnostics(vec![diagnostic_from_vm_fault_with_sources(
@@ -350,6 +352,7 @@ impl Tune {
             .with_host_executor_slots(self.hosts.executors())
             .with_host_authority_slots(self.hosts.authorities())
             .with_host_resource_types(self.hosts.vm_resource_types())
+            .with_host_value_types(executable.host_value_types.clone())
             .with_authorities(self.authorities.clone());
         vm.run_entry().map_err(|fault| {
             EngineError::Diagnostics(vec![diagnostic_from_vm_fault_with_sources(
@@ -445,6 +448,11 @@ impl Tune {
     }
 
     #[must_use]
+    pub fn host_value_types(&self) -> &[EngineHostValueType] {
+        self.hosts.values()
+    }
+
+    #[must_use]
     pub fn host_resource_type(&self, id: EngineResourceTypeId) -> Option<&EngineHostResourceType> {
         self.hosts.resource(id)
     }
@@ -526,6 +534,7 @@ fn executable_from_compile(compile: CompileReport) -> Result<ExecutableReport, E
         ir.push(function);
     }
     let _report = tune_opt::optimize_functions(&mut ir);
+    let host_value_types = host_value_types(&compile.check.module);
     let mut bytecode = tune_bytecode::lower_ir_functions(&ir).map_err(|error| {
         EngineError::Diagnostics(vec![diagnostic_from_bytecode_lower_error(&error)])
     })?;
@@ -534,7 +543,29 @@ fn executable_from_compile(compile: CompileReport) -> Result<ExecutableReport, E
         compile,
         ir,
         bytecode,
+        host_value_types,
     })
+}
+
+fn host_value_types(module: &tune_hir::module::Module) -> Vec<tune_vm::VmHostValueType> {
+    module
+        .items
+        .iter()
+        .filter_map(|item| {
+            let Some(tune_hir::item::ExternalItem::HostValueType { type_name }) = &item.external
+            else {
+                return None;
+            };
+            Some(tune_vm::VmHostValueType::new(
+                type_name.clone(),
+                item.id.0,
+                item.fields
+                    .iter()
+                    .filter_map(|field| field.name.clone())
+                    .collect(),
+            ))
+        })
+        .collect()
 }
 
 pub(crate) fn has_error_diagnostics(diagnostics: &[Diagnostic]) -> bool {

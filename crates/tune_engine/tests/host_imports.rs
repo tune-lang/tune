@@ -30,6 +30,41 @@ impl tune_host::Host for PathHost {
     }
 }
 
+struct MetaHost;
+
+impl tune_host::Host for MetaHost {
+    fn modules(&self) -> Vec<tune_host::HostModule> {
+        vec![
+            tune_host::HostModule::new(
+                "meta",
+                vec![
+                    tune_host::HostFunction::new(
+                        "make",
+                        Vec::new(),
+                        tune_shape::Shape::Struct(tune_shape::NominalShape::external("meta.Pair")),
+                    )
+                    .with_executor(|_: &[tune_runtime::Value]| {
+                        Ok(tune_runtime::Value::HostStruct {
+                            type_name: "meta.Pair".into(),
+                            fields: vec![
+                                ("count".into(), tune_runtime::Value::Int(42)),
+                                ("name".into(), tune_runtime::Value::String("answer".into())),
+                            ],
+                        })
+                    }),
+                ],
+            )
+            .with_values(vec![tune_host::HostValueType::new(
+                "Pair",
+                vec![
+                    tune_host::HostValueField::new("count", tune_shape::Shape::Int),
+                    tune_host::HostValueField::new("name", tune_shape::Shape::String),
+                ],
+            )]),
+        ]
+    }
+}
+
 #[test]
 fn host_module_import_exposes_namespace_members() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new().with_host(&PathHost);
@@ -72,5 +107,27 @@ let result: String = join("src", "main.tn")
         diagnostic.code == tune_diagnostics::codes::UNRESOLVED_NAME
             && diagnostic.title == "unresolved name `join`"
     }));
+    Ok(())
+}
+
+#[test]
+fn host_value_structs_flow_through_shape_plan_and_vm() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new().with_host(&MetaHost);
+    let file = tune
+        .add_file(
+            "main.tn",
+            r#"
+import "meta".make
+let result: Int = make().count
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    let value = tune.run_file(file).map_err(|error| {
+        eprintln!("{error:?}");
+        "host value struct should execute"
+    })?;
+
+    assert_eq!(value, tune_runtime::Value::Int(42));
     Ok(())
 }

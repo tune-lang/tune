@@ -4,6 +4,7 @@ use tune_host::HostExecutor;
 use tune_host::HostFunction;
 use tune_host::HostResourceType;
 pub use tune_host::HostSymbolId as EngineHostSymbolId;
+use tune_host::HostValueType;
 use tune_host::module::HostModule;
 pub use tune_runtime::ResourceTypeId as EngineResourceTypeId;
 
@@ -23,10 +24,17 @@ pub struct EngineHostResourceType {
     pub resource: HostResourceType,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EngineHostValueType {
+    pub module: String,
+    pub value: HostValueType,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HostRegistration {
     pub module_count: usize,
     pub function_count: usize,
+    pub value_count: usize,
     pub resource_count: usize,
 }
 
@@ -34,6 +42,7 @@ pub struct HostRegistration {
 pub(crate) struct HostRegistry {
     modules: Vec<HostModule>,
     symbols: Vec<EngineHostSymbol>,
+    values: Vec<EngineHostValueType>,
     resources: Vec<EngineHostResourceType>,
     executors: Vec<Option<HostExecutor>>,
     authorities: Vec<Vec<Authority>>,
@@ -47,12 +56,23 @@ impl HostRegistry {
             .iter()
             .map(|module| module.functions.len())
             .sum::<usize>();
+        let value_count = modules
+            .iter()
+            .map(|module| module.values.len())
+            .sum::<usize>();
         let resource_count = modules
             .iter()
             .map(|module| module.resources.len())
             .sum::<usize>();
 
         for module in &modules {
+            for value in &module.values {
+                self.values.push(EngineHostValueType {
+                    module: module.name.clone(),
+                    value: value.clone(),
+                });
+            }
+
             for resource in &module.resources {
                 let id =
                     EngineResourceTypeId(u32::try_from(self.resources.len()).unwrap_or(u32::MAX));
@@ -79,6 +99,7 @@ impl HostRegistry {
         HostRegistration {
             module_count,
             function_count,
+            value_count,
             resource_count,
         }
     }
@@ -93,6 +114,10 @@ impl HostRegistry {
 
     pub(crate) fn resources(&self) -> &[EngineHostResourceType] {
         &self.resources
+    }
+
+    pub(crate) fn values(&self) -> &[EngineHostValueType] {
+        &self.values
     }
 
     pub(crate) fn resource(&self, id: EngineResourceTypeId) -> Option<&EngineHostResourceType> {

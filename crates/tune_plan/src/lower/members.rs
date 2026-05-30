@@ -67,8 +67,7 @@ impl LowerContext<'_> {
 
     pub(super) fn field_member(&self, base: &Expr, field: &str) -> Option<MemberId> {
         let shape = self.expr_shape(base)?;
-        let name = self.struct_shape_name(&shape)?;
-        self.struct_item(name)?
+        self.struct_item_for_shape(&shape)?
             .struct_members
             .iter()
             .find_map(|member| match member {
@@ -80,6 +79,14 @@ impl LowerContext<'_> {
                 }
                 _ => None,
             })
+    }
+
+    fn struct_item_for_shape(&self, shape: &Shape) -> Option<&Item> {
+        let nominal = shape.nominal()?;
+        if let Some(id) = nominal.id {
+            return self.module?.items.iter().find(|item| item.id == id);
+        }
+        self.struct_item(&nominal.name)
     }
 
     pub(super) fn field_base_target(&self, base: &Expr) -> Option<NameTarget> {

@@ -8,7 +8,7 @@ use tune_hir::item::{
 };
 use tune_hir::module::Module;
 use tune_hir::{HirId, MemberId, MemberKind};
-use tune_host::HostFunction;
+use tune_host::{HostFunction, HostValueType};
 use tune_resolve::ResolvedModule;
 
 use crate::host::HostRegistry;
@@ -188,7 +188,22 @@ fn append_host_imports(
         ImportSelector::Members(names) => names.iter().map(String::as_str).collect(),
     };
     let mut matched_module = false;
+    if let Some(host_module) = hosts.modules().iter().find(|module| module.name == path) {
+        for value in &host_module.values {
+            let _ = append_host_value_item(module, path, value, None);
+        }
+    }
     for name in names {
+        if let Some(value) = hosts
+            .modules()
+            .iter()
+            .find(|module| module.name == path)
+            .and_then(|module| module.values.iter().find(|value| value.name == name))
+        {
+            matched_module = true;
+            append_host_value_item(module, path, value, span);
+            continue;
+        }
         let Some((symbol, function)) = hosts.function(path, name) else {
             if hosts.modules().iter().any(|module| module.name == path) {
                 matched_module = true;
@@ -213,6 +228,15 @@ fn append_host_module_import(
     };
 
     let mut members = Vec::new();
+    for value in &host_module.values {
+        let Some(item) = append_host_value_item(module, path, value, None) else {
+            continue;
+        };
+        members.push(ModuleNamespaceMember {
+            name: value.name.clone(),
+            item,
+        });
+    }
     for function in &host_module.functions {
         let Some((symbol, function)) = hosts.function(path, &function.name) else {
             continue;
@@ -228,6 +252,60 @@ fn append_host_module_import(
     }
     append_module_namespace_item(module, module_alias(path), members, span);
     true
+}
+
+fn append_host_value_item(
+    module: &mut Module,
+    module_name: &str,
+    value: &HostValueType,
+    span: Option<Span>,
+) -> Option<HirId> {
+    let index = u32::try_from(module.items.len()).ok()?;
+    let owner = HirId(index);
+    let type_name = host_value_type_name(module_name, &value.name);
+    let fields = value
+        .fields
+        .iter()
+        .enumerate()
+        .filter_map(|(index, field)| {
+            Some(tune_hir::item::Field {
+                id: MemberId {
+                    owner,
+                    kind: MemberKind::Field,
+                    index: u32::try_from(index).ok()?,
+                },
+                name: Some(field.name.clone()),
+                span,
+                doc: None,
+                shape: Some(shape_expr(&field.shape)),
+                default: None,
+            })
+        })
+        .collect::<Vec<_>>();
+    let struct_members = fields
+        .iter()
+        .cloned()
+        .map(tune_hir::item::StructMember::Field)
+        .collect();
+    module.items.push(Item {
+        id: owner,
+        name: Some(type_name.clone()),
+        kind: ItemKind::Struct,
+        visibility: Visibility::Public,
+        span,
+        doc: None,
+        tags: Vec::new(),
+        import: None,
+        type_params: Vec::new(),
+        params: Vec::new(),
+        struct_members,
+        fields,
+        variants: Vec::new(),
+        shape: None,
+        body: None,
+        external: Some(ExternalItem::HostValueType { type_name }),
+    });
+    Some(owner)
 }
 
 fn append_host_item(
@@ -424,4 +502,8 @@ fn internal_host_name(path: &str, name: &str, symbol: tune_host::HostSymbolId) -
     out.push('_');
     out.push_str(&symbol.0.to_string());
     out
+}
+
+fn host_value_type_name(module: &str, name: &str) -> String {
+    format!("{module}.{name}")
 }

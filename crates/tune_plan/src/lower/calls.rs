@@ -131,7 +131,8 @@ impl LowerContext<'_> {
             tune_hir::item::ExternalItem::HostFunction { symbol, .. } => {
                 Some(tune_host::HostSymbolId(symbol.0))
             }
-            tune_hir::item::ExternalItem::ModuleNamespace { .. } => None,
+            tune_hir::item::ExternalItem::HostValueType { .. }
+            | tune_hir::item::ExternalItem::ModuleNamespace { .. } => None,
         }
     }
 

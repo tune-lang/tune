@@ -41,6 +41,8 @@ pub enum VmError {
     TaskUnsafeCapture { resource_type: String },
     TaskUnsafeHostCall { symbol: u32 },
     UnknownHostResourceType { resource_type: String },
+    UnknownHostValueType { type_name: String },
+    MissingHostValueField { type_name: String, field: String },
     MissingHostAuthority { authority: String },
     MissingHostExecutor { symbol: u32 },
     HostCallFailed { message: String },

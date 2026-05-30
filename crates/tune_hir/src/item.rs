@@ -25,6 +25,9 @@ pub enum ExternalItem {
         symbol: ExternalSymbolId,
         task_safe: bool,
     },
+    HostValueType {
+        type_name: String,
+    },
     ModuleNamespace {
         members: Vec<ModuleNamespaceMember>,
     },

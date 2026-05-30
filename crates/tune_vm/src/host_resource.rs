@@ -1,3 +1,5 @@
+use tune_bytecode::function::BytecodeStructState;
+use tune_runtime::value::StructFields;
 use tune_runtime::{ResourceHandle, ResourceId, ResourceTypeId, Value};
 
 use crate::{Vm, VmError, resource_table::ResourceLifecycle};
@@ -11,6 +13,24 @@ pub struct VmHostResourceType {
     pub retention: tune_host::ResourceRetention,
     pub cleanup: tune_host::ResourceCleanup,
     pub cleanup_executor: Option<tune_host::ResourceCleanupExecutor>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VmHostValueType {
+    pub type_name: String,
+    pub owner: u32,
+    pub fields: Vec<String>,
+}
+
+impl VmHostValueType {
+    #[must_use]
+    pub fn new(type_name: impl Into<String>, owner: u32, fields: Vec<String>) -> Self {
+        Self {
+            type_name: type_name.into(),
+            owner,
+            fields,
+        }
+    }
 }
 
 impl VmHostResourceType {
@@ -73,6 +93,9 @@ impl Vm {
             Value::Resource(resource) => {
                 self.normalize_host_resource(resource).map(Value::Resource)
             }
+            Value::HostStruct { type_name, fields } => {
+                self.normalize_host_struct(type_name, fields)
+            }
             Value::Sequence(values) => values
                 .into_iter()
                 .map(|value| self.normalize_host_value(value))
@@ -98,6 +121,35 @@ impl Vm {
                 }),
             value => Ok(value),
         }
+    }
+
+    fn normalize_host_struct(
+        &self,
+        type_name: String,
+        fields: Vec<(String, Value)>,
+    ) -> Result<Value, VmError> {
+        let Some(value_type) = self
+            .host_value_types
+            .iter()
+            .find(|value_type| value_type.type_name == type_name)
+        else {
+            return Err(VmError::UnknownHostValueType { type_name });
+        };
+        let mut ordered = Vec::with_capacity(value_type.fields.len());
+        for expected in &value_type.fields {
+            let Some((_, value)) = fields.iter().find(|(name, _)| name == expected) else {
+                return Err(VmError::MissingHostValueField {
+                    type_name: value_type.type_name.clone(),
+                    field: expected.clone(),
+                });
+            };
+            ordered.push(self.normalize_host_value(value.clone())?);
+        }
+        let state = self.alloc_state(BytecodeStructState::LOCAL)?;
+        Ok(Value::Struct {
+            owner: value_type.owner,
+            fields: StructFields::new(state, ordered),
+        })
     }
 
     fn normalize_host_resource(&self, resource: ResourceHandle) -> Result<ResourceHandle, VmError> {
