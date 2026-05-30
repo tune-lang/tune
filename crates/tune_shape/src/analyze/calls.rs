@@ -25,6 +25,7 @@ impl Analyzer<'_> {
             || expr_shape_fact(expr, self.module, self.resolved).unwrap_or(Shape::Hole),
             |signature| {
                 self.check_call_args(expr, signature, &arg_shapes);
+                self.check_generic_call_solved(expr, signature);
                 if matches!(signature.target, CallTarget::Variant(_)) {
                     expr_shape_fact(expr, self.module, self.resolved)
                         .unwrap_or_else(|| signature.ret.clone())
@@ -88,6 +89,42 @@ impl Analyzer<'_> {
                 );
             }
         }
+    }
+
+    fn check_generic_call_solved(&mut self, expr: &Expr, signature: &CallSignature) {
+        if signature.type_params.is_empty()
+            || !matches!(
+                signature.target,
+                CallTarget::TopLevel(_) | CallTarget::Variant(_)
+            )
+        {
+            return;
+        }
+        let unsolved = signature
+            .type_params
+            .iter()
+            .enumerate()
+            .filter_map(|(index, param)| {
+                let solved = signature
+                    .type_args
+                    .get(index)
+                    .is_some_and(|shape| *shape != Shape::Hole);
+                (!solved).then_some(param.as_str())
+            })
+            .collect::<Vec<_>>();
+        if unsolved.is_empty() {
+            return;
+        }
+        self.diagnostics.push(
+            Diagnostic::error(
+                codes::CALLABLE_MISMATCH,
+                "generic call type arguments could not be inferred",
+                expr.span.or(signature.span).unwrap_or_else(Span::synthetic),
+                format!("unsolved generic parameter(s): {}", unsolved.join(", ")),
+            )
+            .with_help("add enough argument or return context for Tune to solve the generic shape")
+            .build(),
+        );
     }
 
     fn call_signature(&mut self, callee: &Expr) -> Option<CallSignature> {

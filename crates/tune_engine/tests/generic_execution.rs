@@ -77,6 +77,29 @@ let result: Int = id(2)
     Ok(())
 }
 
+#[test]
+fn check_file_rejects_unsolved_generic_call_type_args() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let make<T>(): T = panic("unsolved")
+let result = make()
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    let check = tune.check_file(file).ok_or("file should check")?;
+
+    assert!(check.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == tune_diagnostics::codes::CALLABLE_MISMATCH
+            && diagnostic.title == "generic call type arguments could not be inferred"
+    }));
+
+    Ok(())
+}
+
 fn run_file(tune: &tune_engine::Tune, file: tune_db::FileId) -> Result<Value, &'static str> {
     tune.run_file(file).map_err(|error| {
         eprintln!("{error:?}");
