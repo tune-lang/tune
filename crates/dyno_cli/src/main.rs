@@ -46,7 +46,13 @@ fn main() {
                 print!("{}", dyno_cli::render_profile_report(&report));
                 if !report.diagnostics.is_empty() {
                     for diagnostic in &report.diagnostics {
-                        eprintln!("{}", tune_diagnostics::render::render_plain(diagnostic));
+                        eprintln!(
+                            "{}",
+                            tune_diagnostics::render::render_plain_with_sources(
+                                diagnostic,
+                                tune.db()
+                            )
+                        );
                     }
                     std::process::exit(1);
                 }
@@ -55,7 +61,7 @@ fn main() {
                 }
             }
             Err(error) => {
-                for diagnostic in dyno_cli::render_engine_error(&error) {
+                for diagnostic in dyno_cli::render_engine_error_with_sources(&error, tune.db()) {
                     eprintln!("{diagnostic}");
                 }
                 std::process::exit(1);
@@ -68,7 +74,7 @@ fn main() {
         match tune.executable_path(path) {
             Ok(report) => println!("{}", dyno_cli::render_build_report(&report)),
             Err(error) => {
-                for diagnostic in dyno_cli::render_engine_error(&error) {
+                for diagnostic in dyno_cli::render_engine_error_with_sources(&error, tune.db()) {
                     eprintln!("{diagnostic}");
                 }
                 std::process::exit(1);
@@ -81,14 +87,17 @@ fn main() {
         match tune.check_path(path) {
             Ok(report) => {
                 for diagnostic in &report.diagnostics {
-                    eprintln!("{}", tune_diagnostics::render::render_plain(diagnostic));
+                    eprintln!(
+                        "{}",
+                        tune_diagnostics::render::render_plain_with_sources(diagnostic, tune.db())
+                    );
                 }
                 if report.diagnostics.is_empty() {
                     return;
                 }
             }
             Err(error) => {
-                for diagnostic in dyno_cli::render_engine_error(&error) {
+                for diagnostic in dyno_cli::render_engine_error_with_sources(&error, tune.db()) {
                     eprintln!("{diagnostic}");
                 }
             }
@@ -109,7 +118,7 @@ fn main() {
             }
         }
         Err(error) => {
-            for diagnostic in dyno_cli::render_engine_error(&error) {
+            for diagnostic in dyno_cli::render_engine_error_with_sources(&error, tune.db()) {
                 eprintln!("{diagnostic}");
             }
             std::process::exit(1);
@@ -122,7 +131,7 @@ fn run_project_command(command: dyno_cli::CliCommand) {
     let entry = match tune.load_project_manifest("dyno.toml") {
         Ok(entry) => entry,
         Err(error) => {
-            for diagnostic in dyno_cli::render_engine_error(&error) {
+            for diagnostic in dyno_cli::render_engine_error_with_sources(&error, tune.db()) {
                 eprintln!("{diagnostic}");
             }
             std::process::exit(1);
@@ -133,14 +142,17 @@ fn run_project_command(command: dyno_cli::CliCommand) {
         let report = match tune.check_project_entry(entry) {
             Ok(report) => report,
             Err(error) => {
-                for diagnostic in dyno_cli::render_engine_error(&error) {
+                for diagnostic in dyno_cli::render_engine_error_with_sources(&error, tune.db()) {
                     eprintln!("{diagnostic}");
                 }
                 std::process::exit(1);
             }
         };
         for diagnostic in &report.diagnostics {
-            eprintln!("{}", tune_diagnostics::render::render_plain(diagnostic));
+            eprintln!(
+                "{}",
+                tune_diagnostics::render::render_plain_with_sources(diagnostic, tune.db())
+            );
         }
         if !report.diagnostics.is_empty() {
             std::process::exit(1);
@@ -152,7 +164,7 @@ fn run_project_command(command: dyno_cli::CliCommand) {
         match tune.executable_project_entry(entry) {
             Ok(report) => println!("{}", dyno_cli::render_build_report(&report)),
             Err(error) => {
-                for diagnostic in dyno_cli::render_engine_error(&error) {
+                for diagnostic in dyno_cli::render_engine_error_with_sources(&error, tune.db()) {
                     eprintln!("{diagnostic}");
                 }
                 std::process::exit(1);
@@ -170,7 +182,7 @@ fn run_project_command(command: dyno_cli::CliCommand) {
                 }
             }
             Err(error) => {
-                for diagnostic in dyno_cli::render_engine_error(&error) {
+                for diagnostic in dyno_cli::render_engine_error_with_sources(&error, tune.db()) {
                     eprintln!("{diagnostic}");
                 }
                 std::process::exit(1);
@@ -192,7 +204,7 @@ fn run_project_command(command: dyno_cli::CliCommand) {
             }
         }
         Err(error) => {
-            for diagnostic in dyno_cli::render_engine_error(&error) {
+            for diagnostic in dyno_cli::render_engine_error_with_sources(&error, tune.db()) {
                 eprintln!("{diagnostic}");
             }
             std::process::exit(1);

@@ -333,6 +333,22 @@ pub fn render_engine_error(error: &tune_engine::EngineError) -> Vec<String> {
 }
 
 #[must_use]
+pub fn render_engine_error_with_sources(
+    error: &tune_engine::EngineError,
+    db: &tune_db::TuneDb,
+) -> Vec<String> {
+    match error {
+        tune_engine::EngineError::Diagnostics(diagnostics) => diagnostics
+            .iter()
+            .map(|diagnostic| render::render_plain_with_sources(diagnostic, db))
+            .collect::<Vec<_>>(),
+        tune_engine::EngineError::ProjectLoad(message) => vec![message.clone()],
+        tune_engine::EngineError::SourceLoad(message) => vec![message.clone()],
+        _ => vec![format!("execution failed: {error:?}")],
+    }
+}
+
+#[must_use]
 pub fn render_runtime_boundary(value: &tune_runtime::Value) -> Vec<String> {
     tune_engine::diagnostics_from_runtime_value(value)
         .iter()
@@ -347,6 +363,6 @@ pub fn render_runtime_boundary_with_sources(
 ) -> Vec<String> {
     tune_engine::diagnostics_from_runtime_value_with_sources(value, db)
         .iter()
-        .map(render::render_plain)
+        .map(|diagnostic| render::render_plain_with_sources(diagnostic, db))
         .collect()
 }

@@ -1,4 +1,5 @@
 use crate::ids::FileId;
+use tune_diagnostics::render::{SourceProvider, SourceView};
 
 #[derive(Debug, Clone)]
 pub struct SourceFile {
@@ -46,5 +47,15 @@ impl SourceMap {
 
     pub fn iter(&self) -> impl Iterator<Item = &SourceFile> {
         self.files.iter()
+    }
+}
+
+impl SourceProvider for SourceMap {
+    fn source(&self, file: FileId) -> Option<SourceView<'_>> {
+        let source = self.get(file)?;
+        Some(SourceView {
+            path: &source.path,
+            text: &source.text,
+        })
     }
 }

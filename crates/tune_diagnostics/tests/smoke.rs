@@ -56,6 +56,46 @@ fn plain_renderer_includes_labels_facts_notes_and_help() {
 }
 
 #[test]
+fn plain_renderer_can_include_source_snippets() {
+    struct Sources;
+
+    impl tune_diagnostics::render::SourceProvider for Sources {
+        fn source(
+            &self,
+            file: tune_diagnostics::FileId,
+        ) -> Option<tune_diagnostics::render::SourceView<'_>> {
+            if file == tune_diagnostics::FileId(1) {
+                Some(tune_diagnostics::render::SourceView {
+                    path: "app.tn",
+                    text: "let value: Int = \"bad\"\n",
+                })
+            } else {
+                None
+            }
+        }
+    }
+
+    let span = tune_diagnostics::Span::new(
+        tune_diagnostics::FileId(1),
+        tune_diagnostics::ByteOffset::new(17),
+        tune_diagnostics::ByteOffset::new(22),
+    );
+    let diag = tune_diagnostics::Diagnostic::error(
+        tune_diagnostics::codes::SHAPE_MISMATCH,
+        "shape mismatch",
+        span,
+        "String cannot materialize as Int",
+    )
+    .build();
+
+    let rendered = tune_diagnostics::render::render_plain_with_sources(&diag, &Sources);
+
+    assert!(rendered.contains("--> app.tn:1:18"));
+    assert!(rendered.contains("1 | let value: Int = \"bad\""));
+    assert!(rendered.contains("^^^^^ String cannot materialize as Int"));
+}
+
+#[test]
 fn compact_hover_renderer_uses_same_structured_facts() {
     let span = tune_diagnostics::Span::new(
         tune_diagnostics::FileId(1),

@@ -86,3 +86,9 @@ impl TuneDb {
         &self.symbols
     }
 }
+
+impl tune_diagnostics::render::SourceProvider for TuneDb {
+    fn source(&self, file: FileId) -> Option<tune_diagnostics::render::SourceView<'_>> {
+        <SourceMap as tune_diagnostics::render::SourceProvider>::source(&self.sources, file)
+    }
+}
