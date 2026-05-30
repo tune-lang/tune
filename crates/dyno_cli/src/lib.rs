@@ -7,6 +7,7 @@ pub enum CliCommand {
     Run { path: Option<String> },
     Profile { path: Option<String> },
     Fmt { path: Option<String> },
+    Explain { code: Option<String> },
     New { name: String },
     Lsp,
     Help,
@@ -21,6 +22,7 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
         [command] if command == "check" => Ok(CliCommand::Check { path: None }),
         [command] if command == "profile" => Ok(CliCommand::Profile { path: None }),
         [command] if command == "fmt" => Ok(CliCommand::Fmt { path: None }),
+        [command] if command == "explain" => Ok(CliCommand::Explain { code: None }),
         [command] if command == "lsp" => Ok(CliCommand::Lsp),
         [path] => Ok(CliCommand::Run {
             path: Some(path.clone()),
@@ -40,6 +42,9 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
         [command, path] if command == "fmt" => Ok(CliCommand::Fmt {
             path: Some(path.clone()),
         }),
+        [command, code] if command == "explain" => Ok(CliCommand::Explain {
+            code: Some(code.clone()),
+        }),
         [command, name] if command == "new" => Ok(CliCommand::New { name: name.clone() }),
         [command, ..] => Err(format!("unknown dyno command `{command}`")),
     }
@@ -47,7 +52,32 @@ pub fn parse_command(args: &[String]) -> Result<CliCommand, String> {
 
 #[must_use]
 pub fn usage() -> &'static str {
-    "usage: dyno new <name>\n       dyno check [file]\n       dyno run [file]\n       dyno build [file]\n       dyno profile [file]\n       dyno fmt [file]\n       dyno lsp\n       dyno <file>"
+    "usage: dyno new <name>\n       dyno check [file]\n       dyno run [file]\n       dyno build [file]\n       dyno profile [file]\n       dyno fmt [file]\n       dyno explain [code]\n       dyno lsp\n       dyno <file>"
+}
+
+#[must_use]
+pub fn render_explain(code: Option<&str>) -> String {
+    match code {
+        Some(code) => tune_diagnostics::codes::explain(code).map_or_else(
+            || format!("unknown diagnostic code `{code}`\n"),
+            |info| {
+                format!(
+                    "{}: {}\n{}\n",
+                    info.code.as_str(),
+                    info.title,
+                    info.explanation
+                )
+            },
+        ),
+        None => {
+            tune_diagnostics::codes::all()
+                .iter()
+                .map(|info| format!("{}  {}", info.code.as_str(), info.title))
+                .collect::<Vec<_>>()
+                .join("\n")
+                + "\n"
+        }
+    }
 }
 
 pub fn format_file(path: impl AsRef<std::path::Path>) -> Result<bool, String> {

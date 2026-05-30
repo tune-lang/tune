@@ -60,6 +60,16 @@ fn parses_cli_commands_without_special_entry_names() {
         Ok(dyno_cli::CliCommand::Lsp)
     );
     assert_eq!(
+        dyno_cli::parse_command(&["explain".to_owned()]),
+        Ok(dyno_cli::CliCommand::Explain { code: None })
+    );
+    assert_eq!(
+        dyno_cli::parse_command(&["explain".to_owned(), "T0301".to_owned()]),
+        Ok(dyno_cli::CliCommand::Explain {
+            code: Some("T0301".to_owned()),
+        })
+    );
+    assert_eq!(
         dyno_cli::parse_command(&["new".to_owned(), "app".to_owned()]),
         Ok(dyno_cli::CliCommand::New {
             name: "app".to_owned(),
@@ -67,6 +77,20 @@ fn parses_cli_commands_without_special_entry_names() {
     );
     assert_eq!(dyno_cli::parse_command(&[]), Ok(dyno_cli::CliCommand::Help));
     assert!(dyno_cli::parse_command(&["bad".to_owned(), "main.tn".to_owned()]).is_err());
+}
+
+#[test]
+fn renders_diagnostic_explanations() {
+    let list = dyno_cli::render_explain(None);
+    assert!(list.contains("T0301"));
+    assert!(list.contains("shape mismatch"));
+
+    let single = dyno_cli::render_explain(Some("T0804"));
+    assert!(single.contains("match hole fallback"));
+    assert!(single.contains("use `else`"));
+
+    let unknown = dyno_cli::render_explain(Some("T9999"));
+    assert!(unknown.contains("unknown diagnostic code"));
 }
 
 #[test]

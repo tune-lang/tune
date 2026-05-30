@@ -58,6 +58,16 @@ fn main() {
         }
         return;
     }
+    if let dyno_cli::CliCommand::Explain { ref code } = command {
+        print!("{}", dyno_cli::render_explain(code.as_deref()));
+        if code
+            .as_deref()
+            .is_some_and(|code| tune_diagnostics::codes::explain(code).is_none())
+        {
+            std::process::exit(1);
+        }
+        return;
+    }
 
     let path = match command {
         dyno_cli::CliCommand::Build { ref path }
@@ -65,6 +75,7 @@ fn main() {
         | dyno_cli::CliCommand::Fmt { ref path }
         | dyno_cli::CliCommand::Profile { ref path }
         | dyno_cli::CliCommand::Run { ref path } => path.as_ref(),
+        dyno_cli::CliCommand::Explain { .. } => unreachable!(),
         dyno_cli::CliCommand::New { .. } => unreachable!(),
         dyno_cli::CliCommand::Lsp => unreachable!(),
         dyno_cli::CliCommand::Help => {
