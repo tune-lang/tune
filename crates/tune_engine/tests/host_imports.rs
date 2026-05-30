@@ -131,3 +131,26 @@ let result: Int = make().count
     assert_eq!(value, tune_runtime::Value::Int(42));
     Ok(())
 }
+
+#[test]
+fn host_value_struct_shape_flows_through_top_level_binding() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new().with_host(&MetaHost);
+    let file = tune
+        .add_file(
+            "main.tn",
+            r#"
+import "meta".make
+let pair = make()
+let result: Int = pair.count
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    let value = tune.run_file(file).map_err(|error| {
+        eprintln!("{error:?}");
+        "host value struct should keep shape through top-level binding"
+    })?;
+
+    assert_eq!(value, tune_runtime::Value::Int(42));
+    Ok(())
+}

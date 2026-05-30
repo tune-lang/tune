@@ -213,11 +213,16 @@ impl Analyzer<'_> {
         }
         match key {
             BindingKey::TopLevel(item_id) => self
-                .module
-                .items
-                .iter()
-                .find(|item| item.id == item_id)
-                .map(|item| self.top_level_current_shape(item))
+                .top_level_shapes
+                .get(&item_id)
+                .cloned()
+                .or_else(|| {
+                    self.module
+                        .items
+                        .iter()
+                        .find(|item| item.id == item_id)
+                        .map(|item| self.top_level_current_shape(item))
+                })
                 .unwrap_or(Shape::Hole),
             _ => Shape::Hole,
         }

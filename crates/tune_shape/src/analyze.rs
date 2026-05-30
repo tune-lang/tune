@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use tune_diagnostics::{Diagnostic, Span};
 use tune_hir::expr::{Expr, ExprKind, LiteralKind, StringPart};
 mod bindings;
@@ -18,7 +20,9 @@ use tune_hir::shape::{ShapeExpr, ShapeExprKind};
 use tune_hir::{ExprId, MemberId};
 use tune_resolve::{ResolvedModule, VariantId};
 
-use crate::{BindingKey, BindingState, ExprMaterialization, Shape, StateFrame};
+use crate::{
+    BindingKey, BindingState, ExprMaterialization, Shape, StateFrame, lower_resolved_hir_shape,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExprShape {
@@ -109,6 +113,7 @@ pub struct ReturnCheck {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShapeAnalysis {
+    pub item_current_shape: Shape,
     pub inferred_signature: Option<CallSignature>,
     pub frame: StateFrame,
     pub expr_shapes: Vec<ExprShape>,
@@ -124,9 +129,20 @@ pub struct ShapeAnalysis {
 
 #[must_use]
 pub fn analyze_item(module: &Module, resolved: &ResolvedModule, item: &Item) -> ShapeAnalysis {
+    analyze_item_with_top_level_shapes(module, resolved, item, &HashMap::new())
+}
+
+fn analyze_item_with_top_level_shapes(
+    module: &Module,
+    resolved: &ResolvedModule,
+    item: &Item,
+    top_level_shapes: &HashMap<tune_hir::HirId, Shape>,
+) -> ShapeAnalysis {
     let mut analyzer = Analyzer {
         module,
         resolved,
+        top_level_shapes,
+        item_current_shape: declared_item_current_shape(item, resolved),
         frame: StateFrame::new(),
         expr_shapes: Vec::new(),
         calls: Vec::new(),
@@ -147,6 +163,7 @@ pub fn analyze_item(module: &Module, resolved: &ResolvedModule, item: &Item) -> 
             let expected = analyzer.lower_item_shape_or_hole(item, Some(shape));
             let actual = analyzer.analyze_expr_expected(body, &expected);
             analyzer.infer_item_signature(item, &actual);
+            analyzer.commit_item_current_shape(item, &expected, &actual);
             analyzer.check_result_propagation(item, body, &expected);
             analyzer.check_returns_against(&expected);
             if matches!(body.kind, ExprKind::Sequence(_)) {
@@ -161,6 +178,7 @@ pub fn analyze_item(module: &Module, resolved: &ResolvedModule, item: &Item) -> 
         } else {
             let actual = analyzer.analyze_expr(body);
             analyzer.infer_item_signature(item, &actual);
+            analyzer.commit_item_current_shape(item, &Shape::Hole, &actual);
             analyzer.check_untyped_result_propagation(item, body);
             if item.kind == ItemKind::Let {
                 analyzer.check_unannotated_optional_copy(&actual, body.span);
@@ -172,16 +190,22 @@ pub fn analyze_item(module: &Module, resolved: &ResolvedModule, item: &Item) -> 
 
 #[must_use]
 pub fn analyze_module(module: &Module, resolved: &ResolvedModule) -> Vec<ShapeAnalysis> {
-    module
-        .items
-        .iter()
-        .map(|item| analyze_item(module, resolved, item))
-        .collect()
+    let mut top_level_shapes = HashMap::new();
+    let mut analyses = Vec::new();
+    for item in &module.items {
+        let analysis =
+            analyze_item_with_top_level_shapes(module, resolved, item, &top_level_shapes);
+        top_level_shapes.insert(item.id, analysis.item_current_shape.clone());
+        analyses.push(analysis);
+    }
+    analyses
 }
 
 struct Analyzer<'a> {
     module: &'a Module,
     resolved: &'a ResolvedModule,
+    top_level_shapes: &'a HashMap<tune_hir::HirId, Shape>,
+    item_current_shape: Shape,
     frame: StateFrame,
     expr_shapes: Vec<ExprShape>,
     calls: Vec<CallCheck>,
@@ -199,6 +223,7 @@ struct Analyzer<'a> {
 impl Analyzer<'_> {
     fn finish(self) -> ShapeAnalysis {
         ShapeAnalysis {
+            item_current_shape: self.item_current_shape,
             inferred_signature: self.inferred_signature,
             frame: self.frame,
             expr_shapes: self.expr_shapes,
@@ -251,6 +276,19 @@ impl Analyzer<'_> {
             receiver: None,
             span: item.span,
         });
+    }
+
+    fn commit_item_current_shape(&mut self, item: &Item, declared: &Shape, actual: &Shape) {
+        if item.kind == ItemKind::CallableDecl
+            && let Some(signature) = &self.inferred_signature
+        {
+            self.item_current_shape = Shape::Callable {
+                params: signature.params.clone(),
+                ret: Box::new(signature.ret.clone()),
+            };
+            return;
+        }
+        self.item_current_shape = top_level_current_shape_from_actual(declared, actual);
     }
 
     fn seed_item(&mut self, item: &Item) {
@@ -447,5 +485,45 @@ impl Analyzer<'_> {
         if binding.current_shape == Shape::Hole {
             binding.current_shape = expected.clone();
         }
+    }
+}
+
+fn declared_item_current_shape(item: &Item, resolved: &ResolvedModule) -> Shape {
+    match item.kind {
+        ItemKind::CallableDecl => Shape::Callable {
+            params: item
+                .params
+                .iter()
+                .map(|param| {
+                    param
+                        .shape
+                        .as_ref()
+                        .map(|shape| lower_resolved_hir_shape(shape, &resolved.scope).shape)
+                        .unwrap_or(Shape::Hole)
+                })
+                .collect(),
+            ret: Box::new(
+                item.shape
+                    .as_ref()
+                    .map(|shape| lower_resolved_hir_shape(shape, &resolved.scope).shape)
+                    .unwrap_or(Shape::Hole),
+            ),
+        },
+        _ => item
+            .shape
+            .as_ref()
+            .map(|shape| lower_resolved_hir_shape(shape, &resolved.scope).shape)
+            .unwrap_or(Shape::Hole),
+    }
+}
+
+fn top_level_current_shape_from_actual(storage: &Shape, actual: &Shape) -> Shape {
+    match (storage, actual) {
+        (Shape::Hole, actual) => actual.clone(),
+        (Shape::Optional(_), Shape::Literal(crate::LiteralFact::None)) => {
+            Shape::Literal(crate::LiteralFact::None)
+        }
+        (Shape::Optional(inner), actual) if inner.accepts(actual) => actual.clone(),
+        (storage, _) => storage.clone(),
     }
 }
