@@ -77,6 +77,8 @@ impl IrOp {
             | Self::MulSizeChecked { span, .. }
             | Self::DivSize { span, .. }
             | Self::RemSize { span, .. }
+            | Self::ShiftLeftSize { span, .. }
+            | Self::ShiftRightSize { span, .. }
             | Self::RangeInt { span, .. }
             | Self::NegInt { span, .. }
             | Self::NotBool { span, .. }
@@ -312,6 +314,18 @@ pub enum IrOp {
         span: Option<Span>,
     },
     RemSize {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    ShiftLeftSize {
+        dst: Reg,
+        a: Reg,
+        b: Reg,
+        span: Option<Span>,
+    },
+    ShiftRightSize {
         dst: Reg,
         a: Reg,
         b: Reg,

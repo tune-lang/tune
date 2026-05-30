@@ -64,6 +64,12 @@ impl FunctionLowerer<'_> {
             IrOp::RemSize { dst, a, b, .. } => {
                 self.push_instruction(Opcode::RemSize, dst.0, a.0, b.0);
             }
+            IrOp::ShiftLeftSize { dst, a, b, .. } => {
+                self.push_instruction(Opcode::ShiftLeftSize, dst.0, a.0, b.0);
+            }
+            IrOp::ShiftRightSize { dst, a, b, .. } => {
+                self.push_instruction(Opcode::ShiftRightSize, dst.0, a.0, b.0);
+            }
             IrOp::AddByteWrap { dst, a, b } => {
                 self.push_instruction(Opcode::AddByteWrap, dst.0, a.0, b.0);
             }

@@ -98,6 +98,8 @@ pub enum Opcode {
     StringLen = 94,
     StringGet = 95,
     TupleField = 96,
+    ShiftLeftSize = 97,
+    ShiftRightSize = 98,
 }
 
 impl Opcode {
@@ -199,5 +201,7 @@ impl Opcode {
         Self::StringLen,
         Self::StringGet,
         Self::TupleField,
+        Self::ShiftLeftSize,
+        Self::ShiftRightSize,
     ];
 }

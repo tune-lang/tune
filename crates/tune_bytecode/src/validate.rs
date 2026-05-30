@@ -233,6 +233,8 @@ fn validate_instruction(
         | Opcode::MulSizeChecked
         | Opcode::DivSize
         | Opcode::RemSize
+        | Opcode::ShiftLeftSize
+        | Opcode::ShiftRightSize
         | Opcode::AddByteWrap
         | Opcode::RangeExclusiveInt
         | Opcode::RangeInclusiveInt

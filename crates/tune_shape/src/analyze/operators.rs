@@ -12,9 +12,6 @@ impl Analyzer<'_> {
         lhs: &Expr,
         rhs: &Expr,
     ) -> Shape {
-        if matches!(op, BinaryOp::And | BinaryOp::Or) {
-            return self.analyze_short_circuit_binary(op, expr, lhs, rhs);
-        }
         let expected = self
             .expected_shape()
             .and_then(|expected| binary_operand_expected(op, expected))
@@ -24,13 +21,21 @@ impl Analyzer<'_> {
         } else {
             self.analyze_expr(lhs)
         };
+        if matches!(op, BinaryOp::And | BinaryOp::Or)
+            && expected
+                .as_ref()
+                .is_none_or(|shape| matches!(shape, Shape::Bool))
+            && Shape::Bool.accepts(&lhs_shape)
+        {
+            return self.analyze_short_circuit_binary(op, expr, lhs, rhs, lhs_shape);
+        }
         let rhs_shape = if let Some(shape) = expected.as_ref() {
             self.analyze_expr_expected(rhs, shape)
         } else {
             self.analyze_expr(rhs)
         };
         match op {
-            BinaryOp::Or | BinaryOp::And
+            BinaryOp::Or | BinaryOp::And | BinaryOp::BitOr | BinaryOp::BitAnd
                 if Shape::Bool.accepts(&lhs_shape) && Shape::Bool.accepts(&rhs_shape) =>
             {
                 Shape::Bool
@@ -44,13 +49,13 @@ impl Analyzer<'_> {
             {
                 Shape::Int
             }
-            BinaryOp::Add
-            | BinaryOp::Sub
-            | BinaryOp::Mul
-            | BinaryOp::Div
-            | BinaryOp::Rem
-            | BinaryOp::ShiftLeft
-            | BinaryOp::ShiftRight
+            BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Rem
+                if Shape::Int.accepts(&lhs_shape) && Shape::Int.accepts(&rhs_shape) =>
+            {
+                self.check_compile_time_int_fault(op, lhs, rhs, expr.span);
+                Shape::Int
+            }
+            BinaryOp::ShiftLeft | BinaryOp::ShiftRight
                 if Shape::Int.accepts(&lhs_shape) && Shape::Int.accepts(&rhs_shape) =>
             {
                 self.check_compile_time_int_fault(op, lhs, rhs, expr.span);
@@ -70,7 +75,12 @@ impl Analyzer<'_> {
                 self.check_compile_time_size_fault(op, lhs, rhs, expr.span);
                 Shape::Size
             }
-            BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Rem
+            BinaryOp::Sub
+            | BinaryOp::Mul
+            | BinaryOp::Div
+            | BinaryOp::Rem
+            | BinaryOp::ShiftLeft
+            | BinaryOp::ShiftRight
                 if Shape::Size.accepts(&lhs_shape) && Shape::Size.accepts(&rhs_shape) =>
             {
                 self.check_compile_time_size_fault(op, lhs, rhs, expr.span);
@@ -81,6 +91,8 @@ impl Analyzer<'_> {
             | BinaryOp::Mul
             | BinaryOp::Div
             | BinaryOp::Rem
+            | BinaryOp::Or
+            | BinaryOp::And
             | BinaryOp::BitOr
             | BinaryOp::BitXor
             | BinaryOp::BitAnd
@@ -234,6 +246,8 @@ impl Analyzer<'_> {
             BinaryOp::Mul => lhs.checked_mul(rhs).is_some(),
             BinaryOp::Div => rhs != 0 && lhs.checked_div(rhs).is_some(),
             BinaryOp::Rem => rhs != 0 && lhs.checked_rem(rhs).is_some(),
+            BinaryOp::ShiftLeft => valid_size_shift(rhs) && lhs.checked_shl(rhs as u32).is_some(),
+            BinaryOp::ShiftRight => valid_size_shift(rhs) && lhs.checked_shr(rhs as u32).is_some(),
             _ => true,
         };
         if !ok {
@@ -247,8 +261,8 @@ impl Analyzer<'_> {
         expr: &Expr,
         lhs: &Expr,
         rhs: &Expr,
+        lhs_shape: Shape,
     ) -> Shape {
-        let lhs_shape = self.analyze_expr(lhs);
         let entry = self.frame.clone();
         match op {
             BinaryOp::And => self.apply_condition_narrowing(lhs, true),
@@ -275,7 +289,18 @@ impl Analyzer<'_> {
 fn binary_operand_expected(op: BinaryOp, expected: &Shape) -> Option<&Shape> {
     if !matches!(
         op,
-        BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Rem
+        BinaryOp::Add
+            | BinaryOp::Sub
+            | BinaryOp::Mul
+            | BinaryOp::Div
+            | BinaryOp::Rem
+            | BinaryOp::Or
+            | BinaryOp::And
+            | BinaryOp::BitOr
+            | BinaryOp::BitXor
+            | BinaryOp::BitAnd
+            | BinaryOp::ShiftLeft
+            | BinaryOp::ShiftRight
     ) {
         return None;
     }
@@ -294,6 +319,9 @@ fn binary_operand_expected(op: BinaryOp, expected: &Shape) -> Option<&Shape> {
             Shape::Byte,
         ) => Some(expected),
         (_, Shape::Byte) => None,
+        (BinaryOp::Or | BinaryOp::And | BinaryOp::BitOr | BinaryOp::BitAnd, Shape::Bool) => {
+            Some(expected)
+        }
         (_, Shape::Int | Shape::Float | Shape::Size) => Some(expected),
         _ => None,
     }
@@ -324,6 +352,12 @@ fn valid_int_shift(value: i64) -> bool {
     u32::try_from(value)
         .ok()
         .is_some_and(|shift| shift < i64::BITS)
+}
+
+fn valid_size_shift(value: u64) -> bool {
+    u32::try_from(value)
+        .ok()
+        .is_some_and(|shift| shift < u64::BITS)
 }
 
 fn numeric_fault(op: BinaryOp, span: Option<Span>) -> Diagnostic {
@@ -364,7 +398,7 @@ fn can_diagnose_operands(lhs: &Shape, rhs: &Shape) -> bool {
 
 fn expected_operands(op: BinaryOp) -> &'static str {
     match op {
-        BinaryOp::Or | BinaryOp::And => "`Bool` operands",
+        BinaryOp::Or | BinaryOp::And => "`Bool`, `Int`, or `Byte` operands",
         BinaryOp::Add => "compatible numeric operands",
         BinaryOp::RangeExclusive | BinaryOp::RangeInclusive => {
             "`Int`/`Int` or `Size`/`Size` endpoints"
@@ -380,11 +414,11 @@ fn expected_operands(op: BinaryOp) -> &'static str {
         BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Rem => {
             "`Int`/`Int`, `Size`/`Size`, or `Byte`/`Byte` operands"
         }
-        BinaryOp::BitOr
-        | BinaryOp::BitXor
-        | BinaryOp::BitAnd
-        | BinaryOp::ShiftLeft
-        | BinaryOp::ShiftRight => "`Int`/`Int` or `Byte`/`Byte` operands",
+        BinaryOp::BitOr | BinaryOp::BitAnd => "`Bool`, `Int`, or `Byte` operands",
+        BinaryOp::BitXor => "`Int`/`Int` or `Byte`/`Byte` operands",
+        BinaryOp::ShiftLeft | BinaryOp::ShiftRight => {
+            "`Int`/`Int`, `Size`/`Size`, or `Byte`/`Byte` operands"
+        }
     }
 }
 

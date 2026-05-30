@@ -169,10 +169,11 @@ impl LowerContext<'_> {
                 ops.push(PlanOp::UnaryOp { op: *op, shape });
             }
             ExprKind::Binary { op, lhs, rhs } => {
-                if matches!(op, BinaryOp::And | BinaryOp::Or) {
+                let expr_shape = self.expr_shape(expr).unwrap_or(Shape::Hole);
+                if is_bool_and_or(*op, &expr_shape) {
                     let lhs_ops = self.lower_expr_to_ops(lhs);
                     let rhs_ops = self.lower_expr_to_ops(rhs);
-                    if matches!(op, BinaryOp::And) {
+                    if matches!(op, BinaryOp::And | BinaryOp::BitAnd) {
                         ops.push(PlanOp::BoolAnd {
                             lhs_ops,
                             rhs_ops,
@@ -195,7 +196,7 @@ impl LowerContext<'_> {
                     let shape = if is_comparison_op(*op) {
                         self.expr_shape(lhs).unwrap_or(Shape::Hole)
                     } else {
-                        self.expr_shape(expr).unwrap_or(Shape::Hole)
+                        expr_shape
                     };
                     if is_contextual_numeric_op(*op)
                         || is_contextual_bit_op(*op)
@@ -457,12 +458,22 @@ fn is_contextual_numeric_op(op: BinaryOp) -> bool {
 fn is_contextual_bit_op(op: BinaryOp) -> bool {
     matches!(
         op,
-        BinaryOp::BitOr
+        BinaryOp::Or
+            | BinaryOp::And
+            | BinaryOp::BitOr
             | BinaryOp::BitXor
             | BinaryOp::BitAnd
             | BinaryOp::ShiftLeft
             | BinaryOp::ShiftRight
     )
+}
+
+fn is_bool_and_or(op: BinaryOp, shape: &Shape) -> bool {
+    matches!(shape, Shape::Bool)
+        && matches!(
+            op,
+            BinaryOp::And | BinaryOp::Or | BinaryOp::BitAnd | BinaryOp::BitOr
+        )
 }
 
 fn is_none_literal(expr: &Expr) -> bool {

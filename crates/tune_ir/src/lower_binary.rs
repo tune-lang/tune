@@ -17,10 +17,10 @@ impl Lowerer {
             BinaryOp::Mul => self.lower_arithmetic(shape, Arithmetic::Mul, span),
             BinaryOp::Div => self.lower_arithmetic(shape, Arithmetic::Div, span),
             BinaryOp::Rem => self.lower_remainder(shape, span),
-            BinaryOp::BitAnd => {
+            BinaryOp::And | BinaryOp::BitAnd => {
                 self.lower_bit_op(shape, IrByteBinary::BitAnd, IntArithmetic::BitAnd, span)
             }
-            BinaryOp::BitOr => {
+            BinaryOp::Or | BinaryOp::BitOr => {
                 self.lower_bit_op(shape, IrByteBinary::BitOr, IntArithmetic::BitOr, span)
             }
             BinaryOp::BitXor => {
@@ -48,7 +48,6 @@ impl Lowerer {
             BinaryOp::GreaterEqual => {
                 self.lower_compare(shape, IrIntComparison::GreaterEqual, span)
             }
-            _ => Err(IrLowerError::UnsupportedOp("binary op")),
         }
     }
 
@@ -150,6 +149,33 @@ impl Lowerer {
             return self.lower_byte_binary(IrByteBinary::Rem, span);
         }
         self.lower_int_arithmetic(IntArithmetic::Rem, span)
+    }
+
+    pub(super) fn lower_size_shift(
+        &mut self,
+        op: IntArithmetic,
+        span: Option<Span>,
+    ) -> Result<(), IrLowerError> {
+        let rhs = self.pop("binary rhs")?;
+        let lhs = self.pop("binary lhs")?;
+        let dst = self.alloc_reg()?;
+        match op {
+            IntArithmetic::ShiftLeft => self.push_op(IrOp::ShiftLeftSize {
+                dst,
+                a: lhs,
+                b: rhs,
+                span,
+            }),
+            IntArithmetic::ShiftRight => self.push_op(IrOp::ShiftRightSize {
+                dst,
+                a: lhs,
+                b: rhs,
+                span,
+            }),
+            _ => return Err(IrLowerError::UnsupportedOp("size bit op")),
+        }
+        self.stack.push(dst);
+        Ok(())
     }
 
     fn lower_add(

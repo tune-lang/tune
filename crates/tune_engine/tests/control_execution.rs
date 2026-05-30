@@ -129,8 +129,8 @@ fn run_file_executes_integer_bit_ops_and_shifts() -> Result<(), &'static str> {
             "app.tn",
             r#"
 let result: Int = {
-  let a: Int = 6 & 3
-  let b: Int = a | 8
+  let a: Int = 6 and 3
+  let b: Int = a or 8
   let c: Int = 1 << 2
   let d: Int = 16 >> 2
   (b ^ c) + d
@@ -179,7 +179,8 @@ let result: Int = {
   let x: Size = 8 / 2
   let y: Size = (x * 3) - 1
   let z: Size = y % 5
-  if (y >= 11) and (z == 1) {
+  let shifted: Size = (z << 3) >> 2
+  if (y >= 11) and (shifted == 2) {
     1
   } else {
     0

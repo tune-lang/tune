@@ -148,6 +148,8 @@ impl Vm {
                 | Opcode::MulSizeChecked
                 | Opcode::DivSize
                 | Opcode::RemSize
+                | Opcode::ShiftLeftSize
+                | Opcode::ShiftRightSize
                 | Opcode::AddByteWrap
                 | Opcode::SubByteWrap
                 | Opcode::MulByteWrap

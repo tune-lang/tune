@@ -47,7 +47,9 @@ pub(super) fn infer_frame_layout(function: &IrFunction) -> BytecodeFrameLayout {
             | IrOp::SubSizeChecked { dst, .. }
             | IrOp::MulSizeChecked { dst, .. }
             | IrOp::DivSize { dst, .. }
-            | IrOp::RemSize { dst, .. } => set_register(&mut layout, *dst, Shape::Size),
+            | IrOp::RemSize { dst, .. }
+            | IrOp::ShiftLeftSize { dst, .. }
+            | IrOp::ShiftRightSize { dst, .. } => set_register(&mut layout, *dst, Shape::Size),
             IrOp::AddByteWrap { dst, .. } => {
                 set_register(&mut layout, *dst, Shape::Byte);
             }

@@ -177,6 +177,30 @@ impl Vm {
                     .ok_or_else(|| self.fault_at(function_index, ip, divide_size_error(right)))?;
                 self.write_size(function_index, ip, registers, instruction, value)
             }
+            Opcode::ShiftLeftSize => {
+                let (left, right) =
+                    self.read_size_pair(function_index, ip, registers, instruction)?;
+                let shift = u32::try_from(right)
+                    .ok()
+                    .filter(|shift| *shift < u64::BITS)
+                    .ok_or_else(|| self.fault_at(function_index, ip, VmError::NumericOverflow))?;
+                let value = left
+                    .checked_shl(shift)
+                    .ok_or_else(|| self.fault_at(function_index, ip, VmError::NumericOverflow))?;
+                self.write_size(function_index, ip, registers, instruction, value)
+            }
+            Opcode::ShiftRightSize => {
+                let (left, right) =
+                    self.read_size_pair(function_index, ip, registers, instruction)?;
+                let shift = u32::try_from(right)
+                    .ok()
+                    .filter(|shift| *shift < u64::BITS)
+                    .ok_or_else(|| self.fault_at(function_index, ip, VmError::NumericOverflow))?;
+                let value = left
+                    .checked_shr(shift)
+                    .ok_or_else(|| self.fault_at(function_index, ip, VmError::NumericOverflow))?;
+                self.write_size(function_index, ip, registers, instruction, value)
+            }
             Opcode::AddByteWrap => {
                 let (left, right) =
                     self.read_byte_pair(function_index, ip, registers, instruction)?;

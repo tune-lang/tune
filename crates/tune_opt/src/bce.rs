@@ -187,6 +187,8 @@ fn op_dst(op: &IrOp) -> Option<Reg> {
         | IrOp::MulSizeChecked { dst, .. }
         | IrOp::DivSize { dst, .. }
         | IrOp::RemSize { dst, .. }
+        | IrOp::ShiftLeftSize { dst, .. }
+        | IrOp::ShiftRightSize { dst, .. }
         | IrOp::GreaterSize { dst, .. }
         | IrOp::CompareSize { dst, .. }
         | IrOp::AddByteWrap { dst, .. }

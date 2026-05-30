@@ -132,10 +132,13 @@ fn return_expression_shape_is_never() -> Result<(), &'static str> {
 }
 
 #[test]
-fn boolean_words_and_bit_symbols_have_separate_meaning() -> Result<(), &'static str> {
+fn and_or_spellings_follow_operand_meaning() -> Result<(), &'static str> {
     let source = r#"
 let bool_words: Bool = true and false
+let bool_symbols: Bool = true | false
+let int_words: Int = 1 or 2
 let int_symbols: Int = 1 | 2
+let byte_words: Byte = 1 and 3
 "#;
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
@@ -143,15 +146,27 @@ let int_symbols: Int = 1 | 2
 
     for item in &module.items {
         let analysis = tune_shape::analyze_item(&module, &resolved, item);
-        assert!(analysis.diagnostics.is_empty());
+        assert!(
+            analysis.diagnostics.is_empty(),
+            "{:?}",
+            analysis.diagnostics
+        );
     }
 
     Ok(())
 }
 
 #[test]
-fn bit_operators_reject_bool_operands() -> Result<(), &'static str> {
+fn xor_rejects_bool_operands() -> Result<(), &'static str> {
     let source = "let value: Bool = true & false";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+    let analysis = tune_shape::analyze_item(&module, &resolved, &module.items[0]);
+
+    assert!(analysis.diagnostics.is_empty());
+
+    let source = "let value: Bool = true ^ false";
     let parsed = tune_syntax::parse(source);
     let module = tune_hir::lower::lower_module(source, &parsed.cst);
     let resolved = tune_resolve::resolve_module(&module);

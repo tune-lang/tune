@@ -235,6 +235,8 @@ impl FunctionLowerer<'_> {
             | IrOp::MulSizeChecked { .. }
             | IrOp::DivSize { .. }
             | IrOp::RemSize { .. }
+            | IrOp::ShiftLeftSize { .. }
+            | IrOp::ShiftRightSize { .. }
             | IrOp::AddByteWrap { .. }
             | IrOp::NegInt { .. }
             | IrOp::NotBool { .. }
