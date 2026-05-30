@@ -44,6 +44,7 @@ If you are new, start here:
 
 - [Why Tune?](docs/why-tune.md)
 - [Getting Started](docs/getting-started.md)
+- [Tutorial](docs/tutorial.md)
 - [Language Tour](docs/language-tour.md)
 - [Examples](examples/README.md)
 - [Tooling](docs/tooling.md)
@@ -120,8 +121,8 @@ cargo test -p dyno_cli --test language_examples
 ```
 
 New users should start with [docs/getting-started.md](docs/getting-started.md),
-then read [docs/language-tour.md](docs/language-tour.md) beside the executable
-examples.
+then work through [docs/tutorial.md](docs/tutorial.md), then read
+[docs/language-tour.md](docs/language-tour.md) beside the executable examples.
 Tooling and editor setup lives in [docs/tooling.md](docs/tooling.md).
 The current standard library surface is summarized in
 [docs/stdlib.md](docs/stdlib.md).

@@ -1,9 +1,10 @@
 # Tune Examples
 
-These examples are small Tune programs meant to be read and run. If you are new
-to Tune, read the language examples in order. They are intentionally explicit:
-annotations are included even where inference could solve them, because the goal
-is to teach the language.
+These examples are small Tune programs meant to be read and run.
+
+If you are new to Tune, read [the tutorial](../docs/tutorial.md) first, then
+come back here. The examples are intentionally explicit: annotations are included
+even where inference could solve them, because the goal is to teach the language.
 
 The examples are part of the test suite, so they should stay aligned with the
 implementation.
