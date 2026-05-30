@@ -1,11 +1,11 @@
--- Import selected standard host functions.
+-- Import standard modules and call members through module namespaces.
 
-import "parse".int
-import "text".trim
+import "parse"
+import "text"
 
-let parse_answer(text: String): Result<Int, String> = {
-  let cleaned: String = trim(text)
-  let value: Int = int(cleaned)!
+let parse_answer(raw: String): Result<Int, String> = {
+  let cleaned: String = text.trim(raw)
+  let value: Int = parse.int(cleaned)!
   Ok(value + 1)
 }
 
