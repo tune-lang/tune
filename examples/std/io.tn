@@ -1,0 +1,6 @@
+-- Perform host-backed terminal I/O.
+
+import "io"
+
+let printed: Result<Unit, String> = io.write_line("hello from Tune")
+let error_printed: Result<Unit, String> = io.error_line("diagnostic text")

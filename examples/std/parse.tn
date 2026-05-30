@@ -1,0 +1,11 @@
+-- Parse primitive values from text.
+
+import "parse"
+import "text"
+
+let raw: String = text.trim(" 42 ")
+let count: Result<Int, String> = parse.int(raw)
+let ratio: Result<Float, String> = parse.float("3.5")
+let size: Result<Size, String> = parse.size("8")
+let byte: Result<Byte, String> = parse.byte("255")
+let enabled: Result<Bool, String> = parse.bool("true")

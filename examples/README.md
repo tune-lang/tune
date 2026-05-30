@@ -49,9 +49,11 @@ cargo test -p dyno_cli --test std_examples
 - [env.tn](std/env.tn): process arguments, environment, and runtime paths.
 - [fs.tn](std/fs.tn): filesystem text, metadata, and path helpers.
 - [hash.tn](std/hash.tn): stable text and byte hashing.
+- [io.tn](std/io.tn): standard input/output host calls.
 - [json.tn](std/json.tn): JSON validation and formatting helpers.
 - [math.tn](std/math.tn): floating-point numeric helpers.
 - [path.tn](std/path.tn): path component and extension helpers.
+- [parse.tn](std/parse.tn): typed parsing into primitive values.
 - [process.tn](std/process.tn): process execution result helpers.
 - [random.tn](std/random.tn): deterministic pseudo-random values.
 - [text.tn](std/text.tn): text splitting, joining, and slicing.
