@@ -30,6 +30,12 @@ pub struct SemanticExpr {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SemanticExprSpan {
+    pub id: ExprId,
+    pub span: Option<Span>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SemanticReference {
     pub expr: ExprId,
     pub span: Option<Span>,
@@ -88,6 +94,23 @@ pub fn semantic_at(db: &TuneDb, file: FileId, offset: ByteOffset) -> Option<Sema
         call,
         scope,
     })
+}
+
+#[must_use]
+pub fn semantic_exprs(db: &TuneDb, file: FileId) -> Option<Vec<SemanticExprSpan>> {
+    let analysis = db.analyze_file(file)?;
+    Some(
+        analysis
+            .module
+            .items
+            .iter()
+            .flat_map(item_exprs)
+            .map(|expr| SemanticExprSpan {
+                id: expr.id,
+                span: expr.span,
+            })
+            .collect(),
+    )
 }
 
 fn item_at_offset(analysis: &ModuleAnalysis, offset: ByteOffset) -> Option<&Item> {

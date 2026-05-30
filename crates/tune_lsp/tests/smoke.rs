@@ -222,3 +222,108 @@ let run(input: Int): Int = {
 
     Ok(())
 }
+
+#[test]
+fn lsp_session_updates_documents_and_dispatches_requests() -> Result<(), &'static str> {
+    let mut session = tune_lsp::LspSession::new();
+    let file = session
+        .open_document("main.tn", "let value: Int = 1\n")
+        .ok_or("document should open")?;
+    assert_eq!(session.file_for_path("main.tn"), Some(file));
+    assert!(session.diagnostics(file).is_empty());
+
+    let changed = session
+        .change_document("main.tn", "let value: Int = \"bad\"\n")
+        .ok_or("document should change")?;
+    assert_eq!(changed, file);
+    assert!(!session.diagnostics(file).is_empty());
+
+    let response = session.handle_request(tune_lsp::LspRequest::Completion {
+        file,
+        position: tune_lsp::Position {
+            line: 0,
+            character: 4,
+        },
+    });
+    let tune_lsp::LspResponse::Completion(items) = response else {
+        return Err("completion request should return completions");
+    };
+    assert!(items.iter().any(|item| item.label == "value"));
+
+    assert_eq!(session.close_document("main.tn"), Some(file));
+    Ok(())
+}
+
+#[test]
+fn lsp_session_renames_resolved_references() -> Result<(), &'static str> {
+    let mut session = tune_lsp::LspSession::new();
+    let source = r#"
+let run(input: Int): Int = {
+  let local: Int = input
+  local
+}
+"#;
+    let file = session
+        .open_document("main.tn", source)
+        .ok_or("document should open")?;
+    let source_file = session.db().source(file).ok_or("source should exist")?;
+    let final_local_offset = source_file
+        .text
+        .rfind("local")
+        .ok_or("fixture should contain local reference")?;
+    let position = tune_lsp::protocol::position(
+        &source_file.text,
+        final_local_offset.try_into().map_err(|_| "offset fits")?,
+    )
+    .ok_or("local offset should map")?;
+
+    let edit = session
+        .rename_at(file, position, "renamed")
+        .ok_or("rename should produce workspace edit")?;
+    assert_eq!(edit.file, file);
+    assert_eq!(edit.edits.len(), 2);
+    assert!(edit.edits.iter().all(|edit| edit.replacement == "renamed"));
+    assert!(session.rename_at(file, position, "__bad").is_none());
+
+    Ok(())
+}
+
+#[test]
+fn lsp_session_reports_inlays_semantic_tokens_and_code_actions() -> Result<(), &'static str> {
+    let mut session = tune_lsp::LspSession::new();
+    let source = r#"
+pub let add(a, b) = a + b
+let value = add(1, 2)
+"#;
+    let file = session
+        .open_document("main.tn", source)
+        .ok_or("document should open")?;
+
+    let inlays = session.inlay_hints(file);
+    assert!(inlays.iter().any(|hint| hint.label.contains("Int")));
+
+    let tokens = session.semantic_tokens(file);
+    assert!(
+        tokens
+            .iter()
+            .any(|token| token.kind == tune_lsp::SemanticTokenKind::Function)
+    );
+    assert!(
+        tokens
+            .iter()
+            .any(|token| token.kind == tune_lsp::SemanticTokenKind::Parameter)
+    );
+
+    let actions = session.code_actions(file);
+    let action = actions
+        .iter()
+        .find(|action| action.title == "Insert inferred public signature")
+        .ok_or("public inference warning should produce code action")?;
+    let edit = action.edit.as_ref().ok_or("code action should have edit")?;
+    assert_eq!(edit.file, file);
+    assert!(edit.edits.iter().any(
+        |edit| edit.replacement.starts_with("pub let add(") && edit.replacement.contains("):")
+    ));
+
+    Ok(())
+}

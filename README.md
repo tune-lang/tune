@@ -23,16 +23,12 @@ development, but the platform is still changing.
 ## Hello Tune
 
 ```tn
-let score: Int = 37
-let passed: Bool = score > 30
+let score = 37
+let passed = score > 30
 
-let status: String = if passed {
-  "pass"
-} else {
-  "retry"
-}
+let status: String = if passed => "pass" else "retry"
 
-let report: String = "{status}:{score}"
+let report = "{status}:{score}"
 ```
 
 Run it with Dyno:

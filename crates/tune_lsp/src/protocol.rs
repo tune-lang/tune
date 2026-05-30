@@ -28,6 +28,18 @@ pub struct LspDiagnostic {
     pub message: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TextEdit {
+    pub range: Range,
+    pub replacement: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkspaceEdit {
+    pub file: tune_db::FileId,
+    pub edits: Vec<TextEdit>,
+}
+
 #[must_use]
 pub fn diagnostic(db: &TuneDb, diagnostic: &Diagnostic) -> Option<LspDiagnostic> {
     Some(LspDiagnostic {

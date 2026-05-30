@@ -4,10 +4,16 @@ use tune_diagnostics::Span;
 use tune_resolve::{CompilerFact, FactOwner};
 
 use crate::{
+    code_action::{self, CodeAction},
     completion::{self, CompletionItem},
     diagnostics,
+    document::DocumentSet,
     hover::{self, HoverCard},
+    inlay::{self, InlayHint},
     protocol::LspDiagnostic,
+    rename,
+    request::{LspRequest, LspResponse},
+    semantic_tokens::{self, SemanticToken},
     signature::{self, SignatureHelp},
 };
 
@@ -18,6 +24,7 @@ pub fn handle() {
 #[derive(Default)]
 pub struct LspSession {
     db: TuneDb,
+    documents: DocumentSet,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,7 +40,34 @@ impl LspSession {
     }
 
     pub fn add_file(&mut self, path: impl Into<String>, text: impl Into<String>) -> Option<FileId> {
-        self.db.add_file(path, text)
+        self.open_document(path, text)
+    }
+
+    pub fn open_document(
+        &mut self,
+        path: impl Into<String>,
+        text: impl Into<String>,
+    ) -> Option<FileId> {
+        self.documents.open(&mut self.db, path, text)
+    }
+
+    pub fn change_document(
+        &mut self,
+        path: impl AsRef<str>,
+        text: impl Into<String>,
+    ) -> Option<FileId> {
+        self.documents.change(&mut self.db, path, text)
+    }
+
+    pub fn close_document(&mut self, path: impl AsRef<str>) -> Option<FileId> {
+        self.documents.close(path)
+    }
+
+    #[must_use]
+    pub fn file_for_path(&self, path: impl AsRef<str>) -> Option<FileId> {
+        self.documents
+            .file(path.as_ref())
+            .or_else(|| self.db.file_by_path(path.as_ref()))
     }
 
     #[must_use]
@@ -105,26 +139,63 @@ impl LspSession {
 
     #[must_use]
     pub fn references_at(&self, file: FileId, position: crate::Position) -> Vec<Span> {
-        let Some(offset) = crate::protocol::byte_offset(&self.db, file, position) else {
-            return Vec::new();
-        };
-        let Some(cursor) = self.db.semantic_at(file, offset) else {
-            return Vec::new();
-        };
-        let Some(reference) = cursor.reference else {
-            return Vec::new();
-        };
-        let Some(analysis) = self.db.analyze_file(file) else {
-            return Vec::new();
-        };
-        analysis
-            .resolved
-            .name_refs
-            .iter()
-            .filter(|candidate| candidate.target == reference.target)
-            .filter_map(|candidate| candidate.span)
-            .chain(reference.definition.and_then(|definition| definition.span))
-            .collect()
+        rename::reference_spans_at(&self.db, file, position)
+    }
+
+    #[must_use]
+    pub fn rename_at(
+        &self,
+        file: FileId,
+        position: crate::Position,
+        new_name: &str,
+    ) -> Option<crate::WorkspaceEdit> {
+        rename::rename_at(&self.db, file, position, new_name)
+    }
+
+    #[must_use]
+    pub fn inlay_hints(&self, file: FileId) -> Vec<InlayHint> {
+        inlay::hints_for_file(&self.db, file)
+    }
+
+    #[must_use]
+    pub fn semantic_tokens(&self, file: FileId) -> Vec<SemanticToken> {
+        semantic_tokens::tokens_for_file(&self.db, file)
+    }
+
+    #[must_use]
+    pub fn code_actions(&self, file: FileId) -> Vec<CodeAction> {
+        code_action::actions_for_file(&self.db, file)
+    }
+
+    #[must_use]
+    pub fn handle_request(&self, request: LspRequest) -> LspResponse {
+        match request {
+            LspRequest::Hover { file, position } => {
+                LspResponse::Hover(self.hover_card_at(file, position))
+            }
+            LspRequest::Completion { file, position } => {
+                LspResponse::Completion(self.completions_at(file, position))
+            }
+            LspRequest::SignatureHelp { file, position } => {
+                LspResponse::SignatureHelp(self.signature_help_at(file, position))
+            }
+            LspRequest::Definition { file, position } => {
+                LspResponse::Definition(self.definition_at(file, position))
+            }
+            LspRequest::References { file, position } => {
+                LspResponse::References(self.references_at(file, position))
+            }
+            LspRequest::Rename {
+                file,
+                position,
+                new_name,
+            } => LspResponse::Rename(self.rename_at(file, position, &new_name)),
+            LspRequest::InlayHints { file } => LspResponse::InlayHints(self.inlay_hints(file)),
+            LspRequest::SemanticTokens { file } => {
+                LspResponse::SemanticTokens(self.semantic_tokens(file))
+            }
+            LspRequest::CodeActions { file } => LspResponse::CodeActions(self.code_actions(file)),
+        }
     }
 
     #[must_use]

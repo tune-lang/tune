@@ -35,6 +35,26 @@ impl SourceMap {
         self.files.get(id.0 as usize).filter(|file| file.id == id)
     }
 
+    pub fn set_text(&mut self, id: FileId, text: impl Into<String>) -> bool {
+        let Some(file) = self
+            .files
+            .get_mut(id.0 as usize)
+            .filter(|file| file.id == id)
+        else {
+            return false;
+        };
+        file.text = text.into();
+        true
+    }
+
+    #[must_use]
+    pub fn find_by_path(&self, path: &str) -> Option<FileId> {
+        self.files
+            .iter()
+            .find(|file| file.path == path)
+            .map(|file| file.id)
+    }
+
     #[must_use]
     pub fn len(&self) -> usize {
         self.files.len()

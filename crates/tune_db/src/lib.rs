@@ -7,7 +7,7 @@ pub use ids::*;
 pub use interner::Interner;
 pub use semantic::{
     SemanticBinding, SemanticCallContext, SemanticCursor, SemanticDefinition, SemanticExpr,
-    SemanticReference,
+    SemanticExprSpan, SemanticReference,
 };
 pub use source::{SourceFile, SourceMap};
 
@@ -49,6 +49,15 @@ impl TuneDb {
 
     pub fn add_file(&mut self, path: impl Into<String>, text: impl Into<String>) -> Option<FileId> {
         self.sources.add_file(path, text)
+    }
+
+    pub fn set_file_text(&mut self, id: FileId, text: impl Into<String>) -> bool {
+        self.sources.set_text(id, text)
+    }
+
+    #[must_use]
+    pub fn file_by_path(&self, path: &str) -> Option<FileId> {
+        self.sources.find_by_path(path)
     }
 
     #[must_use]
@@ -93,6 +102,11 @@ impl TuneDb {
         offset: tune_diagnostics::ByteOffset,
     ) -> Option<SemanticCursor> {
         semantic::semantic_at(self, id, offset)
+    }
+
+    #[must_use]
+    pub fn semantic_exprs(&self, id: FileId) -> Option<Vec<SemanticExprSpan>> {
+        semantic::semantic_exprs(self, id)
     }
 
     #[must_use]

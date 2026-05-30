@@ -1,13 +1,22 @@
+pub mod code_action;
 pub mod completion;
 pub mod diagnostics;
+pub mod document;
 pub mod hover;
 pub mod inlay;
 pub mod protocol;
+pub mod rename;
+pub mod request;
+pub mod semantic_tokens;
 pub mod server;
 pub mod signature;
 
+pub use code_action::CodeAction;
 pub use completion::{CompletionItem, CompletionKind};
 pub use hover::HoverCard;
-pub use protocol::{DiagnosticSeverity, LspDiagnostic, Position, Range};
+pub use inlay::{InlayHint, InlayHintKind};
+pub use protocol::{DiagnosticSeverity, LspDiagnostic, Position, Range, TextEdit, WorkspaceEdit};
+pub use request::{LspRequest, LspResponse};
+pub use semantic_tokens::{SemanticToken, SemanticTokenKind};
 pub use server::{DiagnosticHover, LspSession};
 pub use signature::SignatureHelp;
