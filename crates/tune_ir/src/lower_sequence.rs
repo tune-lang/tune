@@ -8,11 +8,12 @@ impl Lowerer {
     pub(super) fn lower_sequence_build(
         &mut self,
         _element_count: usize,
+        element_shape: &Shape,
     ) -> Result<(), IrLowerError> {
         let dst = self.alloc_reg()?;
         self.push_op(IrOp::SeqBuild {
             dst,
-            element_shape: Shape::Hole,
+            element_shape: element_shape.clone(),
         });
         self.stack.push(dst);
         Ok(())

@@ -107,7 +107,10 @@ pub(super) fn default_value_ops(shape: &Shape) -> Option<Vec<PlanOp>> {
         Shape::Optional(_) | Shape::Literal(tune_shape::LiteralFact::None) => {
             Some(vec![PlanOp::ConstNone])
         }
-        Shape::Sequence(_) => Some(vec![PlanOp::SequenceBuild { element_count: 0 }]),
+        Shape::Sequence(element) => Some(vec![PlanOp::SequenceBuild {
+            element_count: 0,
+            element_shape: element.as_ref().clone(),
+        }]),
         Shape::Tuple(items) => {
             let mut ops = Vec::new();
             for item in items {

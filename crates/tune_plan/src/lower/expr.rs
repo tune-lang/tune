@@ -60,8 +60,10 @@ impl LowerContext<'_> {
                 });
             }
             ExprKind::Sequence(elements) => {
+                let element_shape = sequence_element_shape(self.expr_shape(expr));
                 ops.push(PlanOp::SequenceBuild {
                     element_count: elements.len(),
+                    element_shape,
                 });
                 for element in elements {
                     self.lower_expr(element, ops);
@@ -478,4 +480,15 @@ fn is_bool_and_or(op: BinaryOp, shape: &Shape) -> bool {
 
 fn is_none_literal(expr: &Expr) -> bool {
     matches!(expr.kind, ExprKind::Literal(LiteralKind::None))
+}
+
+fn sequence_element_shape(shape: Option<Shape>) -> Shape {
+    match shape {
+        Some(Shape::Sequence(element)) => *element,
+        Some(Shape::Literal(literal)) => match literal.storage_shape() {
+            Shape::Sequence(element) => *element,
+            _ => Shape::Hole,
+        },
+        _ => Shape::Hole,
+    }
 }

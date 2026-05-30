@@ -314,6 +314,7 @@ pub enum PlanOp {
     SequencePush,
     SequenceBuild {
         element_count: usize,
+        element_shape: Shape,
     },
     TupleBuild {
         element_count: usize,
