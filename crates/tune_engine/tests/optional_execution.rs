@@ -42,6 +42,55 @@ let result: Int = if value is none {
     Ok(())
 }
 
+#[test]
+fn run_file_allows_optional_copy_warning() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let maybe(): Int? = none
+let x: Int? = maybe()
+let y = x
+let result: Int = 1
+"#,
+        )
+        .ok_or("file should allocate")?;
+    let check = tune.check_file(file).ok_or("file should check")?;
+
+    assert!(check.diagnostics.iter().any(|diagnostic| {
+        diagnostic.severity == tune_diagnostics::Severity::Warning
+            && diagnostic.title == "optional value may be none"
+    }));
+    assert_eq!(run_file(&tune, file)?, Value::Int(1));
+
+    Ok(())
+}
+
+#[test]
+fn run_file_rejects_proven_none_optional_copy() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let x: Int?
+let y = x
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    let Err(tune_engine::EngineError::Diagnostics(diagnostics)) = tune.run_file(file) else {
+        return Err("proven-none optional copy should stop execution");
+    };
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic.severity == tune_diagnostics::Severity::Error
+            && diagnostic.title == "optional value is proven none"
+    }));
+
+    Ok(())
+}
+
 fn run_file(tune: &tune_engine::Tune, file: tune_db::FileId) -> Result<Value, &'static str> {
     tune.run_file(file).map_err(|error| {
         eprintln!("{error:?}");

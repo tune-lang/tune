@@ -9,7 +9,7 @@ use tune_diagnostics::Diagnostic;
 
 use crate::diagnostics::{diagnostic_from_bytecode_lower_error, diagnostic_from_ir_lower_error};
 use crate::reachable::reachable_functions;
-use crate::{CheckReport, EngineError, ProjectEntry, Tune};
+use crate::{CheckReport, EngineError, ProjectEntry, Tune, has_error_diagnostics};
 
 #[derive(Debug, Clone)]
 pub struct ProfileReport {
@@ -192,7 +192,7 @@ fn finish_profile(
         });
     };
 
-    if !check.diagnostics.is_empty() {
+    if has_error_diagnostics(&check.diagnostics) {
         return Ok(ProfileReport {
             file: check.file,
             diagnostics: check.diagnostics,

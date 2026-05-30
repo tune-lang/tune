@@ -24,7 +24,7 @@ pub use profile::{
 };
 
 use tune_db::{FileId, TuneDb};
-use tune_diagnostics::Diagnostic;
+use tune_diagnostics::{Diagnostic, Severity};
 use tune_host::Authority;
 use tune_host::module::HostModule;
 use tune_runtime::TaskExecutionMode;
@@ -171,7 +171,7 @@ impl Tune {
         let check = self
             .check_file(file)
             .ok_or(EngineError::FileNotFound(file))?;
-        if !check.diagnostics.is_empty() {
+        if has_error_diagnostics(&check.diagnostics) {
             return Err(EngineError::Diagnostics(check.diagnostics));
         }
         Ok(tune_meta::facts::from_compiler_facts(
@@ -188,7 +188,7 @@ impl Tune {
         let check = self
             .check_file(file)
             .ok_or(EngineError::FileNotFound(file))?;
-        if !check.diagnostics.is_empty() {
+        if has_error_diagnostics(&check.diagnostics) {
             return Err(EngineError::Diagnostics(check.diagnostics));
         }
         Ok(tune_meta::tagged::tagged_decls(
@@ -494,7 +494,7 @@ impl Tune {
 }
 
 fn executable_from_compile(compile: CompileReport) -> Result<ExecutableReport, EngineError> {
-    if !compile.check.diagnostics.is_empty() {
+    if has_error_diagnostics(&compile.check.diagnostics) {
         return Err(EngineError::Diagnostics(compile.check.diagnostics.clone()));
     }
     let entry_plan = compile
@@ -524,4 +524,10 @@ fn executable_from_compile(compile: CompileReport) -> Result<ExecutableReport, E
         ir,
         bytecode,
     })
+}
+
+pub(crate) fn has_error_diagnostics(diagnostics: &[Diagnostic]) -> bool {
+    diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == Severity::Error)
 }

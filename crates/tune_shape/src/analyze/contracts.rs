@@ -8,7 +8,10 @@ use tune_resolve::{LocalId, NameTarget};
 use super::generics::{item_type_param_solution, substitute_generic_params};
 use super::{Analyzer, ExprShape, FiniteForContractKind, MaterializerCheck};
 use crate::lower_resolved_hir_shape;
-use crate::{BindingKey, BindingState, LiteralFact, Shape, expr_shape_fact};
+use crate::{
+    BindingKey, BindingState, LiteralFact, Shape, can_materialize, expr_literal_fact,
+    expr_shape_fact,
+};
 mod effects;
 mod structural;
 
@@ -214,11 +217,29 @@ impl Analyzer<'_> {
                 .items
                 .iter()
                 .find(|item| item.id == item_id)
-                .and_then(|item| item.shape.as_ref())
-                .map(|shape| lower_resolved_hir_shape(shape, &self.resolved.scope).shape)
+                .map(|item| self.top_level_current_shape(item))
                 .unwrap_or(Shape::Hole),
             _ => Shape::Hole,
         }
+    }
+
+    fn top_level_current_shape(&self, item: &Item) -> Shape {
+        let declared = item
+            .shape
+            .as_ref()
+            .map(|shape| lower_resolved_hir_shape(shape, &self.resolved.scope).shape)
+            .unwrap_or(Shape::Hole);
+        let Some(body) = item.body.as_ref() else {
+            return if matches!(declared, Shape::Optional(_)) {
+                Shape::Literal(LiteralFact::None)
+            } else {
+                declared
+            };
+        };
+        if let Some(literal) = expr_literal_fact(body) {
+            return top_level_literal_current_shape(&declared, &literal);
+        }
+        expr_shape_fact(body, self.module, self.resolved).unwrap_or(declared)
     }
 
     pub(super) fn bind_pattern(&mut self, pattern: &Pattern, shape: Shape) {
@@ -532,6 +553,17 @@ impl Analyzer<'_> {
                     .map(|variant| variant.id)
             })
             .collect()
+    }
+}
+
+fn top_level_literal_current_shape(storage: &Shape, literal: &LiteralFact) -> Shape {
+    match (storage, literal) {
+        (Shape::Optional(_), LiteralFact::None) => Shape::Literal(LiteralFact::None),
+        (Shape::Optional(inner), literal) if can_materialize(literal, inner) => {
+            inner.as_ref().clone()
+        }
+        (Shape::Hole, _) => Shape::Literal(literal.clone()),
+        (storage, _) => storage.clone(),
     }
 }
 

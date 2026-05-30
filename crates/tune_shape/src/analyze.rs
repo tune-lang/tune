@@ -1,6 +1,6 @@
-use crate::LiteralFact;
-use tune_diagnostics::{Diagnostic, Span, codes};
+use tune_diagnostics::{Diagnostic, Span};
 use tune_hir::expr::{Expr, ExprKind, LiteralKind, StringPart};
+mod bindings;
 mod callable;
 mod calls;
 mod contracts;
@@ -18,10 +18,7 @@ use tune_hir::shape::{ShapeExpr, ShapeExprKind};
 use tune_hir::{ExprId, MemberId};
 use tune_resolve::{ResolvedModule, VariantId};
 
-use crate::{
-    BindingKey, BindingState, ExprMaterialization, Shape, StateFrame, expr_literal_fact,
-    lower_resolved_hir_shape,
-};
+use crate::{BindingKey, BindingState, ExprMaterialization, Shape, StateFrame};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExprShape {
@@ -164,6 +161,9 @@ pub fn analyze_item(module: &Module, resolved: &ResolvedModule, item: &Item) -> 
             let actual = analyzer.analyze_expr(body);
             analyzer.infer_item_signature(item, &actual);
             analyzer.check_untyped_result_propagation(item, body);
+            if item.kind == ItemKind::Let {
+                analyzer.check_unannotated_optional_copy(&actual, body.span);
+            }
         }
     }
     analyzer.finish()
@@ -427,142 +427,6 @@ impl Analyzer<'_> {
             .iter()
             .rev()
             .find(|shape| !matches!(shape, Shape::Hole))
-    }
-
-    fn analyze_let(
-        &mut self,
-        expr: &Expr,
-        shape: Option<&tune_hir::shape::ShapeExpr>,
-        value: Option<&Expr>,
-    ) -> Shape {
-        let declared = shape.map(|shape| lower_resolved_hir_shape(shape, &self.resolved.scope));
-        let expected = declared
-            .as_ref()
-            .map_or(Shape::Hole, |shape| shape.shape.clone());
-        if let Some(declared) = declared {
-            self.diagnostics.extend(declared.diagnostics);
-        }
-
-        let actual = value
-            .map(|value| self.analyze_expr_expected(value, &expected))
-            .unwrap_or(Shape::Hole);
-        if let Some(value) = value {
-            if matches!(value.kind, ExprKind::Sequence(_)) {
-                let materializer = self.sequence_materializer(&expected);
-                self.check_materializer(&expected, value.span);
-                if materializer.is_none() {
-                    self.check_value_against(&expected, &actual, value.span);
-                }
-            } else {
-                self.check_value_against(&expected, &actual, value.span);
-            }
-        }
-
-        if let Some(local) = self.local_for_expr(expr.id) {
-            let literal = value.and_then(expr_literal_fact);
-            let binding = literal.map_or_else(
-                || {
-                    BindingState::new(
-                        BindingKey::Local(local),
-                        self.local_name(local),
-                        expected.clone(),
-                        if expected == Shape::Hole {
-                            actual.clone()
-                        } else {
-                            expected.clone()
-                        },
-                        expr.span,
-                    )
-                },
-                |literal| {
-                    let storage_shape = if expected == Shape::Hole {
-                        if literal.is_numeric() {
-                            Shape::Hole
-                        } else {
-                            literal.storage_shape()
-                        }
-                    } else {
-                        expected.clone()
-                    };
-                    let binding = BindingState::literal(
-                        BindingKey::Local(local),
-                        self.local_name(local),
-                        storage_shape.clone(),
-                        literal,
-                        expr.span,
-                    );
-                    if expected == Shape::Hole {
-                        binding
-                    } else {
-                        binding.with_committed_current(storage_shape)
-                    }
-                },
-            );
-            self.frame.define(binding);
-        }
-
-        actual
-    }
-
-    fn analyze_assign(&mut self, target: &Expr, value: &Expr) -> Shape {
-        let actual = self.analyze_expr(value);
-        if let Some(key) = self.binding_key(target) {
-            let expected = self.assignment_expected_shape(key, &actual);
-            self.check_value_against(&expected, &actual, value.span);
-            self.assignments.push(AssignmentCheck {
-                target: key,
-                expected: expected.clone(),
-                actual: actual.clone(),
-                span: target.span,
-            });
-            self.frame.assign_shape(key, actual.clone());
-        } else {
-            self.analyze_expr(target);
-        }
-        actual
-    }
-
-    fn assignment_expected_shape(&mut self, key: BindingKey, actual: &Shape) -> Shape {
-        let Some(binding) = self.frame.get(key) else {
-            return Shape::Hole;
-        };
-        if binding.storage_shape != Shape::Hole {
-            return binding.storage_shape.clone();
-        }
-        let Some(literal) = binding.literal_fact.as_ref() else {
-            return Shape::Hole;
-        };
-        if !literal.is_numeric() {
-            return literal.storage_shape();
-        }
-        if let Shape::Literal(next) = actual
-            && next.is_numeric()
-        {
-            let solved = if matches!(next, LiteralFact::Numeric { text } if text.contains('.')) {
-                Shape::Float
-            } else {
-                Shape::Int
-            };
-            if let Some(binding) = self.frame.get_mut(key) {
-                binding.storage_shape = solved.clone();
-            }
-            return solved;
-        }
-        Shape::Int
-    }
-
-    fn check_value_against(&mut self, expected: &Shape, actual: &Shape, span: Option<Span>) {
-        if !expected.accepts(actual) {
-            self.diagnostics.push(
-                Diagnostic::error(
-                    codes::ASSIGNMENT_SHAPE_MISMATCH,
-                    "assigned value does not match storage shape",
-                    span.unwrap_or_else(Span::synthetic),
-                    format!("expected `{expected:?}`, got `{actual:?}`"),
-                )
-                .build(),
-            );
-        }
     }
 
     fn constrain_expr_to_shape(&mut self, expr: &Expr, expected: &Shape) {
