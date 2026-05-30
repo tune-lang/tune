@@ -18,6 +18,7 @@ fn std_examples_check_with_dyno() -> Result<(), String> {
         "examples/std/json.tn",
         "examples/std/math.tn",
         "examples/std/random.tn",
+        "examples/std/text.tn",
         "examples/std/time.tn",
     ];
     let root = repo_root();

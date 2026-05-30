@@ -18,6 +18,16 @@ pub fn install() -> HostModule {
                 Ok(Value::Size(text.len() as u64))
             }),
             HostFunction::new(
+                "char_count",
+                vec![HostParam::new("text", Shape::String)],
+                Shape::Size,
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let text = crate::string_arg(args, 0, "text")?;
+                Ok(Value::Size(text.chars().count() as u64))
+            }),
+            HostFunction::new(
                 "bytes",
                 vec![HostParam::new("text", Shape::String)],
                 Shape::Sequence(Box::new(Shape::Byte)),
@@ -123,6 +133,20 @@ pub fn install() -> HostModule {
                 ))
             }),
             HostFunction::new(
+                "join",
+                vec![
+                    HostParam::new("items", string_sequence_shape()),
+                    HostParam::new("separator", Shape::String),
+                ],
+                Shape::String,
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let items = crate::string_sequence_arg(args, 0, "items")?;
+                let separator = crate::string_arg(args, 1, "separator")?;
+                Ok(Value::String(items.join(separator)))
+            }),
+            HostFunction::new(
                 "lines",
                 vec![HostParam::new("text", Shape::String)],
                 string_sequence_shape(),
@@ -162,6 +186,34 @@ pub fn install() -> HostModule {
                 let (text, suffix) = crate::string_pair(args, "text", "suffix")?;
                 Ok(Value::Bool(text.ends_with(suffix)))
             }),
+            HostFunction::new(
+                "slice",
+                vec![
+                    HostParam::new("text", Shape::String),
+                    HostParam::new("start", Shape::Size),
+                    HostParam::new("count", Shape::Size),
+                ],
+                string_result_shape(),
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let text = crate::string_arg(args, 0, "text")?;
+                let start = size_arg(args, 1, "start")?;
+                let count = size_arg(args, 2, "count")?;
+                let char_count = text.chars().count() as u64;
+                let Some(end) = start.checked_add(count) else {
+                    return Ok(crate::result_error("text.slice range overflow"));
+                };
+                if start > char_count || end > char_count {
+                    return Ok(crate::result_error("text.slice range is out of bounds"));
+                }
+                Ok(crate::result_ok(Value::String(
+                    text.chars()
+                        .skip(start as usize)
+                        .take(count as usize)
+                        .collect(),
+                )))
+            }),
         ],
     )
 }
@@ -175,4 +227,16 @@ fn string_result_shape() -> Shape {
 
 fn string_sequence_shape() -> Shape {
     Shape::Sequence(Box::new(Shape::String))
+}
+
+fn size_arg(args: &[Value], index: usize, name: &str) -> Result<u64, tune_host::HostCallError> {
+    match args.get(index) {
+        Some(Value::Size(value)) => Ok(*value),
+        None => Err(tune_host::HostCallError::new(format!(
+            "missing argument `{name}` at index {index}"
+        ))),
+        _ => Err(tune_host::HostCallError::new(format!(
+            "expected Size for `{name}`"
+        ))),
+    }
 }

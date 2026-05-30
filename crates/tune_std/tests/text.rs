@@ -31,6 +31,26 @@ fn text_bytes_executor_returns_byte_sequence() -> Result<(), &'static str> {
 }
 
 #[test]
+fn text_length_executors_distinguish_bytes_and_chars() -> Result<(), &'static str> {
+    let module = tune_std::text::install();
+
+    assert_eq!(
+        text_executor(&module, "byte_len")?
+            .call(&[tune_runtime::Value::String("é".into())])
+            .map_err(|_| "text.byte_len should execute")?,
+        tune_runtime::Value::Size(2)
+    );
+    assert_eq!(
+        text_executor(&module, "char_count")?
+            .call(&[tune_runtime::Value::String("é".into())])
+            .map_err(|_| "text.char_count should execute")?,
+        tune_runtime::Value::Size(1)
+    );
+
+    Ok(())
+}
+
+#[test]
 fn text_from_utf8_executor_returns_result_values() -> Result<(), &'static str> {
     let module = tune_std::text::install();
     let value = text_executor(&module, "from_utf8")?
@@ -127,6 +147,56 @@ fn text_split_executors_return_string_sequences() -> Result<(), &'static str> {
             tune_runtime::Value::String("two".into()),
         ])
     );
+    assert_eq!(
+        text_executor(&module, "join")?
+            .call(&[
+                tune_runtime::Value::Sequence(vec![
+                    tune_runtime::Value::String("a".into()),
+                    tune_runtime::Value::String("b".into()),
+                    tune_runtime::Value::String("c".into()),
+                ]),
+                tune_runtime::Value::String("-".into()),
+            ])
+            .map_err(|_| "text.join should execute")?,
+        tune_runtime::Value::String("a-b-c".into())
+    );
+
+    Ok(())
+}
+
+#[test]
+fn text_slice_executor_returns_result_values() -> Result<(), &'static str> {
+    let module = tune_std::text::install();
+
+    assert_eq!(
+        text_executor(&module, "slice")?
+            .call(&[
+                tune_runtime::Value::String("Tune".into()),
+                tune_runtime::Value::Size(1),
+                tune_runtime::Value::Size(2),
+            ])
+            .map_err(|_| "text.slice should execute")?,
+        tune_runtime::Value::Variant {
+            variant: tune_runtime::value::RuntimeVariant::ResultOk,
+            fields: vec![tune_runtime::Value::String("un".into())],
+            propagation_frames: Vec::new(),
+        }
+    );
+
+    let out_of_bounds = text_executor(&module, "slice")?
+        .call(&[
+            tune_runtime::Value::String("Tune".into()),
+            tune_runtime::Value::Size(3),
+            tune_runtime::Value::Size(2),
+        ])
+        .map_err(|_| "text.slice should execute")?;
+    assert!(matches!(
+        out_of_bounds,
+        tune_runtime::Value::Variant {
+            variant: tune_runtime::value::RuntimeVariant::ResultError,
+            ..
+        }
+    ));
 
     Ok(())
 }
