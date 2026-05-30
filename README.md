@@ -1,32 +1,66 @@
 # Tune
 
-Tune is a typed programming language for scripts, automation, and embeddable
-application logic.
+Tune is a programming language for scripts that should grow up cleanly.
 
-This is the Tune repository. It contains the language implementation, runtime,
-standard library, host API, package/project tooling, LSP work, examples, and the
-Dyno command-line tool. Dyno is Tune's bundled CLI and default platform embedder;
-it is one consumer of the same public Tune engine API that other hosts can embed.
+The short version: Tune tries to feel direct like a scripting language, while
+giving the compiler enough meaning to catch mistakes, power editor tooling, and
+eventually produce very fast code.
 
-Tune is designed for code that should stay easy to read while still giving tools
-and runtimes enough information to understand what the program means. The guiding
-rule is:
+Most scripting languages let values stay vague until runtime. Tune does not. A
+value can be unknown, but the compiler should still know what kind of thing it
+is, what operations are valid on it, and what a call or field access means.
+
+That rule is the heart of the language:
 
 ```text
 runtime values may be unknown
 runtime meaning may not be unknown
 ```
 
-Tune is pre-1.0. The language is usable for small programs and compiler/runtime
-development, but the platform is still changing.
+This is the Tune repository. It contains the language implementation, runtime,
+standard library, host API, package/project tooling, LSP work, examples, and the
+Dyno command-line tool. Dyno is Tune's bundled CLI and default platform embedder;
+it is one consumer of the same public Tune engine API that other hosts can embed.
+
+Tune is pre-1.0. It is usable for small programs, examples, compiler/runtime
+development, and early community feedback. The platform is still changing.
+
+## Why Tune Exists
+
+Tune is aimed at code that starts small but should not become a pile of runtime
+guesswork:
+
+- automation scripts
+- app/plugin scripting
+- data and tooling glue
+- host-embedded business logic
+- workflows that need good editor feedback without becoming Rust-sized
+
+The design goal is not “Python with types” or “Rust but easier.” Tune’s bet is
+that a small language with known compile-time meaning can make scripting feel
+fast to write while still giving the compiler room to plan execution seriously.
+
+If you are new, start here:
+
+- [Why Tune?](docs/why-tune.md)
+- [Getting Started](docs/getting-started.md)
+- [Language Tour](docs/language-tour.md)
+- [Examples](examples/README.md)
+- [Tooling](docs/tooling.md)
 
 ## Hello Tune
 
 ```tn
-let score = 37
+-- Values can be inferred, but their meaning is still known.
+let score: Int = 37
 let passed = score > 30
 
-let status: String = if passed => "pass" else "retry"
+-- `if` is an expression.
+let status: String = if passed {
+  "pass"
+} else {
+  "retry"
+}
 
 let report = "{status}:{score}"
 let shown: () = print(report)
@@ -36,6 +70,12 @@ Run it with Dyno:
 
 ```sh
 cargo run -p dyno_cli -- run examples/language/01_values_and_flow.tn
+```
+
+Expected output:
+
+```text
+pass:37:false
 ```
 
 Check without running:
@@ -71,18 +111,17 @@ cargo run --manifest-path ../Cargo.toml -p dyno_cli -- run
 ## Learn By Example
 
 The language examples under [examples/language](examples/language) are small
-programs that teach one concept at a time. They are checked by the test suite so
-the examples stay aligned with the implementation.
+programs that teach one concept at a time and print a small result. They are
+checked and run by the test suite so the examples stay aligned with the
+implementation.
 
 ```sh
 cargo test -p dyno_cli --test language_examples
 ```
 
-Start with [examples/README.md](examples/README.md), then use
-[docs/language-tour.md](docs/language-tour.md) for short explanations beside the
-example files.
-
-New users should start with [docs/getting-started.md](docs/getting-started.md).
+New users should start with [docs/getting-started.md](docs/getting-started.md),
+then read [docs/language-tour.md](docs/language-tour.md) beside the executable
+examples.
 Tooling and editor setup lives in [docs/tooling.md](docs/tooling.md).
 The current standard library surface is summarized in
 [docs/stdlib.md](docs/stdlib.md).

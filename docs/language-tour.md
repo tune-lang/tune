@@ -1,5 +1,7 @@
 # Tune Language Tour
 
+This is a beginner tour. It does not assume you already know Tune.
+
 This tour follows the executable examples in
 [examples/language](../examples/language). Each `.tn` file introduces one idea,
 prints a small result, and is kept short enough to read in one sitting.
@@ -26,17 +28,25 @@ cargo test -p dyno_cli --test language_examples
 [01_values_and_flow.tn](../examples/language/01_values_and_flow.tn) shows typed
 bindings, `if` expressions, string interpolation, and boolean operators.
 
-Tune bindings use `let`; annotations are written after a colon:
+Tune bindings use `let`:
 
 ```tn
 let score: Int = 37
 let passed: Bool = score > 30
 ```
 
-`if` is an expression, so both branches contribute a value:
+`score: Int` means “the binding named `score` has integer meaning.” Tune can
+infer many shapes, but examples often include annotations so the code teaches
+what is happening.
+
+`if` is an expression, so both branches produce the value assigned to `status`:
 
 ```tn
-let status: String = if passed { "pass" } else { "retry" }
+let status: String = if passed {
+  "pass"
+} else {
+  "retry"
+}
 ```
 
 The example prints the interpolated report:
@@ -52,6 +62,12 @@ let shown: () = print(report)
 uses callables and block bodies. The final expression in a block is the block's
 value unless an explicit `return` exits earlier.
 
+Callable declarations use this shape:
+
+```tn
+let name(param: Shape): ReturnShape = body
+```
+
 ```tn
 let clamp(value: Int, low: Int, high: Int): Int = {
   if value < low {
@@ -63,6 +79,9 @@ let clamp(value: Int, low: Int, high: Int): Int = {
   }
 }
 ```
+
+The last expression in the block is the returned value. There is no required
+`return` keyword for simple expression-style code.
 
 ## 3. Structs And Methods
 
@@ -81,6 +100,18 @@ struct Counter {
 }
 ```
 
+Create a value with a struct literal:
+
+```tn
+let counter: Counter = Counter { value = 10 }
+```
+
+Call methods with dot syntax:
+
+```tn
+let bumped: Int = counter.bump(5)
+```
+
 ## 4. Sequences And Finite For
 
 [04_sequences_and_for.tn](../examples/language/04_sequences_and_for.tn) uses a
@@ -89,15 +120,28 @@ contract is intentionally typed: sequences expose `len(): Size` plus indexed
 access.
 
 ```tn
+let values = [1, 2, 3, 4, 5]
+
 for item in items {
   total = total + item
 }
 ```
 
+The loop variable `item` gets its shape from the iterable source.
+
 ## 5. Enums And Match
 
 [05_enums_and_match.tn](../examples/language/05_enums_and_match.tn) defines an
 enum and destructures variants with `match`.
+
+Enums define named alternatives:
+
+```tn
+enum Command {
+  Move(Int, Int)
+  Wait(Int)
+}
+```
 
 ```tn
 let cost(command: Command): Int = match command {
@@ -105,6 +149,8 @@ let cost(command: Command): Int = match command {
   Wait(seconds) => seconds
 }
 ```
+
+Each arm handles one possible variant and can bind its payload values.
 
 ## 6. Result And Propagation
 
@@ -120,6 +166,9 @@ let value: Int = choose(okay)!
 Ok(value + 1)
 ```
 
+Read that as: “get the successful value from `choose(okay)`, or stop this
+callable with the error.”
+
 ## 7. Generics
 
 [07_generics.tn](../examples/language/07_generics.tn) shows a generic function
@@ -132,6 +181,9 @@ struct Box<T> {
 
 let id<T>(value: T): T = value
 ```
+
+`T` is a shape parameter. A call like `id(4)` solves `T` as `Int`; a call like
+`id("tune")` solves `T` as `String`.
 
 ## 8. Std Imports
 
@@ -149,6 +201,9 @@ let value: Int = parse.int(cleaned)!
 Host calls are ordinary typed calls with declared shapes, authority requirements,
 and task-safety metadata.
 
+Nothing special happens because the module is standard library code. It is still
+typed meaning exposed through imports.
+
 ## 9. Tasks
 
 [09_tasks.tn](../examples/language/09_tasks.tn) shows `spawn` and `join`. Host
@@ -158,3 +213,6 @@ calls inside spawned work must be marked task-safe.
 let task: Task<Int> = spawn compute(41)
 let answer: Int = task.join()
 ```
+
+`spawn` creates planned work. `join()` waits for the task and returns the
+computed value.

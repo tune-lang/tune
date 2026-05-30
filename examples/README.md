@@ -1,9 +1,12 @@
 # Tune Examples
 
-These examples are small Tune programs meant to be read and run. The language
-examples introduce the core surface in order; the std examples show the current
-default host modules. The examples are part of the test suite, so they should
-stay aligned with the implementation.
+These examples are small Tune programs meant to be read and run. If you are new
+to Tune, read the language examples in order. They are intentionally explicit:
+annotations are included even where inference could solve them, because the goal
+is to teach the language.
+
+The examples are part of the test suite, so they should stay aligned with the
+implementation.
 
 Run a language example:
 
@@ -27,6 +30,14 @@ cargo test -p dyno_cli --test std_examples
 ## Language Examples
 
 Start here if you are learning Tune.
+
+Suggested path:
+
+1. Run an example.
+2. Read the source.
+3. Change one line.
+4. Run `dyno check`.
+5. Run it again.
 
 - [01_values_and_flow.tn](language/01_values_and_flow.tn): typed bindings, `if`
   expressions, interpolation, and boolean operators. Prints a compact status

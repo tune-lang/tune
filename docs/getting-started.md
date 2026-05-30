@@ -1,5 +1,10 @@
 # Getting Started
 
+This guide assumes you have never used Tune before.
+
+Tune programs live in `.tn` files. Dyno is the command-line tool that checks,
+runs, formats, and serves editor features for Tune code.
+
 Tune is currently distributed from source. The fastest way to try it is to run
 Dyno from this checkout.
 
@@ -24,6 +29,31 @@ Expected output:
 ```text
 pass:37:false
 ```
+
+Open the file and read it:
+
+```tn
+let score: Int = 37
+let passed: Bool = score > 30
+let retry: Bool = not passed or score < 10
+
+let status: String = if passed {
+  "pass"
+} else {
+  "retry"
+}
+
+let report: String = "{status}:{score}:{retry}"
+let shown: () = print(report)
+```
+
+What this shows:
+
+- `let` creates a binding.
+- `name: Shape` is a type/shape annotation.
+- `if` produces a value.
+- Strings can interpolate `{name}`.
+- `print(...)` is how a program writes visible output.
 
 Check the same file without running it:
 
@@ -71,6 +101,7 @@ dyno fmt --check
 
 Use these in order:
 
+- [why-tune.md](why-tune.md)
 - [examples/README.md](../examples/README.md)
 - [language-tour.md](language-tour.md)
 
