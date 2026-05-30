@@ -1,14 +1,10 @@
 -- Typed bindings, if expressions, interpolation, and boolean operators.
 
-let score: Int = 37
-let passed: Bool = score > 30
-let retry: Bool = not passed or score < 10
+let score = 37
+let passed = score > 30
+let retry = not passed or score < 10
 
-let status: String = if passed {
-  "pass"
-} else {
-  "retry"
-}
+let status = if passed => "pass" else "retry"
 
-let report: String = "{status}:{score}:{retry}"
+let report = "{status}:{score}:{retry}"
 print(report)

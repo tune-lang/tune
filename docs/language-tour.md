@@ -7,9 +7,9 @@ This tour follows the executable examples in
 prints a small result, and is kept short enough to read in one sitting.
 
 ```sh
-cargo run -p dyno_cli -- check examples/language/01_values_and_flow.tn
-cargo run -p dyno_cli -- run examples/language/01_values_and_flow.tn
-cargo run -p dyno_cli -- fmt --check examples/language/01_values_and_flow.tn
+dyno check examples/language/01_values_and_flow.tn
+dyno run examples/language/01_values_and_flow.tn
+dyno fmt --check examples/language/01_values_and_flow.tn
 ```
 
 `dyno run` is silent unless the program writes output with `print` or a host IO
@@ -31,28 +31,23 @@ bindings, `if` expressions, string interpolation, and boolean operators.
 Tune bindings use `let`:
 
 ```tn
-let score: Int = 37
-let passed: Bool = score > 30
+let score = 37
+let passed = score > 30
 ```
 
-`score: Int` means “the binding named `score` has integer meaning.” Tune can
-infer many shapes, but examples often include annotations so the code teaches
-what is happening.
+Tune can infer these shapes, but they are not vague. The compiler still knows
+that `score` is integer-shaped and `passed` is boolean-shaped.
 
 `if` is an expression, so both branches produce the value assigned to `status`:
 
 ```tn
-let status: String = if passed {
-  "pass"
-} else {
-  "retry"
-}
+let status = if passed => "pass" else "retry"
 ```
 
 The example prints the interpolated report:
 
 ```tn
-let report: String = "{status}:{score}:{retry}"
+let report = "{status}:{score}:{retry}"
 print(report)
 ```
 

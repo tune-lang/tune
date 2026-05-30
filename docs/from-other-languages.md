@@ -40,11 +40,7 @@ const status = score > 30 ? "pass" : "retry";
 Tune:
 
 ```tn
-let status: String = if score > 30 {
-  "pass"
-} else {
-  "retry"
-}
+let status = if score > 30 => "pass" else "retry"
 ```
 
 Tune uses expression-oriented flow. `if`, blocks, and `match` can produce values.

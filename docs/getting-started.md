@@ -5,8 +5,8 @@ This guide assumes you have never used Tune before.
 Tune programs live in `.tn` files. Dyno is the command-line tool that checks,
 runs, formats, and serves editor features for Tune code.
 
-Tune is currently distributed from source. The fastest way to try it is to run
-Dyno from this checkout.
+Tune is currently distributed from source. Build Dyno once, then use the `dyno`
+command directly.
 
 ## Install Prerequisites
 
@@ -16,12 +16,54 @@ compiler once Rustup is installed.
 
 Node.js is only needed for VS Code extension packaging and editor tooling checks.
 
+## Install Dyno
+
+From the repository root:
+
+```sh
+cargo install --path crates/dyno_cli
+```
+
+That installs `dyno` into Cargo's bin directory, usually `~/.cargo/bin`.
+
+If `dyno --help` is not found, add Cargo's bin directory to your `PATH`.
+
+macOS/Linux, current shell:
+
+```sh
+export PATH="$HOME/.cargo/bin:$PATH"
+```
+
+macOS/Linux, future shells:
+
+```sh
+echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.zshrc
+```
+
+Windows PowerShell, current shell:
+
+```powershell
+$env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
+```
+
+Windows PowerShell, future shells:
+
+```powershell
+[Environment]::SetEnvironmentVariable("Path", "$env:USERPROFILE\.cargo\bin;$env:Path", "User")
+```
+
+Check the command:
+
+```sh
+dyno --help
+```
+
 ## Run A Program
 
 Run the first language example:
 
 ```sh
-cargo run -p dyno_cli -- run examples/language/01_values_and_flow.tn
+dyno run examples/language/01_values_and_flow.tn
 ```
 
 Expected output:
@@ -33,24 +75,20 @@ pass:37:false
 Open the file and read it:
 
 ```tn
-let score: Int = 37
-let passed: Bool = score > 30
-let retry: Bool = not passed or score < 10
+let score = 37
+let passed = score > 30
+let retry = not passed or score < 10
 
-let status: String = if passed {
-  "pass"
-} else {
-  "retry"
-}
+let status = if passed => "pass" else "retry"
 
-let report: String = "{status}:{score}:{retry}"
+let report = "{status}:{score}:{retry}"
 print(report)
 ```
 
 What this shows:
 
 - `let` creates a binding.
-- `name: Shape` is a type/shape annotation.
+- Tune infers many shapes, but the compiler still knows meaning.
 - `if` produces a value.
 - Strings can interpolate `{name}`.
 - `print(...)` is how a program writes visible output.
@@ -58,21 +96,21 @@ What this shows:
 Check the same file without running it:
 
 ```sh
-cargo run -p dyno_cli -- check examples/language/01_values_and_flow.tn
+dyno check examples/language/01_values_and_flow.tn
 ```
 
 Machine-readable diagnostics are available for editor and CI integrations:
 
 ```sh
-cargo run -p dyno_cli -- check --json examples/language/01_values_and_flow.tn
+dyno check --json examples/language/01_values_and_flow.tn
 ```
 
 ## Create A Project
 
 ```sh
-cargo run -p dyno_cli -- new hello-tune
+dyno new hello-tune
 cd hello-tune
-cargo run --manifest-path ../Cargo.toml -p dyno_cli -- run
+dyno run
 ```
 
 The generated project writes:
@@ -81,15 +119,7 @@ The generated project writes:
 hello from Dyno
 ```
 
-## Install Dyno Locally
-
-From the repository root:
-
-```sh
-cargo install --path crates/dyno_cli
-```
-
-After that, use `dyno` directly:
+Use `dyno` directly for day-to-day work:
 
 ```sh
 dyno run examples/language/03_structs_and_methods.tn

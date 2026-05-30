@@ -10,7 +10,7 @@ It is intentionally small. The goal is to learn how Tune code reads.
 Create a file named `score.tn`:
 
 ```tn
-let score: Int = 37
+let score = 37
 print("score={score}")
 ```
 
@@ -26,7 +26,8 @@ Output:
 score=37
 ```
 
-`let` creates a binding. `score: Int` says the binding has integer meaning.
+`let` creates a binding. Tune infers that `score` has integer meaning from the
+literal value.
 
 `print(...)` writes visible program output. `dyno run` does not print the last
 value automatically.
@@ -36,13 +37,9 @@ value automatically.
 Tune `if` produces a value:
 
 ```tn
-let score: Int = 37
+let score = 37
 
-let status: String = if score > 30 {
-  "pass"
-} else {
-  "retry"
-}
+let status = if score > 30 => "pass" else "retry"
 
 print("{status}:{score}")
 ```
@@ -55,11 +52,7 @@ selected branch becomes the value assigned to `status`.
 Tune callable declarations start with `let` too:
 
 ```tn
-let label(score: Int): String = if score > 30 {
-  "pass"
-} else {
-  "retry"
-}
+let label(score: Int): String = if score > 30 => "pass" else "retry"
 
 print("{label(37)}")
 ```

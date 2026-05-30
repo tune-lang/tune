@@ -3,8 +3,8 @@
 These examples are small Tune programs meant to be read and run.
 
 If you are new to Tune, read [the tutorial](../docs/tutorial.md) first, then
-come back here. The examples are intentionally explicit: annotations are included
-even where inference could solve them, because the goal is to teach the language.
+come back here. The examples use inference where it makes the code clearer and
+annotations where the shape itself is the point.
 
 The examples are part of the test suite, so they should stay aligned with the
 implementation.
@@ -12,13 +12,13 @@ implementation.
 Run a language example:
 
 ```sh
-cargo run -p dyno_cli -- run examples/language/03_structs_and_methods.tn
+dyno run examples/language/03_structs_and_methods.tn
 ```
 
 Check without running:
 
 ```sh
-cargo run -p dyno_cli -- check examples/language/06_result_propagation.tn
+dyno check examples/language/06_result_propagation.tn
 ```
 
 Run the example regression tests:
@@ -40,7 +40,7 @@ Suggested path:
 4. Run `dyno check`.
 5. Run it again.
 
-- [01_values_and_flow.tn](language/01_values_and_flow.tn): typed bindings, `if`
+- [01_values_and_flow.tn](language/01_values_and_flow.tn): inferred bindings, `if`
   expressions, interpolation, and boolean operators. Prints a compact status
   report.
 - [02_functions_and_blocks.tn](language/02_functions_and_blocks.tn): callables

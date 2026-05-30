@@ -52,26 +52,58 @@ If you are new, start here:
 
 ## Hello Tune
 
+First build and install Dyno from this checkout:
+
+```sh
+cargo install --path crates/dyno_cli
+```
+
+That installs the `dyno` command into Cargo's bin directory, usually
+`~/.cargo/bin`.
+
+If your shell cannot find `dyno`, add Cargo's bin directory to your `PATH`.
+
+macOS/Linux, current shell:
+
+```sh
+export PATH="$HOME/.cargo/bin:$PATH"
+```
+
+macOS/Linux, future shells:
+
+```sh
+echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.zshrc
+```
+
+Windows PowerShell, current shell:
+
+```powershell
+$env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
+```
+
+Windows PowerShell, future shells:
+
+```powershell
+[Environment]::SetEnvironmentVariable("Path", "$env:USERPROFILE\.cargo\bin;$env:Path", "User")
+```
+
 ```tn
--- Values can be inferred, but their meaning is still known.
-let score: Int = 37
+-- Values can be inferred while their meaning stays known.
+let score = 37
 let passed = score > 30
+let retry = not passed or score < 10
 
 -- `if` is an expression.
-let status: String = if passed {
-  "pass"
-} else {
-  "retry"
-}
+let status = if passed => "pass" else "retry"
 
-let report = "{status}:{score}"
+let report = "{status}:{score}:{retry}"
 print(report)
 ```
 
 Run it with Dyno:
 
 ```sh
-cargo run -p dyno_cli -- run examples/language/01_values_and_flow.tn
+dyno run examples/language/01_values_and_flow.tn
 ```
 
 Expected output:
@@ -83,20 +115,20 @@ pass:37:false
 Check without running:
 
 ```sh
-cargo run -p dyno_cli -- check examples/language/01_values_and_flow.tn
+dyno check examples/language/01_values_and_flow.tn
 ```
 
 Machine-readable diagnostics for tools and CI:
 
 ```sh
-cargo run -p dyno_cli -- check --json examples/language/01_values_and_flow.tn
+dyno check --json examples/language/01_values_and_flow.tn
 ```
 
 Format or check formatting:
 
 ```sh
-cargo run -p dyno_cli -- fmt examples/language/01_values_and_flow.tn
-cargo run -p dyno_cli -- fmt --check examples/language/01_values_and_flow.tn
+dyno fmt examples/language/01_values_and_flow.tn
+dyno fmt --check examples/language/01_values_and_flow.tn
 ```
 
 `dyno run` prints only program output. Use `print(...)` or an explicit `io`
@@ -105,9 +137,9 @@ function when a script should write to the console.
 Create a project:
 
 ```sh
-cargo run -p dyno_cli -- new hello-tune
+dyno new hello-tune
 cd hello-tune
-cargo run --manifest-path ../Cargo.toml -p dyno_cli -- run
+dyno run
 ```
 
 ## Learn By Example
