@@ -1,11 +1,9 @@
 -- Read filesystem metadata and text through explicit std modules.
 
-import "fs".exists
-import "fs".metadata
-import "fs".read_text
+import "fs"
 import "path"
 
 let file_path: String = path.join("examples", "README.md")
-let file_exists: Bool = exists(file_path)
-let file_metadata = metadata(file_path)
-let contents: Result<String, String> = read_text(file_path)
+let file_exists: Bool = fs.exists(file_path)
+let file_metadata: Result<fs.Metadata, String> = fs.metadata(file_path)
+let contents: Result<String, String> = fs.read_text(file_path)
