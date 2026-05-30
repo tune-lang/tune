@@ -27,7 +27,7 @@ fn executable_file_uses_module_entry_plan() -> Result<(), &'static str> {
         .executable_entry(tune_engine::EntryPoint::File(file))
         .map_err(|_| "file should lower to executable")?;
 
-    assert_eq!(executable.compile.functions.len(), 1);
+    assert_eq!(executable.compile.module_plan.functions.len(), 1);
     assert_eq!(executable.ir.len(), 1);
     assert_eq!(executable.bytecode.entry_function, Some(0));
     assert_eq!(executable.ir[0].name, "<entry>");

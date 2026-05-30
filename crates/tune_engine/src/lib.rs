@@ -67,7 +67,6 @@ pub struct CheckReport {
 pub struct CompileReport {
     pub check: CheckReport,
     pub module_plan: tune_plan::PlanModule,
-    pub functions: Vec<tune_plan::PlanFunction>,
 }
 
 pub struct ExecutableReport {
@@ -156,13 +155,8 @@ impl Tune {
             .ok_or(EngineError::FileNotFound(file))?;
         let module_plan =
             tune_plan::lower_analyzed_module_to_plan(&check.module, &check.resolved, &check.shape);
-        let functions = module_plan.functions.clone();
 
-        Ok(CompileReport {
-            check,
-            module_plan,
-            functions,
-        })
+        Ok(CompileReport { check, module_plan })
     }
 
     pub fn meta_decl_facts(
@@ -380,13 +374,8 @@ impl Tune {
         let check = self.check_project_entry(entry)?;
         let module_plan =
             tune_plan::lower_analyzed_module_to_plan(&check.module, &check.resolved, &check.shape);
-        let functions = module_plan.functions.clone();
 
-        Ok(CompileReport {
-            check,
-            module_plan,
-            functions,
-        })
+        Ok(CompileReport { check, module_plan })
     }
 
     pub fn check_project_entry(&self, entry: ProjectEntry) -> Result<CheckReport, EngineError> {
@@ -517,9 +506,13 @@ fn executable_from_compile(compile: CompileReport) -> Result<ExecutableReport, E
         .entry
         .as_ref()
         .ok_or(EngineError::MissingEntry)?;
-    let reachable = reachable_functions(&compile.functions, entry_plan);
+    let reachable = reachable_functions(&compile.module_plan.functions, entry_plan);
     let planned = core::iter::once(entry_plan)
-        .chain(reachable.iter().map(|index| &compile.functions[*index]))
+        .chain(
+            reachable
+                .iter()
+                .map(|index| &compile.module_plan.functions[*index]),
+        )
         .collect::<Vec<_>>();
     let mut ir = Vec::new();
     for plan in planned {

@@ -53,17 +53,22 @@ let run(input) = helper(input)
         .map_err(|_| "engine should compile source")?;
 
     assert!(report.check.diagnostics.is_empty());
-    assert_eq!(report.functions.len(), 2);
+    assert_eq!(report.module_plan.functions.len(), 2);
     assert!(report.module_plan.entry.is_none());
-    assert!(report.functions[1].ops.iter().any(|op| matches!(
-        op,
-        tune_plan::PlanOp::DirectCall {
-            target: tune_hir::HirId(0),
-            arg_count: 1,
-            type_args: _,
-            span: Some(_),
-        }
-    )));
+    assert!(
+        report.module_plan.functions[1]
+            .ops
+            .iter()
+            .any(|op| matches!(
+                op,
+                tune_plan::PlanOp::DirectCall {
+                    target: tune_hir::HirId(0),
+                    arg_count: 1,
+                    type_args: _,
+                    span: Some(_),
+                }
+            ))
+    );
 
     Ok(())
 }
@@ -85,13 +90,18 @@ let first(items: Stack) = items[0]
         .map_err(|_| "engine should compile source")?;
 
     assert!(report.check.diagnostics.is_empty());
-    assert!(report.functions[0].ops.iter().any(|op| matches!(
-        op,
-        tune_plan::PlanOp::SequenceGet {
-            index_member: Some(_),
-            ..
-        }
-    )));
+    assert!(
+        report.module_plan.functions[0]
+            .ops
+            .iter()
+            .any(|op| matches!(
+                op,
+                tune_plan::PlanOp::SequenceGet {
+                    index_member: Some(_),
+                    ..
+                }
+            ))
+    );
 
     Ok(())
 }
