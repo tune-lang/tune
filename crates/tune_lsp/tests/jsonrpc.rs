@@ -38,6 +38,43 @@ fn jsonrpc_server_handles_formatting() {
 }
 
 #[test]
+fn jsonrpc_initialize_loads_workspace_folder_symbols() -> Result<(), String> {
+    let root = std::env::temp_dir().join(format!("tune-lsp-jsonrpc-{}", std::process::id()));
+    if root.exists() {
+        std::fs::remove_dir_all(&root).map_err(|error| error.to_string())?;
+    }
+    std::fs::create_dir_all(root.join("src")).map_err(|error| error.to_string())?;
+    std::fs::write(
+        root.join("dyno.toml"),
+        r#"[project]
+name = "tooling"
+entry = "src/main.tn"
+"#,
+    )
+    .map_err(|error| error.to_string())?;
+    std::fs::write(root.join("src/main.tn"), "let value: Int = helper()\n")
+        .map_err(|error| error.to_string())?;
+    std::fs::write(root.join("src/lib.tn"), "pub let helper(): Int = 1\n")
+        .map_err(|error| error.to_string())?;
+
+    let mut server = tune_lsp::JsonRpcServer::new();
+    let uri = format!("file://{}", root.display());
+    let initialize = format!(
+        r#"{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"workspaceFolders":[{{"uri":"{uri}","name":"tooling"}}]}}}}"#
+    );
+    assert_eq!(server.handle_message(&initialize).len(), 1);
+
+    let symbols = server.handle_message(
+        r#"{"jsonrpc":"2.0","id":2,"method":"workspace/symbol","params":{"query":"helper"}}"#,
+    );
+    assert_eq!(symbols.len(), 1);
+    assert!(symbols[0].contains("\"name\":\"helper\""));
+
+    std::fs::remove_dir_all(root).map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+#[test]
 fn jsonrpc_stdio_reads_and_writes_framed_messages() -> Result<(), String> {
     let message = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
     let input = format!("Content-Length: {}\r\n\r\n{}", message.len(), message);

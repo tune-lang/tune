@@ -98,24 +98,38 @@ impl JsonRpcServer {
             ("workspace/symbol", Some(id)) => {
                 vec![success_response(id, self.workspace_symbols(&params))]
             }
+            ("workspace/didChangeWorkspaceFolders", _) => {
+                self.did_change_workspace_folders(&params);
+                Vec::new()
+            }
             (_, Some(id)) => vec![error_response(id, -32601, "method not found")],
             _ => Vec::new(),
         }
     }
 
     fn initialize(&mut self, params: &Value) {
-        let root = params
-            .get("rootUri")
-            .and_then(Value::as_str)
-            .and_then(uri_to_path)
-            .or_else(|| {
-                params
-                    .get("rootPath")
-                    .and_then(Value::as_str)
-                    .map(str::to_owned)
-            });
-        if let Some(root) = root {
+        let roots = workspace_roots(params);
+        for root in roots {
             let _ = self.session.open_project_dir(root);
+        }
+    }
+
+    fn did_change_workspace_folders(&mut self, params: &Value) {
+        let Some(added) = params
+            .get("event")
+            .and_then(|event| event.get("added"))
+            .and_then(Value::as_array)
+        else {
+            return;
+        };
+        for folder in added {
+            if let Some(root) = folder
+                .get("uri")
+                .and_then(Value::as_str)
+                .and_then(uri_to_path)
+            {
+                let _ = self.session.open_project_dir(root);
+            }
         }
     }
 
@@ -300,6 +314,36 @@ impl JsonRpcServer {
         let path = uri_to_path(uri).unwrap_or_else(|| uri.to_owned());
         self.session.file_for_path(path)
     }
+}
+
+fn workspace_roots(params: &Value) -> Vec<String> {
+    let folders = params
+        .get("workspaceFolders")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|folder| {
+            folder
+                .get("uri")
+                .and_then(Value::as_str)
+                .and_then(uri_to_path)
+        })
+        .collect::<Vec<_>>();
+    if !folders.is_empty() {
+        return folders;
+    }
+    params
+        .get("rootUri")
+        .and_then(Value::as_str)
+        .and_then(uri_to_path)
+        .or_else(|| {
+            params
+                .get("rootPath")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        })
+        .into_iter()
+        .collect()
 }
 
 pub fn run_stdio<R: BufRead, W: Write>(
