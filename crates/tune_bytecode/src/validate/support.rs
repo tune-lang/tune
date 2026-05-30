@@ -1,5 +1,5 @@
 use crate::artifact::BytecodeArtifact;
-use crate::function::BytecodeFunction;
+use crate::function::{BytecodeFunction, Instruction};
 
 use super::BytecodeValidationError;
 
@@ -101,4 +101,25 @@ pub(super) fn validate_struct_field(
         function: function_id,
         field,
     })
+}
+
+pub(super) fn validate_finite_for(
+    function_id: u32,
+    function: &BytecodeFunction,
+    instruction: &Instruction,
+) -> Result<(), BytecodeValidationError> {
+    register(function_id, function, instruction.a)?;
+    let site = function.for_sites.get(instruction.b as usize).ok_or(
+        BytecodeValidationError::ForSiteOutOfBounds {
+            function: function_id,
+            site: instruction.b,
+        },
+    )?;
+    register(function_id, function, site.iterable)?;
+    register(function_id, function, site.len)?;
+    register(function_id, function, site.index)?;
+    register(function_id, function, site.item)?;
+    jump(function_id, function, site.body)?;
+    jump(function_id, function, site.done)?;
+    Ok(())
 }

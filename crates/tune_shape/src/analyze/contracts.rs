@@ -239,7 +239,9 @@ impl Analyzer<'_> {
         if let Some(literal) = expr_literal_fact(body) {
             return top_level_literal_current_shape(&declared, &literal);
         }
-        expr_shape_fact(body, self.module, self.resolved).unwrap_or(declared)
+        let actual =
+            expr_shape_fact(body, self.module, self.resolved).unwrap_or_else(|| declared.clone());
+        top_level_current_shape_from_actual(&declared, &actual)
     }
 
     pub(super) fn bind_pattern(&mut self, pattern: &Pattern, shape: Shape) {
@@ -563,6 +565,17 @@ fn top_level_literal_current_shape(storage: &Shape, literal: &LiteralFact) -> Sh
             inner.as_ref().clone()
         }
         (Shape::Hole, _) => Shape::Literal(literal.clone()),
+        (storage, _) => storage.clone(),
+    }
+}
+
+fn top_level_current_shape_from_actual(storage: &Shape, actual: &Shape) -> Shape {
+    match (storage, actual) {
+        (Shape::Hole, actual) => actual.clone(),
+        (Shape::Optional(_), Shape::Literal(LiteralFact::None)) => {
+            Shape::Literal(LiteralFact::None)
+        }
+        (Shape::Optional(inner), actual) if inner.accepts(actual) => actual.clone(),
         (storage, _) => storage.clone(),
     }
 }
