@@ -103,6 +103,7 @@ Use these in order:
 
 - [why-tune.md](why-tune.md)
 - [tutorial.md](tutorial.md)
+- [from-other-languages.md](from-other-languages.md)
 - [examples/README.md](../examples/README.md)
 - [language-tour.md](language-tour.md)
 

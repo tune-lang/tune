@@ -45,6 +45,7 @@ If you are new, start here:
 - [Why Tune?](docs/why-tune.md)
 - [Getting Started](docs/getting-started.md)
 - [Tutorial](docs/tutorial.md)
+- [Tune From Other Languages](docs/from-other-languages.md)
 - [Language Tour](docs/language-tour.md)
 - [Examples](examples/README.md)
 - [Tooling](docs/tooling.md)
