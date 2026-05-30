@@ -6,13 +6,14 @@ use tune_shape::Shape;
 
 use super::LowerContext;
 use super::module::captured_locals_for_body;
-use crate::plan::{PlanFunction, PlanOp};
+use crate::plan::{PlanFunction, PlanOp, PlanStructLayout};
 
 pub(super) fn lower_callable_value_functions<'a>(
     module: &'a Module,
     resolved: &'a ResolvedModule,
     analyses: &'a [tune_shape::ShapeAnalysis],
     param_shapes: &'a [(tune_hir::MemberId, Shape)],
+    struct_layouts: &'a [PlanStructLayout],
 ) -> impl Iterator<Item = PlanFunction> + 'a {
     module
         .items
@@ -29,6 +30,7 @@ pub(super) fn lower_callable_value_functions<'a>(
                         owner: item,
                         analysis,
                         param_shapes,
+                        struct_layouts,
                     };
                     let mut functions = Vec::new();
                     collect_callable_value_functions(&context, body, &mut functions);
@@ -43,6 +45,7 @@ struct CallableFunctionContext<'a> {
     owner: &'a Item,
     analysis: &'a tune_shape::ShapeAnalysis,
     param_shapes: &'a [(tune_hir::MemberId, Shape)],
+    struct_layouts: &'a [PlanStructLayout],
 }
 
 fn struct_member_body(member: &StructMember) -> Option<&Expr> {
@@ -99,7 +102,7 @@ fn lower_callable_value_function(
             .collect(),
         captures: lower.callable_value_captures(body),
         module_bindings: Vec::new(),
-        struct_layouts: super::struct_layouts(context.module),
+        struct_layouts: context.struct_layouts.to_vec(),
         ops: Vec::new(),
     };
     lower.lower_return_expr(body, &mut plan.ops);

@@ -23,6 +23,7 @@ pub fn lower_analyzed_module_to_plan(
     analyses: &[tune_shape::ShapeAnalysis],
 ) -> PlanModule {
     let param_shapes = infer_direct_call_param_shapes_from_analyses(module, resolved, analyses);
+    let struct_layouts = super::struct_layouts(module);
     let module_bindings = module
         .items
         .iter()
@@ -42,17 +43,17 @@ pub fn lower_analyzed_module_to_plan(
             local_params: Vec::new(),
             captures: Vec::new(),
             module_bindings: module_bindings.clone(),
-            struct_layouts: super::struct_layouts(module),
+            struct_layouts: struct_layouts.clone(),
             ops: Vec::new(),
         };
-        for item in module.items.iter().filter(|item| {
+        for (item, analysis) in module.items.iter().zip(analyses).filter(|(item, _)| {
             item.kind == ItemKind::Let && (item.body.is_some() || item.shape.is_some())
         }) {
             lower_module_item_into_entry(
                 module,
                 item,
                 resolved,
-                analysis_for_item(module, analyses, item),
+                Some(analysis),
                 last_binding,
                 &param_shapes,
                 &mut entry.ops,
@@ -64,14 +65,16 @@ pub fn lower_analyzed_module_to_plan(
     let functions = module
         .items
         .iter()
-        .filter(|item| item.kind == ItemKind::CallableDecl)
-        .filter_map(|item| {
+        .zip(analyses)
+        .filter(|(item, _)| item.kind == ItemKind::CallableDecl)
+        .filter_map(|(item, analysis)| {
             lower_module_callable(
                 module,
                 resolved,
                 item,
-                analysis_for_item(module, analyses, item),
+                Some(analysis),
                 &param_shapes,
+                &struct_layouts,
             )
         })
         .chain(lower_struct_member_functions(
@@ -79,12 +82,14 @@ pub fn lower_analyzed_module_to_plan(
             resolved,
             analyses,
             &param_shapes,
+            &struct_layouts,
         ))
         .chain(lower_callable_value_functions(
             module,
             resolved,
             analyses,
             &param_shapes,
+            &struct_layouts,
         ))
         .collect();
 
@@ -153,6 +158,7 @@ fn lower_module_callable(
     item: &Item,
     analysis: Option<&tune_shape::ShapeAnalysis>,
     param_shapes: &[(tune_hir::MemberId, Shape)],
+    struct_layouts: &[crate::PlanStructLayout],
 ) -> Option<PlanFunction> {
     let body = item.body.as_ref()?;
     let mut plan = PlanFunction {
@@ -169,7 +175,7 @@ fn lower_module_callable(
         local_params: Vec::new(),
         captures: Vec::new(),
         module_bindings: Vec::new(),
-        struct_layouts: super::struct_layouts(module),
+        struct_layouts: struct_layouts.to_vec(),
         ops: Vec::new(),
     };
     let context = LowerContext {
@@ -193,12 +199,14 @@ fn lower_struct_member_functions<'a>(
     resolved: &'a ResolvedModule,
     analyses: &'a [tune_shape::ShapeAnalysis],
     param_shapes: &'a [(tune_hir::MemberId, Shape)],
+    struct_layouts: &'a [crate::PlanStructLayout],
 ) -> impl Iterator<Item = PlanFunction> + 'a {
     module
         .items
         .iter()
-        .filter(|item| item.kind == ItemKind::Struct)
-        .flat_map(move |item| {
+        .zip(analyses)
+        .filter(|(item, _)| item.kind == ItemKind::Struct)
+        .flat_map(move |(item, analysis)| {
             item.struct_members
                 .iter()
                 .filter_map(move |member| match member {
@@ -207,16 +215,18 @@ fn lower_struct_member_functions<'a>(
                         resolved,
                         item,
                         callable,
-                        analysis_for_item(module, analyses, item),
+                        Some(analysis),
                         param_shapes,
+                        struct_layouts,
                     ),
                     StructMember::IndexAccess(access) => lower_index_access_member(
                         module,
                         resolved,
                         item,
                         access,
-                        analysis_for_item(module, analyses, item),
+                        Some(analysis),
                         param_shapes,
+                        struct_layouts,
                     ),
                     StructMember::SequenceMaterializer(materializer) => {
                         lower_sequence_materializer_member(
@@ -224,8 +234,9 @@ fn lower_struct_member_functions<'a>(
                             resolved,
                             item,
                             materializer,
-                            analysis_for_item(module, analyses, item),
+                            Some(analysis),
                             param_shapes,
+                            struct_layouts,
                         )
                     }
                     StructMember::Field(_) => None,
@@ -240,6 +251,7 @@ fn lower_callable_member(
     callable: &CallableMember,
     analysis: Option<&tune_shape::ShapeAnalysis>,
     param_shapes: &[(tune_hir::MemberId, Shape)],
+    struct_layouts: &[crate::PlanStructLayout],
 ) -> Option<PlanFunction> {
     let body = callable.body.as_ref()?;
     let mut plan = PlanFunction {
@@ -259,7 +271,7 @@ fn lower_callable_member(
         local_params: Vec::new(),
         captures: Vec::new(),
         module_bindings: Vec::new(),
-        struct_layouts: super::struct_layouts(module),
+        struct_layouts: struct_layouts.to_vec(),
         ops: Vec::new(),
     };
     let context = LowerContext {
@@ -288,6 +300,7 @@ fn lower_sequence_materializer_member(
     materializer: &SequenceMaterializer,
     analysis: Option<&tune_shape::ShapeAnalysis>,
     param_shapes: &[(tune_hir::MemberId, Shape)],
+    struct_layouts: &[crate::PlanStructLayout],
 ) -> Option<PlanFunction> {
     let body = materializer.body.as_ref()?;
     let mut plan = PlanFunction {
@@ -301,7 +314,7 @@ fn lower_sequence_materializer_member(
         local_params: Vec::new(),
         captures: Vec::new(),
         module_bindings: Vec::new(),
-        struct_layouts: super::struct_layouts(module),
+        struct_layouts: struct_layouts.to_vec(),
         ops: Vec::new(),
     };
     let context = LowerContext {
@@ -330,6 +343,7 @@ fn lower_index_access_member(
     access: &IndexAccess,
     analysis: Option<&tune_shape::ShapeAnalysis>,
     param_shapes: &[(tune_hir::MemberId, Shape)],
+    struct_layouts: &[crate::PlanStructLayout],
 ) -> Option<PlanFunction> {
     let body = access.body.as_ref()?;
     let mut plan = PlanFunction {
@@ -343,7 +357,7 @@ fn lower_index_access_member(
         local_params: Vec::new(),
         captures: Vec::new(),
         module_bindings: Vec::new(),
-        struct_layouts: super::struct_layouts(module),
+        struct_layouts: struct_layouts.to_vec(),
         ops: Vec::new(),
     };
     let context = LowerContext {
@@ -363,18 +377,6 @@ fn lower_index_access_member(
         plan.ops.push(PlanOp::Return);
     }
     Some(plan)
-}
-
-fn analysis_for_item<'a>(
-    module: &Module,
-    analyses: &'a [tune_shape::ShapeAnalysis],
-    item: &Item,
-) -> Option<&'a tune_shape::ShapeAnalysis> {
-    module
-        .items
-        .iter()
-        .position(|candidate| candidate.id == item.id)
-        .and_then(|index| analyses.get(index))
 }
 
 pub(super) fn captured_locals_for_body(
