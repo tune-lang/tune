@@ -114,6 +114,25 @@ let result: String = "next {count + 1}"
 }
 
 #[test]
+fn run_file_treats_non_expression_braces_as_string_text() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+let result: String = "{} { } {\"name\":1}"
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        run_file(&tune, file)?,
+        Value::String("{} { } {\"name\":1}".to_owned())
+    );
+    Ok(())
+}
+
+#[test]
 fn run_file_preserves_private_callable_capture_state() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

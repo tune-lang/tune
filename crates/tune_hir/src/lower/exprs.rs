@@ -333,15 +333,25 @@ impl ExprLowerer {
                         parts.push(StringPart::Text(std::mem::take(&mut text)));
                     }
                     let mut interpolation = String::new();
+                    let mut closed = false;
                     for (_, inner) in chars.by_ref() {
                         if inner == '}' {
+                            closed = true;
                             break;
                         }
                         interpolation.push(inner);
                     }
-                    parts.push(StringPart::Interpolation(Box::new(
-                        self.lower_interpolation_expr(interpolation.trim()),
-                    )));
+                    if closed
+                        && let Some(expr) = self.lower_interpolation_expr(interpolation.trim())
+                    {
+                        parts.push(StringPart::Interpolation(Box::new(expr)));
+                    } else {
+                        text.push('{');
+                        push_literal_text(&mut text, &interpolation);
+                        if closed {
+                            text.push('}');
+                        }
+                    }
                 }
                 _ => text.push(ch),
             }
@@ -354,20 +364,36 @@ impl ExprLowerer {
         StringLiteral { parts }
     }
 
-    fn lower_interpolation_expr(&mut self, source: &str) -> Expr {
-        let parsed = tune_syntax::parse_expr(source);
-        if let Some(expr) = parsed.cst.children.iter().find_map(|child| match child {
-            CstElement::Node(node) if node.kind != SyntaxKind::Error => AstExpr::cast(node),
-            CstElement::Node(_) | CstElement::Token(_) => None,
-        }) {
-            self.lower(source, expr)
-        } else {
-            Expr {
-                id: self.alloc_id(),
-                span: None,
-                kind: ExprKind::Missing,
-            }
+    fn lower_interpolation_expr(&mut self, source: &str) -> Option<Expr> {
+        if source.is_empty() {
+            return None;
         }
+        let parsed = tune_syntax::parse_expr(source);
+        if !parsed.diagnostics.is_empty() {
+            return None;
+        }
+        parsed
+            .cst
+            .children
+            .iter()
+            .find_map(|child| match child {
+                CstElement::Node(node) if node.kind != SyntaxKind::Error => AstExpr::cast(node),
+                CstElement::Node(_) | CstElement::Token(_) => None,
+            })
+            .map(|expr| self.lower(source, expr))
+    }
+}
+
+fn push_literal_text(output: &mut String, source: &str) {
+    let mut chars = source.chars();
+    while let Some(ch) = chars.next() {
+        if ch == '\\'
+            && let Some(escaped) = chars.next()
+        {
+            output.push(unescape_char(escaped));
+            continue;
+        }
+        output.push(ch);
     }
 }
 
