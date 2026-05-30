@@ -1,14 +1,19 @@
--- Validate and format JSON text through the standard json module.
+-- Decode JSON into json.Value and encode constructed values back to text.
 
 import "json"
 
-let normalize(raw: String): Result<String, String> = {
-  if not json.valid(raw) {
-    Error("invalid json")
-  } else {
-    json.compact(raw)
-  }
+let make_payload(): Result<String, String> = {
+  let value = json.object([
+    json.field("name", json.string("Tune")),
+    json.field("ok", json.bool(true)),
+    json.field("score", json.number(42.0)),
+  ])
+  json.encode(value)
 }
 
-let compacted: Result<String, String> = normalize("{ }")
-let formatted: Result<String, String> = json.pretty("{}")
+let payload = json.object([
+  json.field("name", json.string("Tune")),
+  json.field("ok", json.bool(true)),
+])
+let payload_kind: String = json.kind(payload)
+let encoded_payload: Result<String, String> = make_payload()

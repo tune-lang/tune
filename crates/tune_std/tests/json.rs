@@ -42,8 +42,26 @@ fn json_module_exposes_value_types_and_task_safe_functions() -> Result<(), &'sta
     assert!(module.values.iter().any(|value| value.name == "Field"));
 
     for name in [
-        "valid", "decode", "encode", "compact", "pretty", "null", "bool", "number", "string",
-        "array", "field", "object",
+        "valid",
+        "decode",
+        "encode",
+        "compact",
+        "pretty",
+        "null",
+        "bool",
+        "number",
+        "string",
+        "array",
+        "field",
+        "object",
+        "kind",
+        "as_bool",
+        "as_number",
+        "as_string",
+        "items",
+        "fields",
+        "field_name",
+        "field_value",
     ] {
         let function = module
             .functions
@@ -119,6 +137,55 @@ fn json_decode_returns_host_value_tree() -> Result<(), &'static str> {
         return Err("object fields should be a sequence");
     };
     assert_eq!(object_fields.len(), 2);
+
+    Ok(())
+}
+
+#[test]
+fn json_accessors_read_value_and_field_parts() -> Result<(), &'static str> {
+    let module = tune_std::json::install();
+    let decoded = result_ok(
+        executor(&module, "decode")?
+            .call(&[tune_runtime::Value::String(
+                "{\"name\":\"Tune\",\"ok\":true}".into(),
+            )])
+            .map_err(|_| "json.decode should execute")?,
+    )?;
+
+    assert_eq!(
+        executor(&module, "kind")?
+            .call(std::slice::from_ref(&decoded))
+            .map_err(|_| "json.kind should execute")?,
+        tune_runtime::Value::String("object".into())
+    );
+    let object_fields = executor(&module, "fields")?
+        .call(std::slice::from_ref(&decoded))
+        .map_err(|_| "json.fields should execute")?;
+    let tune_runtime::Value::Sequence(fields) = object_fields else {
+        return Err("json.fields should return field sequence for object");
+    };
+    let first = fields.first().ok_or("object should contain a field")?;
+    let name = executor(&module, "field_name")?
+        .call(std::slice::from_ref(first))
+        .map_err(|_| "json.field_name should execute")?;
+    assert!(matches!(name, tune_runtime::Value::String(_)));
+    let value = executor(&module, "field_value")?
+        .call(std::slice::from_ref(first))
+        .map_err(|_| "json.field_value should execute")?;
+    assert!(matches!(
+        value,
+        tune_runtime::Value::HostStruct { type_name, .. } if type_name == "json.Value"
+    ));
+
+    let string_value = executor(&module, "string")?
+        .call(&[tune_runtime::Value::String("Tune".into())])
+        .map_err(|_| "json.string should execute")?;
+    assert_eq!(
+        executor(&module, "as_string")?
+            .call(&[string_value])
+            .map_err(|_| "json.as_string should execute")?,
+        tune_runtime::Value::String("Tune".into())
+    );
 
     Ok(())
 }

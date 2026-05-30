@@ -147,6 +147,92 @@ pub fn install() -> HostModule {
                 let fields = field_sequence_arg(args, 0, "fields")?;
                 Ok(json_object(fields.to_vec()))
             }),
+            HostFunction::new(
+                "kind",
+                vec![HostParam::new("value", value_shape())],
+                Shape::String,
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let value = value_arg(args, 0, "value")?;
+                let fields = host_struct_fields(value, VALUE_TYPE, "value")?;
+                Ok(Value::String(required_string_field(fields, "kind")?))
+            }),
+            HostFunction::new(
+                "as_bool",
+                vec![HostParam::new("value", value_shape())],
+                Shape::Optional(Box::new(Shape::Bool)),
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let value = value_arg(args, 0, "value")?;
+                let fields = host_struct_fields(value, VALUE_TYPE, "value")?;
+                optional_json_field(fields, "bool")
+            }),
+            HostFunction::new(
+                "as_number",
+                vec![HostParam::new("value", value_shape())],
+                Shape::Optional(Box::new(Shape::Float)),
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let value = value_arg(args, 0, "value")?;
+                let fields = host_struct_fields(value, VALUE_TYPE, "value")?;
+                optional_json_field(fields, "number")
+            }),
+            HostFunction::new(
+                "as_string",
+                vec![HostParam::new("value", value_shape())],
+                Shape::Optional(Box::new(Shape::String)),
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let value = value_arg(args, 0, "value")?;
+                let fields = host_struct_fields(value, VALUE_TYPE, "value")?;
+                optional_json_field(fields, "string")
+            }),
+            HostFunction::new(
+                "items",
+                vec![HostParam::new("value", value_shape())],
+                Shape::Optional(Box::new(Shape::Sequence(Box::new(value_shape())))),
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let value = value_arg(args, 0, "value")?;
+                let fields = host_struct_fields(value, VALUE_TYPE, "value")?;
+                optional_json_field(fields, "items")
+            }),
+            HostFunction::new(
+                "fields",
+                vec![HostParam::new("value", value_shape())],
+                Shape::Optional(Box::new(Shape::Sequence(Box::new(field_shape())))),
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let value = value_arg(args, 0, "value")?;
+                let fields = host_struct_fields(value, VALUE_TYPE, "value")?;
+                optional_json_field(fields, "fields")
+            }),
+            HostFunction::new(
+                "field_name",
+                vec![HostParam::new("field", field_shape())],
+                Shape::String,
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let fields = field_arg(args, 0, "field")?;
+                Ok(Value::String(required_string_field(fields, "name")?))
+            }),
+            HostFunction::new(
+                "field_value",
+                vec![HostParam::new("field", field_shape())],
+                value_shape(),
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let fields = field_arg(args, 0, "field")?;
+                Ok(required_value_field(fields, "value")?.clone())
+            }),
         ],
     )
     .with_values(vec![
@@ -424,6 +510,23 @@ fn field_sequence_arg<'a>(
             "expected [json.Field] for `{name}`"
         ))),
     }
+}
+
+fn field_arg<'a>(
+    args: &'a [Value],
+    index: usize,
+    name: &str,
+) -> Result<&'a [(String, Value)], HostCallError> {
+    let Some(value) = args.get(index) else {
+        return Err(HostCallError::new(format!(
+            "missing argument `{name}` at index {index}"
+        )));
+    };
+    host_struct_fields(value, FIELD_TYPE, name)
+}
+
+fn optional_json_field(fields: &[(String, Value)], name: &str) -> Result<Value, HostCallError> {
+    Ok(required_value_field(fields, name)?.clone())
 }
 
 fn bool_arg(args: &[Value], index: usize, name: &str) -> Result<bool, HostCallError> {
