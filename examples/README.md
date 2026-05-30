@@ -50,6 +50,7 @@ cargo test -p dyno_cli --test std_examples
 - [json.tn](std/json.tn): JSON validation and formatting helpers.
 - [math.tn](std/math.tn): floating-point numeric helpers.
 - [path.tn](std/path.tn): path component and extension helpers.
+- [process.tn](std/process.tn): process execution result helpers.
 - [random.tn](std/random.tn): deterministic pseudo-random values.
 - [text.tn](std/text.tn): text splitting, joining, and slicing.
 - [time.tn](std/time.tn): clock reads and millisecond sleep.

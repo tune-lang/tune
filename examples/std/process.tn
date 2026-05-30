@@ -1,0 +1,5 @@
+-- Spawn a process and inspect its result shape.
+
+import "process"
+
+let result = process.run("echo", ["Tune"])
