@@ -176,3 +176,18 @@ fn span_checked_rejects_reversed_ranges() {
 
     assert!(span.is_none());
 }
+
+#[test]
+fn diagnostic_docs_exist_for_all_registered_codes() {
+    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let docs = workspace.join("docs/diagnostics");
+
+    for info in tune_diagnostics::codes::all() {
+        let path = docs.join(format!("{}.md", info.code.as_str()));
+        assert!(
+            path.is_file(),
+            "missing diagnostic doc for {}",
+            info.code.as_str()
+        );
+    }
+}
