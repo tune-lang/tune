@@ -240,11 +240,10 @@ fn finish_profile(
             });
         }
     };
-    let ir_quality = ir_quality(&ir);
-
     let mut optimized_ir = ir.clone();
     let (optimizer_quality, duration) = timed(|| optimizer_quality(&mut optimized_ir));
     timings.push(stage("opt", duration));
+    let ir_quality = ir_quality(&optimized_ir);
 
     if scope == ProfileScope::Frontend {
         return Ok(ProfileReport {
