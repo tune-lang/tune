@@ -36,6 +36,7 @@ pub fn modules() -> Vec<tune_host::HostModule> {
         path::install(),
         env::install(),
         fs::install(),
+        json::install(),
         process::install(),
     ]
 }

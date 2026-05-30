@@ -665,6 +665,7 @@ dependencies = [
 name = "tune_std"
 version = "0.1.0"
 dependencies = [
+ "serde_json",
  "tune_host",
  "tune_meta",
  "tune_runtime",

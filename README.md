@@ -100,7 +100,8 @@ should go through the facade instead of stitching compiler internals together.
 ## Standard Library And Hosts
 
 Tune ships a default host/std profile through `tune_std`. Current modules include
-`io`, `math`, `bits`, `parse`, `text`, `path`, `env`, `fs`, and `process`.
+`io`, `math`, `bits`, `parse`, `text`, `path`, `env`, `fs`, `json`, and
+`process`.
 
 Outside-world operations are explicit host calls with known shapes, authority
 requirements, and task-safety metadata. Core behavior such as `Result`, `Never`,
@@ -124,6 +125,7 @@ Public examples:
 
 ```sh
 cargo test -p dyno_cli --test language_examples
+cargo test -p dyno_cli --test std_examples
 ```
 
 Performance and IR-quality checks:

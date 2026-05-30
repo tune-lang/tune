@@ -19,6 +19,7 @@ Run the example regression test:
 
 ```sh
 cargo test -p dyno_cli --test language_examples
+cargo test -p dyno_cli --test std_examples
 ```
 
 ## Language Examples
@@ -40,3 +41,7 @@ cargo test -p dyno_cli --test language_examples
 - [08_std_imports.tn](language/08_std_imports.tn): standard module imports and
   namespace calls.
 - [09_tasks.tn](language/09_tasks.tn): `spawn`, `Task<T>`, and `join`.
+
+## Standard Library Examples
+
+- [json.tn](std/json.tn): JSON validation and formatting helpers.

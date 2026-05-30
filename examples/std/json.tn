@@ -1,0 +1,14 @@
+-- Validate and format JSON text through the standard json module.
+
+import "json"
+
+let normalize(raw: String): Result<String, String> = {
+  if not json.valid(raw) {
+    Error("invalid json")
+  } else {
+    json.compact(raw)
+  }
+}
+
+let compacted: Result<String, String> = normalize("{ }")
+let formatted: Result<String, String> = json.pretty("{}")
