@@ -262,10 +262,31 @@ fn engine_registers_default_std_host_modules() {
     let mut tune = tune_engine::Tune::new();
     let registration = tune.register_std();
 
-    assert_eq!(registration.module_count, 4);
-    assert_eq!(registration.function_count, 11);
+    assert_eq!(registration.module_count, 9);
+    assert_eq!(registration.function_count, 57);
+    assert_eq!(registration.value_count, 2);
     assert_eq!(registration.resource_count, 1);
     assert!(tune.host_modules().iter().any(|module| module.name == "io"));
+    assert!(
+        tune.host_modules()
+            .iter()
+            .any(|module| module.name == "math")
+    );
+    assert!(
+        tune.host_modules()
+            .iter()
+            .any(|module| module.name == "bits")
+    );
+    assert!(
+        tune.host_modules()
+            .iter()
+            .any(|module| module.name == "path")
+    );
+    assert!(
+        tune.host_modules()
+            .iter()
+            .any(|module| module.name == "env")
+    );
     assert!(
         tune.host_resource_types()
             .iter()

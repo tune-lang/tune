@@ -1,0 +1,117 @@
+fn math_function<'a>(
+    module: &'a tune_host::HostModule,
+    name: &str,
+) -> Result<&'a tune_host::HostFunction, &'static str> {
+    module
+        .functions
+        .iter()
+        .find(|function| function.name == name)
+        .ok_or("math function should be installed")
+}
+
+fn call_float(
+    module: &tune_host::HostModule,
+    name: &str,
+    args: Vec<tune_runtime::Value>,
+) -> Result<f64, &'static str> {
+    let executor = math_function(module, name)?
+        .executor
+        .as_ref()
+        .ok_or("math function should carry an executor")?;
+    match executor
+        .call(&args)
+        .map_err(|_| "math function should execute")?
+    {
+        tune_runtime::Value::Float(value) => Ok(value),
+        _ => Err("math function should return Float"),
+    }
+}
+
+#[test]
+fn math_module_exposes_task_safe_float_helpers() -> Result<(), &'static str> {
+    let module = tune_std::math::install();
+
+    for name in [
+        "abs", "min", "max", "clamp", "floor", "ceil", "round", "sqrt", "pow",
+    ] {
+        let function = math_function(&module, name)?;
+        assert!(function.task_safe);
+        assert!(function.authorities.is_empty());
+        assert_eq!(function.ret, tune_shape::Shape::Float);
+    }
+
+    Ok(())
+}
+
+#[test]
+fn math_executors_return_float_results() -> Result<(), &'static str> {
+    let module = tune_std::math::install();
+
+    assert_eq!(
+        call_float(&module, "abs", vec![tune_runtime::Value::Float(-2.5)])?,
+        2.5
+    );
+    assert_eq!(
+        call_float(
+            &module,
+            "min",
+            vec![
+                tune_runtime::Value::Float(2.0),
+                tune_runtime::Value::Float(3.0)
+            ]
+        )?,
+        2.0
+    );
+    assert_eq!(
+        call_float(
+            &module,
+            "max",
+            vec![
+                tune_runtime::Value::Float(2.0),
+                tune_runtime::Value::Float(3.0)
+            ]
+        )?,
+        3.0
+    );
+    assert_eq!(
+        call_float(
+            &module,
+            "clamp",
+            vec![
+                tune_runtime::Value::Float(10.0),
+                tune_runtime::Value::Float(1.0),
+                tune_runtime::Value::Float(4.0),
+            ]
+        )?,
+        4.0
+    );
+    assert_eq!(
+        call_float(&module, "floor", vec![tune_runtime::Value::Float(3.75)])?,
+        3.0
+    );
+    assert_eq!(
+        call_float(&module, "ceil", vec![tune_runtime::Value::Float(3.25)])?,
+        4.0
+    );
+    assert_eq!(
+        call_float(&module, "round", vec![tune_runtime::Value::Float(3.5)])?,
+        4.0
+    );
+    assert_eq!(
+        call_float(&module, "sqrt", vec![tune_runtime::Value::Float(9.0)])?,
+        3.0
+    );
+    assert_eq!(
+        call_float(
+            &module,
+            "pow",
+            vec![
+                tune_runtime::Value::Float(2.0),
+                tune_runtime::Value::Float(3.0)
+            ]
+        )?,
+        8.0
+    );
+
+    Ok(())
+}

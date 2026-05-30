@@ -59,6 +59,19 @@ pub fn install() -> HostModule {
                     Err(error) => crate::result_error(error.to_string()),
                 })
             }),
+            HostFunction::new(
+                "bool",
+                vec![HostParam::new("text", Shape::String)],
+                result_shape(Shape::Bool),
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let text = crate::string_arg(args, 0, "text")?;
+                Ok(match text.parse::<bool>() {
+                    Ok(value) => crate::result_ok(Value::Bool(value)),
+                    Err(error) => crate::result_error(error.to_string()),
+                })
+            }),
         ],
     )
 }
