@@ -147,47 +147,11 @@ impl Tune {
         file: FileId,
         scope: ProfileScope,
     ) -> Result<ProfileReport, EngineError> {
-        let source = self
-            .db()
-            .source(file)
-            .ok_or(EngineError::FileNotFound(file))?;
         let mut timings = Vec::new();
-
-        let (parsed, duration) = timed(|| tune_syntax::parse_with_file(file, &source.text));
-        timings.push(stage("parse", duration));
-
-        let (module, duration) = timed(|| tune_hir::lower::lower_module(&source.text, &parsed.cst));
-        timings.push(stage("hir", duration));
-
-        let (resolved, duration) = timed(|| tune_resolve::resolve_module(&module));
-        timings.push(stage("resolve", duration));
-
-        let (shape, duration) = timed(|| tune_shape::analyze_module(&module, &resolved));
-        timings.push(stage("shape", duration));
-
-        let diagnostics = parsed
-            .diagnostics
-            .iter()
-            .chain(resolved.diagnostics.iter())
-            .chain(
-                shape
-                    .iter()
-                    .flat_map(|analysis| analysis.diagnostics.iter()),
-            )
-            .cloned()
-            .collect::<Vec<_>>();
-
-        finish_profile(
-            CheckReport {
-                file,
-                diagnostics,
-                module,
-                resolved,
-                shape,
-            },
-            timings,
-            scope,
-        )
+        let (check, duration) =
+            timed(|| self.check_file(file).ok_or(EngineError::FileNotFound(file)));
+        timings.push(stage("check", duration));
+        finish_profile(check?, timings, scope)
     }
 }
 
