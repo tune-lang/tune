@@ -1,3 +1,4 @@
+use dyno_project::{ProjectSourceLoadError, ProjectSources};
 use tune_db::{FileId, TuneDb};
 use tune_diagnostics::Diagnostic;
 use tune_diagnostics::Span;
@@ -49,6 +50,30 @@ impl LspSession {
         text: impl Into<String>,
     ) -> Option<FileId> {
         self.documents.open(&mut self.db, path, text)
+    }
+
+    pub fn open_project_dir(
+        &mut self,
+        root: impl AsRef<std::path::Path>,
+    ) -> Result<Vec<FileId>, ProjectSourceLoadError> {
+        let sources = dyno_project::load_project_dir(root)?;
+        Ok(self.open_project_sources(sources))
+    }
+
+    pub fn open_project_manifest(
+        &mut self,
+        manifest_path: impl AsRef<std::path::Path>,
+    ) -> Result<Vec<FileId>, ProjectSourceLoadError> {
+        let sources = dyno_project::load_project_manifest(manifest_path)?;
+        Ok(self.open_project_sources(sources))
+    }
+
+    pub fn open_project_sources(&mut self, sources: ProjectSources) -> Vec<FileId> {
+        sources
+            .sources
+            .into_iter()
+            .filter_map(|(path, text)| self.open_document(path, text))
+            .collect()
     }
 
     pub fn change_document(

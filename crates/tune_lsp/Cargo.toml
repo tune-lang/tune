@@ -10,6 +10,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+dyno_project = { path = "../dyno_project" }
 tune_db = { path = "../tune_db" }
 tune_diagnostics = { path = "../tune_diagnostics" }
 tune_hir = { path = "../tune_hir" }

@@ -1,5 +1,5 @@
 use tune_db::{FileId, TuneDb};
-use tune_diagnostics::{Diagnostic, codes};
+use tune_diagnostics::{ByteOffset, Diagnostic, Span, codes};
 use tune_hir::item::{Item, ItemKind, Visibility};
 use tune_shape::Shape;
 
@@ -33,6 +33,9 @@ fn action_for_diagnostic(
         return materialize_public_signature(db, file, analysis, diagnostic)
             .into_iter()
             .collect();
+    }
+    if diagnostic.code == codes::UNRESOLVED_NAME {
+        return import_candidates(db, file, diagnostic);
     }
     Vec::new()
 }
@@ -130,4 +133,60 @@ fn head_span(db: &TuneDb, item: &Item) -> Option<tune_diagnostics::Span> {
         span.start,
         tune_diagnostics::ByteOffset::new(edit_end),
     )
+}
+
+fn import_candidates(db: &TuneDb, file: FileId, diagnostic: &Diagnostic) -> Vec<CodeAction> {
+    let Some(name) = unresolved_name(&diagnostic.title) else {
+        return Vec::new();
+    };
+    let Some(insert_range) = import_insert_range(db, file) else {
+        return Vec::new();
+    };
+
+    db.sources()
+        .iter()
+        .filter(|source| source.id != file)
+        .filter_map(|source| {
+            let analysis = db.analyze_file(source.id)?;
+            let exports_name = analysis.module.items.iter().any(|item| {
+                item.visibility == Visibility::Public
+                    && item.kind != ItemKind::Import
+                    && item.name.as_deref() == Some(name)
+            });
+            if !exports_name {
+                return None;
+            }
+            let import_path = source.path.clone();
+            Some(CodeAction {
+                title: format!("Import `{name}` from \"{import_path}\""),
+                edit: Some(WorkspaceEdit {
+                    file,
+                    edits: vec![TextEdit {
+                        range: insert_range,
+                        replacement: format!("import \"{import_path}\".{name}\n"),
+                    }],
+                }),
+            })
+        })
+        .collect()
+}
+
+fn unresolved_name(title: &str) -> Option<&str> {
+    title.strip_prefix("unresolved name `")?.strip_suffix('`')
+}
+
+fn import_insert_range(db: &TuneDb, file: FileId) -> Option<crate::Range> {
+    let source = db.source(file)?;
+    let mut offset = 0usize;
+    for line in source.text.split_inclusive('\n') {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with("--") || trimmed.starts_with("import ") {
+            offset += line.len();
+            continue;
+        }
+        break;
+    }
+    let offset = ByteOffset::new(u32::try_from(offset).ok()?);
+    let span = Span::checked(file, offset, offset)?;
+    crate::protocol::range(db, span)
 }

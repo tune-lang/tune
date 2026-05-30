@@ -327,3 +327,68 @@ let value = add(1, 2)
 
     Ok(())
 }
+
+#[test]
+fn lsp_session_loads_project_sources_for_tooling() -> Result<(), String> {
+    let root = std::env::temp_dir().join(format!("tune-lsp-project-{}", std::process::id()));
+    if root.exists() {
+        std::fs::remove_dir_all(&root).map_err(|error| error.to_string())?;
+    }
+    std::fs::create_dir_all(root.join("src")).map_err(|error| error.to_string())?;
+    std::fs::write(
+        root.join("dyno.toml"),
+        r#"[project]
+name = "tooling"
+entry = "src/main.tn"
+"#,
+    )
+    .map_err(|error| error.to_string())?;
+    std::fs::write(root.join("src/main.tn"), "let value = helper()\n")
+        .map_err(|error| error.to_string())?;
+    std::fs::write(root.join("src/lib.tn"), "pub let helper(): Int = 1\n")
+        .map_err(|error| error.to_string())?;
+
+    let mut session = tune_lsp::LspSession::new();
+    let files = session
+        .open_project_dir(&root)
+        .map_err(|error| format!("{error:?}"))?;
+    assert_eq!(files.len(), 2);
+    assert!(session.file_for_path("src/main.tn").is_some());
+    assert!(session.file_for_path("src/lib.tn").is_some());
+
+    std::fs::remove_dir_all(root).map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+#[test]
+fn lsp_code_actions_suggest_imports_from_loaded_public_items() -> Result<(), &'static str> {
+    let mut session = tune_lsp::LspSession::new();
+    let main = session
+        .open_document(
+            "src/main.tn",
+            "-- Main module.\n\nlet value: Int = helper()\n",
+        )
+        .ok_or("main should open")?;
+    session
+        .open_document("src/lib.tn", "pub let helper(): Int = 1\n")
+        .ok_or("lib should open")?;
+
+    let actions = session.code_actions(main);
+    let action = actions
+        .iter()
+        .find(|action| action.title == "Import `helper` from \"src/lib.tn\"")
+        .ok_or("unresolved helper should produce an import action")?;
+    let edit = action.edit.as_ref().ok_or("import action should edit")?;
+    assert_eq!(edit.file, main);
+    assert_eq!(edit.edits.len(), 1);
+    assert_eq!(edit.edits[0].replacement, "import \"src/lib.tn\".helper\n");
+    assert_eq!(
+        edit.edits[0].range.start,
+        tune_lsp::Position {
+            line: 2,
+            character: 0
+        }
+    );
+
+    Ok(())
+}
