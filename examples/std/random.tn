@@ -1,0 +1,8 @@
+-- Generate deterministic pseudo-random values from a seed and index.
+
+import "random"
+
+let seed: Size = 42
+let roll: Result<Int, String> = random.int(seed, 0, 1, 6)
+let sample: Float = random.float(seed, 1)
+let bytes: Result<[Byte], String> = random.bytes(seed, 8)

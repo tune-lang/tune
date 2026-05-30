@@ -9,6 +9,7 @@ pub mod parse;
 pub mod path;
 pub mod prelude;
 pub mod process;
+pub mod random;
 pub mod text;
 pub mod time;
 
@@ -39,6 +40,7 @@ pub fn modules() -> Vec<tune_host::HostModule> {
         fs::install(),
         json::install(),
         process::install(),
+        random::install(),
         time::install(),
     ]
 }

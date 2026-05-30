@@ -262,8 +262,8 @@ fn engine_registers_default_std_host_modules() {
     let mut tune = tune_engine::Tune::new();
     let registration = tune.register_std();
 
-    assert_eq!(registration.module_count, 11);
-    assert_eq!(registration.function_count, 72);
+    assert_eq!(registration.module_count, 12);
+    assert_eq!(registration.function_count, 76);
     assert_eq!(registration.value_count, 4);
     assert_eq!(registration.resource_count, 1);
     assert!(tune.host_modules().iter().any(|module| module.name == "io"));
@@ -296,6 +296,11 @@ fn engine_registers_default_std_host_modules() {
         tune.host_modules()
             .iter()
             .any(|module| module.name == "time")
+    );
+    assert!(
+        tune.host_modules()
+            .iter()
+            .any(|module| module.name == "random")
     );
     assert!(
         tune.host_resource_types()
