@@ -200,8 +200,7 @@ fn checks_project_format_without_writing() -> Result<(), String> {
 #[test]
 fn dyno_run_uses_print_for_public_output() -> Result<(), String> {
     let path = std::env::temp_dir().join(format!("dyno-run-print-{}.tn", std::process::id()));
-    std::fs::write(&path, "let result: () = print(\"hello\")\n")
-        .map_err(|error| error.to_string())?;
+    std::fs::write(&path, "print(\"hello\")\n").map_err(|error| error.to_string())?;
 
     let output = std::process::Command::new(env!("CARGO_BIN_EXE_dyno"))
         .arg("run")
