@@ -10,11 +10,18 @@
     "url": "https://github.com/tune-lang/tune.git",
     "directory": "editors/vscode"
   },
-  "keywords": ["tune", "dyno", "language", "lsp"],
+  "keywords": [
+    "tune",
+    "dyno",
+    "language",
+    "lsp"
+  ],
   "engines": {
     "vscode": "^1.92.0"
   },
-  "categories": ["Programming Languages"],
+  "categories": [
+    "Programming Languages"
+  ],
   "activationEvents": [
     "onLanguage:tune",
     "onCommand:tune.restartLanguageServer",
@@ -40,8 +47,13 @@
     "languages": [
       {
         "id": "tune",
-        "aliases": ["Tune", "tune"],
-        "extensions": [".tn"],
+        "aliases": [
+          "Tune",
+          "tune"
+        ],
+        "extensions": [
+          ".tn"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -71,6 +83,7 @@
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
-    "@types/vscode": "^1.92.0"
+    "@types/vscode": "^1.92.0",
+    "@vscode/vsce": "^3.9.1"
   }
 }
