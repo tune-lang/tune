@@ -65,6 +65,24 @@ fn jsonrpc_initialize_advertises_document_symbols() {
 }
 
 #[test]
+fn jsonrpc_server_handles_document_links() {
+    let mut server = tune_lsp::JsonRpcServer::new();
+    let _ = server.handle_message(
+        r#"{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tmp/lib.tn","text":"pub let helper(): Int = 1\n"}}}"#,
+    );
+    let _ = server.handle_message(
+        r#"{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tmp/main.tn","text":"import \"/tmp/lib.tn\".helper\nlet value = helper()\n"}}}"#,
+    );
+
+    let response = server.handle_message(
+        r#"{"jsonrpc":"2.0","id":5,"method":"textDocument/documentLink","params":{"textDocument":{"uri":"file:///tmp/main.tn"}}}"#,
+    );
+
+    assert_eq!(response.len(), 1);
+    assert!(response[0].contains("\"target\":\"file:///tmp/lib.tn\""));
+}
+
+#[test]
 fn jsonrpc_diagnostics_include_tune_source_and_code_description() {
     let mut server = tune_lsp::JsonRpcServer::new();
     let messages = server.handle_message(

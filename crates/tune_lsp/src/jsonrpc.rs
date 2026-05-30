@@ -92,6 +92,9 @@ impl JsonRpcServer {
             ("textDocument/documentSymbol", Some(id)) => {
                 vec![success_response(id, self.document_symbols(&params))]
             }
+            ("textDocument/documentLink", Some(id)) => {
+                vec![success_response(id, self.document_links(&params))]
+            }
             ("textDocument/semanticTokens/full", Some(id)) => {
                 vec![success_response(id, self.semantic_tokens(&params))]
             }
@@ -276,6 +279,19 @@ impl JsonRpcServer {
                 .document_symbols(file)
                 .iter()
                 .map(document_symbol_value)
+                .collect(),
+        )
+    }
+
+    fn document_links(&self, params: &Value) -> Value {
+        let Some(file) = self.file(params) else {
+            return json!([]);
+        };
+        Value::Array(
+            self.session
+                .document_links(file)
+                .iter()
+                .map(document_link_value)
                 .collect(),
         )
     }

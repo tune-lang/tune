@@ -2,6 +2,7 @@ pub mod code_action;
 pub mod completion;
 pub mod diagnostics;
 pub mod document;
+pub mod document_link;
 pub mod document_symbol;
 pub mod hover;
 pub mod inlay;
@@ -16,6 +17,7 @@ pub mod workspace;
 
 pub use code_action::CodeAction;
 pub use completion::{CompletionItem, CompletionKind};
+pub use document_link::DocumentLink;
 pub use document_symbol::{DocumentSymbol, DocumentSymbolKind};
 pub use hover::HoverCard;
 pub use inlay::{InlayHint, InlayHintKind};

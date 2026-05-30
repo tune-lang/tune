@@ -267,3 +267,32 @@ let result: Int = 1
 
     Ok(())
 }
+
+#[test]
+fn lsp_document_links_resolve_loaded_import_targets() -> Result<(), &'static str> {
+    let mut session = tune_lsp::LspSession::new();
+    let main = session
+        .open_document(
+            "src/main.tn",
+            "import \"src/lib.tn\".helper\nlet value = helper()\n",
+        )
+        .ok_or("main should open")?;
+    session
+        .open_document("src/lib.tn", "pub let helper(): Int = 1\n")
+        .ok_or("lib should open")?;
+
+    let links = session.document_links(main);
+    let link = links
+        .first()
+        .ok_or("import should produce a document link")?;
+    assert_eq!(link.target, "src/lib.tn");
+    assert_eq!(
+        link.range.start,
+        tune_lsp::Position {
+            line: 0,
+            character: 8
+        }
+    );
+
+    Ok(())
+}

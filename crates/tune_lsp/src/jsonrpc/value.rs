@@ -2,6 +2,7 @@ use serde_json::{Value, json};
 
 use crate::code_action::CodeAction;
 use crate::completion::{CompletionItem, CompletionKind};
+use crate::document_link::DocumentLink;
 use crate::document_symbol::{DocumentSymbol, DocumentSymbolKind};
 use crate::hover::HoverCard;
 use crate::inlay::{InlayHint, InlayHintKind};
@@ -39,6 +40,7 @@ pub(super) fn initialize_result() -> Value {
             "renameProvider": true,
             "codeActionProvider": true,
             "documentFormattingProvider": true,
+            "documentLinkProvider": { "resolveProvider": false },
             "documentSymbolProvider": true,
             "workspaceSymbolProvider": true,
             "inlayHintProvider": true,
@@ -150,6 +152,13 @@ pub(super) fn document_symbol_value(symbol: &DocumentSymbol) -> Value {
         "selectionRange": range_value(symbol.selection_range),
         "detail": symbol.detail,
         "children": symbol.children.iter().map(document_symbol_value).collect::<Vec<_>>()
+    })
+}
+
+pub(super) fn document_link_value(link: &DocumentLink) -> Value {
+    json!({
+        "range": range_value(link.range),
+        "target": path_to_uri(&link.target),
     })
 }
 
