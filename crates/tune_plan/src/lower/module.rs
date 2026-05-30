@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use tune_hir::expr::ExprKind;
 use tune_hir::item::{
     CallableMember, IndexAccess, Item, ItemKind, SequenceMaterializer, StructMember,
@@ -112,11 +114,11 @@ fn lower_module_item_into_entry(
         analysis,
         self_shape: None,
         struct_escape: crate::StructEscapeReason::Local,
-        param_shapes: param_shapes.to_vec(),
-        captured_locals: item
-            .body
-            .as_ref()
-            .map_or_else(Vec::new, |body| captured_locals_for_body(resolved, body)),
+        param_shapes: Cow::Borrowed(param_shapes),
+        captured_locals: item.body.as_ref().map_or_else(
+            || Cow::Borrowed(&[] as &[tune_resolve::LocalId]),
+            |body| Cow::Owned(captured_locals_for_body(resolved, body)),
+        ),
     };
     let initialized = if let Some(body) = item.body.as_ref() {
         context.lower_expr_for_binding(body, item.shape.as_ref(), ops);
@@ -185,8 +187,8 @@ fn lower_module_callable(
         analysis,
         self_shape: None,
         struct_escape: crate::StructEscapeReason::Local,
-        param_shapes: param_shapes.to_vec(),
-        captured_locals: captured_locals_for_body(resolved, body),
+        param_shapes: Cow::Borrowed(param_shapes),
+        captured_locals: Cow::Owned(captured_locals_for_body(resolved, body)),
     };
     if matches!(
         body.kind,
@@ -291,8 +293,8 @@ fn lower_callable_member(
             .as_ref()
             .map(|name| Shape::Struct(tune_shape::NominalShape::new(owner.id, name))),
         struct_escape: crate::StructEscapeReason::Local,
-        param_shapes: param_shapes.to_vec(),
-        captured_locals: captured_locals_for_body(resolved, body),
+        param_shapes: Cow::Borrowed(param_shapes),
+        captured_locals: Cow::Owned(captured_locals_for_body(resolved, body)),
     };
     context.lower_expr_for_binding(body, callable.shape.as_ref(), &mut plan.ops);
     if super::falls_through(body, analysis) {
@@ -334,8 +336,8 @@ fn lower_sequence_materializer_member(
             .as_ref()
             .map(|name| Shape::Struct(tune_shape::NominalShape::new(owner.id, name))),
         struct_escape: crate::StructEscapeReason::Local,
-        param_shapes: param_shapes.to_vec(),
-        captured_locals: captured_locals_for_body(resolved, body),
+        param_shapes: Cow::Borrowed(param_shapes),
+        captured_locals: Cow::Owned(captured_locals_for_body(resolved, body)),
     };
     context.lower_return_expr(body, &mut plan.ops);
     if super::falls_through(body, analysis) {
@@ -377,8 +379,8 @@ fn lower_index_access_member(
             .as_ref()
             .map(|name| Shape::Struct(tune_shape::NominalShape::new(owner.id, name))),
         struct_escape: crate::StructEscapeReason::Local,
-        param_shapes: param_shapes.to_vec(),
-        captured_locals: captured_locals_for_body(resolved, body),
+        param_shapes: Cow::Borrowed(param_shapes),
+        captured_locals: Cow::Owned(captured_locals_for_body(resolved, body)),
     };
     context.lower_return_expr(body, &mut plan.ops);
     if super::falls_through(body, analysis) {
@@ -397,8 +399,8 @@ pub(super) fn captured_locals_for_body(
         analysis: None,
         self_shape: None,
         struct_escape: crate::StructEscapeReason::Local,
-        param_shapes: Vec::new(),
-        captured_locals: Vec::new(),
+        param_shapes: Cow::Borrowed(&[]),
+        captured_locals: Cow::Borrowed(&[]),
     };
     context.captured_locals_in_callable_values(body)
 }

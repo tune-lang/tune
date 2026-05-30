@@ -201,7 +201,7 @@ impl LowerContext<'_> {
             return context;
         };
         if let NameTarget::Param(param) = source {
-            context.param_shapes.push((
+            context.param_shapes.to_mut().push((
                 param,
                 Shape::Struct(NominalShape::new(item.id, name.clone())),
             ));

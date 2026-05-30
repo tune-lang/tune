@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use tune_hir::expr::{Expr, ExprKind, ExprParam, LiteralKind, StringPart};
 use tune_hir::item::{Item, StructMember};
 use tune_hir::module::Module;
@@ -85,8 +87,8 @@ fn lower_callable_value_function(
         analysis: Some(context.analysis),
         self_shape: None,
         struct_escape: crate::StructEscapeReason::Local,
-        param_shapes: context.param_shapes.to_vec(),
-        captured_locals: captured_locals_for_body(context.resolved, body),
+        param_shapes: Cow::Borrowed(context.param_shapes),
+        captured_locals: Cow::Owned(captured_locals_for_body(context.resolved, body)),
     };
     let mut plan = PlanFunction {
         owner: None,

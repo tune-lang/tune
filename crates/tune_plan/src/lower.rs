@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use tune_hir::expr::{Expr, ExprKind};
 mod assign;
 mod callables;
@@ -102,11 +104,11 @@ fn lower_item_with_context(
         analysis,
         self_shape: None,
         struct_escape: StructEscapeReason::Local,
-        param_shapes: Vec::new(),
-        captured_locals: Vec::new(),
+        param_shapes: Cow::Borrowed(&[]),
+        captured_locals: Cow::Borrowed(&[]),
     };
     if resolved.is_some() {
-        context.captured_locals = context.captured_locals_in_callable_values(body);
+        context.captured_locals = Cow::Owned(context.captured_locals_in_callable_values(body));
     }
     if item.kind == tune_hir::item::ItemKind::CallableDecl {
         context.lower_return_expr(body, &mut plan.ops);
@@ -163,8 +165,8 @@ pub(super) struct LowerContext<'a> {
     pub(super) analysis: Option<&'a tune_shape::ShapeAnalysis>,
     pub(super) self_shape: Option<tune_shape::Shape>,
     pub(super) struct_escape: StructEscapeReason,
-    pub(super) param_shapes: Vec<(tune_hir::MemberId, tune_shape::Shape)>,
-    pub(super) captured_locals: Vec<LocalId>,
+    pub(super) param_shapes: Cow<'a, [(tune_hir::MemberId, tune_shape::Shape)]>,
+    pub(super) captured_locals: Cow<'a, [LocalId]>,
 }
 
 impl LowerContext<'_> {

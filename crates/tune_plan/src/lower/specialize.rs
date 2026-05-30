@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use tune_hir::expr::{Expr, ExprKind, LiteralKind, StringPart};
 use tune_hir::item::Item;
 use tune_hir::module::Module;
@@ -23,8 +25,8 @@ pub(super) fn infer_direct_call_param_shapes_from_analyses(
             analysis: Some(analysis),
             self_shape: None,
             struct_escape: crate::StructEscapeReason::Local,
-            param_shapes: Vec::new(),
-            captured_locals: Vec::new(),
+            param_shapes: Cow::Borrowed(&[]),
+            captured_locals: Cow::Borrowed(&[]),
         };
         collect_direct_call_param_shapes(body, &context, module, &mut inferred);
     }
