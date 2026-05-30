@@ -1,4 +1,5 @@
 pub mod bits;
+pub mod encoding;
 pub mod env;
 pub mod fs;
 pub mod hash;
@@ -34,6 +35,7 @@ pub fn modules() -> Vec<tune_host::HostModule> {
         io::install(),
         math::install(),
         bits::install(),
+        encoding::install(),
         parse::install(),
         text::install(),
         path::install(),

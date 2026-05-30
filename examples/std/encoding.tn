@@ -1,0 +1,8 @@
+-- Encode and decode bytes as hexadecimal text.
+
+import "encoding"
+import "text"
+
+let bytes: [Byte] = text.bytes("Tune")
+let hex: String = encoding.hex(bytes)
+let decoded: Result<[Byte], String> = encoding.from_hex(hex)
