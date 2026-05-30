@@ -14,6 +14,9 @@ pub fn run(function: &mut IrFunction) -> PassReport {
 }
 
 fn eliminate_function(function: &mut IrFunction) -> bool {
+    if !has_checked_sequence_access(function) {
+        return false;
+    }
     let stable_local_seq_lengths = stable_local_sequence_lengths(&function.blocks);
     let mut changed = false;
     for block in &mut function.blocks {
@@ -27,6 +30,20 @@ fn eliminate_function(function: &mut IrFunction) -> bool {
         changed |= eliminate_function(task);
     }
     changed
+}
+
+fn has_checked_sequence_access(function: &IrFunction) -> bool {
+    function.blocks.iter().any(|block| {
+        block.ops.iter().any(|op| {
+            matches!(
+                op,
+                IrOp::SeqGet { checked: true, .. } | IrOp::SeqSet { checked: true, .. }
+            )
+        })
+    }) || function
+        .task_functions
+        .iter()
+        .any(has_checked_sequence_access)
 }
 
 fn eliminate_block(
