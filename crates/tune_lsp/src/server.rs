@@ -10,6 +10,7 @@ use crate::{
     completion::{self, CompletionItem},
     diagnostics,
     document::DocumentSet,
+    document_symbol::{self, DocumentSymbol},
     hover::{self, HoverCard},
     inlay::{self, InlayHint},
     protocol::{LspDiagnostic, TextEdit},
@@ -230,6 +231,11 @@ impl LspSession {
     }
 
     #[must_use]
+    pub fn document_symbols(&self, file: FileId) -> Vec<DocumentSymbol> {
+        document_symbol::symbols_for_file(&self.db, file)
+    }
+
+    #[must_use]
     pub fn workspace_symbols(&self, query: &str) -> Vec<WorkspaceSymbol> {
         self.workspace
             .symbols()
@@ -268,6 +274,9 @@ impl LspSession {
             }
             LspRequest::CodeActions { file } => LspResponse::CodeActions(self.code_actions(file)),
             LspRequest::Formatting { file } => LspResponse::Formatting(self.formatting(file)),
+            LspRequest::DocumentSymbols { file } => {
+                LspResponse::DocumentSymbols(self.document_symbols(file))
+            }
             LspRequest::WorkspaceSymbols { query } => {
                 LspResponse::WorkspaceSymbols(self.workspace_symbols(&query))
             }

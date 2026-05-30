@@ -2,6 +2,7 @@ use serde_json::{Value, json};
 
 use crate::code_action::CodeAction;
 use crate::completion::{CompletionItem, CompletionKind};
+use crate::document_symbol::{DocumentSymbol, DocumentSymbolKind};
 use crate::hover::HoverCard;
 use crate::inlay::{InlayHint, InlayHintKind};
 use crate::protocol::{Range, TextEdit, WorkspaceEdit};
@@ -38,6 +39,7 @@ pub(super) fn initialize_result() -> Value {
             "renameProvider": true,
             "codeActionProvider": true,
             "documentFormattingProvider": true,
+            "documentSymbolProvider": true,
             "workspaceSymbolProvider": true,
             "inlayHintProvider": true,
             "semanticTokensProvider": {
@@ -138,6 +140,29 @@ fn text_edit_value(edit: &TextEdit) -> Value {
 
 pub(super) fn formatting_value(edits: &[TextEdit]) -> Value {
     Value::Array(edits.iter().map(text_edit_value).collect())
+}
+
+pub(super) fn document_symbol_value(symbol: &DocumentSymbol) -> Value {
+    json!({
+        "name": symbol.name,
+        "kind": document_symbol_kind(symbol.kind),
+        "range": range_value(symbol.range),
+        "selectionRange": range_value(symbol.selection_range),
+        "detail": symbol.detail,
+        "children": symbol.children.iter().map(document_symbol_value).collect::<Vec<_>>()
+    })
+}
+
+fn document_symbol_kind(kind: DocumentSymbolKind) -> u32 {
+    match kind {
+        DocumentSymbolKind::Function => 12,
+        DocumentSymbolKind::Struct => 23,
+        DocumentSymbolKind::Enum => 10,
+        DocumentSymbolKind::Field => 8,
+        DocumentSymbolKind::Property => 7,
+        DocumentSymbolKind::Module => 2,
+        DocumentSymbolKind::Value => 13,
+    }
 }
 
 pub(super) fn diagnostic_value(diagnostic: &crate::LspDiagnostic) -> Value {

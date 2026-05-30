@@ -233,3 +233,37 @@ let result = counter.bump()
 
     Ok(())
 }
+
+#[test]
+fn lsp_document_symbols_use_hir_items_and_members() -> Result<(), &'static str> {
+    let mut session = tune_lsp::LspSession::new();
+    let source = r#"struct Counter {
+  value: Int
+
+  bump(): Int = self.value
+}
+
+let result: Int = 1
+"#;
+    let file = session
+        .open_document("main.tn", source)
+        .ok_or("document should open")?;
+
+    let symbols = session.document_symbols(file);
+    let counter = symbols
+        .iter()
+        .find(|symbol| symbol.name == "Counter")
+        .ok_or("struct symbol should exist")?;
+    assert_eq!(counter.kind, tune_lsp::DocumentSymbolKind::Struct);
+    assert!(counter.children.iter().any(|child| {
+        child.name == "value" && child.kind == tune_lsp::DocumentSymbolKind::Field
+    }));
+    assert!(counter.children.iter().any(|child| {
+        child.name == "bump" && child.kind == tune_lsp::DocumentSymbolKind::Function
+    }));
+    assert!(symbols.iter().any(|symbol| {
+        symbol.name == "result" && symbol.kind == tune_lsp::DocumentSymbolKind::Value
+    }));
+
+    Ok(())
+}

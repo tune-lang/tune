@@ -89,6 +89,9 @@ impl JsonRpcServer {
             ("textDocument/formatting", Some(id)) => {
                 vec![success_response(id, self.formatting(&params))]
             }
+            ("textDocument/documentSymbol", Some(id)) => {
+                vec![success_response(id, self.document_symbols(&params))]
+            }
             ("textDocument/semanticTokens/full", Some(id)) => {
                 vec![success_response(id, self.semantic_tokens(&params))]
             }
@@ -262,6 +265,19 @@ impl JsonRpcServer {
             return json!([]);
         };
         formatting_value(&self.session.formatting(file))
+    }
+
+    fn document_symbols(&self, params: &Value) -> Value {
+        let Some(file) = self.file(params) else {
+            return json!([]);
+        };
+        Value::Array(
+            self.session
+                .document_symbols(file)
+                .iter()
+                .map(document_symbol_value)
+                .collect(),
+        )
     }
 
     fn inlay_hints(&self, params: &Value) -> Value {

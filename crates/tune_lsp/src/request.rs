@@ -2,6 +2,7 @@ use tune_db::FileId;
 
 use crate::code_action::CodeAction;
 use crate::completion::CompletionItem;
+use crate::document_symbol::DocumentSymbol;
 use crate::hover::HoverCard;
 use crate::inlay::InlayHint;
 use crate::protocol::{TextEdit, WorkspaceEdit};
@@ -48,6 +49,9 @@ pub enum LspRequest {
     Formatting {
         file: FileId,
     },
+    DocumentSymbols {
+        file: FileId,
+    },
     WorkspaceSymbols {
         query: String,
     },
@@ -65,5 +69,6 @@ pub enum LspResponse {
     SemanticTokens(Vec<SemanticToken>),
     CodeActions(Vec<CodeAction>),
     Formatting(Vec<TextEdit>),
+    DocumentSymbols(Vec<DocumentSymbol>),
     WorkspaceSymbols(Vec<WorkspaceSymbol>),
 }

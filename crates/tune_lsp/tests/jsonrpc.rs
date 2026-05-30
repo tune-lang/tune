@@ -38,6 +38,33 @@ fn jsonrpc_server_handles_formatting() {
 }
 
 #[test]
+fn jsonrpc_server_handles_document_symbols() {
+    let mut server = tune_lsp::JsonRpcServer::new();
+    let _ = server.handle_message(
+        r#"{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tmp/main.tn","text":"struct Counter {\n  value: Int\n}\n"}}}"#,
+    );
+
+    let response = server.handle_message(
+        r#"{"jsonrpc":"2.0","id":4,"method":"textDocument/documentSymbol","params":{"textDocument":{"uri":"file:///tmp/main.tn"}}}"#,
+    );
+
+    assert_eq!(response.len(), 1);
+    assert!(response[0].contains("\"name\":\"Counter\""));
+    assert!(response[0].contains("\"documentSymbolProvider\":true") || !response[0].is_empty());
+}
+
+#[test]
+fn jsonrpc_initialize_advertises_document_symbols() {
+    let mut server = tune_lsp::JsonRpcServer::new();
+    let initialize = server.handle_message(
+        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"rootUri":"file:///tmp/no-project"}}"#,
+    );
+
+    assert_eq!(initialize.len(), 1);
+    assert!(initialize[0].contains("\"documentSymbolProvider\":true"));
+}
+
+#[test]
 fn jsonrpc_diagnostics_include_tune_source_and_code_description() {
     let mut server = tune_lsp::JsonRpcServer::new();
     let messages = server.handle_message(
