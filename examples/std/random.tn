@@ -5,4 +5,6 @@ import "random"
 let seed: Size = 42
 let roll: Result<Int, String> = random.int(seed, 0, 1, 6)
 let sample: Float = random.float(seed, 1)
+let coin: Bool = random.bool(seed, 2)
+let slot: Result<Size, String> = random.index(seed, 3, 10)
 let bytes: Result<[Byte], String> = random.bytes(seed, 8)

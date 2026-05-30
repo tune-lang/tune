@@ -39,6 +39,41 @@ pub fn install() -> HostModule {
                 Ok(Value::Float(unit_float(value)))
             }),
             HostFunction::new(
+                "bool",
+                vec![
+                    HostParam::new("seed", Shape::Size),
+                    HostParam::new("index", Shape::Size),
+                ],
+                Shape::Bool,
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let seed = size_arg(args, 0, "seed")?;
+                let index = size_arg(args, 1, "index")?;
+                Ok(Value::Bool(splitmix64(seed.wrapping_add(index)) & 1 == 1))
+            }),
+            HostFunction::new(
+                "index",
+                vec![
+                    HostParam::new("seed", Shape::Size),
+                    HostParam::new("index", Shape::Size),
+                    HostParam::new("len", Shape::Size),
+                ],
+                size_result_shape(),
+            )
+            .task_safe(true)
+            .with_executor(|args: &[Value]| {
+                let seed = size_arg(args, 0, "seed")?;
+                let index = size_arg(args, 1, "index")?;
+                let len = size_arg(args, 2, "len")?;
+                if len == 0 {
+                    return Ok(crate::result_error("random.index len must be > 0"));
+                }
+                Ok(crate::result_ok(Value::Size(
+                    splitmix64(seed.wrapping_add(index)) % len,
+                )))
+            }),
+            HostFunction::new(
                 "int",
                 vec![
                     HostParam::new("seed", Shape::Size),
@@ -112,6 +147,13 @@ fn unit_float(value: u64) -> f64 {
 fn int_result_shape() -> Shape {
     Shape::Result {
         ok: Box::new(Shape::Int),
+        err: Box::new(Shape::String),
+    }
+}
+
+fn size_result_shape() -> Shape {
+    Shape::Result {
+        ok: Box::new(Shape::Size),
         err: Box::new(Shape::String),
     }
 }

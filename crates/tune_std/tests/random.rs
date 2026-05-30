@@ -14,7 +14,7 @@ fn executor<'a>(
 fn random_module_exposes_task_safe_deterministic_helpers() -> Result<(), &'static str> {
     let module = tune_std::random::install();
 
-    for name in ["size", "float", "int", "bytes"] {
+    for name in ["size", "float", "bool", "index", "int", "bytes"] {
         let function = module
             .functions
             .iter()
@@ -52,6 +52,11 @@ fn random_executors_are_deterministic() -> Result<(), &'static str> {
     };
     assert!((0.0..1.0).contains(&float));
 
+    let bool_value = executor(&module, "bool")?
+        .call(&[tune_runtime::Value::Size(7), tune_runtime::Value::Size(0)])
+        .map_err(|_| "random.bool should execute")?;
+    assert!(matches!(bool_value, tune_runtime::Value::Bool(_)));
+
     Ok(())
 }
 
@@ -74,6 +79,37 @@ fn random_result_executors_return_ranges_and_bytes() -> Result<(), &'static str>
             fields,
             ..
         } if matches!(fields.as_slice(), [tune_runtime::Value::Int(value)] if (10..=20).contains(value))
+    ));
+
+    let index_value = executor(&module, "index")?
+        .call(&[
+            tune_runtime::Value::Size(7),
+            tune_runtime::Value::Size(0),
+            tune_runtime::Value::Size(5),
+        ])
+        .map_err(|_| "random.index should execute")?;
+    assert!(matches!(
+        index_value,
+        tune_runtime::Value::Variant {
+            variant: tune_runtime::value::RuntimeVariant::ResultOk,
+            fields,
+            ..
+        } if matches!(fields.as_slice(), [tune_runtime::Value::Size(value)] if *value < 5)
+    ));
+
+    let invalid_index = executor(&module, "index")?
+        .call(&[
+            tune_runtime::Value::Size(7),
+            tune_runtime::Value::Size(0),
+            tune_runtime::Value::Size(0),
+        ])
+        .map_err(|_| "random.index should execute")?;
+    assert!(matches!(
+        invalid_index,
+        tune_runtime::Value::Variant {
+            variant: tune_runtime::value::RuntimeVariant::ResultError,
+            ..
+        }
     ));
 
     let invalid_range = executor(&module, "int")?
