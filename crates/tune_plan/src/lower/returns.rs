@@ -1,7 +1,7 @@
 use tune_hir::expr::{Expr, ExprKind};
 
 use super::LowerContext;
-use crate::lower::values::{expr_produces_value, if_produces_value};
+use crate::lower::values::{default_value_ops, expr_produces_value, if_produces_value};
 use crate::{PlanIfBranch, PlanMatchArm, PlanOp, StructEscapeReason};
 
 impl LowerContext<'_> {
@@ -19,6 +19,15 @@ impl LowerContext<'_> {
                 branches,
                 else_branch,
             } => {
+                let default_else_ops = else_branch
+                    .is_none()
+                    .then(|| {
+                        self.expr_shape(expr)
+                            .and_then(|shape| default_value_ops(&shape))
+                    })
+                    .flatten()
+                    .unwrap_or_default();
+                let has_default_else = else_branch.is_none() && !default_else_ops.is_empty();
                 ops.push(PlanOp::If {
                     branches: branches
                         .iter()
@@ -30,10 +39,15 @@ impl LowerContext<'_> {
                         })
                         .collect(),
                     else_body: else_branch.as_ref().map(|branch| branch.id),
-                    else_ops: else_branch
-                        .as_ref()
-                        .map_or_else(Vec::new, |branch| self.lower_return_expr_to_ops(branch)),
-                    produces_value: if_produces_value(branches, else_branch.as_deref()),
+                    else_ops: else_branch.as_ref().map_or(default_else_ops, |branch| {
+                        self.lower_return_expr_to_ops(branch)
+                    }),
+                    produces_value: if_produces_value(
+                        branches,
+                        else_branch.as_deref(),
+                        self.analysis,
+                        has_default_else,
+                    ),
                     span: expr.span,
                 });
             }

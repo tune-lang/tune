@@ -188,6 +188,14 @@ impl Analyzer<'_> {
                     span.unwrap_or_else(Span::synthetic),
                     format!("expected `{expected:?}`, got `{actual:?}`"),
                 )
+                .with_fact(
+                    "shape facts",
+                    [
+                        format!("storage shape: `{expected:?}`"),
+                        format!("assigned value shape: `{actual:?}`"),
+                    ],
+                )
+                .with_help("use shadowing if you meant to transform the binding to a new shape")
                 .build(),
             );
         }
