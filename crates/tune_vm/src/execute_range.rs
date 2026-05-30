@@ -26,9 +26,9 @@ pub(crate) fn range_item(range: RangeValue, index: u64) -> Option<RangeItem> {
     })
 }
 
-pub(crate) fn value_range(value: Value) -> Option<RangeValue> {
+pub(crate) fn value_range(value: &Value) -> Option<RangeValue> {
     match value {
-        Value::Range(range) => Some(range),
+        Value::Range(range) => Some(*range),
         _ => None,
     }
 }

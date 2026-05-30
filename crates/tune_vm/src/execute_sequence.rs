@@ -2,7 +2,7 @@ use tune_bytecode::Opcode;
 use tune_bytecode::function::Instruction;
 use tune_runtime::value::Value;
 
-use crate::execute_support::{read_reg, write_reg};
+use crate::execute_support::{read_reg, read_reg_ref, write_reg};
 use crate::{Vm, VmError, VmFault};
 
 impl Vm {
@@ -59,8 +59,8 @@ impl Vm {
         registers: &mut [Value],
         op: &Instruction,
     ) -> Result<(), VmFault> {
-        let seq = self.at(function, instruction, read_reg(registers, op.b))?;
-        let index = self.at(function, instruction, read_reg(registers, op.c))?;
+        let seq = self.at(function, instruction, read_reg_ref(registers, op.b))?;
+        let index = self.at(function, instruction, read_reg_ref(registers, op.c))?;
         let value = sequence_get(op.opcode, seq, index).ok_or_else(|| {
             self.fault_at(function, instruction, VmError::UnsupportedOpcode(op.opcode))
         })?;
@@ -86,7 +86,7 @@ impl Vm {
                 VmError::UnsupportedOpcode(op.opcode),
             ));
         };
-        let index = sequence_index(index).ok_or_else(|| {
+        let index = sequence_index(&index).ok_or_else(|| {
             self.fault_at(function, instruction, VmError::UnsupportedOpcode(op.opcode))
         })?;
         let Some(slot) = values.get_mut(index) else {
@@ -97,7 +97,7 @@ impl Vm {
     }
 }
 
-fn sequence_get(opcode: Opcode, seq: Value, index: Value) -> Option<Value> {
+fn sequence_get(opcode: Opcode, seq: &Value, index: &Value) -> Option<Value> {
     let Value::Sequence(values) = seq else {
         return None;
     };
@@ -108,10 +108,10 @@ fn sequence_get(opcode: Opcode, seq: Value, index: Value) -> Option<Value> {
     }
 }
 
-fn sequence_index(index: Value) -> Option<usize> {
+fn sequence_index(index: &Value) -> Option<usize> {
     match index {
-        Value::Int(index) => usize::try_from(index).ok(),
-        Value::Size(index) => usize::try_from(index).ok(),
+        Value::Int(index) => usize::try_from(*index).ok(),
+        Value::Size(index) => usize::try_from(*index).ok(),
         _ => None,
     }
 }

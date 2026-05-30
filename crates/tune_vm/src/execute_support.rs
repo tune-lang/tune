@@ -301,7 +301,7 @@ impl Vm {
         registers: &mut [Value],
         op: &Instruction,
     ) -> Result<(), VmFault> {
-        let iterable = self.at(function, instruction, read_reg(registers, op.b))?;
+        let iterable = self.at(function, instruction, read_reg_ref(registers, op.b))?;
         let len = finite_iter_len(iterable).ok_or_else(|| {
             self.fault_at(
                 function,
@@ -336,8 +336,12 @@ impl Vm {
                 VmError::ForSiteOutOfBounds,
             )
         })?;
-        let iterator = self.at(function_index, instruction_index, read_reg(registers, op.a))?;
-        let Value::Size(iterator) = iterator else {
+        let iterator = self.at(
+            function_index,
+            instruction_index,
+            read_reg_ref(registers, op.a),
+        )?;
+        let Value::Size(iterator) = *iterator else {
             return Err(self.fault_at(
                 function_index,
                 instruction_index,
@@ -347,9 +351,9 @@ impl Vm {
         let len = self.at(
             function_index,
             instruction_index,
-            read_reg(registers, site.len),
+            read_reg_ref(registers, site.len),
         )?;
-        let Value::Size(len) = len else {
+        let Value::Size(len) = *len else {
             return Err(self.fault_at(
                 function_index,
                 instruction_index,
@@ -362,7 +366,7 @@ impl Vm {
         let iterable = self.at(
             function_index,
             instruction_index,
-            read_reg(registers, site.iterable),
+            read_reg_ref(registers, site.iterable),
         )?;
         let item = finite_iter_item(iterable, iterator).ok_or_else(|| {
             self.fault_at(
@@ -426,14 +430,14 @@ impl Vm {
     }
 }
 
-fn finite_iter_len(iterable: Value) -> Option<u64> {
+fn finite_iter_len(iterable: &Value) -> Option<u64> {
     match iterable {
         Value::Sequence(values) => u64::try_from(values.len()).ok(),
         value => value_range(value).and_then(range_len),
     }
 }
 
-fn finite_iter_item(iterable: Value, iterator: u64) -> Option<Value> {
+fn finite_iter_item(iterable: &Value, iterator: u64) -> Option<Value> {
     match iterable {
         Value::Sequence(values) => {
             let index = usize::try_from(iterator).ok()?;

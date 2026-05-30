@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FIXTURE_DIR="${SCRIPT_DIR}/../crates/tune_engine/benches/fixtures"
 
 CORE_FIXTURES=(arithmetic.tn tuple_expr.tn struct_methods.tn)
-FLOW_FIXTURES=(finite_for.tn structural_match.tn spawn_join.tn)
+FLOW_FIXTURES=(finite_for.tn sequence_access.tn structural_match.tn spawn_join.tn)
 GENERIC_FIXTURES=(generic_identity.tn)
 ALL_FIXTURES=("${CORE_FIXTURES[@]}" "${FLOW_FIXTURES[@]}" "${GENERIC_FIXTURES[@]}")
 
