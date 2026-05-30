@@ -1,4 +1,5 @@
 use tune_bytecode::Opcode;
+use tune_ir::{IrGenericStrategy, IrOwnershipPlan};
 use tune_plan::{FiniteForContractKind, PlanOp};
 use tune_shape::Shape;
 
@@ -112,11 +113,15 @@ fn collect_ir_function(function: &tune_ir::IrFunction, quality: &mut IrQuality) 
                     quality.shape_holes += shape_holes(shape);
                 }
                 tune_ir::IrOp::SeqBuild { element_shape, .. } => {
+                    quality.sequence_builds += 1;
                     let holes = shape_holes(element_shape);
                     quality.shape_holes += holes;
                     if holes > 0 {
                         quality.sequence_build_holes += 1;
                     }
+                }
+                tune_ir::IrOp::SeqPush { .. } => {
+                    quality.sequence_pushes += 1;
                 }
                 tune_ir::IrOp::SeqGet { checked, .. } | tune_ir::IrOp::SeqSet { checked, .. } => {
                     if *checked {
@@ -124,6 +129,29 @@ fn collect_ir_function(function: &tune_ir::IrFunction, quality: &mut IrQuality) 
                     } else {
                         quality.unchecked_sequence_ops += 1;
                     }
+                }
+                tune_ir::IrOp::GetField { .. } | tune_ir::IrOp::SetField { .. } => {
+                    quality.field_accesses += 1;
+                }
+                tune_ir::IrOp::CallDirect {
+                    generic_strategy, ..
+                } => match generic_strategy {
+                    IrGenericStrategy::DirectSpecialization => {
+                        quality.direct_specialized_calls += 1;
+                    }
+                    IrGenericStrategy::WitnessShared => {
+                        quality.witness_shared_calls += 1;
+                    }
+                    IrGenericStrategy::None => {}
+                },
+                tune_ir::IrOp::CallBound { .. } => {
+                    quality.bound_calls += 1;
+                }
+                tune_ir::IrOp::CallWitness { .. } => {
+                    quality.witness_calls += 1;
+                }
+                tune_ir::IrOp::StructConstruct { state, .. } => {
+                    collect_ir_ownership(state.ownership, quality);
                 }
                 tune_ir::IrOp::FiniteForInit { .. } | tune_ir::IrOp::FiniteForNext { .. } => {
                     quality.generic_finite_for_ops += 1;
@@ -134,6 +162,17 @@ fn collect_ir_function(function: &tune_ir::IrFunction, quality: &mut IrQuality) 
     }
     for task in &function.task_functions {
         collect_ir_function(task, quality);
+    }
+}
+
+fn collect_ir_ownership(ownership: IrOwnershipPlan, quality: &mut IrQuality) {
+    match ownership {
+        IrOwnershipPlan::Stack => quality.stack_structs += 1,
+        IrOwnershipPlan::DirectDrop => quality.direct_drop_structs += 1,
+        IrOwnershipPlan::NonAtomicRc => quality.non_atomic_rc_structs += 1,
+        IrOwnershipPlan::Cow => quality.cow_structs += 1,
+        IrOwnershipPlan::SharedAtomic => quality.shared_atomic_structs += 1,
+        IrOwnershipPlan::HostRetained => quality.host_retained_structs += 1,
     }
 }
 

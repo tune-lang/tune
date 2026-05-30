@@ -25,6 +25,8 @@ let result: Int = if c > 10 { c } else { a }
     );
     assert_eq!(report.ir.shape_holes, 0);
     assert!(report.ir.ops > 0);
+    assert_eq!(report.ir.bound_calls, 0);
+    assert_eq!(report.ir.witness_calls, 0);
 
     Ok(())
 }
@@ -49,6 +51,8 @@ let result: Int = values[1]
     assert!(report.bytecode.instructions > 0);
     assert_eq!(report.plan.dynamic_bound_calls, 0);
     assert_eq!(report.ir.shape_holes, 0);
+    assert_eq!(report.ir.sequence_builds, 1);
+    assert_eq!(report.ir.sequence_pushes, 3);
     assert_eq!(report.bytecode.bound_calls, 0);
     assert_eq!(report.bytecode.runtime_type_guard_pressure, 0);
     assert_eq!(report.bytecode.checked_sequence_ops, 0);

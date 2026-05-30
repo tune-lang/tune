@@ -52,9 +52,22 @@ pub struct IrQuality {
     pub ops: usize,
     pub shape_holes: usize,
     pub sequence_build_holes: usize,
+    pub sequence_builds: usize,
+    pub sequence_pushes: usize,
     pub checked_sequence_ops: usize,
     pub unchecked_sequence_ops: usize,
     pub generic_finite_for_ops: usize,
+    pub field_accesses: usize,
+    pub direct_specialized_calls: usize,
+    pub witness_shared_calls: usize,
+    pub bound_calls: usize,
+    pub witness_calls: usize,
+    pub stack_structs: usize,
+    pub direct_drop_structs: usize,
+    pub non_atomic_rc_structs: usize,
+    pub cow_structs: usize,
+    pub shared_atomic_structs: usize,
+    pub host_retained_structs: usize,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
