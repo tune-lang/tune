@@ -33,3 +33,9 @@ Check it from this workspace with:
 ```sh
 cargo check --manifest-path editors/zed/Cargo.toml
 ```
+
+Run the combined tooling check from the repository root with:
+
+```sh
+sh scripts/check_tooling.sh
+```

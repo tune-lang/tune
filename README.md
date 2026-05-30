@@ -150,6 +150,12 @@ cargo test -p dyno_cli --test language_examples
 cargo test -p dyno_cli --test std_examples
 ```
 
+Tooling and editor checks:
+
+```sh
+sh scripts/check_tooling.sh
+```
+
 Performance and IR-quality checks:
 
 ```sh
