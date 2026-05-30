@@ -247,3 +247,120 @@ fn vm_rejects_task_unsafe_capture_in_eager_mode_at_spawn() {
         "{result:?}"
     );
 }
+
+#[test]
+fn vm_spawned_functions_share_struct_receiver_state() {
+    use tune_bytecode::artifact::{BytecodeArtifact, BytecodeConst};
+    use tune_bytecode::function::{
+        BytecodeCapture, BytecodeCaptureMode, BytecodeFieldSite, BytecodeFrameLayout,
+        BytecodeFunction, BytecodeOwnershipPlan, BytecodeStateRepr, BytecodeStructField,
+        BytecodeStructLayout, BytecodeStructSite, BytecodeStructState, BytecodeTaskSite,
+        Instruction,
+    };
+    use tune_bytecode::{BytecodeFunctionProvenance, Opcode};
+
+    let artifact = BytecodeArtifact {
+        entry_function: Some(0),
+        constants: vec![BytecodeConst::Int(0), BytecodeConst::Int(1)],
+        struct_layouts: vec![BytecodeStructLayout {
+            owner: 0,
+            fields: vec![0],
+        }],
+        functions: vec![
+            BytecodeFunction {
+                param_count: 0,
+                name: "<entry>".into(),
+                provenance: BytecodeFunctionProvenance::default(),
+                generic_param_count: 0,
+                register_count: 7,
+                local_count: 0,
+                frame: BytecodeFrameLayout::unknown(0, 7, 0),
+                call_sites: Vec::new(),
+                bound_call_sites: Vec::new(),
+                host_call_sites: Vec::new(),
+                callable_sites: Vec::new(),
+                task_sites: vec![
+                    BytecodeTaskSite {
+                        function: 1,
+                        captures: vec![BytecodeCapture {
+                            register: 1,
+                            mode: BytecodeCaptureMode::Reference,
+                        }],
+                    },
+                    BytecodeTaskSite {
+                        function: 1,
+                        captures: vec![BytecodeCapture {
+                            register: 1,
+                            mode: BytecodeCaptureMode::Reference,
+                        }],
+                    },
+                ],
+                struct_sites: vec![BytecodeStructSite {
+                    owner: 0,
+                    state: BytecodeStructState {
+                        repr: BytecodeStateRepr::SharedHandle,
+                        ownership: BytecodeOwnershipPlan::SharedAtomic,
+                    },
+                    fields: vec![BytecodeStructField { field: 0, value: 0 }],
+                }],
+                field_sites: vec![BytecodeFieldSite { owner: 0, field: 0 }],
+                variant_sites: Vec::new(),
+                match_sites: Vec::new(),
+                for_sites: Vec::new(),
+                panic_sites: Vec::new(),
+                tuple_sites: Vec::new(),
+                string_sites: Vec::new(),
+                instructions: vec![
+                    inst(Opcode::LoadConst, 0, 0, 0),
+                    inst(Opcode::StructConstruct, 1, 0, 0),
+                    inst(Opcode::SpawnTask, 2, 0, 0),
+                    inst(Opcode::SpawnTask, 3, 1, 0),
+                    inst(Opcode::TaskJoin, 4, 2, 0),
+                    inst(Opcode::TaskJoin, 5, 3, 0),
+                    inst(Opcode::FieldGet, 6, 1, 0),
+                    inst(Opcode::Return, 6, 6, 0),
+                ],
+            },
+            BytecodeFunction {
+                param_count: 1,
+                name: "bump_task".into(),
+                provenance: BytecodeFunctionProvenance::default(),
+                generic_param_count: 0,
+                register_count: 5,
+                local_count: 1,
+                frame: BytecodeFrameLayout::unknown(1, 5, 1),
+                call_sites: Vec::new(),
+                bound_call_sites: Vec::new(),
+                host_call_sites: Vec::new(),
+                callable_sites: Vec::new(),
+                task_sites: Vec::new(),
+                struct_sites: Vec::new(),
+                field_sites: vec![BytecodeFieldSite { owner: 0, field: 0 }],
+                variant_sites: Vec::new(),
+                match_sites: Vec::new(),
+                for_sites: Vec::new(),
+                panic_sites: Vec::new(),
+                tuple_sites: Vec::new(),
+                string_sites: Vec::new(),
+                instructions: vec![
+                    inst(Opcode::LoadLocal, 0, 0, 0),
+                    inst(Opcode::FieldGet, 1, 0, 0),
+                    inst(Opcode::LoadConst, 2, 1, 0),
+                    inst(Opcode::AddInt, 3, 1, 2),
+                    inst(Opcode::FieldSet, 0, 0, 3),
+                    inst(Opcode::FieldGet, 4, 0, 0),
+                    inst(Opcode::Return, 4, 4, 0),
+                ],
+            },
+        ],
+    };
+
+    let mut vm = tune_vm::Vm::new(artifact)
+        .with_task_execution(tune_runtime::TaskExecutionMode::DeferredUntilJoin);
+
+    assert_eq!(vm.run_entry(), Ok(tune_runtime::Value::Int(2)));
+
+    fn inst(opcode: Opcode, a: u32, b: u32, c: u32) -> Instruction {
+        Instruction { opcode, a, b, c }
+    }
+}

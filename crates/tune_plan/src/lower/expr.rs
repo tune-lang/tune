@@ -224,7 +224,7 @@ impl LowerContext<'_> {
                 ops.push(PlanOp::Spawn {
                     body: inner.id,
                     body_ops,
-                    captures: self.callable_value_captures(inner),
+                    captures: self.spawn_captures(inner),
                     span: expr.span,
                 });
             }

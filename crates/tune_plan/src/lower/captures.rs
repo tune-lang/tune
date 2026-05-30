@@ -1,5 +1,6 @@
 use tune_hir::expr::{Expr, ExprKind, LiteralKind, StringPart};
 use tune_resolve::{LocalId, LocalKind, NameTarget};
+use tune_shape::{BindingKey, Shape};
 
 use super::LowerContext;
 use crate::{Capture, CaptureMode, CaptureSource};
@@ -18,6 +19,42 @@ impl LowerContext<'_> {
         let mut captures = Vec::new();
         collect_captured_locals(body, body, self, &declared, &mut captures);
         captures
+    }
+
+    pub(super) fn spawn_captures(&self, body: &Expr) -> Vec<Capture> {
+        self.callable_value_captures(body)
+            .into_iter()
+            .map(|mut capture| {
+                if self
+                    .capture_source_shape(capture.source)
+                    .is_some_and(|shape| matches!(shape, Shape::Struct(_)))
+                {
+                    capture.mode = CaptureMode::Reference;
+                }
+                capture
+            })
+            .collect()
+    }
+
+    fn capture_source_shape(&self, source: CaptureSource) -> Option<Shape> {
+        let key = match source {
+            CaptureSource::Local(local) => BindingKey::Local(local),
+            CaptureSource::Param(param) => BindingKey::Param(param),
+            CaptureSource::TopLevel(item) => BindingKey::TopLevel(item),
+        };
+        if let Some(binding) = self.analysis.and_then(|analysis| analysis.frame.get(key)) {
+            return if binding.storage_shape == Shape::Hole {
+                Some(binding.current_shape.clone())
+            } else {
+                Some(binding.storage_shape.clone())
+            };
+        }
+        let CaptureSource::TopLevel(item) = source else {
+            return None;
+        };
+        self.module
+            .and_then(|module| module.items.iter().find(|candidate| candidate.id == item))
+            .and_then(|item| self.lower_shape(item.shape.as_ref()))
     }
 }
 

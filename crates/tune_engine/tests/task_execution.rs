@@ -62,6 +62,37 @@ let result: Int = start(4)
 }
 
 #[test]
+fn run_file_spawned_functions_share_struct_receiver_state() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new()
+        .with_task_execution(tune_runtime::TaskExecutionMode::DeferredUntilJoin);
+    let file = tune
+        .add_file(
+            "app.tn",
+            r#"
+struct Counter {
+  value: Int
+  bump(): Int = {
+    self.value = self.value + 1
+    self.value
+  }
+}
+
+let touch(counter: Counter): Int = counter.bump()
+let counter: Counter = Counter { value = 0 }
+let first: Task<Int> = spawn touch(counter)
+let second: Task<Int> = spawn touch(counter)
+let a: Int = first.join()
+let b: Int = second.join()
+let result: Int = counter.value
+"#,
+        )
+        .ok_or("file should allocate")?;
+
+    assert_eq!(run_file(&tune, file)?, Value::Int(2));
+    Ok(())
+}
+
+#[test]
 fn run_file_does_not_execute_spawned_work_before_join() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune
