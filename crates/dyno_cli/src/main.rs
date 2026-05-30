@@ -114,7 +114,7 @@ fn main() {
         run_project_command(command);
         return;
     };
-    let mut tune = tune_engine::Tune::new().with_std();
+    let mut tune = dyno_cli::default_tune();
 
     if matches!(command, dyno_cli::CliCommand::Profile { .. }) {
         match tune.profile_file(path) {
@@ -183,15 +183,7 @@ fn main() {
 
     match tune.run_file(path) {
         Ok(value) => {
-            let diagnostics = dyno_cli::render_runtime_boundary_with_sources(&value, tune.db());
-            if diagnostics.is_empty() {
-                println!("{value:?}");
-            } else {
-                for diagnostic in diagnostics {
-                    eprintln!("{diagnostic}");
-                }
-                std::process::exit(1);
-            }
+            handle_run_value(value, tune.db());
         }
         Err(error) => {
             for diagnostic in dyno_cli::render_engine_error_with_sources(&error, tune.db()) {
@@ -203,7 +195,7 @@ fn main() {
 }
 
 fn run_project_command(command: dyno_cli::CliCommand) {
-    let mut tune = tune_engine::Tune::new().with_std();
+    let mut tune = dyno_cli::default_tune();
     let entry = match tune.load_project_manifest("dyno.toml") {
         Ok(entry) => entry,
         Err(error) => {
@@ -269,15 +261,7 @@ fn run_project_command(command: dyno_cli::CliCommand) {
 
     match tune.run_project_entry(entry) {
         Ok(value) => {
-            let diagnostics = dyno_cli::render_runtime_boundary_with_sources(&value, tune.db());
-            if diagnostics.is_empty() {
-                println!("{value:?}");
-            } else {
-                for diagnostic in diagnostics {
-                    eprintln!("{diagnostic}");
-                }
-                std::process::exit(1);
-            }
+            handle_run_value(value, tune.db());
         }
         Err(error) => {
             for diagnostic in dyno_cli::render_engine_error_with_sources(&error, tune.db()) {
@@ -286,4 +270,15 @@ fn run_project_command(command: dyno_cli::CliCommand) {
             std::process::exit(1);
         }
     }
+}
+
+fn handle_run_value(value: tune_runtime::Value, db: &tune_db::TuneDb) {
+    let diagnostics = dyno_cli::render_runtime_boundary_with_sources(&value, db);
+    if diagnostics.is_empty() {
+        return;
+    }
+    for diagnostic in diagnostics {
+        eprintln!("{diagnostic}");
+    }
+    std::process::exit(1);
 }

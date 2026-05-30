@@ -149,6 +149,14 @@ pub fn check_format_project(
     Ok(unformatted)
 }
 
+#[must_use]
+pub fn default_tune() -> tune_engine::Tune {
+    tune_engine::Tune::new()
+        .with_std()
+        .with_authority(tune_host::Authority("io.write".into()))
+        .with_authority(tune_host::Authority("io.error".into()))
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewProject {
     pub name: String,

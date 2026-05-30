@@ -147,6 +147,55 @@ fn checks_project_format_without_writing() -> Result<(), String> {
 }
 
 #[test]
+fn dyno_run_uses_print_for_public_output() -> Result<(), String> {
+    let path = std::env::temp_dir().join(format!("dyno-run-print-{}.tn", std::process::id()));
+    std::fs::write(&path, "let result: () = print(\"hello\")\n")
+        .map_err(|error| error.to_string())?;
+
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_dyno"))
+        .arg("run")
+        .arg(&path)
+        .output()
+        .map_err(|error| error.to_string())?;
+
+    std::fs::remove_file(path).map_err(|error| error.to_string())?;
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "hello\n");
+    assert_eq!(String::from_utf8_lossy(&output.stderr), "");
+
+    Ok(())
+}
+
+#[test]
+fn dyno_run_does_not_dump_last_value() -> Result<(), String> {
+    let path = std::env::temp_dir().join(format!("dyno-run-silent-{}.tn", std::process::id()));
+    std::fs::write(&path, "let result: Int = 42\n").map_err(|error| error.to_string())?;
+
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_dyno"))
+        .arg("run")
+        .arg(&path)
+        .output()
+        .map_err(|error| error.to_string())?;
+
+    std::fs::remove_file(path).map_err(|error| error.to_string())?;
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "");
+    assert_eq!(String::from_utf8_lossy(&output.stderr), "");
+
+    Ok(())
+}
+
+#[test]
 fn renders_engine_diagnostics_with_shared_renderer() {
     let span = tune_diagnostics::Span::new(
         tune_diagnostics::FileId(0),
