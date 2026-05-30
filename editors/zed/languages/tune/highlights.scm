@@ -40,6 +40,15 @@
 ] @operator
 
 [
+  "=="
+  "~="
+  ".."
+  "..="
+  "<<"
+  ">>"
+] @operator
+
+[
   "true"
   "false"
   "none"

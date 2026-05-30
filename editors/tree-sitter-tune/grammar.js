@@ -37,7 +37,17 @@ module.exports = grammar({
       $.tag_decl
     ),
 
-    import_decl: $ => seq("import", $.string),
+    import_decl: $ => seq(
+      "import",
+      $.string,
+      optional(seq(".", choice($.identifier, $.import_group)))
+    ),
+
+    import_group: $ => seq(
+      "{",
+      optional(seq($.identifier, repeat(seq(",", $.identifier)), optional(","))),
+      "}"
+    ),
 
     tag_application: $ => seq("@", field("name", $.tag_name), optional($.arg_list)),
 
@@ -95,9 +105,11 @@ module.exports = grammar({
 
     type_params: $ => seq(
       "<",
-      optional(seq($.identifier, repeat(seq(",", $.identifier)), optional(","))),
+      optional(seq($.type_param, repeat(seq(",", $.type_param)), optional(","))),
       ">"
     ),
+
+    type_param: $ => seq($.identifier, optional(seq(":", $.type))),
 
     type: $ => choice(
       $.type_identifier,
@@ -130,7 +142,13 @@ module.exports = grammar({
       $.identifier
     ),
 
-    if_expr: $ => seq("if", $.expression, "=>", $.expression, optional(seq("else", $.expression))),
+    if_expr: $ => seq(
+      "if",
+      $.expression,
+      choice($.block, seq("=>", $.expression)),
+      repeat(seq("elif", $.expression, choice($.block, seq("=>", $.expression)))),
+      optional(seq("else", choice($.block, $.expression)))
+    ),
     match_expr: $ => seq("match", $.expression, $.block),
     for_expr: $ => seq("for", $.identifier, "in", $.expression, $.block),
     while_expr: $ => seq("while", $.expression, $.block),
@@ -138,12 +156,20 @@ module.exports = grammar({
     return_expr: $ => seq("return", optional($.expression)),
     spawn_expr: $ => seq("spawn", $.expression),
 
-    assignment: $ => prec.right(PREC.assign, seq($.expression, choice("=", "+=", "-=", "*=", "/=", "%="), $.expression)),
+    assignment: $ => prec.right(PREC.assign, seq(
+      $.expression,
+      choice("=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>="),
+      $.expression
+    )),
 
     binary_expr: $ => choice(
       prec.left(PREC.or, seq($.expression, choice("or", "|"), $.expression)),
       prec.left(PREC.and, seq($.expression, choice("and", "&"), $.expression)),
-      prec.left(PREC.compare, seq($.expression, choice("==", "~=", "<", "<=", ">", ">=", "is"), $.expression)),
+      prec.left(PREC.compare, seq(
+        $.expression,
+        choice("==", "~=", "<", "<=", ">", ">=", "is", seq("is", "not")),
+        $.expression
+      )),
       prec.left(PREC.bit_xor, seq($.expression, "^", $.expression)),
       prec.left(PREC.shift, seq($.expression, choice("<<", ">>"), $.expression)),
       prec.left(PREC.range, seq($.expression, choice("..", "..="), $.expression)),

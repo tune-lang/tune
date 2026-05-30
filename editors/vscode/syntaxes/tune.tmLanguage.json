@@ -69,7 +69,7 @@
         },
         {
           "name": "keyword.operator.word.tune",
-          "match": "\\b(and|or|not|is)\\b"
+          "match": "\\b(and|or|not|is)(\\s+not)?\\b"
         },
         {
           "name": "constant.language.tune",
