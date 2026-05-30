@@ -11,7 +11,7 @@ Create a file named `score.tn`:
 
 ```tn
 let score: Int = 37
-let shown: () = print("score={score}")
+print("score={score}")
 ```
 
 Run it:
@@ -44,7 +44,7 @@ let status: String = if score > 30 {
   "retry"
 }
 
-let shown: () = print("{status}:{score}")
+print("{status}:{score}")
 ```
 
 This is different from languages where `if` is only a statement. Here, the
@@ -61,7 +61,7 @@ let label(score: Int): String = if score > 30 {
   "retry"
 }
 
-let shown: () = print("{label(37)}")
+print("{label(37)}")
 ```
 
 The shape after `:` is the return shape. The body can be a single expression or
@@ -79,7 +79,7 @@ let raw: String = " 37 "
 let cleaned: String = text.trim(raw)
 let score: Result<Int, String> = parse.int(cleaned)
 
-let shown: () = print("parsed")
+print("parsed")
 ```
 
 `text.trim(raw)` is a normal typed call. `parse.int(cleaned)` returns
@@ -101,7 +101,7 @@ let parse_score(raw: String): Result<Int, String> = {
 }
 
 let score: Result<Int, String> = parse_score(" 37 ")
-let shown: () = print("score parsed")
+print("score parsed")
 ```
 
 `!` is not exceptions. It is shorthand for the normal `Result` flow you could
@@ -123,7 +123,7 @@ struct Counter {
 
 let counter: Counter = Counter { value = 10 }
 let value: Int = counter.bump(5)
-let shown: () = print("counter={value}")
+print("counter={value}")
 ```
 
 `self.value` is known by the compiler as a field access on `Counter`, not a

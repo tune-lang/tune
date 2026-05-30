@@ -53,7 +53,7 @@ The example prints the interpolated report:
 
 ```tn
 let report: String = "{status}:{score}:{retry}"
-let shown: () = print(report)
+print(report)
 ```
 
 ## 2. Functions And Blocks

@@ -233,7 +233,7 @@ fn validate_project_name(name: &str) -> Result<(), String> {
 }
 
 fn entry_template() -> &'static str {
-    "let message: String = \"hello from Dyno\"\nlet shown: () = print(message)\n"
+    "let message: String = \"hello from Dyno\"\nprint(message)\n"
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

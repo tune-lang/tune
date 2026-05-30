@@ -7,6 +7,21 @@ impl Parser<'_> {
         match self.current_kind() {
             Some(TokenKind::At) => self.parse_tag_application(),
             Some(TokenKind::KeywordPub) => self.parse_pub_decl(),
+            Some(
+                TokenKind::KeywordImport
+                | TokenKind::KeywordTag
+                | TokenKind::KeywordStruct
+                | TokenKind::KeywordEnum
+                | TokenKind::KeywordLet,
+            ) => self.parse_top_level_decl(),
+            Some(_) if self.at_top_level_expr_start() => self.parse_top_level_expr(),
+            Some(_) => self.parse_error_token("expected top-level declaration"),
+            None => {}
+        }
+    }
+
+    fn parse_top_level_decl(&mut self) {
+        match self.current_kind() {
             Some(TokenKind::KeywordImport) => self.parse_simple_decl(SyntaxKind::ImportDecl),
             Some(TokenKind::KeywordTag) => self.parse_braced_decl(SyntaxKind::TagDecl),
             Some(TokenKind::KeywordStruct) => self.parse_braced_decl(SyntaxKind::StructDecl),
@@ -21,8 +36,49 @@ impl Parser<'_> {
         self.start_node(SyntaxKind::PubDecl);
         self.expect(TokenKind::KeywordPub, "expected `pub`");
         self.skip_trivia();
-        self.parse_top_level_item();
+        self.parse_top_level_decl();
         self.finish_node();
+    }
+
+    fn parse_top_level_expr(&mut self) {
+        self.start_node(SyntaxKind::TopLevelExpr);
+        self.parse_expr_until_boundary();
+        self.finish_node();
+    }
+
+    fn at_top_level_expr_start(&self) -> bool {
+        matches!(
+            self.current_kind(),
+            Some(
+                TokenKind::Ident
+                    | TokenKind::IntLiteral
+                    | TokenKind::FloatLiteral
+                    | TokenKind::StringLiteral
+                    | TokenKind::MultilineStringLiteral
+                    | TokenKind::KeywordTrue
+                    | TokenKind::KeywordFalse
+                    | TokenKind::KeywordNone
+                    | TokenKind::KeywordSelf
+                    | TokenKind::KeywordOk
+                    | TokenKind::KeywordError
+                    | TokenKind::KeywordIf
+                    | TokenKind::KeywordMatch
+                    | TokenKind::KeywordReturn
+                    | TokenKind::KeywordSpawn
+                    | TokenKind::KeywordFor
+                    | TokenKind::KeywordWhile
+                    | TokenKind::KeywordLoop
+                    | TokenKind::KeywordBreak
+                    | TokenKind::KeywordContinue
+                    | TokenKind::KeywordPanic
+                    | TokenKind::KeywordNot
+                    | TokenKind::LeftBrace
+                    | TokenKind::LeftParen
+                    | TokenKind::LeftBracket
+                    | TokenKind::Minus
+                    | TokenKind::Tilde
+            )
+        )
     }
 
     fn parse_tag_application(&mut self) {

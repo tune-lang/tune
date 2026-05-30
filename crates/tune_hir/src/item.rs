@@ -11,6 +11,7 @@ pub enum ItemKind {
     Enum,
     Tag,
     Import,
+    Expr,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -86,5 +86,6 @@ const fn symbol_kind(kind: ItemKind) -> WorkspaceSymbolKind {
         ItemKind::Struct | ItemKind::Enum | ItemKind::Tag => WorkspaceSymbolKind::Type,
         ItemKind::Import => WorkspaceSymbolKind::Module,
         ItemKind::Let => WorkspaceSymbolKind::Value,
+        ItemKind::Expr => WorkspaceSymbolKind::Value,
     }
 }

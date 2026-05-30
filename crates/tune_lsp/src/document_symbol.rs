@@ -140,5 +140,6 @@ const fn item_kind(kind: ItemKind) -> DocumentSymbolKind {
         ItemKind::Enum | ItemKind::Tag => DocumentSymbolKind::Enum,
         ItemKind::Import => DocumentSymbolKind::Module,
         ItemKind::Let => DocumentSymbolKind::Value,
+        ItemKind::Expr => DocumentSymbolKind::Value,
     }
 }

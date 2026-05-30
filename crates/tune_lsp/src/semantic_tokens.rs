@@ -136,6 +136,7 @@ fn top_level_token_kind(analysis: &tune_db::ModuleAnalysis, id: HirId) -> Semant
             ItemKind::Import if item.external.is_some() => SemanticTokenKind::Module,
             ItemKind::Import => SemanticTokenKind::Variable,
             ItemKind::Let => SemanticTokenKind::Variable,
+            ItemKind::Expr => SemanticTokenKind::Variable,
         })
 }
 

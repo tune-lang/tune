@@ -377,6 +377,35 @@ fn module_plan_entry_runs_top_level_values_in_order() -> Result<(), &'static str
 }
 
 #[test]
+fn module_plan_entry_runs_top_level_expressions_in_order() -> Result<(), &'static str> {
+    let source = "let a: Int = 1\na + 2";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+    let resolved = tune_resolve::resolve_module(&module);
+
+    let plan = tune_plan::lower_resolved_module_to_plan(&module, &resolved);
+    let entry = plan.entry.ok_or("module entry should exist")?;
+
+    assert_eq!(entry.module_bindings, vec![tune_hir::HirId(0)]);
+    assert!(entry.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::ModuleLet {
+            item: tune_hir::HirId(0),
+            keep_value: false,
+            ..
+        }
+    )));
+    assert!(entry.ops.iter().any(|op| matches!(
+        op,
+        tune_plan::PlanOp::BindingGet {
+            source: Some(tune_resolve::NameTarget::TopLevel(tune_hir::HirId(0)))
+        }
+    )));
+
+    Ok(())
+}
+
+#[test]
 fn semantic_plan_has_typed_materialization_and_meta_slots() {
     let materialize = tune_plan::PlanOp::Materialize {
         plan: tune_shape::MaterializationPlan {

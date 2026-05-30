@@ -65,7 +65,7 @@ let status: String = if passed {
 }
 
 let report = "{status}:{score}"
-let shown: () = print(report)
+print(report)
 ```
 
 Run it with Dyno:

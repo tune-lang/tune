@@ -2,7 +2,7 @@ use tune_syntax::{CstElement, CstNode, SyntaxKind, TokenKind};
 
 use crate::AstNode;
 
-use super::{Comment, EnumDecl, ImportDecl, LetDecl, StructDecl, TagApplication, TagDecl};
+use super::{Comment, EnumDecl, Expr, ImportDecl, LetDecl, StructDecl, TagApplication, TagDecl};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Root<'tree> {
@@ -116,6 +116,33 @@ impl<'tree> PubDecl<'tree> {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub struct TopLevelExpr<'tree> {
+    node: &'tree CstNode,
+}
+
+impl<'tree> AstNode<'tree> for TopLevelExpr<'tree> {
+    const KIND: SyntaxKind = SyntaxKind::TopLevelExpr;
+
+    fn cast(node: &'tree CstNode) -> Option<Self> {
+        (node.kind == Self::KIND).then_some(Self { node })
+    }
+
+    fn syntax(&self) -> &'tree CstNode {
+        self.node
+    }
+}
+
+impl<'tree> TopLevelExpr<'tree> {
+    #[must_use]
+    pub fn expr(self) -> Option<Expr<'tree>> {
+        self.node.children.iter().find_map(|child| match child {
+            CstElement::Node(node) => Expr::cast(node),
+            CstElement::Token(_) => None,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum Item<'tree> {
     Import(ImportDecl<'tree>),
     Let(LetDecl<'tree>),
@@ -123,6 +150,7 @@ pub enum Item<'tree> {
     Enum(EnumDecl<'tree>),
     Tag(TagDecl<'tree>),
     Pub(PubDecl<'tree>),
+    Expr(TopLevelExpr<'tree>),
 }
 
 impl<'tree> Item<'tree> {
@@ -135,6 +163,7 @@ impl<'tree> Item<'tree> {
             SyntaxKind::EnumDecl => EnumDecl::cast(node).map(Self::Enum),
             SyntaxKind::TagDecl => TagDecl::cast(node).map(Self::Tag),
             SyntaxKind::PubDecl => PubDecl::cast(node).map(Self::Pub),
+            SyntaxKind::TopLevelExpr => TopLevelExpr::cast(node).map(Self::Expr),
             _ => None,
         }
     }
@@ -148,6 +177,7 @@ impl<'tree> Item<'tree> {
             Self::Enum(node) => node.syntax(),
             Self::Tag(node) => node.syntax(),
             Self::Pub(node) => node.syntax(),
+            Self::Expr(node) => node.syntax(),
         }
     }
 
@@ -156,7 +186,9 @@ impl<'tree> Item<'tree> {
         match self {
             Self::Let(node) => node.signature_docs(),
             Self::Pub(node) => node.item().map_or_else(Vec::new, Self::signature_docs),
-            Self::Import(_) | Self::Struct(_) | Self::Enum(_) | Self::Tag(_) => Vec::new(),
+            Self::Import(_) | Self::Struct(_) | Self::Enum(_) | Self::Tag(_) | Self::Expr(_) => {
+                Vec::new()
+            }
         }
     }
 }

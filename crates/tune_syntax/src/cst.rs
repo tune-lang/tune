@@ -16,6 +16,7 @@ pub enum SyntaxKind {
     TagArg,
     ImportDecl,
     PubDecl,
+    TopLevelExpr,
     Block,
     TypeParamList,
     TypeParam,

@@ -54,6 +54,24 @@ fn run_file_executes_top_level_value_bindings_in_order() -> Result<(), &'static 
 }
 
 #[test]
+fn run_file_executes_top_level_expression_statements() -> Result<(), &'static str> {
+    let mut tune = tune_engine::Tune::new();
+    let file = tune
+        .add_source("app.tn", "let value: Int = 1\nvalue + 2")
+        .ok_or("file should allocate")?;
+
+    assert_eq!(
+        tune.run_source(file).map_err(|error| {
+            eprintln!("{error:?}");
+            "file entry should run"
+        })?,
+        tune_runtime::value::Value::Int(3)
+    );
+
+    Ok(())
+}
+
+#[test]
 fn run_file_executes_tuple_expression_value() -> Result<(), &'static str> {
     let mut tune = tune_engine::Tune::new();
     let file = tune

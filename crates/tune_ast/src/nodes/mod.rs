@@ -22,7 +22,7 @@ pub use exprs::{
     StructFieldInit, TupleExpr, UnaryExpr, WhileExpr,
 };
 pub use imports::{ImportDecl, ImportSelector};
-pub use items::{DocumentedItem, Item, PubDecl, Root};
+pub use items::{DocumentedItem, Item, PubDecl, Root, TopLevelExpr};
 pub use shapes::{
     CallableShape, GenericShape, NamedShape, OptionalShape, SequenceShape, Shape, StructuralShape,
     TupleShape, UnionShape,

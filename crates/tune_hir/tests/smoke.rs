@@ -41,6 +41,27 @@ let value = 1
 }
 
 #[test]
+fn lowers_top_level_expression_items() -> Result<(), &'static str> {
+    let source = "let message = \"hello\"\nprint(message)";
+    let parsed = tune_syntax::parse(source);
+    let module = tune_hir::lower::lower_module(source, &parsed.cst);
+
+    assert_eq!(module.items.len(), 2);
+    assert_eq!(module.items[1].kind, tune_hir::item::ItemKind::Expr);
+    assert_eq!(module.items[1].name, None);
+    assert!(matches!(
+        module.items[1]
+            .body
+            .as_ref()
+            .ok_or("expected top-level expression body")?
+            .kind,
+        tune_hir::expr::ExprKind::Call { .. }
+    ));
+
+    Ok(())
+}
+
+#[test]
 fn lowers_import_selectors() -> Result<(), &'static str> {
     let source = r#"
 import "net/http".client

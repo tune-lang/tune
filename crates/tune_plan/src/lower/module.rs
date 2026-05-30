@@ -27,14 +27,23 @@ pub fn lower_analyzed_module_to_plan(
 ) -> PlanModule {
     let param_shapes = infer_direct_call_param_shapes_from_analyses(module, resolved, analyses);
     let struct_layouts = super::struct_layouts(module);
+    let entry_items = module
+        .items
+        .iter()
+        .filter(|item| {
+            matches!(item.kind, ItemKind::Let | ItemKind::Expr)
+                && (item.body.is_some() || item.shape.is_some())
+        })
+        .map(|item| item.id)
+        .collect::<Vec<_>>();
     let module_bindings = module
         .items
         .iter()
         .filter(|item| item.kind == ItemKind::Let && (item.body.is_some() || item.shape.is_some()))
         .map(|item| item.id)
         .collect::<Vec<_>>();
-    let entry = (!module_bindings.is_empty()).then(|| {
-        let last_binding = module_bindings.last().copied();
+    let entry = (!entry_items.is_empty()).then(|| {
+        let last_item = entry_items.last().copied();
         let mut entry = PlanFunction {
             owner: None,
             member: None,
@@ -50,14 +59,15 @@ pub fn lower_analyzed_module_to_plan(
             ops: Vec::new(),
         };
         for (item, analysis) in module.items.iter().zip(analyses).filter(|(item, _)| {
-            item.kind == ItemKind::Let && (item.body.is_some() || item.shape.is_some())
+            matches!(item.kind, ItemKind::Let | ItemKind::Expr)
+                && (item.body.is_some() || item.shape.is_some())
         }) {
             lower_module_item_into_entry(
                 module,
                 item,
                 resolved,
                 Some(analysis),
-                last_binding,
+                last_item,
                 &param_shapes,
                 &mut entry.ops,
             );
@@ -146,6 +156,9 @@ fn lower_module_item_into_entry(
         false
     };
     if !initialized {
+        return;
+    }
+    if item.kind == ItemKind::Expr {
         return;
     }
     ops.push(PlanOp::ModuleLet {

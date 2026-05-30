@@ -28,6 +28,27 @@ let value = 1
 }
 
 #[test]
+fn parses_top_level_expression_nodes() {
+    let parsed = parse(
+        r#"
+let message = "hello"
+print(message)
+message
+"#,
+    );
+
+    assert_eq!(
+        root_node_kinds(&parsed.cst),
+        [
+            SyntaxKind::LetDecl,
+            SyntaxKind::TopLevelExpr,
+            SyntaxKind::TopLevelExpr,
+        ]
+    );
+    assert!(parsed.diagnostics.is_empty());
+}
+
+#[test]
 fn parses_generic_struct_and_enum_declarations() {
     let parsed = parse(
         r#"

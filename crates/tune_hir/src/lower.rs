@@ -64,6 +64,9 @@ fn lower_item(
         AstItem::Tag(node) => {
             push_item(items, lower_tag(source, node, visibility, doc, tags, exprs))
         }
+        AstItem::Expr(node) => {
+            push_item(items, lower_top_level_expr(source, node, exprs));
+        }
         AstItem::Pub(node) => {
             if let Some(item) = node.item() {
                 lower_item(
@@ -200,6 +203,31 @@ fn lower_let(
 
 fn binding_name(name: Option<&str>) -> Option<String> {
     name.filter(|name| *name != "_").map(str::to_owned)
+}
+
+fn lower_top_level_expr(
+    source: &str,
+    node: tune_ast::nodes::TopLevelExpr<'_>,
+    exprs: &mut ExprLowerer,
+) -> Item {
+    Item {
+        id: HirId(0),
+        name: None,
+        kind: ItemKind::Expr,
+        visibility: Visibility::Private,
+        span: node.syntax().span,
+        doc: None,
+        tags: Vec::new(),
+        import: None,
+        type_params: Vec::new(),
+        params: Vec::new(),
+        struct_members: Vec::new(),
+        fields: Vec::new(),
+        variants: Vec::new(),
+        shape: None,
+        body: node.expr().map(|expr| exprs.lower(source, expr)),
+        external: None,
+    }
 }
 
 fn lower_struct(

@@ -23,7 +23,7 @@ import "parse"
 
 let cleaned: String = text.trim(raw)
 let score: Int = parse.int(cleaned)!
-let shown: () = print("score={score}")
+print("score={score}")
 ```
 
 The main difference is that failure is visible in the shape. `parse.int(...)`
@@ -153,5 +153,5 @@ let cleaned: String = text.trim(" Tune ")
 Output:
 
 ```tn
-let shown: () = print("hello")
+print("hello")
 ```

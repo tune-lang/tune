@@ -44,7 +44,7 @@ let status: String = if passed {
 }
 
 let report: String = "{status}:{score}:{retry}"
-let shown: () = print(report)
+print(report)
 ```
 
 What this shows:

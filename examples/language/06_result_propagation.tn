@@ -12,4 +12,4 @@ let add_one(okay: Bool): Result<Int, String> = {
 }
 
 let next_value: Result<Int, String> = add_one(true)
-let shown: () = print("result propagation accepted")
+print("result propagation accepted")

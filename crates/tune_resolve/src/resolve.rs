@@ -101,5 +101,6 @@ const fn binding_kind(kind: ItemKind) -> BindingKind {
         ItemKind::Enum => BindingKind::Enum,
         ItemKind::Tag => BindingKind::Tag,
         ItemKind::Import => BindingKind::Module,
+        ItemKind::Expr => BindingKind::Value,
     }
 }
