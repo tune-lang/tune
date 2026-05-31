@@ -354,6 +354,7 @@ impl Lowerer {
             PlanOp::Panic { arg_count, span } => self.lower_panic(*arg_count, *span),
             PlanOp::StringBuild { part_count } => self.lower_string_build(*part_count),
             PlanOp::StringLen { span } => self.lower_string_len(*span),
+            PlanOp::SequenceLen { span } => self.lower_sequence_len(*span),
             PlanOp::StringGet { span } => self.lower_string_get(*span),
             PlanOp::BindingGet { .. }
             | PlanOp::WitnessCall
@@ -422,6 +423,14 @@ impl Lowerer {
         let value = self.pop("string len value")?;
         let dst = self.alloc_reg()?;
         self.push_op(IrOp::StringLen { dst, value, span });
+        self.stack.push(dst);
+        Ok(())
+    }
+
+    fn lower_sequence_len(&mut self, span: Option<Span>) -> Result<(), IrLowerError> {
+        let value = self.pop("sequence len value")?;
+        let dst = self.alloc_reg()?;
+        self.push_op(IrOp::SequenceLen { dst, value, span });
         self.stack.push(dst);
         Ok(())
     }

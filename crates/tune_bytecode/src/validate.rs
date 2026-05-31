@@ -310,7 +310,7 @@ fn validate_instruction(
         Opcode::CallHost => validate_host_call(function_id, function, instruction)?,
         Opcode::TupleBuild => validate_tuple(function_id, function, instruction)?,
         Opcode::StringBuild => validate_string(function_id, function, instruction)?,
-        Opcode::StringLen => {
+        Opcode::StringLen | Opcode::SeqLen => {
             register(function_id, function, instruction.a)?;
             register(function_id, function, instruction.b)?;
         }

@@ -75,6 +75,7 @@ pub enum CallTarget {
     Member(MemberId),
     Variant(VariantId),
     StringLen,
+    SequenceLen,
     TaskJoin,
     Bound,
     Unknown,

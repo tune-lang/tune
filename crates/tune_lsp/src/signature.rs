@@ -78,7 +78,7 @@ fn call_target_name(
             .and_then(|reference| reference.definition.as_ref())
             .and_then(|definition| definition.name.clone())
             .unwrap_or_else(|| "call".to_owned()),
-        CallTarget::StringLen => "len".to_owned(),
+        CallTarget::StringLen | CallTarget::SequenceLen => "len".to_owned(),
         CallTarget::TaskJoin => "join".to_owned(),
     }
 }

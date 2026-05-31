@@ -172,7 +172,8 @@ fn input_regs(op: &IrOp) -> Vec<Reg> {
         | IrOp::VariantField { base, .. }
         | IrOp::TupleField { base, .. }
         | IrOp::TaskJoin { task: base, .. }
-        | IrOp::StringLen { value: base, .. } => vec![*base],
+        | IrOp::StringLen { value: base, .. }
+        | IrOp::SequenceLen { value: base, .. } => vec![*base],
         IrOp::SetField { base, value, .. } => vec![*base, *value],
         IrOp::AddInt { a, b, .. }
         | IrOp::SubInt { a, b, .. }
@@ -309,7 +310,8 @@ fn output_regs(op: &IrOp) -> Vec<Reg> {
         | IrOp::TaskJoin { dst, .. }
         | IrOp::StringBuild { dst, .. }
         | IrOp::StringLen { dst, .. }
-        | IrOp::StringGet { dst, .. } => vec![*dst],
+        | IrOp::StringGet { dst, .. }
+        | IrOp::SequenceLen { dst, .. } => vec![*dst],
         IrOp::FiniteForInit { iterator, len, .. } => vec![*iterator, *len],
         IrOp::FiniteForNext { index, item, .. } => vec![*index, *item],
         IrOp::StoreLocal { .. }

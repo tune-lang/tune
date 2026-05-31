@@ -108,7 +108,8 @@ impl Vm {
                 | Opcode::SeqSetCheckedExclusive
                 | Opcode::SeqSetUncheckedExclusive
                 | Opcode::SeqSetCheckedShared
-                | Opcode::SeqSetUncheckedShared => {
+                | Opcode::SeqSetUncheckedShared
+                | Opcode::SeqLen => {
                     self.execute_sequence(function_index, ip, &mut registers, instruction)?;
                 }
                 Opcode::TupleBuild => {

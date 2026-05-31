@@ -305,7 +305,8 @@ fn op_dst(op: &IrOp) -> Option<Reg> {
         | IrOp::TaskJoin { dst, .. }
         | IrOp::StringBuild { dst, .. }
         | IrOp::StringLen { dst, .. }
-        | IrOp::StringGet { dst, .. } => Some(*dst),
+        | IrOp::StringGet { dst, .. }
+        | IrOp::SequenceLen { dst, .. } => Some(*dst),
         IrOp::StoreLocal { .. }
         | IrOp::SeqPush { .. }
         | IrOp::SetField { .. }

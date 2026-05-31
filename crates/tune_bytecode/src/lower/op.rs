@@ -316,6 +316,10 @@ impl FunctionLowerer<'_> {
                 self.push_instruction(Opcode::StringLen, dst.0, value.0, 0);
                 Ok(())
             }
+            IrOp::SequenceLen { dst, value, .. } => {
+                self.push_instruction(Opcode::SeqLen, dst.0, value.0, 0);
+                Ok(())
+            }
             IrOp::StringGet {
                 dst, value, index, ..
             } => {

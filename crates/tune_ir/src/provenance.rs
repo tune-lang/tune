@@ -53,6 +53,7 @@ impl IrOp {
             | Self::CallBound { span, .. }
             | Self::StringLen { span, .. }
             | Self::StringGet { span, .. }
+            | Self::SequenceLen { span, .. }
             | Self::Branch { span, .. }
             | Self::MatchVariant { span, .. }
             | Self::ResultPropagate { span, .. } => *span,

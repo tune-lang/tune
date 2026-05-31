@@ -488,6 +488,11 @@ pub enum IrOp {
         value: Reg,
         span: Option<Span>,
     },
+    SequenceLen {
+        dst: Reg,
+        value: Reg,
+        span: Option<Span>,
+    },
     StringGet {
         dst: Reg,
         value: Reg,

@@ -29,6 +29,14 @@ impl LowerContext<'_> {
             return;
         }
 
+        if matches!(self.call_target(expr), Some(CallTarget::SequenceLen))
+            && let ExprKind::Field { base, .. } = &callee.kind
+        {
+            self.lower_expr(base, ops);
+            ops.push(PlanOp::SequenceLen { span: callee.span });
+            return;
+        }
+
         let resolved_static = match self.name_target(callee.id) {
             Some(NameTarget::Variant(_)) => true,
             Some(NameTarget::TopLevel(target)) => {

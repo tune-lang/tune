@@ -37,8 +37,34 @@ impl Vm {
             | Opcode::SeqSetUncheckedShared => {
                 self.execute_sequence_set(function, instruction, registers, op)
             }
+            Opcode::SeqLen => self.execute_sequence_len(function, instruction, registers, op),
             _ => Err(self.fault_at(function, instruction, VmError::UnsupportedOpcode(op.opcode))),
         }
+    }
+
+    fn execute_sequence_len(
+        &self,
+        function: usize,
+        instruction: usize,
+        registers: &mut [Value],
+        op: &Instruction,
+    ) -> Result<(), VmFault> {
+        let seq = read_reg_ref(registers, op.b)
+            .map_err(|error| self.fault_at(function, instruction, error))?;
+        let Value::SequenceHandle(seq) = seq else {
+            return Err(self.fault_at(
+                function,
+                instruction,
+                VmError::UnsupportedOpcode(op.opcode),
+            ));
+        };
+        let len = u64::try_from(seq.len())
+            .map_err(|_| self.fault_at(function, instruction, VmError::NumericOverflow))?;
+        self.at(
+            function,
+            instruction,
+            write_reg(registers, op.a, Value::Size(len)),
+        )
     }
 
     fn execute_sequence_push(

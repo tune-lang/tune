@@ -7,7 +7,7 @@ use super::{
     Analyzer, CallCheck, CallSignature, CallTarget,
     generics::{item_type_param_solution, solve_generic_call_signature, substitute_generic_params},
 };
-use crate::{MemberRequirement, NominalShape, Shape, expr_shape_fact};
+use crate::{LiteralFact, MemberRequirement, NominalShape, Shape, expr_shape_fact};
 
 impl Analyzer<'_> {
     pub(super) fn analyze_call(&mut self, expr: &Expr, callee: &Expr, args: &[Expr]) -> Shape {
@@ -200,9 +200,11 @@ impl Analyzer<'_> {
                 span: base.span,
             });
         }
-        if matches!(base_shape, Shape::Sequence(_)) && member_name == Some("len") {
+        let is_sequence = matches!(base_shape, Shape::Sequence(_))
+            || matches!(base_shape, Shape::Literal(LiteralFact::Sequence { .. }));
+        if is_sequence && member_name == Some("len") {
             return Some(CallSignature {
-                target: CallTarget::Bound,
+                target: CallTarget::SequenceLen,
                 params: Vec::new(),
                 param_type_params: Vec::new(),
                 ret: Shape::Size,

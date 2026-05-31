@@ -88,6 +88,7 @@ pub(super) fn infer_frame_layout(function: &IrFunction) -> BytecodeFrameLayout {
             IrOp::StringBuild { dst, .. }
             | IrOp::StringLen { dst, .. }
             | IrOp::StringGet { dst, .. } => set_string_op_shape(&mut layout, op, *dst),
+            IrOp::SequenceLen { dst, .. } => set_register(&mut layout, *dst, Shape::Size),
             IrOp::Spawn { dst, .. } => {
                 set_register(&mut layout, *dst, Shape::Task(Box::new(Shape::Hole)))
             }

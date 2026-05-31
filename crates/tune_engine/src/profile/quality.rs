@@ -307,6 +307,7 @@ fn collect_opcode(opcode: Opcode, quality: &mut BytecodeQuality) {
         | Opcode::StructIs
         | Opcode::StringLen
         | Opcode::StringGet
+        | Opcode::SeqLen
         | Opcode::ResultPropagate
         | Opcode::TaskJoin => quality.runtime_type_guard_pressure += 1,
         _ => {}

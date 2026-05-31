@@ -110,6 +110,7 @@ pub enum Opcode {
     SeqSetUncheckedExclusive = 106,
     SeqSetCheckedShared = 107,
     SeqSetUncheckedShared = 108,
+    SeqLen = 109,
 }
 
 impl Opcode {
@@ -223,5 +224,6 @@ impl Opcode {
         Self::SeqSetUncheckedExclusive,
         Self::SeqSetCheckedShared,
         Self::SeqSetUncheckedShared,
+        Self::SeqLen,
     ];
 }

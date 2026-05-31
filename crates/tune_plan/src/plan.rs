@@ -342,6 +342,9 @@ pub enum PlanOp {
     StringLen {
         span: Option<Span>,
     },
+    SequenceLen {
+        span: Option<Span>,
+    },
     StringGet {
         span: Option<Span>,
     },
