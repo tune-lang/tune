@@ -1,5 +1,5 @@
 use tune_hir::MemberId;
-use tune_hir::expr::{Expr, ExprKind};
+use tune_hir::expr::{BinaryOp, Expr, ExprKind};
 use tune_hir::item::{Item, StructMember};
 use tune_hir::pattern::{StructuralRequirement, StructuralRequirementKind};
 use tune_resolve::NameTarget;
@@ -186,6 +186,19 @@ impl LowerContext<'_> {
         match &expr.kind {
             ExprKind::Name(_) => self.name_shape(expr),
             ExprKind::Sequence(_) => Some(Shape::Sequence(Box::new(Shape::Hole))),
+            ExprKind::Field { base, name } => {
+                let field_name = name.as_deref()?;
+                let member = self.field_member(base, field_name)?;
+                let base_shape = self.expr_shape(base)?;
+                let struct_name = self.struct_shape_name(&base_shape)?;
+                self.struct_field_shape(struct_name, member)
+            }
+            ExprKind::Binary { op, lhs, .. } => match op {
+                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Rem => {
+                    self.expr_shape(lhs)
+                }
+                _ => None,
+            },
             _ => None,
         }
     }

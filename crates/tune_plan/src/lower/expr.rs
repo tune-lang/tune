@@ -225,6 +225,8 @@ impl LowerContext<'_> {
                 } else {
                     let shape = if is_comparison_op(*op) {
                         self.expr_shape(lhs).unwrap_or(Shape::Hole)
+                    } else if expr_shape == Shape::Hole && is_contextual_numeric_op(*op) {
+                        self.expr_shape(lhs).unwrap_or(Shape::Hole)
                     } else {
                         expr_shape
                     };
