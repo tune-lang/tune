@@ -6,7 +6,7 @@ Tune is a programming language for scripts, tools, plugins, workflows, and app l
 
 Python showed how good low-ceremony code can feel. Tune keeps that direct style, then gives Dyno enough understanding to catch mistakes early, explain them clearly, power editor tooling, and make the fast path fast.
 
-Tune is not “figure it out while running” with better checks. Runtime data can be unknown. A file can contain unknown text. A branch can depend on live input. A list can have a length that is only known while the program runs. But the meaning of the code cannot stay vague. If code reads a field, calls a function, compares a number, builds a string, propagates a result, or crosses a host boundary, Dyno must know what that operation means before the program runs.
+Tune is not dynamic. It is not “figure it out while running” with nicer errors. Runtime data can be unknown: a file can contain unknown text, a branch can depend on live input, and a sequence can have a length that is only known while the program runs. But the meaning of the code cannot stay vague. If code reads a field, calls a function, compares a number, builds a string, propagates a result, or crosses a host boundary, Dyno must know what that operation means before the program runs.
 
 That is the safety model:
 
@@ -241,13 +241,37 @@ Emit machine-readable diagnostics for tools and CI:
 dyno check --json deploy.tn
 ```
 
+## Why Tune exists
+
+Useful code often gets stuck between two worlds.
+
+On one side, scripts are fast to write and easy to change, but mistakes often show up only when the unlucky path runs. On the other side, systems languages can give great performance and strong guarantees, but they may feel too heavy for deploy hooks, app scripting, internal tools, workflow glue, plugins, and host-embedded logic.
+
+Tune is exploring a different split:
+
+```text
+Keep the author experience small.
+Make the compiler understanding big.
+```
+
+Tune is aimed at:
+
+- automation scripts
+- app and plugin scripting
+- CI/deploy tooling
+- data and workflow glue
+- host-embedded business logic
+- tools that need editor help without becoming a large systems-language project
+
+The goal is not “Python with types” or “Rust but easier.” Tune's bet is that a small language can feel direct to write while still giving Dyno enough information to explain mistakes, drive editor tooling, and plan execution seriously.
+
 ## The core idea in plain English
 
-Tune lets the compiler leave something unknown only while nothing depends on it.
+Tune lets meaning stay open only while the program does not need it.
 
-An empty sequence can start out as “some sequence literal.” A number can start out as “the literal value `20`.” An ignored pattern can stay unnamed. A function parameter can start without a written type.
+A number can start out as “the literal value `20`.” An empty sequence can start out as “some sequence literal.” A function parameter can start without a written type. A pattern can contain `_` to say “there is something here, but this branch does not use it.”
 
-But the second code uses that thing, Tune has to know what the use means.
+Dyno does not solve every open thing just because it exists. That would be wasted work. It solves a hole or literal only when a use requires concrete meaning.
 
 ```tn
 let failed_services = []
@@ -256,9 +280,9 @@ failed_services.push("api")
 failed_services.push("worker")
 ```
 
-At first, `[]` has not chosen its final representation. After `push("api")`, Dyno has enough information: this is a sequence of `String` values.
+At first, `[]` has not chosen its final representation. After `push("api")`, Dyno has a real requirement: this must accept `String` values. The sequence can materialize as `[String]`.
 
-That is not runtime guessing. That is Tune delaying the decision until the code gives enough information, then locking the meaning down.
+That is not runtime guessing. Tune delayed the decision until the code made the requirement real, then locked that meaning down.
 
 If the code later tries this:
 
@@ -348,9 +372,11 @@ That expanded form is not what you have to write. It is what Dyno can show in ho
 
 </details>
 
-### Ignore what does not matter
+### Leave unneeded meaning as a hole
 
-`_` means “there is something here, but this code does not need a name for it.”
+`_` is a hole. It means “there is meaning here, and this code intentionally has no use for it right now.”
+
+That last phrase matters. A hole is not a fallback, not a wildcard escape hatch, and not a dynamic value. Dyno only solves a hole when later usage requires concrete meaning. If no usage requires it, Dyno should not spend work solving it.
 
 ```tn
 let count_items(items) = {
@@ -364,7 +390,9 @@ let count_items(items) = {
 }
 ```
 
-The same idea works in patterns:
+This function needs to know that `items` can be iterated. It does not need to know or name the element shape, because the body never uses the element.
+
+The same idea works inside patterns:
 
 ```tn
 let message = match load_config(path) {
@@ -373,7 +401,9 @@ let message = match load_config(path) {
 }
 ```
 
-`_` is not a magic fallback. In Tune, fallback branches use `else`:
+`Ok(_)` means “this branch cares that the result was `Ok`; it does not care what the payload is.” It does not mean “anything goes.”
+
+Fallback branches use `else`:
 
 ```tn
 let label = match status {
@@ -382,9 +412,14 @@ let label = match status {
 }
 ```
 
-That keeps “ignore this value” separate from “handle every remaining case.”
+That keeps two different ideas separate:
 
-If `_` is used somewhere that needs real meaning and Dyno cannot solve it, that is an error. Holes are allowed while unused or solvable. They are not a way to smuggle unknown behavior into the program.
+```text
+_     a hole: this piece exists, but this code does not use it
+else  fallback: handle every remaining case
+```
+
+If a hole reaches a place where concrete meaning is required, Dyno tries to solve it. If there is not enough information to solve it, that is an error. Holes are not dynamic escape hatches.
 
 ### Let literals become the right thing
 
@@ -435,7 +470,7 @@ The right side still looks like a simple script literal. The target shape explai
 
 Materializers are construction recipes. They should not perform outside-world work like file IO, time, randomness, or host effects.
 
-### Safe absence instead of null surprises
+### Known absence instead of null surprises
 
 Tune uses `T?` when a value may be absent.
 
@@ -443,33 +478,17 @@ Tune uses `T?` when a value may be absent.
 let token = env.get("DEPLOY_TOKEN")
 ```
 
-If `env.get` returns `String?`, then `token` is not a `String`. It is either `none` or a `String`.
+If `env.get` returns `String?`, then `token` is a known optional shape: either `none` or a `String`. This is not `null`, `undefined`, or a dynamic maybe. Dyno tracks what it knows about the value.
 
-This is not allowed:
-
-```tn
-let header = "Bearer {token}"
-```
-
-Dyno can point out the missing check:
+Optionals do not force boilerplate handling every time. When assigning an optional into a definite shape, there are three practical outcomes:
 
 ```text
-error[T0301]: optional value must be handled
-
-expected:
-  String
-
-found:
-  String?
-
-note:
-  `env.get("DEPLOY_TOKEN")` can return none
-
-help:
-  check the value before using it as a String
+1. Dyno proves the value is present      -> no warning
+2. Dyno cannot prove present or none     -> warning: narrow if this matters
+3. Dyno proves the value is none         -> error
 ```
 
-Handle the possible `none` case and the code becomes direct again:
+Once code narrows the value, using it as present is ordinary code:
 
 ```tn
 enum ConfigError {
@@ -480,6 +499,7 @@ let auth_header(): Result<String, ConfigError> = {
     let token = env.get("DEPLOY_TOKEN")
 
     if token {
+        -- In this branch, Dyno knows token is present.
         Ok("Bearer {token}")
     } else {
         Error(MissingDeployToken)
@@ -487,14 +507,76 @@ let auth_header(): Result<String, ConfigError> = {
 }
 ```
 
-Inside the true branch, Tune knows `token` is present. Outside that branch, it remains `String?`.
+If code assigns a maybe-present value into a place that expects a definite `String`, Dyno can warn instead of pretending the question does not exist:
+
+```tn
+let token: String = env.get("DEPLOY_TOKEN")
+```
+
+```text
+warning[T0301]: optional presence is not proven
+
+  --> deploy.tn:1:21
+   |
+1  | let token: String = env.get("DEPLOY_TOKEN")
+   |                     ----------------------- this returns String?
+
+expected:
+  String
+
+found:
+  String?
+
+note:
+  Dyno cannot prove this value is present at assignment
+
+help:
+  narrow first if absence changes behavior
+```
+
+If Dyno can prove the value is absent, that is no longer a warning:
+
+```tn
+let token: String = none
+```
+
+```text
+error[T0301]: cannot assign none to String
+
+expected:
+  String
+
+found:
+  none
+
+help:
+  use String? if absence is part of the value:
+    let token: String? = none
+```
+
+That is the safety story: Tune does not force every optional into a ceremony-heavy match, but it also does not let absence become a surprise `null` crash.
 
 ### Propagate errors without hiding the path
 
 Outside-world operations return ordinary results. `!` means “continue with the success value, or return the error from this function.”
 
 ```tn
-let load_event(path: String): Result<DeployEvent, FsError | JsonError> = {
+let load_event(path) = {
+    let text = fs.read(path)!
+    json.decode<DeployEvent>(text)!
+}
+```
+
+Dyno can understand the private script version as returning something like:
+
+```tn
+Result<DeployEvent, FsError | JsonError>
+```
+
+For public APIs, Tune should warn when that result shape is inferred. Public surfaces should usually write the contract explicitly:
+
+```tn
+pub let load_event(path: String): Result<DeployEvent, FsError | JsonError> = {
     let text = fs.read(path)!
     json.decode<DeployEvent>(text)!
 }
@@ -510,6 +592,44 @@ error: file not found: deploy.json
 ```
 
 The success path stays direct. The context is attached when the error path is taken.
+
+### If you know Rust: `?` and `!`
+
+Rust users already know the basic move:
+
+```rust
+fn load_event(path: &str) -> Result<DeployEvent, LoadError> {
+    let text = std::fs::read_to_string(path)?;
+    let event = serde_json::from_str(&text)?;
+    Ok(event)
+}
+```
+
+Rust's `?` means: if this is `Ok(value)`, keep going with `value`; if this is `Err(error)`, return the error from the current function. The function's return type has to support that error, often through a custom enum, `From` conversions, or a library error type.
+
+Tune's `!` is the same family of idea:
+
+```tn
+let load_event(path) = {
+    let text = fs.read(path)!
+    json.decode<DeployEvent>(text)!
+}
+```
+
+The important differences are Tune-shaped:
+
+```text
+Rust ?   works with Rust's Result/Try model and explicit function signatures
+Tune !   works with Tune Result flow, inferred error unions, and propagation frames
+
+Rust ?   uses ? because Rust does not use T? as its optional syntax
+Tune !   uses ! because T? already means “maybe none” in Tune
+
+Rust ?   returns errors through the current function
+Tune !   also returns errors through the current callable, while Dyno can attach the source frames that propagated them
+```
+
+That makes `!` easy to learn if you know Rust, but it still fits Tune's own safety model: absence is `T?`; recoverable failure is `Result<T, E>`; propagation is `!`; unrecoverable failure is `panic`.
 
 ### Choose concurrency at the call site
 
@@ -555,30 +675,6 @@ dyno profile deploy.tn
 A profile report can show pipeline and IR-quality information such as direct calls, witness/shared calls, host calls, ownership choices, field accesses, bytecode calls, and runtime guard pressure.
 
 The pitch is not magic speed. The pitch is fewer surprises: write script-sized code, let the compiler keep track of what the code means, and make the fast path visible.
-
-## Why Tune exists
-
-Useful code often gets stuck between two worlds.
-
-On one side, scripts are fast to write and easy to change, but mistakes often show up only when the unlucky path runs. On the other side, systems languages can give great performance and strong guarantees, but they may feel too heavy for deploy hooks, app scripting, internal tools, workflow glue, plugins, and host-embedded logic.
-
-Tune is exploring a different split:
-
-```text
-Keep the author experience small.
-Make the compiler understanding big.
-```
-
-Tune is aimed at:
-
-- automation scripts
-- app and plugin scripting
-- CI/deploy tooling
-- data and workflow glue
-- host-embedded business logic
-- tools that need editor help without becoming a large systems-language project
-
-The goal is not “Python with types” or “Rust but easier.” Tune's bet is that a small language can feel direct to write while still giving Dyno enough information to explain mistakes, drive editor tooling, and plan execution seriously.
 
 ## What Dyno provides
 
@@ -702,7 +798,7 @@ Current implemented areas include:
 - enums, variants, tuples, pattern matching, and structural match checks
 - generic callables and generic structs
 - sequences, ranges, finite `for`, string indexing, and interpolation
-- optional values with narrowing through `none`
+- optional values with presence tracking and narrowing
 - `Result` values and postfix `!` propagation
 - `Task`, `spawn`, and `join`
 - host modules, authorities, task-safety metadata, and host resources
@@ -711,7 +807,7 @@ A few Tune details that matter in practice:
 
 ```tn
 let status = if ok => "deployed" else "failed"  -- if is an expression
-let token = env.get("DEPLOY_TOKEN")              -- String? means absence must be handled
+let token = env.get("DEPLOY_TOKEN")              -- String? means absence is known and tracked
 let text = fs.read(path)!                         -- ! propagates Result errors with context
 let task = spawn load_user(id)                    -- callers choose concurrency
 let user = task.join()!                           -- join returns the task's result
