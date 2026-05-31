@@ -65,6 +65,28 @@ impl LowerContext<'_> {
             })
     }
 
+    pub(super) fn enum_variant_id(
+        &self,
+        base: &Expr,
+        variant_name: &str,
+    ) -> Option<tune_resolve::VariantId> {
+        let NameTarget::TopLevel(item_id) = self.name_target(base.id)? else {
+            return None;
+        };
+        let item = self
+            .module?
+            .items
+            .iter()
+            .find(|item| item.id == item_id)?;
+        if item.kind != tune_hir::item::ItemKind::Enum {
+            return None;
+        }
+        item.variants.iter().find_map(|variant| {
+            (variant.name.as_deref() == Some(variant_name))
+                .then_some(tune_resolve::VariantId::Member(variant.id))
+        })
+    }
+
     pub(super) fn field_member(&self, base: &Expr, field: &str) -> Option<MemberId> {
         let shape = self.expr_shape(base)?;
         self.struct_item_for_shape(&shape)?

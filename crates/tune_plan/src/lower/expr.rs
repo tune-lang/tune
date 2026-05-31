@@ -1,4 +1,5 @@
 use tune_hir::expr::{BinaryOp, Expr, ExprKind, LiteralKind, StringPart};
+use tune_resolve::NameTarget;
 use tune_shape::{MaterializationPlan, Shape};
 
 use super::LowerContext;
@@ -10,9 +11,17 @@ impl LowerContext<'_> {
         match &expr.kind {
             ExprKind::Missing => {}
             ExprKind::Name(_) => {
-                ops.push(PlanOp::BindingGet {
-                    source: self.name_target(expr.id),
-                });
+                if let Some(NameTarget::Variant(variant)) = self.name_target(expr.id) {
+                    ops.push(PlanOp::VariantConstruct {
+                        variant,
+                        arg_count: 0,
+                        span: expr.span,
+                    });
+                } else {
+                    ops.push(PlanOp::BindingGet {
+                        source: self.name_target(expr.id),
+                    });
+                }
             }
             ExprKind::Literal(LiteralKind::Int(text)) => {
                 if !self.lower_materialized_numeric_expr(expr, ops) {
@@ -97,11 +106,30 @@ impl LowerContext<'_> {
                 self.lower_call(expr.id, callee, args, ops);
             }
             ExprKind::Field { base, name } => {
+                if let Some(NameTarget::Variant(variant)) = self.name_target(expr.id) {
+                    ops.push(PlanOp::VariantConstruct {
+                        variant,
+                        arg_count: 0,
+                        span: expr.span,
+                    });
+                    return;
+                }
                 if self.name_target(expr.id).is_some() {
                     ops.push(PlanOp::BindingGet {
                         source: self.name_target(expr.id),
                     });
                     return;
+                }
+                // Enum variant access: EnumName.VariantName with no payload.
+                if let Some(field_name) = name.as_deref() {
+                    if let Some(variant) = self.enum_variant_id(base, field_name) {
+                        ops.push(PlanOp::VariantConstruct {
+                            variant,
+                            arg_count: 0,
+                            span: expr.span,
+                        });
+                        return;
+                    }
                 }
                 self.lower_expr(base, ops);
                 let field = name.clone().unwrap_or_default();
