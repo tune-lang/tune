@@ -111,9 +111,19 @@ fn main() {
         }
     };
     let Some(path) = path else {
-        run_project_command(command);
+        run_project_command_at(command, "dyno.toml");
         return;
     };
+    if std::path::Path::new(path).is_dir() {
+        let manifest = std::path::Path::new(path).join("dyno.toml");
+        if manifest.exists() {
+            run_project_command_at(command, &manifest.to_string_lossy());
+        } else {
+            eprintln!("error: `{path}` is a directory with no dyno.toml");
+            std::process::exit(1);
+        }
+        return;
+    }
     let mut tune = dyno_cli::default_tune();
 
     if matches!(command, dyno_cli::CliCommand::Profile { .. }) {
@@ -206,9 +216,9 @@ fn main() {
     }
 }
 
-fn run_project_command(command: dyno_cli::CliCommand) {
+fn run_project_command_at(command: dyno_cli::CliCommand, manifest: &str) {
     let mut tune = dyno_cli::default_tune();
-    let entry = match tune.load_project_manifest("dyno.toml") {
+    let entry = match tune.load_project_manifest(manifest) {
         Ok(entry) => entry,
         Err(error) => {
             for diagnostic in dyno_cli::render_engine_error_with_sources(&error, tune.db()) {
